@@ -172,6 +172,7 @@
                   <button @click="handleDelete(routine.id)" class="btn-delete">刪除</button>
                 </td>
               </tr>
+            </template>
           </tbody>
         </table>
       </div>

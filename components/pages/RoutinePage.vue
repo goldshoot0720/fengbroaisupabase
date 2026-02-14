@@ -769,6 +769,14 @@ onMounted(() => {
   gap: 0.75rem;
 }
 
+.inline-actions-wrapper .btn-save,
+.inline-actions-wrapper .btn-cancel {
+  width: auto;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
 .inline-photo-preview {
   margin-top: 0.5rem;
   max-width: 120px;

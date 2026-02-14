@@ -77,7 +77,7 @@ export const useBanks = () => {
       const { data, error: fetchError } = await client
         .from('bank')
         .select('*')
-        .order('id', { ascending: true })
+        .order('deposit', { ascending: false })
 
       if (fetchError) throw fetchError
       
@@ -119,6 +119,7 @@ export const useBanks = () => {
 
       if (data) {
         banks.value.push(data[0])
+        banks.value.sort((a, b) => (Number(b.deposit) || 0) - (Number(a.deposit) || 0))
       }
       return { success: true }
     } catch (e) {
@@ -161,6 +162,7 @@ export const useBanks = () => {
         if (index !== -1) {
           banks.value[index] = data[0]
         }
+        banks.value.sort((a, b) => (Number(b.deposit) || 0) - (Number(a.deposit) || 0))
       }
       return { success: true }
     } catch (e) {
@@ -219,6 +221,7 @@ export const useBanks = () => {
 
       if (data) {
         banks.value = [...banks.value, ...data]
+        banks.value.sort((a, b) => (Number(b.deposit) || 0) - (Number(a.deposit) || 0))
       }
       return { success: true }
     } catch (e) {
@@ -257,6 +260,7 @@ export const useBanks = () => {
       const { data, error: insertError } = await client.from('bank').insert(payload).select()
       if (insertError) throw insertError
       banks.value.push(...data)
+      banks.value.sort((a, b) => (Number(b.deposit) || 0) - (Number(a.deposit) || 0))
       return { success: true, count: data.length }
     } catch (e) {
       return { success: false, error: e.message }

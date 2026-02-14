@@ -62,7 +62,7 @@
           </thead>
           <tbody>
             <template v-for="routine in filteredRoutines" :key="routine.id">
-              <!-- 行內編輯模式 - 第一列：主要欄位 -->
+              <!-- 行內編輯模式 - 第一列：名稱、日期 -->
               <tr v-if="editingId === routine.id" class="row-editing">
                 <td class="td-name">
                   <input 
@@ -75,30 +75,10 @@
                     @keydown.escape="cancelInlineEdit"
                   >
                 </td>
-                <!-- 備註欄位在第二列，這裡留空 -->
+                <!-- 備註在第二列 -->
                 <td class="td-note-empty"></td>
-                <td class="td-photo">
-                  <div class="inline-photo-edit">
-                    <input 
-                      v-model="editForm.photo" 
-                      type="text" 
-                      class="inline-input" 
-                      placeholder="圖片 URL"
-                      @keydown.enter="saveInlineEdit"
-                      @keydown.escape="cancelInlineEdit"
-                    >
-                    <label class="btn-inline-upload" title="上傳圖片">
-                      📷
-                      <input
-                        type="file"
-                        accept="image/*"
-                        @change="handleInlinePhotoUpload"
-                        style="display: none"
-                      />
-                    </label>
-                  </div>
-                  <div v-if="inlineUploading" class="inline-upload-status">上傳中...</div>
-                </td>
+                <!-- 圖片在第三列 -->
+                <td class="td-photo-empty"></td>
                 <td class="td-date">
                   <input 
                     v-model="editForm.lastdate1" 
@@ -124,10 +104,8 @@
                     @keydown.escape="cancelInlineEdit"
                   >
                 </td>
-                <td class="td-actions">
-                  <button @click="saveInlineEdit" class="btn-save" title="儲存 (Enter)">💾</button>
-                  <button @click="cancelInlineEdit" class="btn-cancel" title="取消 (Esc)">✕</button>
-                </td>
+                <!-- 操作在第三列 -->
+                <td class="td-actions-empty"></td>
               </tr>
               <!-- 行內編輯模式 - 第二列：備註 -->
               <tr v-if="editingId === routine.id" class="row-editing row-editing-note">
@@ -141,6 +119,41 @@
                       rows="3"
                       @keydown.escape="cancelInlineEdit"
                     ></textarea>
+                  </div>
+                </td>
+              </tr>
+              <!-- 行內編輯模式 - 第三列：圖片、操作 -->
+              <tr v-if="editingId === routine.id" class="row-editing row-editing-photo">
+                <td colspan="2" class="td-photo-full">
+                  <label class="photo-label">圖片：</label>
+                  <div class="inline-photo-edit">
+                    <input 
+                      v-model="editForm.photo" 
+                      type="text" 
+                      class="inline-input" 
+                      placeholder="圖片 URL"
+                      @keydown.enter="saveInlineEdit"
+                      @keydown.escape="cancelInlineEdit"
+                    >
+                    <label class="btn-inline-upload" title="上傳圖片">
+                      📷
+                      <input
+                        type="file"
+                        accept="image/*"
+                        @change="handleInlinePhotoUpload"
+                        style="display: none"
+                      />
+                    </label>
+                  </div>
+                  <div v-if="inlineUploading" class="inline-upload-status">上傳中...</div>
+                  <div v-if="editForm.photo" class="inline-photo-preview">
+                    <img :src="editForm.photo" alt="預覽" />
+                  </div>
+                </td>
+                <td colspan="6" class="td-actions-full">
+                  <div class="inline-actions-wrapper">
+                    <button @click="saveInlineEdit" class="btn-save" title="儲存 (Enter)">💾 儲存</button>
+                    <button @click="cancelInlineEdit" class="btn-cancel" title="取消 (Esc)">✕ 取消</button>
                   </div>
                 </td>
               </tr>
@@ -716,6 +729,57 @@ onMounted(() => {
 .td-note-empty {
   background: transparent !important;
   min-width: 80px;
+}
+
+/* 行內編輯第三列（圖片、操作）樣式 */
+.row-editing-photo td {
+  background: linear-gradient(135deg, #fef9c3 0%, #fde047 100%) !important;
+  border-top: 1px dashed #f59e0b;
+  padding: 0.75rem 1rem;
+  vertical-align: top;
+}
+
+.td-photo-full {
+  min-width: 300px;
+}
+
+.photo-label {
+  font-weight: 600;
+  color: #92400e;
+  font-size: 0.9rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.td-photo-empty {
+  background: transparent !important;
+}
+
+.td-actions-empty {
+  background: transparent !important;
+}
+
+.td-actions-full {
+  text-align: right;
+}
+
+.inline-actions-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.inline-photo-preview {
+  margin-top: 0.5rem;
+  max-width: 120px;
+}
+
+.inline-photo-preview img {
+  width: 100%;
+  max-height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 2px solid #fbbf24;
 }
 
 .inline-input {

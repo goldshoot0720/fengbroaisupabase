@@ -436,20 +436,38 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .top-header {
     padding: 1rem 1.5rem;
+    padding-top: calc(1rem + env(safe-area-inset-top));
+    padding-left: calc(1.5rem + env(safe-area-inset-left));
+    padding-right: calc(1.5rem + env(safe-area-inset-right));
   }
-  
+
   .top-header h1 {
     font-size: 1.4rem;
+  }
+
+  .header-subtitle {
+    display: none;
+  }
+
+  .account-name {
+    max-width: 100px;
   }
 }
 
 @media (max-width: 480px) {
   .top-header {
     padding: 0.8rem 1rem;
+    padding-top: calc(0.8rem + env(safe-area-inset-top));
+    padding-left: calc(1rem + env(safe-area-inset-left));
+    padding-right: calc(1rem + env(safe-area-inset-right));
   }
-  
+
   .top-header h1 {
     font-size: 1.2rem;
+  }
+
+  .account-name {
+    max-width: 80px;
   }
 }
 </style>

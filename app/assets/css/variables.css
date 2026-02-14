@@ -129,6 +129,8 @@
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  /* 手機安全區域支援 */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 body {
@@ -137,6 +139,9 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   transition: background-color var(--transition-normal), color var(--transition-normal);
+  /* 手機觸控優化 */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 /* ===== 滾動條樣式 ===== */

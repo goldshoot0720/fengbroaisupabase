@@ -314,11 +314,17 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .mobile-overlay { display: block; }
-  .page-content { padding: 1.5rem; }
+  .page-content {
+    padding: 1.5rem;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
 }
 
 @media (max-width: 480px) {
-  .page-content { padding: 1rem; }
+  .page-content {
+    padding: 1rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
 }
 
 /* 頁面切換動畫 */
@@ -382,13 +388,13 @@ onUnmounted(() => {
 
 /* 響應式調整 */
 @media (max-width: 768px) {
-  .scroll-buttons { right: 1rem; bottom: 1rem; }
+  .scroll-buttons { right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom)); }
   .scroll-btn { width: 45px; height: 45px; font-size: 1.1rem; }
   .mobile-overlay ~ .scroll-buttons { display: none; }
 }
 
 @media (max-width: 480px) {
-  .scroll-buttons { right: 0.5rem; bottom: 0.5rem; }
+  .scroll-buttons { right: 0.5rem; bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
   .scroll-btn { width: 40px; height: 40px; font-size: 1rem; }
 }
 </style>

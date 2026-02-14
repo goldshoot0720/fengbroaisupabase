@@ -64,18 +64,77 @@
             <tr v-for="routine in filteredRoutines" :key="routine.id" :class="{ 'row-editing': editingId === routine.id }">
               <!-- 行內編輯模式 -->
               <template v-if="editingId === routine.id">
-                <td class="td-name"><input v-model="editForm.name" type="text" class="inline-input" placeholder="名稱"></td>
-                <td class="td-note"><input v-model="editForm.note" type="text" class="inline-input" placeholder="備註"></td>
-                <td class="td-photo">
-                  <input v-model="editForm.photo" type="text" class="inline-input" placeholder="圖片 URL" style="font-size:0.75rem">
+                <td class="td-name">
+                  <input 
+                    ref="inlineNameInput"
+                    v-model="editForm.name" 
+                    type="text" 
+                    class="inline-input" 
+                    placeholder="名稱"
+                    @keydown.enter="saveInlineEdit"
+                    @keydown.escape="cancelInlineEdit"
+                  >
                 </td>
-                <td class="td-date"><input v-model="editForm.lastdate1" type="date" class="inline-input"></td>
-                <td class="td-date"><input v-model="editForm.lastdate2" type="date" class="inline-input"></td>
+                <td class="td-note">
+                  <input 
+                    v-model="editForm.note" 
+                    type="text" 
+                    class="inline-input" 
+                    placeholder="備註"
+                    @keydown.enter="saveInlineEdit"
+                    @keydown.escape="cancelInlineEdit"
+                  >
+                </td>
+                <td class="td-photo">
+                  <div class="inline-photo-edit">
+                    <input 
+                      v-model="editForm.photo" 
+                      type="text" 
+                      class="inline-input" 
+                      placeholder="圖片 URL"
+                      @keydown.enter="saveInlineEdit"
+                      @keydown.escape="cancelInlineEdit"
+                    >
+                    <label class="btn-inline-upload" title="上傳圖片">
+                      📷
+                      <input
+                        type="file"
+                        accept="image/*"
+                        @change="handleInlinePhotoUpload"
+                        style="display: none"
+                      />
+                    </label>
+                  </div>
+                  <div v-if="inlineUploading" class="inline-upload-status">上傳中...</div>
+                </td>
+                <td class="td-date">
+                  <input 
+                    v-model="editForm.lastdate1" 
+                    type="date" 
+                    class="inline-input"
+                    @keydown.escape="cancelInlineEdit"
+                  >
+                </td>
+                <td class="td-date">
+                  <input 
+                    v-model="editForm.lastdate2" 
+                    type="date" 
+                    class="inline-input"
+                    @keydown.escape="cancelInlineEdit"
+                  >
+                </td>
                 <td class="td-days"></td>
-                <td class="td-date"><input v-model="editForm.lastdate3" type="date" class="inline-input"></td>
+                <td class="td-date">
+                  <input 
+                    v-model="editForm.lastdate3" 
+                    type="date" 
+                    class="inline-input"
+                    @keydown.escape="cancelInlineEdit"
+                  >
+                </td>
                 <td class="td-actions">
-                  <button @click="saveInlineEdit" class="btn-save" title="儲存">💾</button>
-                  <button @click="cancelInlineEdit" class="btn-cancel" title="取消">✕</button>
+                  <button @click="saveInlineEdit" class="btn-save" title="儲存 (Enter)">💾</button>
+                  <button @click="cancelInlineEdit" class="btn-cancel" title="取消 (Esc)">✕</button>
                 </td>
               </template>
 
@@ -208,7 +267,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, nextTick } from 'vue'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useRoutines } from '../../composables/useRoutines'
@@ -240,6 +299,8 @@ const isEditMode = ref(false)
 // 行內編輯
 const editingId = ref(null)
 const editForm = reactive({})
+const inlineNameInput = ref(null)
+const inlineUploading = ref(false)
 
 const startInlineEdit = (routine) => {
   Object.assign(editForm, {
@@ -252,6 +313,38 @@ const startInlineEdit = (routine) => {
     lastdate3: routine.lastdate3 || ''
   })
   editingId.value = routine.id
+  // 自動聚焦到名稱輸入框
+  nextTick(() => {
+    inlineNameInput.value?.focus()
+    inlineNameInput.value?.select()
+  })
+}
+
+// 行內圖片上傳
+const handleInlinePhotoUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  inlineUploading.value = true
+  try {
+    const result = await uploadFile(file, 'routine')
+    if (result.success) {
+      editForm.photo = result.url
+      // 短暫提示上傳成功
+      setTimeout(() => {
+        inlineUploading.value = false
+      }, 500)
+    } else {
+      alert('上傳失敗: ' + result.error)
+      inlineUploading.value = false
+    }
+  } catch (error) {
+    console.error('Inline upload error:', error)
+    alert('上傳失敗: ' + error.message)
+    inlineUploading.value = false
+  } finally {
+    event.target.value = ''
+  }
 }
 
 const cancelInlineEdit = () => {
@@ -577,50 +670,97 @@ onMounted(() => {
 <style scoped>
 /* 行內編輯樣式 */
 .row-editing {
-  background: #fffbeb !important;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+  box-shadow: inset 0 0 0 2px #f59e0b;
+}
+
+.row-editing td {
+  padding: 0.5rem 0.75rem;
 }
 
 .inline-input {
   width: 100%;
-  padding: 0.3rem 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  transition: border-color 0.2s;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid #fbbf24;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  background: white;
 }
 
 .inline-input:focus {
   outline: none;
   border-color: #f59e0b;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+.inline-photo-edit {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.inline-photo-edit .inline-input {
+  flex: 1;
+  min-width: 80px;
+}
+
+.btn-inline-upload {
+  background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%);
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-inline-upload:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(242, 153, 74, 0.3);
+}
+
+.inline-upload-status {
+  font-size: 0.75rem;
+  color: #f59e0b;
+  margin-top: 0.25rem;
+  font-weight: 500;
 }
 
 .btn-save {
-  background: none;
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   border: none;
   cursor: pointer;
-  font-size: 1.1rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  transition: background 0.2s;
+  font-size: 1rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  color: white;
 }
 
 .btn-save:hover {
-  background: #ecfdf5;
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
 .btn-cancel {
-  background: none;
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
   border: none;
   cursor: pointer;
-  font-size: 1.1rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  transition: background 0.2s;
+  font-size: 1rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  color: white;
+  margin-left: 0.25rem;
 }
 
 .btn-cancel:hover {
-  background: #fef2f2;
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 .routine-page {
   animation: fadeIn 0.3s ease-in;

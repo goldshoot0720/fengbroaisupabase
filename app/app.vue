@@ -317,6 +317,14 @@ onUnmounted(() => {
   .page-content {
     padding: 1.5rem;
     padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    min-height: auto;
+    max-height: none;
+    overflow-y: visible;
+  }
+  .main-content {
+    overflow-y: auto;
+    height: 100vh;
+    height: 100dvh;
   }
 }
 
@@ -324,6 +332,8 @@ onUnmounted(() => {
   .page-content {
     padding: 1rem;
     padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    min-height: auto;
+    max-height: none;
   }
 }
 

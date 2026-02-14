@@ -76,14 +76,13 @@
                   >
                 </td>
                 <td class="td-note">
-                  <input 
+                  <textarea 
                     v-model="editForm.note" 
-                    type="text" 
-                    class="inline-input" 
+                    class="inline-input inline-textarea" 
                     placeholder="備註"
-                    @keydown.enter="saveInlineEdit"
+                    rows="2"
                     @keydown.escape="cancelInlineEdit"
-                  >
+                  ></textarea>
                 </td>
                 <td class="td-photo">
                   <div class="inline-photo-edit">
@@ -675,7 +674,12 @@ onMounted(() => {
 }
 
 .row-editing td {
-  padding: 0.5rem 0.75rem;
+  padding: 0.75rem;
+  vertical-align: top;
+}
+
+.row-editing .td-note {
+  min-width: 150px;
 }
 
 .inline-input {
@@ -686,12 +690,20 @@ onMounted(() => {
   font-size: 0.9rem;
   transition: all 0.2s;
   background: white;
+  font-family: inherit;
 }
 
 .inline-input:focus {
   outline: none;
   border-color: #f59e0b;
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+.inline-textarea {
+  resize: vertical;
+  min-height: 60px;
+  line-height: 1.5;
+  padding: 0.5rem;
 }
 
 .inline-photo-edit {

@@ -61,9 +61,9 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="routine in filteredRoutines" :key="routine.id" :class="{ 'row-editing': editingId === routine.id }">
-              <!-- 行內編輯模式 -->
-              <template v-if="editingId === routine.id">
+            <template v-for="routine in filteredRoutines" :key="routine.id">
+              <!-- 行內編輯模式 - 第一列：主要欄位 -->
+              <tr v-if="editingId === routine.id" class="row-editing">
                 <td class="td-name">
                   <input 
                     ref="inlineNameInput"
@@ -75,15 +75,8 @@
                     @keydown.escape="cancelInlineEdit"
                   >
                 </td>
-                <td class="td-note">
-                  <textarea 
-                    v-model="editForm.note" 
-                    class="inline-input inline-textarea" 
-                    placeholder="備註"
-                    rows="2"
-                    @keydown.escape="cancelInlineEdit"
-                  ></textarea>
-                </td>
+                <!-- 備註欄位在第二列，這裡留空 -->
+                <td class="td-note-empty"></td>
                 <td class="td-photo">
                   <div class="inline-photo-edit">
                     <input 
@@ -135,36 +128,50 @@
                   <button @click="saveInlineEdit" class="btn-save" title="儲存 (Enter)">💾</button>
                   <button @click="cancelInlineEdit" class="btn-cancel" title="取消 (Esc)">✕</button>
                 </td>
-              </template>
+              </tr>
+              <!-- 行內編輯模式 - 第二列：備註 -->
+              <tr v-if="editingId === routine.id" class="row-editing row-editing-note">
+                <td colspan="8" class="td-note-full">
+                  <div class="inline-note-wrapper">
+                    <label class="note-label">備註：</label>
+                    <textarea 
+                      v-model="editForm.note" 
+                      class="inline-input inline-textarea" 
+                      placeholder="輸入備註內容..."
+                      rows="3"
+                      @keydown.escape="cancelInlineEdit"
+                    ></textarea>
+                  </div>
+                </td>
+              </tr>
 
               <!-- 顯示模式 -->
-              <template v-else>
-              <td class="td-name">{{ routine.name }}</td>
-              <td class="td-note">{{ routine.note || '' }}</td>
-              <td class="td-photo">
-                <img
-                  v-if="routine.photo"
-                  :src="routine.photo"
-                  :alt="routine.name"
-                  class="table-photo"
-                  @click="previewImage = routine.photo"
-                />
-              </td>
-              <td class="td-date">{{ formatDate(routine.lastdate1) }}</td>
-              <td class="td-date">{{ formatDate(routine.lastdate2) }}</td>
-              <td class="td-days">
-                <span v-if="getDaysBetween(routine.lastdate1, routine.lastdate2) !== null" class="days-badge">
-                  {{ getDaysBetween(routine.lastdate1, routine.lastdate2) }} 天
-                </span>
-              </td>
-              <td class="td-date">{{ formatDate(routine.lastdate3) }}</td>
-              <td class="td-actions">
-                <button @click="handleShiftDates(routine)" class="btn-shift" title="日期遞移">&rarr;</button>
-                <button @click="startInlineEdit(routine)" class="btn-edit">編輯</button>
-                <button @click="handleDelete(routine.id)" class="btn-delete">刪除</button>
-              </td>
-              </template>
-            </tr>
+              <tr v-else>
+                <td class="td-name">{{ routine.name }}</td>
+                <td class="td-note">{{ routine.note || '' }}</td>
+                <td class="td-photo">
+                  <img
+                    v-if="routine.photo"
+                    :src="routine.photo"
+                    :alt="routine.name"
+                    class="table-photo"
+                    @click="previewImage = routine.photo"
+                  />
+                </td>
+                <td class="td-date">{{ formatDate(routine.lastdate1) }}</td>
+                <td class="td-date">{{ formatDate(routine.lastdate2) }}</td>
+                <td class="td-days">
+                  <span v-if="getDaysBetween(routine.lastdate1, routine.lastdate2) !== null" class="days-badge">
+                    {{ getDaysBetween(routine.lastdate1, routine.lastdate2) }} 天
+                  </span>
+                </td>
+                <td class="td-date">{{ formatDate(routine.lastdate3) }}</td>
+                <td class="td-actions">
+                  <button @click="handleShiftDates(routine)" class="btn-shift" title="日期遞移">&rarr;</button>
+                  <button @click="startInlineEdit(routine)" class="btn-edit">編輯</button>
+                  <button @click="handleDelete(routine.id)" class="btn-delete">刪除</button>
+                </td>
+              </tr>
           </tbody>
         </table>
       </div>
@@ -680,6 +687,34 @@ onMounted(() => {
 
 .row-editing .td-note {
   min-width: 150px;
+}
+
+/* 行內編輯第二列（備註）樣式 */
+.row-editing-note td {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
+  border-top: 1px dashed #f59e0b;
+  padding: 0.75rem 1rem;
+}
+
+.td-note-full {
+  width: 100%;
+}
+
+.inline-note-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.note-label {
+  font-weight: 600;
+  color: #92400e;
+  font-size: 0.9rem;
+}
+
+.td-note-empty {
+  background: transparent !important;
+  min-width: 80px;
 }
 
 .inline-input {

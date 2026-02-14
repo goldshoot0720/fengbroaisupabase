@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音樂庫檔案路徑測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-info {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .category-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        .category-title {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+        .track-test {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            background: white;
+        }
+        .track-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .track-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status.testing {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .path-info {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #666;
+            margin: 5px 0;
+            word-break: break-all;
+        }
+        .error-details {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 1rem;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .summary {
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+        .summary-stats {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            margin-top: 15px;
+        }
+        .stat-item {
+            flex: 1;
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 音樂庫檔案路徑測試</h1>
+        
+        <div class="test-info">
+            <h3>檔案路徑一致性檢查</h3>
+            <p>檢查 MusicManager.vue 中的 blobKey 路徑是否與實際檔案結構匹配</p>
+        </div>
+
+        <div class="controls">
+            <button onclick="startPathTest()" id="testBtn">🔍 開始路徑測試</button>
+            <button onclick="testApiEndpoints()" id="apiBtn">🌐 測試 API 端點</button>
+            <button onclick="clearResults()" id="clearBtn">🗑️ 清除結果</button>
+        </div>
+
+        <div id="testResults"></div>
+
+        <div class="summary" id="summary" style="display: none;">
+            <h3>📊 測試摘要</h3>
+            <div class="summary-stats">
+                <div class="stat-item">
+                    <div class="stat-number" id="totalTracks">0</div>
+                    <div class="stat-label">總音樂數</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="successTracks">0</div>
+                    <div class="stat-label">路徑正確</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="errorTracks">0</div>
+                    <div class="stat-label">路徑錯誤</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="successRate">0%</div>
+                    <div class="stat-label">成功率</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 音樂分類配置 (從 MusicManager.vue 複製)
+        const musicCategories = [
+            {
+                name: '鋒兄的傳奇人生',
+                tracks: [
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生.mp3', displayName: '原版' },
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生 (Rose).mp3', displayName: 'Rose 版' },
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生(Donald Trump).mp3', displayName: 'Donald Trump 版' },
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生(Freddie Mercury).mp3', displayName: 'Freddie Mercury 版' },
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生(Hatsune Miku).mp3', displayName: 'Hatsune Miku 版' },
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生(Pekora).mp3', displayName: 'Pekora 版' },
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生(Sidhu).mp3', displayName: 'Sidhu 版' },
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生(SpongeBob SquarePants).mp3', displayName: 'SpongeBob 版' },
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生(日文).mp3', displayName: '日文版' },
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生(粵語).mp3', displayName: '粵語版' },
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生(英文).mp3', displayName: '英文版' },
+                    { blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生(韓文).mp3', displayName: '韓文版' }
+                ]
+            },
+            {
+                name: '鋒兄進化Show🔥',
+                tracks: [
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥.mp3', displayName: '原版' },
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥(Rose).mp3', displayName: 'Rose 版' },
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥(Donald Trump).mp3', displayName: 'Donald Trump 版' },
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥(Freddie Mercury).mp3', displayName: 'Freddie Mercury 版' },
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥(Hatsune Miku).mp3', displayName: 'Hatsune Miku 版' },
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥(Pekora).mp3', displayName: 'Pekora 版' },
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥(Sidhu).mp3', displayName: 'Sidhu 版' },
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥(SpongeBob SquarePants).mp3', displayName: 'SpongeBob 版' },
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥(日語).mp3', displayName: '日語版' },
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥(粵語).mp3', displayName: '粵語版' },
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥(英語).mp3', displayName: '英語版' },
+                    { blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥(韓語).mp3', displayName: '韓語版' }
+                ]
+            },
+            {
+                name: '塗哥水電王子爆紅',
+                tracks: [
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅.mp3', displayName: '原版' },
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅(Rose).mp3', displayName: 'Rose 版' },
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅(Donald Trump).mp3', displayName: 'Donald Trump 版' },
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅(Freddie Mercury).mp3', displayName: 'Freddie Mercury 版' },
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅(Hatsune Miku).mp3', displayName: 'Hatsune Miku 版' },
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅(Pekora).mp3', displayName: 'Pekora 版' },
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅(Sidhu).mp3', displayName: 'Sidhu 版' },
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅(SpongeBob SquarePants).mp3', displayName: 'SpongeBob 版' },
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅(日語).mp3', displayName: '日語版' },
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅(粵語).mp3', displayName: '粵語版' },
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅(英語).mp3', displayName: '英語版' },
+                    { blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅(韓語).mp3', displayName: '韓語版' }
+                ]
+            },
+            {
+                name: '最瞎結婚理由',
+                tracks: [
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由.mp3', displayName: '原版' },
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由(Rose).mp3', displayName: 'Rose 版' },
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由(Donald Trump).mp3', displayName: 'Donald Trump 版' },
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由(Freddie Mercury).mp3', displayName: 'Freddie Mercury 版' },
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由(Hatsune Miku).mp3', displayName: 'Hatsune Miku 版' },
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由(Pekora).mp3', displayName: 'Pekora 版' },
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由(Sidhu).mp3', displayName: 'Sidhu 版' },
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由(SpongeBob SquarePants).mp3', displayName: 'SpongeBob 版' },
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由 (日語).mp3', displayName: '日語版' },
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由 (粵語).mp3', displayName: '粵語版' },
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由 (英語).mp3', displayName: '英語版' },
+                    { blobKey: '最瞎結婚理由/最瞎結婚理由 (韓語).mp3', displayName: '韓語版' }
+                ]
+            }
+        ];
+
+        let testResults = {
+            total: 0,
+            success: 0,
+            error: 0,
+            details: []
+        };
+
+        // 開始路徑測試
+        async function startPathTest() {
+            const testBtn = document.getElementById('testBtn');
+            const resultsDiv = document.getElementById('testResults');
+            
+            testBtn.disabled = true;
+            testBtn.textContent = '🔄 測試中...';
+            
+            testResults = { total: 0, success: 0, error: 0, details: [] };
+            resultsDiv.innerHTML = '';
+
+            for (const category of musicCategories) {
+                const categoryDiv = createCategorySection(category.name);
+                resultsDiv.appendChild(categoryDiv);
+
+                for (const track of category.tracks) {
+                    testResults.total++;
+                    const trackDiv = createTrackTest(track);
+                    categoryDiv.appendChild(trackDiv);
+
+                    // 測試路徑
+                    await testTrackPath(track, trackDiv);
+                    
+                    // 小延遲避免過快請求
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+
+            updateSummary();
+            testBtn.disabled = false;
+            testBtn.textContent = '🔍 開始路徑測試';
+        }
+
+        // 創建分類區塊
+        function createCategorySection(categoryName) {
+            const div = document.createElement('div');
+            div.className = 'category-section';
+            div.innerHTML = `<div class="category-title">📁 ${categoryName}</div>`;
+            return div;
+        }
+
+        // 創建音樂測試項目
+        function createTrackTest(track) {
+            const div = document.createElement('div');
+            div.className = 'track-test';
+            div.innerHTML = `
+                <div class="track-header">
+                    <div class="track-name">${track.displayName}</div>
+                    <div class="status testing">🔄 測試中</div>
+                </div>
+                <div class="path-info">blobKey: ${track.blobKey}</div>
+                <div class="path-info">API URL: /api/blobs/music/${encodeURIComponent(track.blobKey)}</div>
+            `;
+            return div;
+        }
+
+        // 測試單個音樂路徑
+        async function testTrackPath(track, trackDiv) {
+            const statusEl = trackDiv.querySelector('.status');
+            
+            try {
+                // 測試 API 端點
+                const apiUrl = `/api/blobs/music/${encodeURIComponent(track.blobKey)}`;
+                const response = await fetch(apiUrl, { method: 'HEAD' });
+                
+                if (response.ok) {
+                    statusEl.className = 'status success';
+                    statusEl.textContent = '✅ 路徑正確';
+                    testResults.success++;
+                    
+                    // 添加檔案信息
+                    const contentLength = response.headers.get('content-length');
+                    const contentType = response.headers.get('content-type');
+                    
+                    if (contentLength || contentType) {
+                        const infoDiv = document.createElement('div');
+                        infoDiv.className = 'path-info';
+                        infoDiv.innerHTML = `
+                            ${contentType ? `類型: ${contentType}` : ''}
+                            ${contentLength ? ` | 大小: ${formatFileSize(parseInt(contentLength))}` : ''}
+                        `;
+                        trackDiv.appendChild(infoDiv);
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ 路徑錯誤';
+                testResults.error++;
+                
+                // 添加錯誤詳情
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-details';
+                errorDiv.innerHTML = `
+                    <strong>錯誤:</strong> ${error.message}<br>
+                    <strong>可能原因:</strong><br>
+                    • 檔案未上傳到 Netlify Blobs<br>
+                    • blobKey 路徑不正確<br>
+                    • API 路由配置問題<br>
+                    • 網路連接問題
+                `;
+                trackDiv.appendChild(errorDiv);
+                
+                testResults.details.push({
+                    track: track.displayName,
+                    blobKey: track.blobKey,
+                    error: error.message
+                });
+            }
+        }
+
+        // 測試 API 端點
+        async function testApiEndpoints() {
+            const apiBtn = document.getElementById('apiBtn');
+            apiBtn.disabled = true;
+            apiBtn.textContent = '🔄 測試中...';
+            
+            const testUrls = [
+                '/api/blobs/music/鋒兄的傳奇人生/鋒兄的傳奇人生.mp3',
+                '/api/blobs/music/鋒兄進化Show🔥/鋒兄進化Show🔥.mp3',
+                '/api/blobs/music/塗哥水電王子爆紅/塗哥水電王子爆紅.mp3',
+                '/api/blobs/music/最瞎結婚理由/最瞎結婚理由.mp3'
+            ];
+            
+            const results = [];
+            
+            for (const url of testUrls) {
+                try {
+                    const response = await fetch(url, { method: 'HEAD' });
+                    results.push({
+                        url,
+                        status: response.status,
+                        ok: response.ok,
+                        contentType: response.headers.get('content-type'),
+                        contentLength: response.headers.get('content-length')
+                    });
+                } catch (error) {
+                    results.push({
+                        url,
+                        error: error.message
+                    });
+                }
+            }
+            
+            // 顯示結果
+            console.log('API 端點測試結果:', results);
+            alert(`API 端點測試完成！\n成功: ${results.filter(r => r.ok).length}/${results.length}\n詳細結果請查看控制台`);
+            
+            apiBtn.disabled = false;
+            apiBtn.textContent = '🌐 測試 API 端點';
+        }
+
+        // 更新摘要
+        function updateSummary() {
+            const summaryDiv = document.getElementById('summary');
+            const successRate = testResults.total > 0 ? Math.round((testResults.success / testResults.total) * 100) : 0;
+            
+            document.getElementById('totalTracks').textContent = testResults.total;
+            document.getElementById('successTracks').textContent = testResults.success;
+            document.getElementById('errorTracks').textContent = testResults.error;
+            document.getElementById('successRate').textContent = successRate + '%';
+            
+            summaryDiv.style.display = 'block';
+        }
+
+        // 清除結果
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('summary').style.display = 'none';
+            testResults = { total: 0, success: 0, error: 0, details: [] };
+        }
+
+        // 格式化檔案大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 頁面載入完成後顯示統計
+        window.onload = function() {
+            const totalTracks = musicCategories.reduce((sum, cat) => sum + cat.tracks.length, 0);
+            console.log(`音樂庫配置統計: ${musicCategories.length} 個分類, ${totalTracks} 首音樂`);
+        };
+    </script>
+</body>
+</html>

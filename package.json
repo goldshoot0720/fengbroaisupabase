@@ -1,0 +1,31 @@
+{
+  "name": "nuxtkiro20251215",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "upload-videos": "node scripts/upload-videos.js",
+    "upload-videos-manual": "node scripts/upload-videos-manual.js",
+    "upload-music": "node scripts/upload-music.js",
+    "upload-music-cli": "node scripts/upload-music-cli.js",
+    "check-blobs": "node scripts/check-blobs.js",
+    "test-blobs": "node scripts/test-blobs-connection.js",
+    "manage-blobs": "node scripts/blob-manager.js",
+    "list-blobs": "node scripts/blob-manager.js list",
+    "blob-report": "node scripts/blob-manager.js report",
+    "test-blob-access": "node scripts/test-blob-access.js"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.2.0",
+    "@nuxtjs/supabase": "^2.0.3",
+    "@supabase/supabase-js": "^2.87.1",
+    "jszip": "^3.10.1",
+    "nuxt": "^4.2.2",
+    "vue": "^3.5.25",
+    "vue-router": "^4.6.3"
+  }
+}

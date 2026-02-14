@@ -1,0 +1,74 @@
+# Node modules
+node_modules
+npm-debug.log*
+
+# Nuxt build output
+.nuxt
+.output
+dist
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Netlify
+.netlify
+netlify
+
+# Scripts and batch files
+*.bat
+scripts/
+
+# Documentation
+*.md
+INSTALL_DEPENDENCIES.md
+NETLIFY_*.md
+QUICK_SETUP.md
+README.md
+SETUP_GUIDE.md
+SIMPLE_VIDEO_SETUP.md
+UPLOAD_VIDEOS_GUIDE.md
+
+# Test files
+test-*.html
+
+# SQL files
+*.sql
+
+# Keep nginx config for static builds
+!nginx.conf

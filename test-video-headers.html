@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>測試影片標頭</title>
+</head>
+<body>
+    <h1>Netlify Blobs 影片測試</h1>
+    
+    <h2>影片 1: 鋒兄的傳奇人生</h2>
+    <video controls width="400">
+        <source src="https://nuxtkiro20251215.netlify.app/api/blobs/19700121-1829-693fee512bec81918cbfd484c6a5ba8f_enx4rsS0.mp4" type="video/mp4">
+        您的瀏覽器不支援影片標籤。
+    </video>
+    
+    <h2>影片 2: 鋒兄進化Show🔥</h2>
+    <video controls width="400">
+        <source src="https://nuxtkiro20251215.netlify.app/api/blobs/clideo-editor-92eb6755d77b4603a482c25764865a58_7sLjgTgc.mp4" type="video/mp4">
+        您的瀏覽器不支援影片標籤。
+    </video>
+    
+    <h2>測試結果</h2>
+    <div id="results"></div>
+    
+    <script>
+        async function testVideoHeaders() {
+            const videos = [
+                {
+                    name: '鋒兄的傳奇人生',
+                    url: 'https://nuxtkiro20251215.netlify.app/api/blobs/19700121-1829-693fee512bec81918cbfd484c6a5ba8f_enx4rsS0.mp4'
+                },
+                {
+                    name: '鋒兄進化Show🔥',
+                    url: 'https://nuxtkiro20251215.netlify.app/api/blobs/clideo-editor-92eb6755d77b4603a482c25764865a58_7sLjgTgc.mp4'
+                }
+            ];
+            
+            const results = document.getElementById('results');
+            
+            for (const video of videos) {
+                try {
+                    console.log(`測試 ${video.name}...`);
+                    
+                    // HEAD 請求測試
+                    const headResponse = await fetch(video.url, { method: 'HEAD' });
+                    
+                    const resultDiv = document.createElement('div');
+                    resultDiv.innerHTML = `
+                        <h3>${video.name}</h3>
+                        <p><strong>狀態:</strong> ${headResponse.status} ${headResponse.statusText}</p>
+                        <p><strong>Content-Type:</strong> ${headResponse.headers.get('content-type')}</p>
+                        <p><strong>Content-Length:</strong> ${headResponse.headers.get('content-length')} bytes</p>
+                        <p><strong>Accept-Ranges:</strong> ${headResponse.headers.get('accept-ranges')}</p>
+                        <p><strong>Cache-Control:</strong> ${headResponse.headers.get('cache-control')}</p>
+                    `;
+                    
+                    // 測試前 12 字節
+                    try {
+                        const partialResponse = await fetch(video.url, {
+                            headers: { 'Range': 'bytes=0-11' }
+                        });
+                        
+                        if (partialResponse.ok) {
+                            const buffer = await partialResponse.arrayBuffer();
+                            const view = new Uint8Array(buffer);
+                            const header = Array.from(view).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                            
+                            // 檢查 MP4 標識
+                            const ftypCheck = new TextDecoder().decode(view.slice(4, 8));
+                            
+                            resultDiv.innerHTML += `
+                                <p><strong>文件頭:</strong> ${header}</p>
+                                <p><strong>MP4 標識:</strong> "${ftypCheck}" ${ftypCheck === 'ftyp' ? '✅' : '❌'}</p>
+                            `;
+                        }
+                    } catch (rangeError) {
+                        resultDiv.innerHTML += `<p><strong>範圍請求失敗:</strong> ${rangeError.message}</p>`;
+                    }
+                    
+                    results.appendChild(resultDiv);
+                    
+                } catch (error) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.innerHTML = `
+                        <h3>${video.name} - 錯誤</h3>
+                        <p style="color: red;">${error.message}</p>
+                    `;
+                    results.appendChild(errorDiv);
+                }
+            }
+        }
+        
+        // 頁面載入後執行測試
+        window.addEventListener('load', testVideoHeaders);
+    </script>
+</body>
+</html>

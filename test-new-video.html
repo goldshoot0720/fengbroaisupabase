@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新影片測試 - 鋒兄進化 Show🔥影片保留十五年</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .video-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .video-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        video {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .video-details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 新影片測試</h1>
+        
+        <div class="video-info">
+            <h3>鋒兄進化 Show🔥影片保留十五年</h3>
+            <p>測試新添加的影片是否可以正常播放</p>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 影片信息</h3>
+            <div class="video-details">
+                <div class="detail-row">
+                    <span class="detail-label">檔案名稱:</span>
+                    <span>鋒兄進化 Show🔥影片保留十五年.mp4</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">預估大小:</span>
+                    <span>約 25.65 MB</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Netlify Blobs URL:</span>
+                    <span>/api/blobs/鋒兄進化 Show🔥影片保留十五年.mp4</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">添加日期:</span>
+                    <span>2026-01-30</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔗 連接測試</h3>
+            <button onclick="testBlobConnection()">測試 Netlify Blobs 連接</button>
+            <div id="connection-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎥 影片播放器</h3>
+            <div class="video-container">
+                <video 
+                    id="testVideo"
+                    controls 
+                    preload="metadata"
+                    onloadstart="onVideoLoadStart()"
+                    onloadeddata="onVideoLoaded()"
+                    onerror="onVideoError(event)"
+                >
+                    <source src="/api/blobs/鋒兄進化 Show🔥影片保留十五年.mp4" type="video/mp4">
+                    您的瀏覽器不支援影片播放。
+                </video>
+            </div>
+            <div id="video-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 測試結果</h3>
+            <div id="test-results">
+                <div class="info">等待測試...</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 故障排除</h3>
+            <p><strong>如果影片無法播放，請檢查：</strong></p>
+            <ul>
+                <li>✅ 影片檔案是否存在於 <code>public/videos/</code> 目錄</li>
+                <li>✅ 是否已執行 <code>node scripts/upload-videos.js</code> 上傳到 Netlify Blobs</li>
+                <li>✅ Netlify Blobs API 是否正常運作</li>
+                <li>✅ 網路連接是否正常</li>
+                <li>✅ 瀏覽器是否支援 MP4 格式</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        // 測試 Netlify Blobs 連接
+        async function testBlobConnection() {
+            const statusDiv = document.getElementById('connection-status');
+            statusDiv.innerHTML = '<div class="info">🔄 測試連接中...</div>';
+            
+            try {
+                const response = await fetch('/api/blobs/鋒兄進化 Show🔥影片保留十五年.mp4', { 
+                    method: 'HEAD' 
+                });
+                
+                if (response.ok) {
+                    const contentLength = response.headers.get('content-length');
+                    const contentType = response.headers.get('content-type');
+                    
+                    statusDiv.innerHTML = `
+                        <div class="success">✅ Netlify Blobs 連接成功</div>
+                        <div class="video-details">
+                            <div class="detail-row">
+                                <span class="detail-label">HTTP 狀態:</span>
+                                <span>${response.status} ${response.statusText}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">內容類型:</span>
+                                <span>${contentType || '未知'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">檔案大小:</span>
+                                <span>${contentLength ? formatFileSize(parseInt(contentLength)) : '未知'}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    testResults.push({
+                        test: 'Netlify Blobs 連接',
+                        status: 'success',
+                        message: '連接成功'
+                    });
+                } else {
+                    statusDiv.innerHTML = `<div class="error">❌ 連接失敗: HTTP ${response.status}</div>`;
+                    testResults.push({
+                        test: 'Netlify Blobs 連接',
+                        status: 'error',
+                        message: `HTTP ${response.status}`
+                    });
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="error">❌ 連接錯誤: ${error.message}</div>`;
+                testResults.push({
+                    test: 'Netlify Blobs 連接',
+                    status: 'error',
+                    message: error.message
+                });
+            }
+            
+            updateTestResults();
+        }
+
+        // 影片載入開始
+        function onVideoLoadStart() {
+            const statusDiv = document.getElementById('video-status');
+            statusDiv.innerHTML = '<div class="info">🔄 影片載入中...</div>';
+        }
+
+        // 影片載入完成
+        function onVideoLoaded() {
+            const statusDiv = document.getElementById('video-status');
+            const video = document.getElementById('testVideo');
+            
+            statusDiv.innerHTML = `
+                <div class="success">✅ 影片載入成功</div>
+                <div class="video-details">
+                    <div class="detail-row">
+                        <span class="detail-label">影片長度:</span>
+                        <span>${formatDuration(video.duration)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">影片尺寸:</span>
+                        <span>${video.videoWidth} x ${video.videoHeight}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">準備狀態:</span>
+                        <span>${getReadyState(video.readyState)}</span>
+                    </div>
+                </div>
+            `;
+            
+            testResults.push({
+                test: '影片載入',
+                status: 'success',
+                message: '載入成功'
+            });
+            
+            updateTestResults();
+        }
+
+        // 影片載入錯誤
+        function onVideoError(event) {
+            const statusDiv = document.getElementById('video-status');
+            const video = event.target;
+            const error = video.error;
+            
+            let errorMessage = '未知錯誤';
+            if (error) {
+                switch (error.code) {
+                    case 1:
+                        errorMessage = 'MEDIA_ERR_ABORTED - 影片載入被中止';
+                        break;
+                    case 2:
+                        errorMessage = 'MEDIA_ERR_NETWORK - 網路錯誤';
+                        break;
+                    case 3:
+                        errorMessage = 'MEDIA_ERR_DECODE - 解碼錯誤';
+                        break;
+                    case 4:
+                        errorMessage = 'MEDIA_ERR_SRC_NOT_SUPPORTED - 不支援的格式';
+                        break;
+                }
+            }
+            
+            statusDiv.innerHTML = `
+                <div class="error">❌ 影片載入失敗</div>
+                <div class="video-details">
+                    <div class="detail-row">
+                        <span class="detail-label">錯誤代碼:</span>
+                        <span>${error ? error.code : '未知'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">錯誤訊息:</span>
+                        <span>${errorMessage}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">網路狀態:</span>
+                        <span>${getNetworkState(video.networkState)}</span>
+                    </div>
+                </div>
+            `;
+            
+            testResults.push({
+                test: '影片載入',
+                status: 'error',
+                message: errorMessage
+            });
+            
+            updateTestResults();
+        }
+
+        // 更新測試結果
+        function updateTestResults() {
+            const resultsDiv = document.getElementById('test-results');
+            
+            if (testResults.length === 0) {
+                resultsDiv.innerHTML = '<div class="info">等待測試...</div>';
+                return;
+            }
+            
+            let html = '';
+            testResults.forEach(result => {
+                const statusClass = result.status === 'success' ? 'success' : 'error';
+                const statusIcon = result.status === 'success' ? '✅' : '❌';
+                html += `<div class="${statusClass}">${statusIcon} ${result.test}: ${result.message}</div>`;
+            });
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        // 格式化檔案大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 格式化時間長度
+        function formatDuration(seconds) {
+            if (isNaN(seconds)) return '未知';
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        // 獲取準備狀態
+        function getReadyState(state) {
+            const states = {
+                0: 'HAVE_NOTHING - 沒有資料',
+                1: 'HAVE_METADATA - 有元資料',
+                2: 'HAVE_CURRENT_DATA - 有當前資料',
+                3: 'HAVE_FUTURE_DATA - 有未來資料',
+                4: 'HAVE_ENOUGH_DATA - 有足夠資料'
+            };
+            return states[state] || '未知狀態';
+        }
+
+        // 獲取網路狀態
+        function getNetworkState(state) {
+            const states = {
+                0: 'NETWORK_EMPTY - 空閒',
+                1: 'NETWORK_IDLE - 閒置',
+                2: 'NETWORK_LOADING - 載入中',
+                3: 'NETWORK_NO_SOURCE - 無來源'
+            };
+            return states[state] || '未知狀態';
+        }
+
+        // 頁面載入時自動測試連接
+        window.onload = function() {
+            setTimeout(() => {
+                testBlobConnection();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

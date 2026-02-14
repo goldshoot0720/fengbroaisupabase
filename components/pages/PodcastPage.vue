@@ -529,6 +529,11 @@ const handleAudioUpload = async (event) => {
       formData.value.file = result.url
       const ext = file.name.split('.').pop()
       if (ext) formData.value.filetype = ext
+      // 如果名稱為空，使用檔案名稱（不含副檔名）作為預設名稱
+      if (!formData.value.name) {
+        const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, '')
+        formData.value.name = fileNameWithoutExt
+      }
       alert('音檔上傳成功！')
     } else {
       alert('上傳失敗: ' + result.error)

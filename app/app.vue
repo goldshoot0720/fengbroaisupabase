@@ -237,9 +237,14 @@ onMounted(async () => {
   await loadSubscriptions()
   loadFoods()
 
-  // 檢查 3 天內即將到期的訂閱並發送通知
+  // 檢查 3 天內即將到期的訂閱並發送通知（每天只通知一次）
+  const today = new Date().toISOString().split('T')[0]
+  const lastNotifyDate = localStorage.getItem('sub-notify-date')
   const upcoming = getUpcomingSubscriptions()
-  if (upcoming.length > 0) {
+
+  if (upcoming.length > 0 && lastNotifyDate !== today) {
+    localStorage.setItem('sub-notify-date', today)
+
     // 頁面內 toast 通知
     upcoming.forEach((sub, index) => {
       const daysLeft = Math.ceil((new Date(sub.nextdate) - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))

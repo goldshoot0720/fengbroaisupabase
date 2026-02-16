@@ -126,6 +126,10 @@
             </td>
             <td class="col-date">
               <input v-model="addForm.nextdate" type="date" class="inline-input inline-date" />
+              <div class="date-adjust-btns">
+                <button type="button" class="btn-date-adjust" @click="adjustDate(addForm, -30)">-30</button>
+                <button type="button" class="btn-date-adjust" @click="adjustDate(addForm, 30)">+30</button>
+              </div>
             </td>
             <td class="col-price">
               <div class="inline-price-group">
@@ -176,6 +180,10 @@
               </td>
               <td class="col-date">
                 <input v-model="editForm.nextdate" type="date" class="inline-input inline-date" />
+                <div class="date-adjust-btns">
+                  <button type="button" class="btn-date-adjust" @click="adjustDate(editForm, -30)">-30</button>
+                  <button type="button" class="btn-date-adjust" @click="adjustDate(editForm, 30)">+30</button>
+                </div>
               </td>
               <td class="col-price">
                 <div class="inline-price-group">
@@ -384,6 +392,16 @@ const startAddRow = () => {
 
 const cancelAddRow = () => {
   showAddRow.value = false
+}
+
+// 日期加減天數
+const adjustDate = (form, days) => {
+  const base = form.nextdate ? new Date(form.nextdate) : new Date()
+  base.setDate(base.getDate() + days)
+  const yyyy = base.getFullYear()
+  const mm = String(base.getMonth() + 1).padStart(2, '0')
+  const dd = String(base.getDate()).padStart(2, '0')
+  form.nextdate = `${yyyy}-${mm}-${dd}`
 }
 
 const saveAddRow = async () => {
@@ -978,6 +996,30 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .inline-date {
   min-width: 130px;
+}
+
+.date-adjust-btns {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.btn-date-adjust {
+  flex: 1;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #3498db;
+  border-radius: 4px;
+  background: rgba(52, 152, 219, 0.1);
+  color: #3498db;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-date-adjust:hover {
+  background: #3498db;
+  color: white;
 }
 
 .inline-price-group {

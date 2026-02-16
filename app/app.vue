@@ -191,6 +191,7 @@ import { useFoods } from '../composables/useFoods'
 import { useTheme } from '../composables/useTheme'
 import { useNavigation } from '../composables/useNavigation'
 import { useScroll } from '../composables/useScroll'
+import { useToast } from '../composables/useToast'
 
 // 組件引用
 const subscriptionPageRef = ref(null)
@@ -198,7 +199,7 @@ const foodPageRef = ref(null)
 const bankPageRef = ref(null)
 
 // 使用 composables
-const { subscriptions, totalMonthlyCost, loadSubscriptions } = useSubscriptions()
+const { subscriptions, totalMonthlyCost, loadSubscriptions, getUpcomingSubscriptions } = useSubscriptions()
 const { foods, loadFoods } = useFoods()
 const { isDarkMode, toggleDarkMode, initTheme } = useTheme()
 const { 
@@ -212,8 +213,9 @@ const {
   closeSidebar, 
   handleResize 
 } = useNavigation()
-const { 
-  showScrollButtons, 
+const { warning: toastWarning } = useToast()
+const {
+  showScrollButtons,
   showTopButton, 
   showBottomButton, 
   scrollToTop, 
@@ -232,16 +234,69 @@ const placeholderConfig = computed(() => placeholderPages[currentPage.value] || 
 // 生命週期
 onMounted(async () => {
   // 載入初始資料
-  loadSubscriptions()
+  await loadSubscriptions()
   loadFoods()
-  
+
+  // 檢查 3 天內即將到期的訂閱並發送通知
+  const upcoming = getUpcomingSubscriptions()
+  if (upcoming.length > 0) {
+    // 頁面內 toast 通知
+    upcoming.forEach((sub, index) => {
+      const daysLeft = Math.ceil((new Date(sub.nextdate) - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))
+      const dayText = daysLeft === 0 ? '今天' : `${daysLeft} 天後`
+      setTimeout(() => {
+        toastWarning(`「${sub.name}」${dayText}到期（${sub.nextdate}）`, { duration: 8000 })
+      }, index * 500)
+    })
+
+    // 瀏覽器原生通知（透過 Service Worker，支援手機）
+    if ('Notification' in window) {
+      const sendNativeNotifications = async () => {
+        const registration = await navigator.serviceWorker?.ready
+        upcoming.forEach((sub, index) => {
+          const daysLeft = Math.ceil((new Date(sub.nextdate) - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))
+          const dayText = daysLeft === 0 ? '今天' : `${daysLeft} 天後`
+          const notifBody = `「${sub.name}」${dayText}到期（${sub.nextdate}）`
+          setTimeout(() => {
+            if (registration) {
+              registration.showNotification('鋒兄訂閱提醒', {
+                body: notifBody,
+                icon: '/pwa-192x192.png',
+                badge: '/pwa-192x192.png',
+                tag: `sub-${sub.id}`,
+                vibrate: [200, 100, 200],
+                requireInteraction: true
+              })
+            } else {
+              new Notification('鋒兄訂閱提醒', {
+                body: notifBody,
+                icon: '/favicon.ico',
+                tag: `sub-${sub.id}`
+              })
+            }
+          }, index * 800)
+        })
+      }
+
+      if (Notification.permission === 'granted') {
+        sendNativeNotifications()
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            sendNativeNotifications()
+          }
+        })
+      }
+    }
+  }
+
   // 初始化主題
   initTheme()
-  
+
   if (import.meta.client) {
     // 監聽視窗大小變化
     window.addEventListener('resize', handleResize)
-    
+
     // 設置滾動監聽
     await nextTick()
     setupScrollListener()

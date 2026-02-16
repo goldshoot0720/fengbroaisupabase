@@ -58,6 +58,21 @@ export const useSubscriptions = () => {
     return subscriptions.value.reduce((total, sub) => total + (sub.price || 0), 0)
   })
 
+  // 取得 3 天內即將到期的訂閱（僅續訂中的項目）
+  const getUpcomingSubscriptions = () => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const threeDaysLater = new Date(today)
+    threeDaysLater.setDate(threeDaysLater.getDate() + 3)
+
+    return subscriptions.value.filter(sub => {
+      if (!sub.nextdate || sub.iscontinue === false) return false
+      const nextDate = new Date(sub.nextdate)
+      nextDate.setHours(0, 0, 0, 0)
+      return nextDate >= today && nextDate <= threeDaysLater
+    })
+  }
+
   // 計算屬性：排序後的訂閱（按下次扣款日期）
   const sortedSubscriptions = computed(() => {
     return [...subscriptions.value].sort((a, b) => {
@@ -503,6 +518,7 @@ export const useSubscriptions = () => {
     newSubscription,
     totalMonthlyCost,
     sortedSubscriptions,
+    getUpcomingSubscriptions,
     loadSubscriptions,
     addSubscription,
     addSubscriptionInline,

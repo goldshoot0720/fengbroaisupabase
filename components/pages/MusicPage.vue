@@ -19,7 +19,7 @@ import MusicManager from '../MusicManager.vue'
 
 // 設置頁面標題
 useHead({
-  title: '音樂庫 - 鋒兄AI Supabase',
+  title: '音樂庫 - 鋒兄AI Appwrite',
   meta: [
     { name: 'description', content: '音樂庫管理系統，支援多語言版本和多位演唱者' }
   ]

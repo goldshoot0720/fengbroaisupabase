@@ -747,7 +747,7 @@ const handleClear = () => {
 }
 
 useHead({
-  title: '鋒兄設定 - 鋒兄AI Supabase'
+  title: '鋒兄設定 - 鋒兄AI Appwrite'
 })
 </script>
 

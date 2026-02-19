@@ -294,7 +294,7 @@ import { useRoutines } from '../../composables/useRoutines'
 import { useStorage } from '../../composables/useStorage'
 
 useHead({
-  title: '鋒兄例行 - 鋒兄AI Supabase'
+  title: '鋒兄例行 - 鋒兄AI Appwrite'
 })
 
 const {

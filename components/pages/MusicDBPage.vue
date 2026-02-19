@@ -351,7 +351,7 @@ import { useMusicRecords } from '../../composables/useMusicRecords'
 import { useStorage } from '../../composables/useStorage'
 
 useHead({
-  title: '鋒兄音樂 - 鋒兄AI Supabase'
+  title: '鋒兄音樂 - 鋒兄AI Appwrite'
 })
 
 const { musics, loading, FIELDS, loadMusics, addMusic, updateMusic, deleteMusic, importMusics } = useMusicRecords()

@@ -9,19 +9,19 @@ export default defineNuxtConfig({
   // 應用程式配置
   app: {
     head: {
-      title: '鋒兄AI Supabase',
-      titleTemplate: '%s - 鋒兄AI Supabase',
+      title: '鋒兄AI Appwrite',
+      titleTemplate: '%s - 鋒兄AI Appwrite',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' },
-        { name: 'description', content: '鋒兄AI Supabase - 專業的訂閱、食物、影片和圖片管理平台' },
+        { name: 'description', content: '鋒兄AI Appwrite - 專業的訂閱、食物、影片和圖片管理平台' },
         { name: 'keywords', content: '鋒兄,Nuxt,資訊管理,訂閱管理,食物管理,影片庫,圖片庫' },
         { name: 'author', content: '鋒兄塗哥公關資訊' },
-        { property: 'og:title', content: '鋒兄AI Supabase' },
+        { property: 'og:title', content: '鋒兄AI Appwrite' },
         { property: 'og:description', content: '專業的資訊管理系統，整合訂閱、食物、影片和圖片管理功能' },
         { property: 'og:type', content: 'website' },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: '鋒兄AI Supabase' },
+        { name: 'twitter:title', content: '鋒兄AI Appwrite' },
         { name: 'twitter:description', content: '專業的資訊管理系統，整合訂閱、食物、影片和圖片管理功能' }
       ],
       link: [
@@ -37,9 +37,9 @@ export default defineNuxtConfig({
   pwa: {
     registerType: 'autoUpdate',
     manifest: {
-      name: '鋒兄AI Supabase',
+      name: '鋒兄AI Appwrite',
       short_name: '鋒兄AI',
-      description: '鋒兄AI Supabase - 專業的訂閱、食物、影片和圖片管理平台',
+      description: '鋒兄AI Appwrite - 專業的訂閱、食物、影片和圖片管理平台',
       theme_color: '#3b82f6',
       background_color: '#f5f7fa',
       display: 'standalone',

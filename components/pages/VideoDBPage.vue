@@ -374,7 +374,7 @@ import { useVideoRecords } from '../../composables/useVideoRecords'
 import { useStorage } from '../../composables/useStorage'
 
 useHead({
-  title: '鋒兄影片 - 鋒兄AI Supabase'
+  title: '鋒兄影片 - 鋒兄AI Appwrite'
 })
 
 const {

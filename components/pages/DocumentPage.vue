@@ -332,7 +332,7 @@ import { useStorage } from '../../composables/useStorage'
 
 // SEO
 useHead({
-  title: '鋒兄文件 - 鋒兄AI Supabase'
+  title: '鋒兄文件 - 鋒兄AI Appwrite'
 })
 
 // Composable

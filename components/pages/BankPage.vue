@@ -605,7 +605,7 @@ const handleInitDefaults = async () => {
 
 // SEO
 useHead({
-  title: '銀行統計 - 鋒兄AI Appwrite',
+  title: '銀行統計 - 鋒兄AI Supabase',
   meta: [
     { name: 'description', content: '管理銀行帳戶與資產統計' }
   ]

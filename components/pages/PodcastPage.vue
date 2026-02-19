@@ -330,7 +330,7 @@ import { useStorage } from '../../composables/useStorage'
 
 // Set page title
 useHead({
-  title: '鋒兄播客 - 鋒兄AI Appwrite'
+  title: '鋒兄播客 - 鋒兄AI Supabase'
 })
 
 // Composable

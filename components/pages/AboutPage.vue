@@ -2,7 +2,7 @@
   <PageContainer>
     <div class="about-page">
       <div class="hero-section">
-        <h1 class="app-title">鋒兄AI Appwrite</h1>
+        <h1 class="app-title">鋒兄AI Supabase</h1>
         <p class="version">v2.0</p>
         <p class="description">個人資料管理系統，整合 Supabase 雲端資料庫</p>
       </div>
@@ -89,7 +89,7 @@
 import PageContainer from '../layout/PageContainer.vue'
 
 useHead({
-  title: '鋒兄關於 - 鋒兄AI Appwrite'
+  title: '鋒兄關於 - 鋒兄AI Supabase'
 })
 </script>
 

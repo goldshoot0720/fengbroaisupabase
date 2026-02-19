@@ -830,7 +830,7 @@ const openPreview = (url) => {
 
 // SEO
 useHead({
-  title: '鋒兄筆記 - 鋒兄AI Appwrite',
+  title: '鋒兄筆記 - 鋒兄AI Supabase',
   meta: [
     { name: 'description', content: '記錄生活點滴與重要資訊' }
   ]

@@ -617,7 +617,7 @@ const parseImageCsv = (text) => {
 
 // SEO
 useHead({
-  title: '鋒兄圖片 - 鋒兄AI Appwrite',
+  title: '鋒兄圖片 - 鋒兄AI Supabase',
   meta: [
     { name: 'description', content: '圖片管理系統' }
   ]

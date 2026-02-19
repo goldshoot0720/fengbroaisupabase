@@ -757,7 +757,7 @@ const handleImportCsv = async (e) => {
 
 // SEO
 useHead({
-  title: '鋒兄常用 - 鋒兄AI Appwrite',
+  title: '鋒兄常用 - 鋒兄AI Supabase',
   meta: [
     { name: 'description', content: '常用帳號與連結管理' }
   ]

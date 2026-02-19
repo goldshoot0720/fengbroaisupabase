@@ -192,6 +192,7 @@ import { useTheme } from '../composables/useTheme'
 import { useNavigation } from '../composables/useNavigation'
 import { useScroll } from '../composables/useScroll'
 import { useToast } from '../composables/useToast'
+import { getSupabaseCredentials } from '../composables/useSettings'
 
 // 組件引用
 const subscriptionPageRef = ref(null)
@@ -293,6 +294,52 @@ onMounted(async () => {
         })
       }
     }
+  }
+
+  // --- PWA 背景同步：儲存 Supabase 憑證到 IndexedDB ---
+  // Service Worker 無法讀取 localStorage，需透過 IndexedDB 傳遞憑證
+  if (import.meta.client && 'indexedDB' in window) {
+    try {
+      const config = useRuntimeConfig()
+      const creds  = getSupabaseCredentials()
+      const url    = creds?.url || config.public.supabaseUrl
+      const key    = creds?.key || config.public.supabaseAnonKey
+
+      if (url && key) {
+        const req = indexedDB.open('fengbroai-sw', 1)
+        req.onupgradeneeded = (e) => {
+          if (!e.target.result.objectStoreNames.contains('config')) {
+            e.target.result.createObjectStore('config')
+          }
+        }
+        req.onsuccess = (e) => {
+          const db = e.target.result
+          const tx = db.transaction('config', 'readwrite')
+          tx.objectStore('config').put({ url, key }, 'supabase-creds')
+        }
+      }
+    } catch (e) {
+      console.warn('[PWA] 儲存憑證到 IndexedDB 失敗:', e)
+    }
+  }
+
+  // --- PWA 背景同步：註冊 Periodic Background Sync ---
+  // 支援：Android Chrome（已安裝 PWA）；iOS 目前不支援
+  if (import.meta.client && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(async (registration) => {
+      try {
+        if (!('periodicSync' in registration)) return
+        const status = await navigator.permissions.query({ name: 'periodic-background-sync' })
+        if (status.state === 'granted') {
+          await registration.periodicSync.register('check-subscriptions', {
+            minInterval: 24 * 60 * 60 * 1000  // 最少每天一次
+          })
+          console.log('[PWA] 背景訂閱檢查已註冊（每天）')
+        }
+      } catch (e) {
+        console.log('[PWA] Periodic Background Sync 不支援或未授權:', e.message)
+      }
+    }).catch(() => {})
   }
 
   // 初始化主題

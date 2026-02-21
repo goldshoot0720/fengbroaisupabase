@@ -59,7 +59,7 @@
           class="site-tag" 
           :class="{ active: !selectedSiteFilter }" 
           @click="selectedSiteFilter = null"
-        >全部</button>
+        >全部 ({{ accounts.length }})</button>
         <button 
           v-for="tag in siteTagCounts" 
           :key="tag.name" 

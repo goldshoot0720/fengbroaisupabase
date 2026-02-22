@@ -121,7 +121,7 @@
           <div class="card-header">
             <h3 class="card-title">{{ document.name || '未命名' }}</h3>
             <div class="card-actions">
-              <button @click="startInlineEdit(document)" class="btn-icon" title="編輯">
+              <button @click="openEditModal(document)" class="btn-icon" title="編輯">
                 ✏️
               </button>
               <button @click="confirmDelete(document)" class="btn-icon" title="刪除">
@@ -142,6 +142,7 @@
             <div v-if="document.file" class="file-info">
               <span class="file-icon">📎</span>
               <span class="file-name">{{ getFileName(document.file) }}</span>
+              <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載">⬇️</a>
             </div>
 
             <div v-if="document.ref" class="ref-info">
@@ -1162,6 +1163,20 @@ onMounted(() => {
 .file-name {
   color: #475569;
   word-break: break-all;
+  flex: 1;
+}
+
+.btn-download {
+  font-size: 1rem;
+  text-decoration: none;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-download:hover {
+  opacity: 1;
+  transform: scale(1.15);
 }
 
 .ref-info {

@@ -30,7 +30,7 @@
       <div class="summary-bar">
         <div class="summary-left">
           <button v-if="!batchMode && filteredMusics.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openAddModal" class="btn-add-icon" title="新增">+</button>
+          <button @click="openInlineAdd" class="btn-add-icon" title="新增">+</button>
           <template v-if="batchMode">
             <label class="select-all-label"><input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" /><span>全選</span></label>
             <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
@@ -71,12 +71,31 @@
 
       <div v-if="loading" class="loading-state">載入中...</div>
 
-      <div v-else-if="filteredMusics.length === 0" class="empty-state">
+      <div v-else-if="filteredMusics.length === 0 && !isAddingInline" class="empty-state">
         <p v-if="searchQuery">找不到符合的音樂記錄</p>
         <p v-else>尚無音樂記錄，點擊「新增」開始建立</p>
       </div>
 
-      <div v-else class="music-grid">
+      <div v-if="isAddingInline || filteredMusics.length > 0" class="music-grid">
+
+        <!-- 行內新增卡片 -->
+        <div v-if="isAddingInline" class="music-card card-editing">
+          <div class="card-header">
+            <input v-model="addForm.name" type="text" class="inline-input inline-name" placeholder="歌曲名稱 *" style="flex:1" />
+            <div class="card-actions">
+              <button class="btn-icon save" @click="saveInlineAdd" title="儲存">💾</button>
+              <button class="btn-icon" @click="cancelInlineAdd" title="取消">✕</button>
+            </div>
+          </div>
+          <div class="card-body inline-edit-content">
+            <div class="inline-edit-form">
+              <div class="inline-field-row"><label>語言</label><input v-model="addForm.language" type="text" class="inline-input" placeholder="中文/英語/日語..." /></div>
+              <div class="inline-field-row"><label>分類</label><input v-model="addForm.category" type="text" class="inline-input" placeholder="分類" /></div>
+              <div class="inline-field-row"><label>音檔URL</label><input v-model="addForm.file" type="text" class="inline-input" placeholder="音檔 URL" /></div>
+              <div class="inline-field-row"><label>備註</label><input v-model="addForm.note" type="text" class="inline-input" placeholder="備註" /></div>
+            </div>
+          </div>
+        </div>
         <div
           v-for="group in groupedMusics"
           :key="group.name"
@@ -633,20 +652,19 @@ const truncate = (text, length) => {
   return text.length > length ? text.substring(0, length) + '...' : text
 }
 
+// 行內新增
+const isAddingInline = ref(false)
+const addForm = ref({ name: '', file: '', filetype: '', lyrics: '', note: '', ref: '', category: '', hash: '', language: '', cover: '' })
+const openInlineAdd = () => { addForm.value = { name: '', file: '', filetype: '', lyrics: '', note: '', ref: '', category: '', hash: '', language: '', cover: '' }; isAddingInline.value = true }
+const cancelInlineAdd = () => { isAddingInline.value = false }
+const saveInlineAdd = async () => {
+  if (!addForm.value.name) { alert('請輸入歌曲名稱'); return }
+  try { await addMusic(addForm.value); isAddingInline.value = false; await loadMusics() } catch(e) { alert('新增失敗: ' + e.message) }
+}
+
 const openAddModal = () => {
   editingMusic.value = null
-  formData.value = {
-    name: '',
-    file: '',
-    filetype: '',
-    lyrics: '',
-    note: '',
-    ref: '',
-    category: '',
-    hash: '',
-    language: '',
-    cover: ''
-  }
+  formData.value = { name: '', file: '', filetype: '', lyrics: '', note: '', ref: '', category: '', hash: '', language: '', cover: '' }
   showModal.value = true
 }
 

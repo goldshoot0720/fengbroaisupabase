@@ -31,7 +31,7 @@
       <div class="summary-bar">
         <div class="summary-left">
           <button v-if="!batchMode && filteredVideos.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openAddModal" class="btn-add-icon" title="新增">+</button>
+          <button @click="openInlineAdd" class="btn-add-icon" title="新增">+</button>
           <template v-if="batchMode">
             <label class="select-all-label"><input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" /><span>全選</span></label>
             <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
@@ -74,13 +74,28 @@
       <div v-if="loading" class="loading">載入中...</div>
 
       <!-- Empty State -->
-      <div v-else-if="filteredVideos.length === 0" class="empty-state">
+      <div v-else-if="filteredVideos.length === 0 && !isAddingInline" class="empty-state">
         <p v-if="searchQuery">找不到符合的影片</p>
         <p v-else>尚無影片記錄，點擊「新增」開始</p>
       </div>
 
       <!-- Video Grid -->
-      <div v-else class="video-grid">
+      <div v-if="isAddingInline || filteredVideos.length > 0" class="video-grid">
+
+        <!-- 行內新增卡片 -->
+        <div v-if="isAddingInline" class="video-card">
+          <div class="inline-edit-form">
+            <div class="inline-form-group"><label>名稱 *</label><input v-model="addNewForm.name" type="text" class="inline-input" placeholder="影片名稱" /></div>
+            <div class="inline-form-group"><label>分類</label><input v-model="addNewForm.category" type="text" class="inline-input" placeholder="分類" /></div>
+            <div class="inline-form-group"><label>影片URL</label><input v-model="addNewForm.file" type="text" class="inline-input" placeholder="影片 URL" /></div>
+            <div class="inline-form-group"><label>封面URL</label><input v-model="addNewForm.cover" type="text" class="inline-input" placeholder="封面 URL" /></div>
+            <div class="inline-form-group"><label>備註</label><textarea v-model="addNewForm.note" class="inline-textarea" rows="2" placeholder="備註"></textarea></div>
+            <div class="inline-edit-actions">
+              <button @click="saveInlineAdd" class="btn-save" :disabled="loading">儲存</button>
+              <button @click="cancelInlineAdd" class="btn-cancel-inline">取消</button>
+            </div>
+          </div>
+        </div>
         <div
           v-for="video in filteredVideos"
           :key="video.id"
@@ -651,19 +666,20 @@ function truncateText(text, maxLength) {
   return text.substring(0, maxLength) + '...'
 }
 
+// 行內新增
+const isAddingInline = ref(false)
+const addNewForm = ref({ name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
+const openInlineAdd = () => { addNewForm.value = { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' }; isAddingInline.value = true }
+const cancelInlineAdd = () => { isAddingInline.value = false }
+const saveInlineAdd = async () => {
+  if (!addNewForm.value.name) { alert('請輸入影片名稱'); return }
+  try { await addVideo(addNewForm.value); isAddingInline.value = false; await loadVideos() } catch(e) { alert('新增失敗: ' + e.message) }
+}
+
 function openAddModal() {
   isEditing.value = false
   editingId.value = null
-  formData.value = {
-    name: '',
-    file: '',
-    filetype: '',
-    note: '',
-    ref: '',
-    category: '',
-    hash: '',
-    cover: ''
-  }
+  formData.value = { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' }
   showModal.value = true
 }
 

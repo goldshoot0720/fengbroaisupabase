@@ -22,6 +22,7 @@
             <option value="">全部分類</option>
             <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
           </select>
+          <button v-if="filterCategory" class="btn-clear-filter" @click="filterCategory = ''" title="清除篩選">✕</button>
         </div>
 
         <div class="csv-actions">
@@ -45,7 +46,7 @@
       <div class="summary-bar">
         <div class="summary-left">
           <button v-if="!batchMode && filteredDocuments.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openAddModal" class="btn-add-icon" title="新增">+</button>
+          <button @click="openInlineAdd" class="btn-add-icon" title="新增">+</button>
           <template v-if="batchMode">
             <label class="select-all-label">
               <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
@@ -53,7 +54,9 @@
             </label>
             <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
           </template>
-          <span>共 {{ documents.length }} 個項目</span>
+          <span v-if="filterCategory || searchQuery">篩選結果 {{ filteredDocuments.length }} / 共 {{ documents.length }} 項</span>
+          <span v-else>共 {{ documents.length }} 個項目</span>
+          <span v-if="filterCategory" class="filter-active-badge">分類：{{ filterCategory }}</span>
           <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
         </div>
         <div class="summary-right">
@@ -68,18 +71,67 @@
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="filteredDocuments.length === 0" class="empty-state">
+      <div v-else-if="filteredDocuments.length === 0 && !isAddingInline" class="empty-state">
         <div class="empty-icon">📄</div>
         <p class="empty-text">
           {{ searchQuery ? '找不到符合的文件' : '尚無文件記錄' }}
         </p>
-        <button v-if="!searchQuery" @click="openAddModal" class="btn btn-primary">
+        <button v-if="!searchQuery" @click="openInlineAdd" class="btn btn-primary">
           新增第一筆文件
         </button>
       </div>
 
       <!-- Documents Grid -->
-      <div v-else class="documents-grid">
+      <div v-if="isAddingInline || filteredDocuments.length > 0" class="documents-grid">
+
+        <!-- 行內新增卡片 -->
+        <div v-if="isAddingInline" class="document-card card-editing">
+          <div class="card-header">
+            <input v-model="addForm.name" type="text" class="inline-input inline-name" placeholder="文件名稱" autofocus>
+            <div class="card-actions">
+              <button class="btn-icon save" @click="saveInlineAdd" title="儲存">💾</button>
+              <button class="btn-icon" @click="cancelInlineAdd" title="取消">✕</button>
+            </div>
+          </div>
+          <div class="card-body inline-edit-content">
+            <div class="inline-edit-form">
+              <div class="inline-field-row">
+                <label>分類</label>
+                <input v-model="addForm.category" type="text" class="inline-input" placeholder="分類">
+              </div>
+              <div class="inline-field-row">
+                <label>備註</label>
+                <textarea v-model="addForm.note" class="inline-input inline-textarea" rows="3" placeholder="備註"></textarea>
+              </div>
+              <div class="inline-field-row">
+                <label>參考</label>
+                <input v-model="addForm.ref" type="text" class="inline-input" placeholder="參考">
+              </div>
+              <div class="inline-field-row">
+                <label>Hash</label>
+                <input v-model="addForm.hash" type="text" class="inline-input" placeholder="Hash">
+              </div>
+              <div class="inline-field-row">
+                <label>檔案</label>
+                <div class="inline-upload-area">
+                  <label class="btn-inline-upload" :class="{ disabled: addFileUploading }">
+                    {{ addFileUploading ? '上傳中...' : '選擇檔案' }}
+                    <input type="file" style="display:none" :disabled="addFileUploading" @change="handleAddFileUpload" />
+                  </label>
+                  <span v-if="addForm.file" class="inline-file-name">📎 {{ getFileName(addForm.file) }}
+                    <button type="button" class="btn-inline-remove" @click="addForm.file = ''">✕</button>
+                  </span>
+                  <img v-if="addForm.file && isImageUrl(addForm.file)" :src="addForm.file" class="inline-img-preview" alt="預覽" />
+                  <input v-model="addForm.file" type="text" class="inline-input" placeholder="或輸入檔案 URL" style="margin-top:4px">
+                </div>
+              </div>
+              <div class="inline-field-row">
+                <label>封面URL</label>
+                <input v-model="addForm.cover" type="text" class="inline-input" placeholder="封面 URL">
+              </div>
+            </div>
+          </div>
+        </div>
         <div
           v-for="document in filteredDocuments"
           :key="document.id"
@@ -118,13 +170,14 @@
                 <div class="inline-field-row">
                   <label>檔案</label>
                   <div class="inline-upload-area">
-                    <input ref="inlineFileInput" type="file" style="display:none" @change="handleInlineFileUpload" />
-                    <button type="button" class="btn-inline-upload" :disabled="inlineFileUploading" @click="inlineFileInput.click()">
+                    <label class="btn-inline-upload" :class="{ disabled: inlineFileUploading }">
                       {{ inlineFileUploading ? '上傳中...' : '選擇檔案' }}
-                    </button>
+                      <input type="file" style="display:none" :disabled="inlineFileUploading" @change="handleInlineFileUpload" />
+                    </label>
                     <span v-if="editForm.file" class="inline-file-name">📎 {{ getFileName(editForm.file) }}
                       <button type="button" class="btn-inline-remove" @click="editForm.file = ''">✕</button>
                     </span>
+                    <img v-if="editForm.file && isImageUrl(editForm.file)" :src="editForm.file" class="inline-img-preview" alt="預覽" />
                     <input v-model="editForm.file" type="text" class="inline-input" placeholder="或輸入檔案 URL" style="margin-top:4px">
                   </div>
                 </div>
@@ -141,7 +194,7 @@
           <div class="card-header">
             <h3 class="card-title">{{ document.name || '未命名' }}</h3>
             <div class="card-actions">
-              <button @click="openEditModal(document)" class="btn-icon" title="編輯">
+              <button @click="startInlineEdit(document)" class="btn-icon" title="編輯">
                 ✏️
               </button>
               <button @click="confirmDelete(document)" class="btn-icon" title="刪除">
@@ -160,9 +213,18 @@
             </div>
 
             <div v-if="document.file" class="file-info">
-              <span class="file-icon">📎</span>
-              <span class="file-name">{{ getFileName(document.file) }}</span>
-              <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載">⬇️</a>
+              <template v-if="isImageUrl(document.file)">
+                <img :src="document.file" :alt="document.name" class="file-img-preview" />
+                <div class="file-img-actions">
+                  <span class="file-name">{{ getFileName(document.file) }}</span>
+                  <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載">⬇️</a>
+                </div>
+              </template>
+              <template v-else>
+                <span class="file-icon">📎</span>
+                <span class="file-name">{{ getFileName(document.file) }}</span>
+                <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載">⬇️</a>
+              </template>
             </div>
 
             <div v-if="document.ref" class="ref-info">
@@ -403,12 +465,58 @@ const deleteSelected = async () => {
 const fileInput = ref(null)
 const coverFileInput = ref(null)
 const inlineFileInput = ref(null)
+const triggerInlineFileInput = () => { inlineFileInput.value?.click() }
 const { uploadFile } = useStorage()
 const fileUploading = ref(false)
 const coverUploading = ref(false)
 const inlineFileUploading = ref(false)
 
-// Modal state
+// 行內新增
+const isAddingInline = ref(false)
+const addForm = reactive({ name: '', file: '', note: '', ref: '', category: '', hash: '', cover: '' })
+const addFileInput = ref(null)
+const addFileUploading = ref(false)
+
+const openInlineAdd = () => {
+  Object.assign(addForm, { name: '', file: '', note: '', ref: '', category: '', hash: '', cover: '' })
+  isAddingInline.value = true
+  inlineEditingId.value = null
+}
+
+const cancelInlineAdd = () => {
+  isAddingInline.value = false
+}
+
+const triggerAddFileInput = () => { addFileInput.value?.click() }
+
+const handleAddFileUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  addFileUploading.value = true
+  try {
+    const result = await uploadFile(file, 'documents')
+    if (result.success) { addForm.file = result.url }
+    else { alert('上傳失敗: ' + result.error) }
+  } catch (error) {
+    alert('上傳失敗: ' + error.message)
+  } finally {
+    addFileUploading.value = false
+    if (addFileInput.value) addFileInput.value.value = ''
+  }
+}
+
+const saveInlineAdd = async () => {
+  if (!addForm.name) { alert('請輸入文件名稱'); return }
+  try {
+    await addDocument({ ...addForm })
+    isAddingInline.value = false
+    await loadDocuments()
+  } catch (error) {
+    alert('新增失敗: ' + error.message)
+  }
+}
+
+
 const showModal = ref(false)
 const isEditing = ref(false)
 const editingId = ref(null)
@@ -878,6 +986,12 @@ const getFileName = (filePath) => {
   return filePath.split('/').pop() || filePath
 }
 
+const isImageUrl = (url) => {
+  if (!url) return false
+  const ext = url.split('?')[0].split('.').pop()?.toLowerCase()
+  return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'].includes(ext)
+}
+
 const formatDate = (dateString) => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -899,6 +1013,31 @@ onMounted(() => {
 .card-editing {
   box-shadow: 0 4px 12px rgba(79, 172, 254, 0.2);
   border-left: 4px solid #4facfe;
+}
+
+/* 圖片預覽 */
+.inline-img-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 160px;
+  border-radius: 6px;
+  margin-top: 6px;
+  object-fit: contain;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.file-img-preview {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+.file-img-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
 }
 
 .inline-input {

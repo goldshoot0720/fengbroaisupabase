@@ -28,7 +28,7 @@
       <div class="summary-bar">
         <div class="summary-left">
           <button v-if="!batchMode && banks.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openAddModal" class="btn-add-icon" title="新增帳戶">+</button>
+          <button @click="openInlineAdd" class="btn-add-icon" title="新增帳戶">+</button>
           <template v-if="batchMode">
             <label class="select-all-label">
               <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
@@ -51,7 +51,7 @@
       </div>
 
       <!-- 空狀態 (無資料時顯示) -->
-      <div v-else-if="banks.length === 0" class="empty-state">
+      <div v-else-if="banks.length === 0 && !isAddingInline" class="empty-state">
         <div class="empty-icon">🏦</div>
         <h3>尚無銀行帳戶資料</h3>
         <p>您可以手動新增，或直接匯入預設的 9 家銀行。</p>
@@ -66,7 +66,27 @@
       </div>
 
       <!-- 銀行列表 Grid -->
-      <div v-else class="bank-grid">
+      <div v-if="isAddingInline || banks.length > 0" class="bank-grid">
+
+        <!-- 行內新增卡片 -->
+        <div v-if="isAddingInline" class="bank-card card-editing">
+          <div class="bank-header">
+            <div class="bank-title">
+              <input v-model="addForm.name" type="text" class="inline-input inline-name" placeholder="銀行名稱 *" />
+            </div>
+            <div class="bank-actions">
+              <button class="btn-icon save" @click="saveInlineAdd" title="儲存">💾</button>
+              <button class="btn-icon" @click="cancelInlineAdd" title="取消">✕</button>
+            </div>
+          </div>
+          <div class="bank-info inline-edit-content">
+            <div class="inline-edit-form">
+              <div class="inline-field-row"><label>存款</label><input v-model.number="addForm.deposit" type="number" class="inline-input" placeholder="0" /></div>
+              <div class="inline-field-row"><label>帳號</label><input v-model="addForm.account" type="text" class="inline-input" placeholder="帳號" /></div>
+              <div class="inline-field-row"><label>卡號</label><input v-model="addForm.card" type="text" class="inline-input" placeholder="卡號" /></div>
+            </div>
+          </div>
+        </div>
         <div v-for="bank in banks" :key="bank.id" class="bank-card" :class="{ 'card-editing': editingId === bank.id }">
           <!-- 行內編輯模式 -->
           <template v-if="editingId === bank.id">
@@ -512,6 +532,17 @@ const formatNumber = (num) => {
 // 切換詳細資訊
 const toggleDetails = (id) => {
   showDetails.value[id] = !showDetails.value[id]
+}
+
+// 行內新增
+const isAddingInline = ref(false)
+const addForm = reactive({ name: '', deposit: 0, site: '', address: '', withdrawals: 0, transfer: 0, activity: '', card: '', account: '' })
+const openInlineAdd = () => { Object.assign(addForm, { name: '', deposit: 0, site: '', address: '', withdrawals: 0, transfer: 0, activity: '', card: '', account: '' }); isAddingInline.value = true }
+const cancelInlineAdd = () => { isAddingInline.value = false }
+const saveInlineAdd = async () => {
+  if (!addForm.name) { alert('請輸入銀行名稱'); return }
+  const result = await addBank({ ...addForm })
+  if (result.success) { isAddingInline.value = false } else { alert('新增失敗: ' + result.error) }
 }
 
 // 開啟新增 Modal

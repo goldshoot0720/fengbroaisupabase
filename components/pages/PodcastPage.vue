@@ -36,7 +36,7 @@
       <div class="summary-bar">
         <div class="summary-left">
           <button v-if="!batchMode && filteredPodcasts.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openAddModal" class="btn-add-icon" title="新增">+</button>
+          <button @click="openInlineAdd" class="btn-add-icon" title="新增">+</button>
           <template v-if="batchMode">
             <label class="select-all-label"><input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" /><span>全選</span></label>
             <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
@@ -56,13 +56,32 @@
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="filteredPodcasts.length === 0" class="empty-state">
+      <div v-else-if="filteredPodcasts.length === 0 && !isAddingInline" class="empty-state">
         <p v-if="searchQuery">找不到符合的播客</p>
         <p v-else>尚無播客記錄，點擊「新增播客」開始建立</p>
       </div>
 
       <!-- Podcasts Grid -->
-      <div v-else class="podcasts-grid">
+      <div v-if="isAddingInline || filteredPodcasts.length > 0" class="podcasts-grid">
+
+        <!-- 行內新增卡片 -->
+        <div v-if="isAddingInline" class="podcast-card card-editing">
+          <div class="card-header">
+            <div class="card-header-left">
+              <input v-model="addForm.name" type="text" class="inline-input inline-title-input" placeholder="播客名稱 *" style="flex:1" />
+            </div>
+            <div class="card-header-right">
+              <button @click="saveInlineAdd" class="btn-icon" title="儲存">💾</button>
+              <button @click="cancelInlineAdd" class="btn-icon" title="取消">✕</button>
+            </div>
+          </div>
+          <div class="inline-edit-form">
+            <div class="inline-row"><label>分類</label><input v-model="addForm.category" class="inline-input" placeholder="分類" /></div>
+            <div class="inline-row"><label>備註</label><textarea v-model="addForm.note" class="inline-textarea" rows="2" placeholder="備註"></textarea></div>
+            <div class="inline-row"><label>音檔URL</label><input v-model="addForm.file" class="inline-input" placeholder="音檔路徑" /></div>
+            <div class="inline-row"><label>封面URL</label><input v-model="addForm.cover" class="inline-input" placeholder="封面 URL" /></div>
+          </div>
+        </div>
         <div
           v-for="podcast in filteredPodcasts"
           :key="podcast.id"
@@ -468,20 +487,21 @@ const deleteSelected = async () => {
   }
 }
 
+// 行內新增
+const isAddingInline = ref(false)
+const addForm = ref({ name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
+const openInlineAdd = () => { addForm.value = { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' }; isAddingInline.value = true }
+const cancelInlineAdd = () => { isAddingInline.value = false }
+const saveInlineAdd = async () => {
+  if (!addForm.value.name) { alert('請輸入播客名稱'); return }
+  try { await addPodcast(addForm.value); isAddingInline.value = false } catch(e) { alert('新增失敗: ' + e.message) }
+}
+
 // Methods
 const openAddModal = () => {
   isEditMode.value = false
   currentPodcast.value = null
-  formData.value = {
-    name: '',
-    file: '',
-    filetype: '',
-    note: '',
-    ref: '',
-    category: '',
-    hash: '',
-    cover: ''
-  }
+  formData.value = { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' }
   showModal.value = true
 }
 

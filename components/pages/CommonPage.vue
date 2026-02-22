@@ -37,7 +37,7 @@
       <div class="summary-bar">
         <div class="summary-left">
           <button v-if="!batchMode && filteredAccounts.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openAddModal" class="btn-add-icon" title="新增項目">+</button>
+          <button @click="openInlineAdd" class="btn-add-icon" title="新增項目">+</button>
           <template v-if="batchMode">
             <label class="select-all-label">
               <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
@@ -76,14 +76,35 @@
       </div>
 
       <!-- 空狀態 -->
-      <div v-else-if="accounts.length === 0" class="empty-state">
+      <div v-else-if="accounts.length === 0 && !isAddingInline" class="empty-state">
         <div class="empty-icon">📇</div>
         <h3>尚無常用項目</h3>
         <p>點擊上方按鈕新增您的第一個常用項目集合。</p>
       </div>
 
       <!-- 列表 Grid -->
-      <div v-else class="common-grid">
+      <div v-if="isAddingInline || filteredAccounts.length > 0" class="common-grid">
+
+        <!-- 行內新增卡片 -->
+        <div v-if="isAddingInline" class="common-card card-editing">
+          <div class="card-header">
+            <input v-model="addForm.name" type="text" class="inline-input inline-name" placeholder="example@example.com" style="flex:1" />
+            <div class="card-actions">
+              <button class="btn-icon save" @click="saveInlineAdd" title="儲存">💾</button>
+              <button class="btn-icon" @click="cancelInlineAdd" title="取消">✕</button>
+            </div>
+          </div>
+          <div class="card-content inline-edit-content">
+            <div class="inline-items-list">
+              <div v-for="i in 5" :key="i" class="inline-item-row">
+                <span class="inline-item-num">{{ i }}</span>
+                <input v-model="addForm[`site${padIndex(i)}`]" type="text" class="inline-input inline-site" placeholder="網站名稱" />
+                <input v-model="addForm[`note${padIndex(i)}`]" type="text" class="inline-input inline-note" placeholder="備註" />
+              </div>
+            </div>
+            <p style="font-size:0.8rem;color:#999;margin-top:0.5rem">儲存後可點擊卡片 ✏️ 編輯更多欄位</p>
+          </div>
+        </div>
         <div v-for="account in filteredAccounts" :key="account.id" class="common-card" :class="{ 'card-editing': editingId === account.id }">
           <!-- 行內編輯模式 -->
           <template v-if="editingId === account.id">
@@ -519,6 +540,32 @@ const filteredAccounts = computed(() => {
 onMounted(() => {
   loadAccounts()
 })
+
+// 行內新增
+const isAddingInline = ref(false)
+const addForm = reactive({})
+const initAddForm = () => {
+  const d = { name: '' }
+  for (let i = 1; i <= 37; i++) { const k = padIndex(i); d[`site${k}`] = ''; d[`note${k}`] = '' }
+  d.photohash = ''
+  return d
+}
+const openInlineAdd = () => { Object.assign(addForm, initAddForm()); isAddingInline.value = true }
+const cancelInlineAdd = () => { isAddingInline.value = false }
+const saveInlineAdd = async () => {
+  if (!addForm.name) { alert('請輸入項目名稱'); return }
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailPattern.test(addForm.name)) { alert('項目名稱請使用 email 格式'); return }
+  const payload = { ...addForm }
+  for (let i = 1; i <= 37; i++) { const k = padIndex(i); if (!payload[`site${k}`]) payload[`site${k}`] = null; if (!payload[`note${k}`]) payload[`note${k}`] = null }
+  if (!payload.photohash) payload.photohash = null
+  const result = await addAccount(payload)
+  if (result.success) { isAddingInline.value = false }
+  else {
+    if (result.error.includes('duplicate key')) alert('項目名稱已存在')
+    else alert('新增失敗: ' + result.error)
+  }
+}
 
 // 開啟新增 Modal
 const openAddModal = () => {

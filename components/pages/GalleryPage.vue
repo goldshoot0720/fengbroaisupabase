@@ -30,7 +30,7 @@
       <div class="summary-bar">
         <div class="summary-left">
           <button v-if="!batchMode && filteredImages.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openAddModal" class="btn-add-icon" title="新增">+</button>
+          <button @click="openInlineAdd" class="btn-add-icon" title="新增">+</button>
           <template v-if="batchMode">
             <label class="select-all-label">
               <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
@@ -53,8 +53,51 @@
       </div>
 
       <!-- 圖片列表 -->
-      <div v-else class="images-container">
-        <div v-if="filteredImages.length === 0" class="empty-state">
+      <div v-if="isAddingInline || filteredImages.length > 0 || !loading" class="images-container">
+
+        <!-- 行內新增卡片 -->
+        <div v-if="isAddingInline" class="image-card card-editing">
+          <div class="image-header">
+            <input v-model="addForm.name" type="text" class="inline-input inline-name" placeholder="圖片名稱 *" style="flex:1" />
+            <div class="image-actions">
+              <button class="btn-icon save" @click="saveInlineAdd" title="儲存">💾</button>
+              <button class="btn-icon" @click="cancelInlineAdd" title="取消">✕</button>
+            </div>
+          </div>
+          <div class="inline-add-form">
+            <div class="inline-field-row">
+              <label>上傳圖片</label>
+              <label class="btn-inline-upload" :class="{ disabled: addUploading }">
+                {{ addUploading ? '上傳中...' : '選擇圖片' }}
+                <input type="file" accept="image/*" style="display:none" :disabled="addUploading" @change="handleAddImageUpload" />
+              </label>
+              <span v-if="addForm.file" class="inline-file-name">📎
+                <button type="button" class="btn-inline-remove" @click="addForm.file = ''">✕</button>
+              </span>
+            </div>
+            <div v-if="addForm.file" class="inline-img-preview-wrap">
+              <img :src="addForm.file" class="inline-img-preview" alt="預覽" />
+            </div>
+            <div class="inline-field-row">
+              <label>或輸入URL</label>
+              <input v-model="addForm.file" type="text" class="inline-input" placeholder="https://..." />
+            </div>
+            <div class="inline-field-row">
+              <label>分類</label>
+              <input v-model="addForm.category" type="text" class="inline-input" placeholder="分類" />
+            </div>
+            <div class="inline-field-row">
+              <label>備註</label>
+              <input v-model="addForm.note" type="text" class="inline-input" placeholder="備註" />
+            </div>
+            <div class="inline-field-row">
+              <label>類型</label>
+              <input v-model="addForm.filetype" type="text" class="inline-input" placeholder="jpg, png..." />
+            </div>
+          </div>
+        </div>
+
+        <div v-if="filteredImages.length === 0 && !isAddingInline" class="empty-state">
           <p>沒有找到相關圖片</p>
         </div>
 
@@ -305,6 +348,40 @@ const hasExtra = (image) => {
 // 切換區塊顯示
 const toggleSection = (section) => {
   showSection[section] = !showSection[section]
+}
+
+// 行內新增
+const isAddingInline = ref(false)
+const addForm = reactive({ name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
+const addUploading = ref(false)
+
+const openInlineAdd = () => {
+  Object.assign(addForm, { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
+  isAddingInline.value = true
+}
+const cancelInlineAdd = () => { isAddingInline.value = false }
+
+const handleAddImageUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  addUploading.value = true
+  try {
+    const result = await uploadImageFile(file, 'gallery')
+    if (result.success) {
+      addForm.file = result.url
+      if (!addForm.name) addForm.name = file.name.replace(/\.[^.]+$/, '')
+      if (!addForm.filetype) addForm.filetype = file.name.split('.').pop() || ''
+    } else { alert('上傳失敗: ' + result.error) }
+  } catch (e) { alert('上傳失敗: ' + e.message) } finally { addUploading.value = false }
+}
+
+const saveInlineAdd = async () => {
+  if (!addForm.name) { alert('請輸入圖片名稱'); return }
+  try {
+    const result = await addImage({ ...addForm })
+    if (result.success) { isAddingInline.value = false; await loadImages() }
+    else { alert('新增失敗: ' + result.error) }
+  } catch (e) { alert('新增失敗: ' + e.message) }
 }
 
 // 開啟新增 Modal

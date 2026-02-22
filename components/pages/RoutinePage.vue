@@ -26,7 +26,7 @@
       <div class="summary-bar">
         <div class="summary-left">
           <button v-if="!batchMode && filteredRoutines.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openAddModal" class="btn-add-icon" title="新增">+</button>
+          <button @click="openInlineAdd" class="btn-add-icon" title="新增">+</button>
           <template v-if="batchMode">
             <label class="select-all-label">
               <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
@@ -43,10 +43,10 @@
       </div>
 
       <div v-if="loading" class="loading">載入中...</div>
-      <div v-else-if="filteredRoutines.length === 0" class="empty-state">
+      <div v-else-if="filteredRoutines.length === 0 && !isAddingInline" class="empty-state">
         暫無例行記錄
       </div>
-      <div v-else class="routine-table-wrapper">
+      <div v-if="isAddingInline || filteredRoutines.length > 0" class="routine-table-wrapper">
         <table class="routine-table">
           <thead>
             <tr>
@@ -61,6 +61,39 @@
             </tr>
           </thead>
           <tbody>
+            <!-- 行內新增列 -->
+            <template v-if="isAddingInline">
+              <tr class="row-editing">
+                <td class="td-name"><input v-model="addForm.name" type="text" class="inline-input" placeholder="名稱 *" /></td>
+                <td class="td-note-empty"></td>
+                <td class="td-photo-empty"></td>
+                <td class="td-date"><input v-model="addForm.lastdate1" type="date" class="inline-input" /></td>
+                <td class="td-date"><input v-model="addForm.lastdate2" type="date" class="inline-input" /></td>
+                <td class="td-days"></td>
+                <td class="td-date"><input v-model="addForm.lastdate3" type="date" class="inline-input" /></td>
+                <td class="td-actions-empty"></td>
+              </tr>
+              <tr class="row-editing row-editing-note">
+                <td colspan="8" class="td-note-full">
+                  <div class="inline-note-wrapper">
+                    <label class="note-label">備註：</label>
+                    <textarea v-model="addForm.note" class="inline-input inline-textarea" placeholder="備註..." rows="2"></textarea>
+                  </div>
+                </td>
+              </tr>
+              <tr class="row-editing row-editing-photo">
+                <td colspan="2" class="td-photo-full">
+                  <label class="photo-label">連結：</label>
+                  <input v-model="addForm.link" type="text" class="inline-input" placeholder="https://..." />
+                </td>
+                <td colspan="6" class="td-actions-full">
+                  <div class="inline-actions-wrapper">
+                    <button @click="saveInlineAdd" class="btn-save">💾 儲存</button>
+                    <button @click="cancelInlineAdd" class="btn-cancel">✕ 取消</button>
+                  </div>
+                </td>
+              </tr>
+            </template>
             <template v-for="routine in filteredRoutines" :key="routine.id">
               <!-- 行內編輯模式 - 第一列：名稱、日期 -->
               <tr v-if="editingId === routine.id" class="row-editing">
@@ -456,6 +489,19 @@ const resetForm = () => {
     link: '',
     photo: ''
   }
+}
+
+// 行內新增
+const isAddingInline = ref(false)
+const addForm = ref({ name: '', note: '', lastdate1: '', lastdate2: '', lastdate3: '', link: '', photo: '' })
+const openInlineAdd = () => { addForm.value = { name: '', note: '', lastdate1: '', lastdate2: '', lastdate3: '', link: '', photo: '' }; isAddingInline.value = true }
+const cancelInlineAdd = () => { isAddingInline.value = false }
+const saveInlineAdd = async () => {
+  if (!addForm.value.name) { alert('請輸入例行名稱'); return }
+  try {
+    await addRoutine({ ...addForm.value, lastdate1: addForm.value.lastdate1 || null, lastdate2: addForm.value.lastdate2 || null, lastdate3: addForm.value.lastdate3 || null })
+    isAddingInline.value = false; await loadRoutines()
+  } catch (e) { alert('新增失敗: ' + e.message) }
 }
 
 const openAddModal = () => {

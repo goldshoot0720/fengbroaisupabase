@@ -78,9 +78,32 @@
         </div>
       </div>
 
+      <div class="stats-section">
+        <h2 class="section-title">系統架構</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-value">34,128</span>
+            <span class="stat-label">程式碼行數</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">100</span>
+            <span class="stat-label">程式碼檔案</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">11</span>
+            <span class="stat-label">功能模組</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">2026/02/22</span>
+            <span class="stat-label">最後更新</span>
+          </div>
+        </div>
+      </div>
+
       <div class="info-section">
         <p class="info-text">所有資料支援 CSV 匯入/匯出，相容 Appwrite 格式</p>
       </div>
+
     </div>
   </PageContainer>
 </template>
@@ -224,6 +247,53 @@ useHead({
 .tech-badge:hover {
   transform: scale(1.05);
 }
+
+.stats-section {
+  margin-bottom: 3rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1.5rem;
+}
+
+.stat-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.18);
+  border-color: #667eea;
+}
+
+.stat-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #718096;
+  font-weight: 500;
+}
+
+
 
 .info-section {
   text-align: center;

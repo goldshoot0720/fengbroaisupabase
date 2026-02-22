@@ -17,6 +17,13 @@
           />
         </div>
 
+        <div class="filter-group">
+          <select v-model="filterCategory" class="filter-select">
+            <option value="">全部分類</option>
+            <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+        </div>
+
         <div class="csv-actions">
           <button @click="exportToZip" class="btn btn-export">
             匯出 ZIP
@@ -107,6 +114,19 @@
                 <div class="inline-field-row">
                   <label>Hash</label>
                   <input v-model="editForm.hash" type="text" class="inline-input" placeholder="Hash">
+                </div>
+                <div class="inline-field-row">
+                  <label>檔案</label>
+                  <div class="inline-upload-area">
+                    <input ref="inlineFileInput" type="file" style="display:none" @change="handleInlineFileUpload" />
+                    <button type="button" class="btn-inline-upload" :disabled="inlineFileUploading" @click="inlineFileInput.click()">
+                      {{ inlineFileUploading ? '上傳中...' : '選擇檔案' }}
+                    </button>
+                    <span v-if="editForm.file" class="inline-file-name">📎 {{ getFileName(editForm.file) }}
+                      <button type="button" class="btn-inline-remove" @click="editForm.file = ''">✕</button>
+                    </span>
+                    <input v-model="editForm.file" type="text" class="inline-input" placeholder="或輸入檔案 URL" style="margin-top:4px">
+                  </div>
                 </div>
                 <div class="inline-field-row">
                   <label>封面URL</label>
@@ -348,8 +368,15 @@ const {
   importDocuments
 } = useDocuments()
 
-// Search
+// Search & Filter
 const searchQuery = ref('')
+const filterCategory = ref('')
+
+const availableCategories = computed(() => {
+  const cats = new Set()
+  documents.value.forEach(doc => { if (doc.category) cats.add(doc.category) })
+  return [...cats].sort()
+})
 
 // Batch mode
 const batchMode = ref(false)
@@ -375,9 +402,11 @@ const deleteSelected = async () => {
 // Upload state
 const fileInput = ref(null)
 const coverFileInput = ref(null)
+const inlineFileInput = ref(null)
 const { uploadFile } = useStorage()
 const fileUploading = ref(false)
 const coverUploading = ref(false)
+const inlineFileUploading = ref(false)
 
 // Modal state
 const showModal = ref(false)
@@ -404,6 +433,25 @@ const startInlineEdit = (doc) => {
 
 const cancelInlineEdit = () => {
   inlineEditingId.value = null
+}
+
+const handleInlineFileUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  inlineFileUploading.value = true
+  try {
+    const result = await uploadFile(file, 'documents')
+    if (result.success) {
+      editForm.file = result.url
+    } else {
+      alert('上傳失敗: ' + result.error)
+    }
+  } catch (error) {
+    alert('上傳失敗: ' + error.message)
+  } finally {
+    inlineFileUploading.value = false
+    if (inlineFileInput.value) inlineFileInput.value.value = ''
+  }
 }
 
 const saveInlineEdit = async () => {
@@ -434,12 +482,13 @@ const formData = ref({
 
 // Computed
 const filteredDocuments = computed(() => {
-  if (!searchQuery.value) return documents.value
-
+  let list = documents.value
+  if (filterCategory.value) {
+    list = list.filter(doc => doc.category === filterCategory.value)
+  }
+  if (!searchQuery.value) return list
   const query = searchQuery.value.toLowerCase()
-  return documents.value.filter(doc =>
-    doc.name?.toLowerCase().includes(query)
-  )
+  return list.filter(doc => doc.name?.toLowerCase().includes(query))
 })
 
 // Methods
@@ -905,6 +954,74 @@ onMounted(() => {
 
 .btn-icon.save:hover {
   background: #ecfdf5;
+}
+
+/* Filter select */
+.filter-group {
+  display: flex;
+  align-items: center;
+}
+
+.filter-select {
+  padding: 0.65rem 0.8rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  min-width: 130px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #4facfe;
+}
+
+/* Inline upload */
+.inline-upload-area {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.btn-inline-upload {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.82rem;
+  border: 1px solid #4facfe;
+  border-radius: 4px;
+  background: #f0f9ff;
+  color: #0369a1;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background 0.2s;
+}
+
+.btn-inline-upload:hover:not(:disabled) {
+  background: #e0f2fe;
+}
+
+.btn-inline-upload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.inline-file-name {
+  font-size: 0.82rem;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-inline-remove {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0 2px;
 }
 
 .document-page {

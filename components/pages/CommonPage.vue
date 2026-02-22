@@ -96,13 +96,34 @@
           </div>
           <div class="card-content inline-edit-content">
             <div class="inline-items-list">
-              <div v-for="i in 5" :key="i" class="inline-item-row">
+              <div v-for="i in addVisibleCount" :key="i" class="inline-item-row">
                 <span class="inline-item-num">{{ i }}</span>
                 <input v-model="addForm[`site${padIndex(i)}`]" type="text" class="inline-input inline-site" placeholder="網站名稱" />
                 <input v-model="addForm[`note${padIndex(i)}`]" type="text" class="inline-input inline-note" placeholder="備註" />
               </div>
             </div>
-            <p style="font-size:0.8rem;color:#999;margin-top:0.5rem">儲存後可點擊卡片 ✏️ 編輯更多欄位</p>
+            <div class="slot-controls" style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap">
+              <button
+                v-if="addVisibleCount < 37"
+                class="btn-show-all-slots"
+                @click="addVisibleCount = Math.min(addVisibleCount + 1, 37)"
+              >➕ 新增一組欄位 ({{ addVisibleCount }}/37)</button>
+              <button
+                v-if="addVisibleCount > 5"
+                class="btn-show-all-slots"
+                @click="addVisibleCount = Math.max(addVisibleCount - 1, 5)"
+              >➖ 移除最後一組</button>
+              <button
+                v-if="addVisibleCount < 37"
+                class="btn-show-all-slots"
+                @click="addVisibleCount = 37"
+              >展開全部 37 組</button>
+              <button
+                v-if="addVisibleCount > 5"
+                class="btn-show-all-slots"
+                @click="addVisibleCount = 5"
+              >收合至 5 組</button>
+            </div>
           </div>
         </div>
         <div v-for="account in filteredAccounts" :key="account.id" class="common-card" :class="{ 'card-editing': editingId === account.id }">
@@ -544,13 +565,14 @@ onMounted(() => {
 // 行內新增
 const isAddingInline = ref(false)
 const addForm = reactive({})
+const addVisibleCount = ref(5)
 const initAddForm = () => {
   const d = { name: '' }
   for (let i = 1; i <= 37; i++) { const k = padIndex(i); d[`site${k}`] = ''; d[`note${k}`] = '' }
   d.photohash = ''
   return d
 }
-const openInlineAdd = () => { Object.assign(addForm, initAddForm()); isAddingInline.value = true }
+const openInlineAdd = () => { Object.assign(addForm, initAddForm()); addVisibleCount.value = 5; isAddingInline.value = true }
 const cancelInlineAdd = () => { isAddingInline.value = false }
 const saveInlineAdd = async () => {
   if (!addForm.name) { alert('請輸入項目名稱'); return }

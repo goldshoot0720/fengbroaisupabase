@@ -2,10 +2,10 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
-  
+
   // SSR模式 (服务器端渲染)
   ssr: true,
-  
+
   // 應用程式配置
   app: {
     head: {
@@ -34,7 +34,7 @@ export default defineNuxtConfig({
       ]
     }
   },
-  
+
   // 模組
   modules: ['@nuxtjs/supabase', '@vite-pwa/nuxt'],
 
@@ -52,6 +52,21 @@ export default defineNuxtConfig({
       scope: '/',
       start_url: '/',
       icons: [
+        {
+          src: 'favicon.ico',
+          sizes: '64x64 32x32 24x24 16x16',
+          type: 'image/x-icon'
+        },
+        {
+          src: 'favicon-16x16.png',
+          sizes: '16x16',
+          type: 'image/png'
+        },
+        {
+          src: 'favicon-32x32.png',
+          sizes: '32x32',
+          type: 'image/png'
+        },
         {
           src: 'pwa-192x192.png',
           sizes: '192x192',
@@ -106,7 +121,7 @@ export default defineNuxtConfig({
       enabled: true
     }
   },
-  
+
   // Supabase 配置
   supabase: {
     url: process.env.SUPABASE_URL,
@@ -117,15 +132,15 @@ export default defineNuxtConfig({
       exclude: ['/*'],
     }
   },
-  
+
   // 全域 CSS
   css: ['~/assets/css/variables.css'],
-  
+
   // Netlify部署配置
   nitro: {
     preset: 'netlify'
   },
-  
+
   components: [
     {
       path: '~/components',
@@ -133,7 +148,7 @@ export default defineNuxtConfig({
       pathPrefix: false
     }
   ],
-  
+
   runtimeConfig: {
     // Private keys (only available on server-side)
     supabaseUrl: process.env.SUPABASE_URL,
@@ -145,7 +160,8 @@ export default defineNuxtConfig({
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       supabaseBucket: process.env.SUPABASE_BUCKET || 'uploads',
-      NETLIFY_SITE_ID: process.env.NETLIFY_SITE_ID
+      NETLIFY_SITE_ID: process.env.NETLIFY_SITE_ID,
+      vapidPublicKey: process.env.NUXT_PUBLIC_VAPID_PUBLIC_KEY || ''
     }
   }
 })

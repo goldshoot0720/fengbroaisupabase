@@ -101,7 +101,15 @@
             <td class="col-price">
               <input v-model="addForm.price" type="number" class="inline-input inline-number" placeholder="0" min="0" />
             </td>
-            <td class="col-photo">
+            <td class="col-photo col-photo-edit">
+              <div v-if="addForm.photo" class="inline-photo-preview">
+                <img :src="addForm.photo" alt="預覽" class="mini-photo" />
+                <button type="button" class="btn-remove-photo" @click="addForm.photo = ''">✕</button>
+              </div>
+              <label class="btn-upload-photo" :class="{ disabled: addPhotoUploading }">
+                {{ addPhotoUploading ? '...' : '📷上傳' }}
+                <input type="file" accept="image/*" style="display:none" :disabled="addPhotoUploading" @change="handleAddPhotoUpload" />
+              </label>
               <input v-model="addForm.photo" type="text" class="inline-input inline-small" placeholder="照片URL" />
             </td>
             <td class="col-actions">
@@ -139,10 +147,15 @@
               <td class="col-price">
                 <input v-model="editForm.price" type="number" class="inline-input inline-number" placeholder="0" min="0" />
               </td>
-              <td class="col-photo">
+              <td class="col-photo col-photo-edit">
                 <div v-if="editForm.photo" class="inline-photo-preview">
                   <img :src="editForm.photo" alt="預覽" class="mini-photo" @click="previewImage = editForm.photo" />
+                  <button type="button" class="btn-remove-photo" @click="editForm.photo = ''">✕</button>
                 </div>
+                <label class="btn-upload-photo" :class="{ disabled: editPhotoUploading }">
+                  {{ editPhotoUploading ? '...' : '📷上傳' }}
+                  <input type="file" accept="image/*" style="display:none" :disabled="editPhotoUploading" @change="handleEditPhotoUpload" />
+                </label>
                 <input v-model="editForm.photo" type="text" class="inline-input inline-small" placeholder="照片URL" />
               </td>
               <td class="col-actions">
@@ -241,6 +254,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useFoods } from '../../composables/useFoods'
 import { useFormatters } from '../../composables/useFormatters'
+import { useStorage } from '../../composables/useStorage'
 
 const searchQuery = ref('')
 const previewImage = ref(null)
@@ -260,6 +274,33 @@ const {
 } = useFoods()
 
 const { formatDate, getExpiryClass } = useFormatters()
+
+// 圖片上傳
+const { uploadFile: uploadImageFile } = useStorage()
+const editPhotoUploading = ref(false)
+const addPhotoUploading = ref(false)
+
+const handleEditPhotoUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  editPhotoUploading.value = true
+  try {
+    const result = await uploadImageFile(file, 'food')
+    if (result.success) { editForm.value.photo = result.url }
+    else { alert('上傳失敗: ' + result.error) }
+  } catch (e) { alert('上傳失敗: ' + e.message) } finally { editPhotoUploading.value = false }
+}
+
+const handleAddPhotoUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  addPhotoUploading.value = true
+  try {
+    const result = await uploadImageFile(file, 'food')
+    if (result.success) { addForm.value.photo = result.url }
+    else { alert('上傳失敗: ' + result.error) }
+  } catch (e) { alert('上傳失敗: ' + e.message) } finally { addPhotoUploading.value = false }
+}
 
 // 批量選擇
 const selectedIds = ref([])
@@ -819,6 +860,45 @@ defineExpose({ foods, expiringFoods })
 
 .col-photo {
   width: 60px;
+}
+
+.col-photo-edit {
+  width: 120px;
+  min-width: 110px;
+}
+
+.btn-upload-photo {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-bottom: 0.3rem;
+  transition: opacity 0.2s;
+}
+
+.btn-upload-photo.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-remove-photo {
+  background: none;
+  border: 1px solid #f87171;
+  color: #f87171;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.3rem;
+  cursor: pointer;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+
+.btn-remove-photo:hover {
+  background: #fee2e2;
 }
 
 .col-actions {

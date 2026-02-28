@@ -87,8 +87,34 @@
           <div class="inline-edit-form">
             <div class="inline-form-group"><label>名稱 *</label><input v-model="addNewForm.name" type="text" class="inline-input" placeholder="影片名稱" /></div>
             <div class="inline-form-group"><label>分類</label><input v-model="addNewForm.category" type="text" class="inline-input" placeholder="分類" /></div>
-            <div class="inline-form-group"><label>影片URL</label><input v-model="addNewForm.file" type="text" class="inline-input" placeholder="影片 URL" /></div>
-            <div class="inline-form-group"><label>封面URL</label><input v-model="addNewForm.cover" type="text" class="inline-input" placeholder="封面 URL" /></div>
+            <div class="inline-form-group">
+              <label>上傳影片</label>
+              <div class="upload-area">
+                <input ref="addVideoInput" type="file" accept="video/*" @change="handleAddVideoUpload" style="display:none" />
+                <button type="button" @click="$refs.addVideoInput.click()" class="btn-upload" :disabled="addVideoUploading">
+                  {{ addVideoUploading ? '上傳中...' : '選擇影片' }}
+                </button>
+              </div>
+              <div v-if="addNewForm.file" class="inline-video-preview">
+                <video :src="addNewForm.file" controls preload="metadata" class="card-video"></video>
+              </div>
+            </div>
+            <div class="inline-form-group"><label>或輸入影片URL</label><input v-model="addNewForm.file" type="text" class="inline-input" placeholder="影片 URL" /></div>
+            <div class="inline-form-group"><label>檔案類型</label><input v-model="addNewForm.filetype" type="text" class="inline-input" placeholder="mp4, mov..." /></div>
+            <div class="inline-form-group">
+              <label>封面上傳</label>
+              <div class="upload-area">
+                <input ref="addCoverInput" type="file" accept="image/*" @change="handleAddCoverUpload" style="display:none" />
+                <button type="button" @click="$refs.addCoverInput.click()" class="btn-upload" :disabled="addCoverUploading">
+                  {{ addCoverUploading ? '上傳中...' : '選擇封面' }}
+                </button>
+              </div>
+              <div v-if="addNewForm.cover" class="inline-cover-preview">
+                <img :src="addNewForm.cover" alt="封面預覽" class="preview-cover-img" />
+                <button type="button" @click="addNewForm.cover = ''" class="btn-remove-sm">移除</button>
+              </div>
+              <input v-model="addNewForm.cover" type="text" class="inline-input" placeholder="或輸入封面 URL" style="margin-top:0.25rem" />
+            </div>
             <div class="inline-form-group"><label>備註</label><textarea v-model="addNewForm.note" class="inline-textarea" rows="2" placeholder="備註"></textarea></div>
             <div class="inline-edit-actions">
               <button @click="saveInlineAdd" class="btn-save" :disabled="loading">儲存</button>
@@ -669,11 +695,45 @@ function truncateText(text, maxLength) {
 // 行內新增
 const isAddingInline = ref(false)
 const addNewForm = ref({ name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
-const openInlineAdd = () => { addNewForm.value = { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' }; isAddingInline.value = true }
+const addVideoInput = ref(null)
+const addCoverInput = ref(null)
+const addVideoUploading = ref(false)
+const addCoverUploading = ref(false)
+
+const openInlineAdd = () => {
+  addNewForm.value = { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' }
+  isAddingInline.value = true
+}
 const cancelInlineAdd = () => { isAddingInline.value = false }
 const saveInlineAdd = async () => {
   if (!addNewForm.value.name) { alert('請輸入影片名稱'); return }
   try { await addVideo(addNewForm.value); isAddingInline.value = false; await loadVideos() } catch(e) { alert('新增失敗: ' + e.message) }
+}
+
+async function handleAddVideoUpload(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  addVideoUploading.value = true
+  try {
+    const result = await uploadFile(file, 'video')
+    if (result.success) {
+      addNewForm.value.file = result.url
+      if (!addNewForm.value.name) addNewForm.value.name = file.name.replace(/\.[^.]+$/, '')
+      const ext = file.name.split('.').pop()
+      if (ext) addNewForm.value.filetype = ext
+    } else { alert('上傳失敗: ' + result.error) }
+  } catch (e) { alert('上傳失敗: ' + e.message) } finally { addVideoUploading.value = false }
+}
+
+async function handleAddCoverUpload(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  addCoverUploading.value = true
+  try {
+    const result = await uploadFile(file, 'video-covers')
+    if (result.success) { addNewForm.value.cover = result.url }
+    else { alert('封面上傳失敗: ' + result.error) }
+  } catch (e) { alert('封面上傳失敗: ' + e.message) } finally { addCoverUploading.value = false }
 }
 
 function openAddModal() {

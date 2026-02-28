@@ -89,7 +89,21 @@
           </div>
           <div class="card-body inline-edit-content">
             <div class="inline-edit-form">
-              <div class="inline-field-row"><label>語言</label><input v-model="addForm.language" type="text" class="inline-input" placeholder="中文/英語/日語..." /></div>
+              <div class="inline-field-row">
+                <label>語言</label>
+                <div style="flex:1;display:flex;flex-direction:column;gap:0.3rem">
+                  <select v-model="addLangSelect" @change="handleAddLangChange" class="inline-input">
+                    <option value="">選擇語言</option>
+                    <option value="中文">中文</option>
+                    <option value="日語">日語</option>
+                    <option value="英語">英語</option>
+                    <option value="粵語">粵語</option>
+                    <option value="韓語">韓語</option>
+                    <option value="custom">自行輸入...</option>
+                  </select>
+                  <input v-if="addLangSelect === 'custom'" v-model="addForm.language" class="inline-input" placeholder="請輸入語言" />
+                </div>
+              </div>
               <div class="inline-field-row"><label>分類</label><input v-model="addForm.category" type="text" class="inline-input" placeholder="分類" /></div>
               <!-- 音檔上傳 -->
               <div class="inline-field-row">
@@ -146,7 +160,18 @@
               <div class="inline-edit-form">
                 <div class="inline-field-row">
                   <label>語言</label>
-                  <input v-model="editForm.language" type="text" class="inline-input" placeholder="中文/英語/日語...">
+                  <div style="flex:1;display:flex;flex-direction:column;gap:0.3rem">
+                    <select v-model="editLangSelect" @change="handleEditLangChange" class="inline-input">
+                      <option value="">選擇語言</option>
+                      <option value="中文">中文</option>
+                      <option value="日語">日語</option>
+                      <option value="英語">英語</option>
+                      <option value="粵語">粵語</option>
+                      <option value="韓語">韓語</option>
+                      <option value="custom">自行輸入...</option>
+                    </select>
+                    <input v-if="editLangSelect === 'custom'" v-model="editForm.language" class="inline-input" placeholder="請輸入語言" />
+                  </div>
                 </div>
                 <div class="inline-field-row">
                   <label>分類</label>
@@ -449,7 +474,30 @@ const { uploading, uploadProgress, uploadFile } = useStorage()
 const editingId = ref(null)
 const editForm = reactive({})
 
+// 語言選擇
+const PRESET_LANGS = ['中文', '日語', '英語', '粵語', '韓語']
+const addLangSelect = ref('')
+const editLangSelect = ref('')
+
+const handleAddLangChange = () => {
+  if (addLangSelect.value !== 'custom') {
+    addForm.value.language = addLangSelect.value
+  } else {
+    addForm.value.language = ''
+  }
+}
+
+const handleEditLangChange = () => {
+  if (editLangSelect.value !== 'custom') {
+    editForm.language = editLangSelect.value
+  } else {
+    editForm.language = ''
+  }
+}
+
 const startInlineEdit = (music) => {
+  const lang = music.language || ''
+  editLangSelect.value = PRESET_LANGS.includes(lang) ? lang : (lang ? 'custom' : '')
   Object.assign(editForm, {
     id: music.id,
     name: music.name || '',
@@ -733,7 +781,11 @@ const truncate = (text, length) => {
 // 行內新增
 const isAddingInline = ref(false)
 const addForm = ref({ name: '', file: '', filetype: '', lyrics: '', note: '', ref: '', category: '', hash: '', language: '', cover: '' })
-const openInlineAdd = () => { addForm.value = { name: '', file: '', filetype: '', lyrics: '', note: '', ref: '', category: '', hash: '', language: '', cover: '' }; isAddingInline.value = true }
+const openInlineAdd = () => {
+  addForm.value = { name: '', file: '', filetype: '', lyrics: '', note: '', ref: '', category: '', hash: '', language: '', cover: '' }
+  addLangSelect.value = ''
+  isAddingInline.value = true
+}
 const cancelInlineAdd = () => { isAddingInline.value = false }
 const saveInlineAdd = async () => {
   if (!addForm.value.name) { alert('請輸入歌曲名稱'); return }
@@ -2223,7 +2275,8 @@ onMounted(() => {
 }
 
 .lyrics-body.expanded {
-  max-height: 600px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 /* ── 行內上傳樣式 ── */

@@ -61,132 +61,111 @@
             </tr>
           </thead>
           <tbody>
-            <!-- 行內新增列 -->
+            <!-- 行內新增面板 -->
             <template v-if="isAddingInline">
               <tr class="row-editing">
-                <td class="td-name"><input v-model="addForm.name" type="text" class="inline-input" placeholder="名稱 *" /></td>
-                <td class="td-note-empty"></td>
-                <td class="td-photo-empty"></td>
-                <td class="td-date"><input v-model="addForm.lastdate1" type="date" class="inline-input" /></td>
-                <td class="td-date"><input v-model="addForm.lastdate2" type="date" class="inline-input" /></td>
-                <td class="td-days"></td>
-                <td class="td-date"><input v-model="addForm.lastdate3" type="date" class="inline-input" /></td>
-                <td class="td-actions-empty"></td>
-              </tr>
-              <tr class="row-editing row-editing-note">
-                <td colspan="8" class="td-note-full">
-                  <div class="inline-note-wrapper">
-                    <label class="note-label">備註：</label>
-                    <textarea v-model="addForm.note" class="inline-input inline-textarea" placeholder="備註..." rows="2"></textarea>
-                  </div>
-                </td>
-              </tr>
-              <tr class="row-editing row-editing-photo">
-                <td colspan="2" class="td-photo-full">
-                  <label class="photo-label">連結：</label>
-                  <input v-model="addForm.link" type="text" class="inline-input" placeholder="https://..." />
-                </td>
-                <td colspan="6" class="td-actions-full">
-                  <div class="inline-actions-wrapper">
-                    <button @click="saveInlineAdd" class="btn-save">💾 儲存</button>
-                    <button @click="cancelInlineAdd" class="btn-cancel">✕ 取消</button>
+                <td colspan="8" class="td-inline-edit-full">
+                  <div class="inline-edit-panel">
+                    <div class="inline-field-row">
+                      <label class="inline-edit-label">名稱</label>
+                      <input v-model="addForm.name" type="text" class="inline-input" placeholder="名稱 *">
+                    </div>
+                    <div class="inline-field-row">
+                      <label class="inline-edit-label">最近例行之一</label>
+                      <input v-model="addForm.lastdate1" type="date" class="inline-input">
+                    </div>
+                    <div class="inline-field-row">
+                      <label class="inline-edit-label">最近例行之二</label>
+                      <input v-model="addForm.lastdate2" type="date" class="inline-input">
+                    </div>
+                    <div class="inline-field-row">
+                      <label class="inline-edit-label">最近例行之三</label>
+                      <input v-model="addForm.lastdate3" type="date" class="inline-input">
+                    </div>
+                    <div class="inline-field-row">
+                      <label class="inline-edit-label">連結</label>
+                      <input v-model="addForm.link" type="text" class="inline-input" placeholder="https://...">
+                    </div>
+                    <div class="inline-field-row" style="flex-direction:column;align-items:flex-start;gap:0.25rem">
+                      <label class="inline-edit-label">備註</label>
+                      <textarea v-model="addForm.note" class="inline-input inline-textarea" rows="5" placeholder="備註..."></textarea>
+                    </div>
+                    <div class="inline-actions-row">
+                      <button @click="saveInlineAdd" class="btn-save">💾 儲存</button>
+                      <button @click="cancelInlineAdd" class="btn-cancel">✕ 取消</button>
+                    </div>
                   </div>
                 </td>
               </tr>
             </template>
             <template v-for="routine in filteredRoutines" :key="routine.id">
-              <!-- 行內編輯模式 - 第一列：名稱、日期 -->
+              <!-- 行內編輯模式 - 整合單列 -->
               <tr v-if="editingId === routine.id" class="row-editing">
-                <td class="td-name">
-                  <input 
-                    ref="inlineNameInput"
-                    v-model="editForm.name" 
-                    type="text" 
-                    class="inline-input" 
-                    placeholder="名稱"
-                    @keydown.enter="saveInlineEdit"
-                    @keydown.escape="cancelInlineEdit"
-                  >
-                </td>
-                <!-- 備註在第二列 -->
-                <td class="td-note-empty"></td>
-                <!-- 圖片在第三列 -->
-                <td class="td-photo-empty"></td>
-                <td class="td-date">
-                  <input 
-                    v-model="editForm.lastdate1" 
-                    type="date" 
-                    class="inline-input"
-                    @keydown.escape="cancelInlineEdit"
-                  >
-                </td>
-                <td class="td-date">
-                  <input 
-                    v-model="editForm.lastdate2" 
-                    type="date" 
-                    class="inline-input"
-                    @keydown.escape="cancelInlineEdit"
-                  >
-                </td>
-                <td class="td-days"></td>
-                <td class="td-date">
-                  <input 
-                    v-model="editForm.lastdate3" 
-                    type="date" 
-                    class="inline-input"
-                    @keydown.escape="cancelInlineEdit"
-                  >
-                </td>
-                <!-- 操作在第三列 -->
-                <td class="td-actions-empty"></td>
-              </tr>
-              <!-- 行內編輯模式 - 第二列：備註 -->
-              <tr v-if="editingId === routine.id" class="row-editing row-editing-note">
-                <td colspan="8" class="td-note-full">
-                  <div class="inline-note-wrapper">
-                    <label class="note-label">備註：</label>
-                    <textarea 
-                      v-model="editForm.note" 
-                      class="inline-input inline-textarea" 
-                      placeholder="輸入備註內容..."
-                      rows="3"
-                      @keydown.escape="cancelInlineEdit"
-                    ></textarea>
-                  </div>
-                </td>
-              </tr>
-              <!-- 行內編輯模式 - 第三列：圖片、操作 -->
-              <tr v-if="editingId === routine.id" class="row-editing row-editing-photo">
-                <td colspan="2" class="td-photo-full">
-                  <label class="photo-label">圖片：</label>
-                  <div class="inline-photo-edit">
-                    <input 
-                      v-model="editForm.photo" 
-                      type="text" 
-                      class="inline-input" 
-                      placeholder="圖片 URL"
-                      @keydown.enter="saveInlineEdit"
-                      @keydown.escape="cancelInlineEdit"
-                    >
-                    <label class="btn-inline-upload" title="上傳圖片">
-                      📷
+                <td colspan="8" class="td-inline-edit-full">
+                  <div class="inline-edit-panel">
+                    <div class="inline-field-row">
+                      <label class="inline-edit-label">名稱</label>
                       <input
-                        type="file"
-                        accept="image/*"
-                        @change="handleInlinePhotoUpload"
-                        style="display: none"
-                      />
-                    </label>
-                  </div>
-                  <div v-if="inlineUploading" class="inline-upload-status">上傳中...</div>
-                  <div v-if="editForm.photo" class="inline-photo-preview">
-                    <img :src="editForm.photo" alt="預覽" />
-                  </div>
-                </td>
-                <td colspan="6" class="td-actions-full">
-                  <div class="inline-actions-wrapper">
-                    <button @click="saveInlineEdit" class="btn-save" title="儲存 (Enter)">💾 儲存</button>
-                    <button @click="cancelInlineEdit" class="btn-cancel" title="取消 (Esc)">✕ 取消</button>
+                        ref="inlineNameInput"
+                        v-model="editForm.name"
+                        type="text"
+                        class="inline-input"
+                        placeholder="名稱"
+                        @keydown.enter="saveInlineEdit"
+                        @keydown.escape="cancelInlineEdit"
+                      >
+                    </div>
+                    <div class="inline-field-row">
+                      <label class="inline-edit-label">最近例行之一</label>
+                      <input v-model="editForm.lastdate1" type="date" class="inline-input" @keydown.escape="cancelInlineEdit">
+                    </div>
+                    <div class="inline-field-row">
+                      <label class="inline-edit-label">最近例行之二</label>
+                      <input v-model="editForm.lastdate2" type="date" class="inline-input" @keydown.escape="cancelInlineEdit">
+                    </div>
+                    <div class="inline-field-row">
+                      <label class="inline-edit-label">最近例行之三</label>
+                      <input v-model="editForm.lastdate3" type="date" class="inline-input" @keydown.escape="cancelInlineEdit">
+                    </div>
+                    <div class="inline-field-row">
+                      <label class="inline-edit-label">連結</label>
+                      <input v-model="editForm.link" type="text" class="inline-input" placeholder="https://..." @keydown.escape="cancelInlineEdit">
+                    </div>
+                    <div class="inline-field-row" style="flex-direction:column;align-items:flex-start;gap:0.25rem">
+                      <label class="inline-edit-label">備註</label>
+                      <textarea
+                        v-model="editForm.note"
+                        class="inline-input inline-textarea"
+                        rows="5"
+                        placeholder="輸入備註內容..."
+                        @keydown.escape="cancelInlineEdit"
+                      ></textarea>
+                    </div>
+                    <div class="inline-field-row">
+                      <label class="inline-edit-label">圖片</label>
+                      <div class="inline-photo-edit" style="flex:1">
+                        <input
+                          v-model="editForm.photo"
+                          type="text"
+                          class="inline-input"
+                          placeholder="圖片 URL"
+                          @keydown.enter="saveInlineEdit"
+                          @keydown.escape="cancelInlineEdit"
+                        >
+                        <label class="btn-inline-upload" title="上傳圖片">
+                          📷
+                          <input type="file" accept="image/*" @change="handleInlinePhotoUpload" style="display: none" />
+                        </label>
+                      </div>
+                    </div>
+                    <div v-if="inlineUploading" class="inline-upload-status">上傳中...</div>
+                    <div v-if="editForm.photo" class="inline-photo-preview">
+                      <img :src="editForm.photo" alt="預覽" />
+                    </div>
+                    <div class="inline-actions-row">
+                      <button @click="saveInlineEdit" class="btn-save" title="儲存 (Enter)">💾 儲存</button>
+                      <button @click="cancelInlineEdit" class="btn-cancel" title="取消 (Esc)">✕ 取消</button>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -743,6 +722,36 @@ onMounted(() => {
 .row-editing td {
   padding: 0.75rem;
   vertical-align: top;
+}
+
+/* 整合行內編輯面板 */
+.td-inline-edit-full {
+  padding: 1rem 1.25rem !important;
+}
+
+.inline-edit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-width: 600px;
+}
+
+.inline-edit-label {
+  min-width: 110px;
+  font-size: 0.82rem;
+  color: #92400e;
+  font-weight: 600;
+  padding-top: 0.45rem;
+  flex-shrink: 0;
+}
+
+.inline-actions-row {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #f59e0b;
+  margin-top: 0.25rem;
 }
 
 .row-editing .td-note {

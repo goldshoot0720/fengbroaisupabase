@@ -118,9 +118,10 @@ export default defineNuxtConfig({
       ]
     },
     devOptions: {
-      enabled: true
+      enabled: false
     }
   },
+
 
   // Supabase 配置
   supabase: {

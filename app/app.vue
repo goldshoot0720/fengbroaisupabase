@@ -193,6 +193,7 @@ import { useNavigation } from '../composables/useNavigation'
 import { useScroll } from '../composables/useScroll'
 import { useToast } from '../composables/useToast'
 import { getSupabaseCredentials } from '../composables/useSettings'
+import { usePushNotification } from '../composables/usePushNotification'
 
 // 組件引用
 const subscriptionPageRef = ref(null)
@@ -215,6 +216,7 @@ const {
   handleResize 
 } = useNavigation()
 const { warning: toastWarning } = useToast()
+const { subscribe: subscribePush, checkSubscription: checkPushSubscription } = usePushNotification()
 const {
   showScrollButtons,
   showTopButton, 
@@ -341,6 +343,16 @@ onMounted(async () => {
       }
     }).catch(() => {})
   }
+
+  // --- Web Push：訂閱真正的背景推播（伺服器主動推送，不需要開 App）---
+  // TODO: 完成以下步驟後取消註解：
+  // 1. 在 Supabase 執行 supabase-push-table.sql 建立 push_subscriptions table
+  // 2. 在 .env 填入 SUPABASE_SERVICE_ROLE_KEY
+  // 3. 在 Netlify 環境變數設定 VAPID 相關金鑰
+  // if (import.meta.client && 'serviceWorker' in navigator && 'PushManager' in window) {
+  //   await checkPushSubscription()
+  //   subscribePush().catch(() => {})
+  // }
 
   // 初始化主題
   initTheme()

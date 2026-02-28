@@ -4,6 +4,34 @@
 // 2. Periodic Background Sync → 開機後背景檢查訂閱到期
 // =============================================
 
+// =============================================
+// Web Push 事件（伺服器主動推播，App 關閉也能收到）
+// =============================================
+self.addEventListener('push', (event) => {
+  if (!event.data) return
+
+  let data
+  try {
+    data = event.data.json()
+  } catch {
+    data = { title: '鋒兄AI', body: event.data.text() }
+  }
+
+  const title = data.title || '🔔 鋒兄AI'
+  const options = {
+    body: data.body || '',
+    icon: data.icon || '/pwa-192x192.png',
+    badge: '/pwa-192x192.png',
+    tag: data.tag || 'push-notification',
+    vibrate: [200, 100, 200],
+    requireInteraction: data.requireInteraction !== false
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  )
+})
+
 // --- 通知點擊事件 ---
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()

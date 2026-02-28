@@ -101,47 +101,95 @@
           <p>沒有找到相關圖片</p>
         </div>
 
-        <div v-for="image in filteredImages" :key="image.id" class="image-card">
-          <div class="image-header">
-            <div class="image-meta">
-              <span v-if="image.category" class="category-badge">{{ image.category }}</span>
-            </div>
-            <div class="image-actions">
-              <button class="btn-icon" @click="editImage(image)" title="編輯">✏️</button>
-              <button class="btn-icon delete" @click="confirmDelete(image)" title="刪除">🗑️</button>
-            </div>
-          </div>
+        <div v-for="image in filteredImages" :key="image.id" class="image-card" :class="{ 'card-editing': editingId === image.id }">
 
-          <h3 class="image-name">{{ image.name || '無名稱' }}</h3>
+          <!-- 行內編輯模式 -->
+          <template v-if="editingId === image.id">
+            <div class="image-header">
+              <input v-model="editForm.name" type="text" class="inline-input inline-name" placeholder="圖片名稱 *" style="flex:1" />
+              <div class="image-actions">
+                <button class="btn-icon save" @click="saveInlineEdit" :disabled="editUploading" title="儲存">💾</button>
+                <button class="btn-icon" @click="cancelInlineEdit" title="取消">✕</button>
+              </div>
+            </div>
+            <div class="inline-add-form">
+              <!-- 圖片預覽 -->
+              <div v-if="editForm.file" class="inline-img-preview-wrap">
+                <img :src="editForm.file" class="inline-img-preview" alt="預覽" />
+              </div>
+              <!-- 上傳圖片 -->
+              <div class="inline-field-row">
+                <label>上傳圖片</label>
+                <label class="btn-inline-upload" :class="{ disabled: editUploading }">
+                  {{ editUploading ? '上傳中...' : '選擇圖片' }}
+                  <input type="file" accept="image/*" style="display:none" :disabled="editUploading" @change="handleEditImageUpload" />
+                </label>
+                <button v-if="editForm.file" type="button" class="btn-inline-remove" @click="editForm.file = ''" title="移除圖片">✕</button>
+              </div>
+              <!-- 輸入 URL -->
+              <div class="inline-field-row">
+                <label>或輸入URL</label>
+                <input v-model="editForm.file" type="text" class="inline-input" placeholder="https://..." />
+              </div>
+              <div class="inline-field-row">
+                <label>分類</label>
+                <input v-model="editForm.category" type="text" class="inline-input" placeholder="分類" />
+              </div>
+              <div class="inline-field-row">
+                <label>備註</label>
+                <input v-model="editForm.note" type="text" class="inline-input" placeholder="備註" />
+              </div>
+              <div class="inline-field-row">
+                <label>類型</label>
+                <input v-model="editForm.filetype" type="text" class="inline-input" placeholder="jpg, png..." />
+              </div>
+            </div>
+          </template>
 
-          <div class="image-details">
-            <div v-if="image.note" class="detail-row">
-              <span class="detail-label">備註:</span>
-              <p class="detail-value">{{ image.note }}</p>
+          <!-- 一般顯示模式 -->
+          <template v-else>
+            <div class="image-header">
+              <div class="image-meta">
+                <span v-if="image.category" class="category-badge">{{ image.category }}</span>
+              </div>
+              <div class="image-actions">
+                <button class="btn-icon" @click="openInlineEdit(image)" title="行內編輯">✏️</button>
+                <button class="btn-icon delete" @click="confirmDelete(image)" title="刪除">🗑️</button>
+              </div>
             </div>
-            <div v-if="image.file" class="card-image-wrapper">
-              <img :src="image.file" :alt="image.name || '圖片'" class="card-image" />
-            </div>
-            <div v-if="image.filetype" class="detail-row">
-              <span class="file-type-badge">{{ image.filetype }}</span>
-            </div>
-          </div>
 
-          <!-- 其他資訊 -->
-          <div class="image-extra" v-if="hasExtra(image)">
-            <div v-if="image.ref" class="extra-item">
-              <span class="extra-label">參考:</span>
-              <span class="extra-value">{{ image.ref }}</span>
+            <h3 class="image-name">{{ image.name || '無名稱' }}</h3>
+
+            <div class="image-details">
+              <div v-if="image.note" class="detail-row">
+                <span class="detail-label">備註:</span>
+                <p class="detail-value">{{ image.note }}</p>
+              </div>
+              <div v-if="image.file" class="card-image-wrapper">
+                <img :src="image.file" :alt="image.name || '圖片'" class="card-image" />
+              </div>
+              <div v-if="image.filetype" class="detail-row">
+                <span class="file-type-badge">{{ image.filetype }}</span>
+              </div>
             </div>
-            <div v-if="image.hash" class="extra-item">
-              <span class="extra-label">Hash:</span>
-              <span class="extra-value hash-value">{{ image.hash }}</span>
+
+            <!-- 其他資訊 -->
+            <div class="image-extra" v-if="hasExtra(image)">
+              <div v-if="image.ref" class="extra-item">
+                <span class="extra-label">參考:</span>
+                <span class="extra-value">{{ image.ref }}</span>
+              </div>
+              <div v-if="image.hash" class="extra-item">
+                <span class="extra-label">Hash:</span>
+                <span class="extra-value hash-value">{{ image.hash }}</span>
+              </div>
+              <div v-if="image.cover" class="extra-item">
+                <span class="extra-label">封面:</span>
+                <span class="extra-value">{{ image.cover }}</span>
+              </div>
             </div>
-            <div v-if="image.cover" class="extra-item">
-              <span class="extra-label">封面:</span>
-              <span class="extra-value">{{ image.cover }}</span>
-            </div>
-          </div>
+          </template>
+
         </div>
       </div>
 
@@ -354,6 +402,40 @@ const toggleSection = (section) => {
 const isAddingInline = ref(false)
 const addForm = reactive({ name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
 const addUploading = ref(false)
+
+// 行內編輯
+const editingId = ref(null)
+const editForm = reactive({ name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
+const editUploading = ref(false)
+
+const openInlineEdit = (image) => {
+  editingId.value = image.id
+  Object.assign(editForm, { name: image.name || '', file: image.file || '', filetype: image.filetype || '', note: image.note || '', ref: image.ref || '', category: image.category || '', hash: image.hash || '', cover: image.cover || '' })
+}
+const cancelInlineEdit = () => { editingId.value = null }
+
+const handleEditImageUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  editUploading.value = true
+  try {
+    const result = await uploadImageFile(file, 'gallery')
+    if (result.success) {
+      editForm.file = result.url
+      if (!editForm.name) editForm.name = file.name.replace(/\.[^.]+$/, '')
+      if (!editForm.filetype) editForm.filetype = file.name.split('.').pop() || ''
+    } else { alert('上傳失敗: ' + result.error) }
+  } catch (e) { alert('上傳失敗: ' + e.message) } finally { editUploading.value = false }
+}
+
+const saveInlineEdit = async () => {
+  if (!editForm.name) { alert('請輸入圖片名稱'); return }
+  try {
+    const result = await updateImage(editingId.value, { ...editForm })
+    if (result.success) { editingId.value = null; await loadImages() }
+    else { alert('儲存失敗: ' + result.error) }
+  } catch (e) { alert('儲存失敗: ' + e.message) }
+}
 
 const openInlineAdd = () => {
   Object.assign(addForm, { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
@@ -1234,4 +1316,106 @@ useHead({
 .btn-batch-delete { padding: 0.5rem 1rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
 .btn-batch-delete:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4); }
 .btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 行內新增 / 行內編輯 */
+.card-editing {
+  border-left-color: #f59e0b;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}
+
+.inline-input {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.inline-input:focus {
+  outline: none;
+  border-color: #8ec5fc;
+  box-shadow: 0 0 0 2px rgba(142, 197, 252, 0.2);
+}
+
+.inline-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.inline-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.inline-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inline-field-row label {
+  font-size: 0.8rem;
+  color: #666;
+  white-space: nowrap;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.btn-inline-upload {
+  display: inline-block;
+  padding: 0.3rem 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.btn-inline-upload.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-inline-remove {
+  background: none;
+  border: 1px solid #f87171;
+  color: #f87171;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.btn-inline-remove:hover {
+  background: #fee2e2;
+}
+
+.inline-img-preview-wrap {
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f8f9fa;
+  margin-bottom: 0.25rem;
+}
+
+.inline-img-preview {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  display: block;
+  border-radius: 6px;
+}
+
+.btn-icon.save:hover {
+  background: #ecfdf5;
+}
 </style>

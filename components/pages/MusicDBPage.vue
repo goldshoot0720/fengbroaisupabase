@@ -91,8 +91,39 @@
             <div class="inline-edit-form">
               <div class="inline-field-row"><label>語言</label><input v-model="addForm.language" type="text" class="inline-input" placeholder="中文/英語/日語..." /></div>
               <div class="inline-field-row"><label>分類</label><input v-model="addForm.category" type="text" class="inline-input" placeholder="分類" /></div>
-              <div class="inline-field-row"><label>音檔URL</label><input v-model="addForm.file" type="text" class="inline-input" placeholder="音檔 URL" /></div>
+              <!-- 音檔上傳 -->
+              <div class="inline-field-row">
+                <label>上傳音檔</label>
+                <div style="flex:1">
+                  <div class="inline-upload-row">
+                    <input ref="addAudioInput" type="file" accept="audio/*" style="display:none" @change="handleAddAudioUpload" />
+                    <button type="button" class="btn-inline-upload-music" :class="{ disabled: addAudioUploading }" @click="$refs.addAudioInput.click()">
+                      {{ addAudioUploading ? '上傳中...' : '🎵 選擇音檔' }}
+                    </button>
+                    <button v-if="addForm.file" type="button" class="btn-inline-remove-sm" @click="addForm.file = ''">✕</button>
+                  </div>
+                  <input v-model="addForm.file" type="text" class="inline-input" placeholder="或輸入音檔 URL" style="margin-top:0.3rem" />
+                  <audio v-if="addForm.file" controls :src="addForm.file" class="inline-audio-preview"></audio>
+                </div>
+              </div>
+              <div class="inline-field-row"><label>格式</label><input v-model="addForm.filetype" type="text" class="inline-input" placeholder="mp3, flac, wav..." /></div>
+              <!-- 封面上傳 -->
+              <div class="inline-field-row">
+                <label>封面</label>
+                <div style="flex:1">
+                  <div class="inline-upload-row">
+                    <input ref="addCoverInput" type="file" accept="image/*" style="display:none" @change="handleAddCoverUpload" />
+                    <button type="button" class="btn-inline-upload-music" :class="{ disabled: addCoverUploading }" @click="$refs.addCoverInput.click()">
+                      {{ addCoverUploading ? '上傳中...' : '🖼️ 選擇封面' }}
+                    </button>
+                    <button v-if="addForm.cover" type="button" class="btn-inline-remove-sm" @click="addForm.cover = ''">✕</button>
+                  </div>
+                  <input v-model="addForm.cover" type="text" class="inline-input" placeholder="或輸入封面 URL" style="margin-top:0.3rem" />
+                  <img v-if="addForm.cover" :src="addForm.cover" alt="封面" class="inline-cover-preview" />
+                </div>
+              </div>
               <div class="inline-field-row"><label>備註</label><input v-model="addForm.note" type="text" class="inline-input" placeholder="備註" /></div>
+              <div class="inline-field-row"><label>歌詞</label><textarea v-model="addForm.lyrics" class="inline-input inline-textarea" rows="3" placeholder="歌詞"></textarea></div>
             </div>
           </div>
         </div>
@@ -121,6 +152,40 @@
                   <label>分類</label>
                   <input v-model="editForm.category" type="text" class="inline-input" placeholder="分類">
                 </div>
+                <!-- 音檔上傳 -->
+                <div class="inline-field-row">
+                  <label>音檔</label>
+                  <div style="flex:1">
+                    <div class="inline-upload-row">
+                      <input ref="editAudioInput" type="file" accept="audio/*" style="display:none" @change="handleEditAudioUpload" />
+                      <button type="button" class="btn-inline-upload-music" :class="{ disabled: editAudioUploading }" @click="$refs.editAudioInput.click()">
+                        {{ editAudioUploading ? '上傳中...' : '🎵 上傳音檔' }}
+                      </button>
+                      <button v-if="editForm.file" type="button" class="btn-inline-remove-sm" @click="editForm.file = ''">✕</button>
+                    </div>
+                    <input v-model="editForm.file" type="text" class="inline-input" placeholder="或輸入音檔 URL" style="margin-top:0.3rem" />
+                    <audio v-if="editForm.file" controls :src="editForm.file" class="inline-audio-preview"></audio>
+                  </div>
+                </div>
+                <div class="inline-field-row">
+                  <label>格式</label>
+                  <input v-model="editForm.filetype" type="text" class="inline-input" placeholder="mp3, flac...">
+                </div>
+                <!-- 封面上傳 -->
+                <div class="inline-field-row">
+                  <label>封面</label>
+                  <div style="flex:1">
+                    <div class="inline-upload-row">
+                      <input ref="editCoverInput" type="file" accept="image/*" style="display:none" @change="handleEditCoverUpload" />
+                      <button type="button" class="btn-inline-upload-music" :class="{ disabled: editCoverUploading }" @click="$refs.editCoverInput.click()">
+                        {{ editCoverUploading ? '上傳中...' : '🖼️ 上傳封面' }}
+                      </button>
+                      <button v-if="editForm.cover" type="button" class="btn-inline-remove-sm" @click="editForm.cover = ''">✕</button>
+                    </div>
+                    <input v-model="editForm.cover" type="text" class="inline-input" placeholder="或輸入封面 URL" style="margin-top:0.3rem">
+                    <img v-if="editForm.cover" :src="editForm.cover" alt="封面" class="inline-cover-preview" />
+                  </div>
+                </div>
                 <div class="inline-field-row">
                   <label>備註</label>
                   <input v-model="editForm.note" type="text" class="inline-input" placeholder="備註">
@@ -136,10 +201,6 @@
                 <div class="inline-field-row">
                   <label>Hash</label>
                   <input v-model="editForm.hash" type="text" class="inline-input" placeholder="Hash">
-                </div>
-                <div class="inline-field-row">
-                  <label>封面URL</label>
-                  <input v-model="editForm.cover" type="text" class="inline-input" placeholder="封面 URL">
                 </div>
               </div>
             </div>
@@ -660,6 +721,99 @@ const cancelInlineAdd = () => { isAddingInline.value = false }
 const saveInlineAdd = async () => {
   if (!addForm.value.name) { alert('請輸入歌曲名稱'); return }
   try { await addMusic(addForm.value); isAddingInline.value = false; await loadMusics() } catch(e) { alert('新增失敗: ' + e.message) }
+}
+
+// 行內新增上傳 refs 和狀態
+const addAudioInput = ref(null)
+const addCoverInput = ref(null)
+const addAudioUploading = ref(false)
+const addCoverUploading = ref(false)
+
+const handleAddAudioUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  addAudioUploading.value = true
+  try {
+    const ext = file.name.split('.').pop()?.toLowerCase() || ''
+    const result = await uploadFile(file, 'music')
+    if (result.success) {
+      addForm.value.file = result.url
+      if (!addForm.value.filetype) addForm.value.filetype = ext
+      if (!addForm.value.name) addForm.value.name = file.name.replace(/\.[^.]+$/, '')
+    } else {
+      alert('音檔上傳失敗: ' + result.error)
+    }
+  } catch (err) {
+    alert('音檔上傳失敗: ' + err.message)
+  } finally {
+    addAudioUploading.value = false
+    if (event.target) event.target.value = ''
+  }
+}
+
+const handleAddCoverUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  addCoverUploading.value = true
+  try {
+    const result = await uploadFile(file, 'music-covers')
+    if (result.success) {
+      addForm.value.cover = result.url
+    } else {
+      alert('封面上傳失敗: ' + result.error)
+    }
+  } catch (err) {
+    alert('封面上傳失敗: ' + err.message)
+  } finally {
+    addCoverUploading.value = false
+    if (event.target) event.target.value = ''
+  }
+}
+
+// 行內編輯上傳 refs 和狀態
+const editAudioInput = ref(null)
+const editCoverInput = ref(null)
+const editAudioUploading = ref(false)
+const editCoverUploading = ref(false)
+
+const handleEditAudioUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  editAudioUploading.value = true
+  try {
+    const ext = file.name.split('.').pop()?.toLowerCase() || ''
+    const result = await uploadFile(file, 'music')
+    if (result.success) {
+      editForm.file = result.url
+      if (!editForm.filetype) editForm.filetype = ext
+    } else {
+      alert('音檔上傳失敗: ' + result.error)
+    }
+  } catch (err) {
+    alert('音檔上傳失敗: ' + err.message)
+  } finally {
+    editAudioUploading.value = false
+    if (event.target) event.target.value = ''
+  }
+}
+
+const handleEditCoverUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  editCoverUploading.value = true
+  try {
+    const result = await uploadFile(file, 'music-covers')
+    if (result.success) {
+      editForm.cover = result.url
+    } else {
+      alert('封面上傳失敗: ' + result.error)
+    }
+  } catch (err) {
+    alert('封面上傳失敗: ' + err.message)
+  } finally {
+    editCoverUploading.value = false
+    if (event.target) event.target.value = ''
+  }
 }
 
 const openAddModal = () => {
@@ -2006,5 +2160,69 @@ onMounted(() => {
 .stat-fail {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* ── 行內上傳樣式 ── */
+.inline-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.btn-inline-upload-music {
+  padding: 0.3rem 0.7rem;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.btn-inline-upload-music:hover {
+  opacity: 0.85;
+}
+
+.btn-inline-upload-music.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-inline-remove-sm {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.btn-inline-remove-sm:hover {
+  background: #fca5a5;
+}
+
+.inline-audio-preview {
+  width: 100%;
+  height: 36px;
+  margin-top: 0.3rem;
+  border-radius: 6px;
+}
+
+.inline-cover-preview {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-top: 0.4rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  display: block;
 }
 </style>

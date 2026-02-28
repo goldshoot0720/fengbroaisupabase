@@ -256,9 +256,17 @@
                 <audio controls :src="getAudioSrc(getActiveItem(group))" class="audio-player" @play="pauseOthers($event)"></audio>
               </div>
             </div>
-            <div v-if="getActiveItem(group).lyrics" class="card-field">
-              <strong>歌詞:</strong>
-              <pre class="lyrics-text">{{ getActiveItem(group).lyrics }}</pre>
+            <div v-if="getActiveItem(group).lyrics" class="card-field lyrics-collapsible">
+              <button
+                class="lyrics-toggle-btn"
+                @click="toggleLyrics(getActiveItem(group).id)"
+              >
+                <span>📝 歌詞</span>
+                <span class="lyrics-toggle-icon" :class="{ open: expandedLyrics.has(getActiveItem(group).id) }">▼</span>
+              </button>
+              <div class="lyrics-body" :class="{ expanded: expandedLyrics.has(getActiveItem(group).id) }">
+                <pre class="lyrics-text">{{ getActiveItem(group).lyrics }}</pre>
+              </div>
             </div>
             <p v-if="getActiveItem(group).note" class="card-field">
               <strong>備註:</strong> {{ truncate(getActiveItem(group).note, 80) }}
@@ -706,6 +714,15 @@ const pauseOthers = (event) => {
   document.querySelectorAll('.audio-player').forEach(audio => {
     if (audio !== event.target) audio.pause()
   })
+}
+
+// 歌詞展開/收合
+const expandedLyrics = ref(new Set())
+const toggleLyrics = (id) => {
+  const s = new Set(expandedLyrics.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  expandedLyrics.value = s
 }
 
 const truncate = (text, length) => {
@@ -2160,6 +2177,53 @@ onMounted(() => {
 .stat-fail {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* ── 歌詞收合 ── */
+.lyrics-collapsible {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.lyrics-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.lyrics-toggle-btn:hover {
+  background: #e9ecef;
+}
+
+.lyrics-toggle-icon {
+  display: inline-block;
+  font-size: 0.7rem;
+  transition: transform 0.25s ease;
+}
+
+.lyrics-toggle-icon.open {
+  transform: rotate(180deg);
+}
+
+.lyrics-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.lyrics-body.expanded {
+  max-height: 600px;
 }
 
 /* ── 行內上傳樣式 ── */

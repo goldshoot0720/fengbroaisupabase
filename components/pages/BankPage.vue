@@ -84,6 +84,11 @@
               <div class="inline-field-row"><label>存款</label><input v-model.number="addForm.deposit" type="number" class="inline-input" placeholder="0" /></div>
               <div class="inline-field-row"><label>帳號</label><input v-model="addForm.account" type="text" class="inline-input" placeholder="帳號" /></div>
               <div class="inline-field-row"><label>卡號</label><input v-model="addForm.card" type="text" class="inline-input" placeholder="卡號" /></div>
+              <div class="inline-field-row"><label>分行</label><input v-model="addForm.site" type="text" class="inline-input" placeholder="分行/網點" /></div>
+              <div class="inline-field-row"><label>地址</label><input v-model="addForm.address" type="text" class="inline-input" placeholder="地址" /></div>
+              <div class="inline-field-row"><label>提款</label><input v-model.number="addForm.withdrawals" type="number" class="inline-input" placeholder="提款" /></div>
+              <div class="inline-field-row"><label>轉帳</label><input v-model.number="addForm.transfer" type="number" class="inline-input" placeholder="轉帳" /></div>
+              <div class="inline-field-row"><label>活動</label><textarea v-model="addForm.activity" class="inline-input inline-textarea" rows="2" placeholder="活動/備註"></textarea></div>
             </div>
           </div>
         </div>

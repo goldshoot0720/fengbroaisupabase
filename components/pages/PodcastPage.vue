@@ -78,8 +78,43 @@
           <div class="inline-edit-form">
             <div class="inline-row"><label>分類</label><input v-model="addForm.category" class="inline-input" placeholder="分類" /></div>
             <div class="inline-row"><label>備註</label><textarea v-model="addForm.note" class="inline-textarea" rows="2" placeholder="備註"></textarea></div>
-            <div class="inline-row"><label>音檔URL</label><input v-model="addForm.file" class="inline-input" placeholder="音檔路徑" /></div>
-            <div class="inline-row"><label>封面URL</label><input v-model="addForm.cover" class="inline-input" placeholder="封面 URL" /></div>
+            <div class="inline-row">
+              <label>音檔</label>
+              <div class="inline-upload-group">
+                <input
+                  ref="addAudioFileInput"
+                  type="file"
+                  accept="audio/*"
+                  @change="handleAddAudioUpload"
+                  style="display:none"
+                />
+                <button type="button" @click="$refs.addAudioFileInput.click()" class="btn-inline-upload" :disabled="addAudioUploading">
+                  {{ addAudioUploading ? '上傳中...' : '🎵 上傳音檔' }}
+                </button>
+                <input v-model="addForm.file" class="inline-input" placeholder="或輸入音檔 URL" />
+              </div>
+            </div>
+            <div class="inline-row"><label>格式</label><input v-model="addForm.filetype" class="inline-input" placeholder="例如 mp3" /></div>
+            <div class="inline-row">
+              <label>封面</label>
+              <div class="inline-upload-group">
+                <input
+                  ref="addCoverFileInput"
+                  type="file"
+                  accept="image/*"
+                  @change="handleAddCoverUpload"
+                  style="display:none"
+                />
+                <button type="button" @click="$refs.addCoverFileInput.click()" class="btn-inline-upload" :disabled="addCoverUploading">
+                  {{ addCoverUploading ? '上傳中...' : '🖼️ 上傳封面' }}
+                </button>
+                <input v-model="addForm.cover" class="inline-input" placeholder="或輸入封面 URL" />
+              </div>
+            </div>
+            <div v-if="addForm.cover" class="inline-cover-preview">
+              <img :src="addForm.cover" alt="封面預覽" />
+            </div>
+            <div class="inline-row"><label>參考</label><input v-model="addForm.ref" class="inline-input" placeholder="參考連結" /></div>
           </div>
         </div>
         <div
@@ -120,12 +155,43 @@
               <textarea v-model="inlineForm.note" class="inline-textarea" rows="2" placeholder="備註"></textarea>
             </div>
             <div class="inline-row">
-              <label>音檔 URL</label>
-              <input v-model="inlineForm.file" class="inline-input" placeholder="音檔路徑" />
+              <label>音檔</label>
+              <div class="inline-upload-group">
+                <input
+                  :ref="el => inlineAudioInputs[podcast.id] = el"
+                  type="file"
+                  accept="audio/*"
+                  @change="(e) => handleInlineAudioUpload(e, podcast.id)"
+                  style="display:none"
+                />
+                <button type="button" @click="inlineAudioInputs[podcast.id]?.click()" class="btn-inline-upload" :disabled="inlineAudioUploading">
+                  {{ inlineAudioUploading ? '上傳中...' : '🎵 上傳音檔' }}
+                </button>
+                <input v-model="inlineForm.file" class="inline-input" placeholder="或輸入音檔 URL" />
+              </div>
             </div>
             <div class="inline-row">
-              <label>封面 URL</label>
-              <input v-model="inlineForm.cover" class="inline-input" placeholder="封面 URL" />
+              <label>格式</label>
+              <input v-model="inlineForm.filetype" class="inline-input" placeholder="例如 mp3" />
+            </div>
+            <div class="inline-row">
+              <label>封面</label>
+              <div class="inline-upload-group">
+                <input
+                  :ref="el => inlineCoverInputs[podcast.id] = el"
+                  type="file"
+                  accept="image/*"
+                  @change="(e) => handleInlineCoverUpload(e, podcast.id)"
+                  style="display:none"
+                />
+                <button type="button" @click="inlineCoverInputs[podcast.id]?.click()" class="btn-inline-upload" :disabled="inlineCoverUploading">
+                  {{ inlineCoverUploading ? '上傳中...' : '🖼️ 上傳封面' }}
+                </button>
+                <input v-model="inlineForm.cover" class="inline-input" placeholder="或輸入封面 URL" />
+              </div>
+            </div>
+            <div v-if="inlineForm.cover" class="inline-cover-preview">
+              <img :src="inlineForm.cover" alt="封面預覽" />
             </div>
             <div class="inline-row">
               <label>參考</label>
@@ -385,6 +451,99 @@ const formData = ref({
 // Inline editing state
 const inlineEditId = ref(null)
 const inlineForm = ref({})
+const inlineAudioUploading = ref(false)
+const inlineCoverUploading = ref(false)
+const inlineAudioInputs = {}
+const inlineCoverInputs = {}
+
+// Inline add upload state
+const addAudioUploading = ref(false)
+const addCoverUploading = ref(false)
+
+// Inline edit: upload audio
+const handleInlineAudioUpload = async (event, podcastId) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  inlineAudioUploading.value = true
+  try {
+    const result = await uploadFile(file, 'podcast')
+    if (result.success) {
+      inlineForm.value.file = result.url
+      const ext = file.name.split('.').pop()
+      if (ext && !inlineForm.value.filetype) inlineForm.value.filetype = ext
+      alert('音檔上傳成功！')
+    } else {
+      alert('上傳失敗: ' + result.error)
+    }
+  } catch (err) {
+    alert('上傳失敗: ' + err.message)
+  } finally {
+    inlineAudioUploading.value = false
+  }
+}
+
+// Inline edit: upload cover
+const handleInlineCoverUpload = async (event, podcastId) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  inlineCoverUploading.value = true
+  try {
+    const result = await uploadFile(file, 'podcast-covers')
+    if (result.success) {
+      inlineForm.value.cover = result.url
+      alert('封面上傳成功！')
+    } else {
+      alert('封面上傳失敗: ' + result.error)
+    }
+  } catch (err) {
+    alert('封面上傳失敗: ' + err.message)
+  } finally {
+    inlineCoverUploading.value = false
+  }
+}
+
+// Inline add: upload audio
+const handleAddAudioUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  addAudioUploading.value = true
+  try {
+    const result = await uploadFile(file, 'podcast')
+    if (result.success) {
+      addForm.value.file = result.url
+      const ext = file.name.split('.').pop()
+      if (ext) addForm.value.filetype = ext
+      if (!addForm.value.name) addForm.value.name = file.name.replace(/\.[^/.]+$/, '')
+      alert('音檔上傳成功！')
+    } else {
+      alert('上傳失敗: ' + result.error)
+    }
+  } catch (err) {
+    alert('上傳失敗: ' + err.message)
+  } finally {
+    addAudioUploading.value = false
+  }
+}
+
+// Inline add: upload cover
+const handleAddCoverUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  addCoverUploading.value = true
+  try {
+    const result = await uploadFile(file, 'podcast-covers')
+    if (result.success) {
+      addForm.value.cover = result.url
+      alert('封面上傳成功！')
+    } else {
+      alert('封面上傳失敗: ' + result.error)
+    }
+  } catch (err) {
+    alert('封面上傳失敗: ' + err.message)
+  } finally {
+    addCoverUploading.value = false
+  }
+}
 
 const startInlineEdit = (podcast) => {
   inlineEditId.value = podcast.id
@@ -1588,4 +1747,75 @@ onMounted(() => {
 .stat-tag { font-size: 0.8rem; padding: 0.25rem 0.6rem; border-radius: 12px; font-weight: 500; }
 .stat-ok { background: #d1fae5; color: #065f46; }
 .stat-fail { background: #fee2e2; color: #991b1b; }
+
+/* ── Inline Upload Group ── */
+.inline-upload-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.btn-inline-upload {
+  padding: 0.3rem 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-inline-upload:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.45);
+}
+.btn-inline-upload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.inline-cover-preview {
+  padding: 0.5rem 0;
+}
+.inline-cover-preview img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+}
+/* ── Inline Actions ── */
+.inline-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+}
+.btn-inline-save {
+  padding: 0.4rem 1rem;
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-inline-save:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(17,153,142,0.4); }
+.btn-inline-cancel {
+  padding: 0.4rem 1rem;
+  background: #e0e0e0;
+  color: #555;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-inline-cancel:hover { background: #d0d0d0; }
 </style>

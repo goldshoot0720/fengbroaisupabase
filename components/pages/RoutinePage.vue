@@ -856,6 +856,7 @@ onMounted(() => {
 .inline-textarea {
   resize: vertical;
   min-height: 60px;
+  max-width: 480px;
   line-height: 1.5;
   padding: 0.5rem;
 }
@@ -922,6 +923,9 @@ onMounted(() => {
   transition: all 0.2s;
   color: white;
   margin-left: 0.25rem;
+  width: auto;
+  max-width: 100px;
+  white-space: nowrap;
 }
 
 .btn-cancel:hover {

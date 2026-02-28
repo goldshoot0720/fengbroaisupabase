@@ -123,7 +123,7 @@
                 </div>
               </div>
               <div class="inline-field-row"><label>備註</label><input v-model="addForm.note" type="text" class="inline-input" placeholder="備註" /></div>
-              <div class="inline-field-row"><label>歌詞</label><textarea v-model="addForm.lyrics" class="inline-input inline-textarea" rows="3" placeholder="歌詞"></textarea></div>
+              <div class="inline-field-row"><label>歌詞</label><textarea v-model="addForm.lyrics" class="inline-input inline-textarea" rows="8" placeholder="歌詞"></textarea></div>
             </div>
           </div>
         </div>
@@ -196,7 +196,7 @@
                 </div>
                 <div class="inline-field-row">
                   <label>歌詞</label>
-                  <textarea v-model="editForm.lyrics" class="inline-input inline-textarea" rows="3" placeholder="歌詞"></textarea>
+                  <textarea v-model="editForm.lyrics" class="inline-input inline-textarea" rows="8" placeholder="歌詞"></textarea>
                 </div>
                 <div class="inline-field-row">
                   <label>Hash</label>

@@ -561,7 +561,10 @@ const exportArticlesZip = async () => {
         if (!fileUrl) continue
 
         try {
-          const response = await fetch(fileUrl)
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), 10000) // 10 秒逾時
+          const response = await fetch(fileUrl, { signal: controller.signal })
+          clearTimeout(timer)
           if (response.ok) {
             const blob = await response.blob()
             const zipFileName = `${rowIdx}_${slot}_${fileName || 'file'}`
@@ -569,7 +572,11 @@ const exportArticlesZip = async () => {
             row['file' + slot] = `files/${zipFileName}`
           }
         } catch (err) {
-          console.warn(`下載附件失敗 (row ${rowIdx}, slot ${slot}):`, err)
+          if (err.name === 'AbortError') {
+            console.warn(`下載附件逾時 (row ${rowIdx}, slot ${slot}): ${fileUrl}`)
+          } else {
+            console.warn(`下載附件失敗 (row ${rowIdx}, slot ${slot}):`, err)
+          }
         }
       }
 

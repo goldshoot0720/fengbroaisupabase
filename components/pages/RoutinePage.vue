@@ -736,7 +736,8 @@ onMounted(() => {
   max-width: 600px;
 }
 
-.inline-edit-label {
+/* .inline-edit-panel 内的標籤，提高 specificity 贏過 .inline-field-row label */
+.inline-edit-panel .inline-edit-label {
   min-width: 110px;
   font-size: 0.82rem;
   color: #92400e;
@@ -865,9 +866,14 @@ onMounted(() => {
 .inline-textarea {
   resize: vertical;
   min-height: 60px;
-  max-width: 480px;
   line-height: 1.5;
   padding: 0.5rem;
+}
+
+/* textarea 在整合面板內不限寬度 */
+.inline-edit-panel .inline-textarea {
+  max-width: none;
+  width: 100%;
 }
 
 .inline-photo-edit {

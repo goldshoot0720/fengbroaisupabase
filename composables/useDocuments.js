@@ -27,16 +27,15 @@ export const useDocuments = () => {
 
   const TABLE = 'commondocument'
   const FIELDS = ['name', 'file', 'note', 'ref', 'category', 'hash', 'cover']
-  // 資料庫 varchar 欄位長度限制 — 超過的欄位名稱記錄在此以便 truncate
-  const VARCHAR_LIMIT = 150
-  const URL_FIELDS = ['file', 'cover', 'ref', 'hash']  // 可能超長的欄位
+  // 各欄位對應資料庫 varchar 長度限制
+  const FIELD_LIMITS = { name: 100, category: 100, note: 100, ref: 100, file: 150, cover: 150, hash: 300 }
 
   /** 將 payload 中可能超長的 varchar 欄位截斷，避免資料庫報錯 */
   const sanitizePayload = (payload) => {
-    for (const f of URL_FIELDS) {
-      if (payload[f] && typeof payload[f] === 'string' && payload[f].length > VARCHAR_LIMIT) {
-        console.warn(`⚠️ 欄位 "${f}" 長度 ${payload[f].length} 超過 ${VARCHAR_LIMIT}，已截斷。原值: ${payload[f]}`)
-        payload[f] = payload[f].substring(0, VARCHAR_LIMIT)
+    for (const [f, limit] of Object.entries(FIELD_LIMITS)) {
+      if (payload[f] && typeof payload[f] === 'string' && payload[f].length > limit) {
+        console.warn(`⚠️ 欄位 "${f}" 長度 ${payload[f].length} 超過 ${limit}，已截斷。原值: ${payload[f]}`)
+        payload[f] = payload[f].substring(0, limit)
       }
     }
     return payload

@@ -2304,6 +2304,16 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
+/* 覆蓋 .inline-field-row label 對上傳按鈕 label 的干擾 */
+.inline-field-row label.btn-inline-upload-music {
+  min-width: auto;
+  padding-top: 0;
+  flex-shrink: 1;
+  display: inline-block;
+  color: white;
+  font-size: 0.8rem;
+}
+
 .btn-inline-remove-sm {
   width: 22px;
   height: 22px;

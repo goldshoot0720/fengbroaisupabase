@@ -46,11 +46,11 @@
         <h2 class="section-title">📊 系統架構</h2>
         <div class="stats-grid">
           <div class="stat-card">
-            <span class="stat-value">34,423</span>
+            <span class="stat-value">32,919</span>
             <span class="stat-label">程式碼行數</span>
           </div>
           <div class="stat-card">
-            <span class="stat-value">100</span>
+            <span class="stat-value">54</span>
             <span class="stat-label">程式碼檔案</span>
           </div>
           <div class="stat-card">
@@ -58,7 +58,7 @@
             <span class="stat-label">功能模組</span>
           </div>
           <div class="stat-card">
-            <span class="stat-value">2026/02/23</span>
+            <span class="stat-value">2026/03/03</span>
             <span class="stat-label">最後更新</span>
           </div>
         </div>

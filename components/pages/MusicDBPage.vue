@@ -110,10 +110,10 @@
                 <label>上傳音檔</label>
                 <div style="flex:1">
                   <div class="inline-upload-row">
-                    <input ref="addAudioInput" type="file" accept="audio/*" style="display:none" @change="handleAddAudioUpload" />
-                    <button type="button" class="btn-inline-upload-music" :class="{ disabled: addAudioUploading }" @click="$refs.addAudioInput.click()">
+                    <label class="btn-inline-upload-music" :class="{ disabled: addAudioUploading }">
                       {{ addAudioUploading ? '上傳中...' : '🎵 選擇音檔' }}
-                    </button>
+                      <input type="file" accept="audio/*" style="display:none" :disabled="addAudioUploading" @change="handleAddAudioUpload" />
+                    </label>
                     <button v-if="addForm.file" type="button" class="btn-inline-remove-sm" @click="addForm.file = ''">✕</button>
                   </div>
                   <input v-model="addForm.file" type="text" class="inline-input" placeholder="或輸入音檔 URL" style="margin-top:0.3rem" />
@@ -126,10 +126,10 @@
                 <label>封面</label>
                 <div style="flex:1">
                   <div class="inline-upload-row">
-                    <input ref="addCoverInput" type="file" accept="image/*" style="display:none" @change="handleAddCoverUpload" />
-                    <button type="button" class="btn-inline-upload-music" :class="{ disabled: addCoverUploading }" @click="$refs.addCoverInput.click()">
+                    <label class="btn-inline-upload-music" :class="{ disabled: addCoverUploading }">
                       {{ addCoverUploading ? '上傳中...' : '🖼️ 選擇封面' }}
-                    </button>
+                      <input type="file" accept="image/*" style="display:none" :disabled="addCoverUploading" @change="handleAddCoverUpload" />
+                    </label>
                     <button v-if="addForm.cover" type="button" class="btn-inline-remove-sm" @click="addForm.cover = ''">✕</button>
                   </div>
                   <input v-model="addForm.cover" type="text" class="inline-input" placeholder="或輸入封面 URL" style="margin-top:0.3rem" />
@@ -182,10 +182,10 @@
                   <label>音檔</label>
                   <div style="flex:1">
                     <div class="inline-upload-row">
-                      <input ref="editAudioInput" type="file" accept="audio/*" style="display:none" @change="handleEditAudioUpload" />
-                      <button type="button" class="btn-inline-upload-music" :class="{ disabled: editAudioUploading }" @click="$refs.editAudioInput.click()">
+                      <label class="btn-inline-upload-music" :class="{ disabled: editAudioUploading }">
                         {{ editAudioUploading ? '上傳中...' : '🎵 上傳音檔' }}
-                      </button>
+                        <input type="file" accept="audio/*" style="display:none" :disabled="editAudioUploading" @change="handleEditAudioUpload" />
+                      </label>
                       <button v-if="editForm.file" type="button" class="btn-inline-remove-sm" @click="editForm.file = ''">✕</button>
                     </div>
                     <input v-model="editForm.file" type="text" class="inline-input" placeholder="或輸入音檔 URL" style="margin-top:0.3rem" />
@@ -201,10 +201,10 @@
                   <label>封面</label>
                   <div style="flex:1">
                     <div class="inline-upload-row">
-                      <input ref="editCoverInput" type="file" accept="image/*" style="display:none" @change="handleEditCoverUpload" />
-                      <button type="button" class="btn-inline-upload-music" :class="{ disabled: editCoverUploading }" @click="$refs.editCoverInput.click()">
+                      <label class="btn-inline-upload-music" :class="{ disabled: editCoverUploading }">
                         {{ editCoverUploading ? '上傳中...' : '🖼️ 上傳封面' }}
-                      </button>
+                        <input type="file" accept="image/*" style="display:none" :disabled="editCoverUploading" @change="handleEditCoverUpload" />
+                      </label>
                       <button v-if="editForm.cover" type="button" class="btn-inline-remove-sm" @click="editForm.cover = ''">✕</button>
                     </div>
                     <input v-model="editForm.cover" type="text" class="inline-input" placeholder="或輸入封面 URL" style="margin-top:0.3rem">
@@ -792,9 +792,7 @@ const saveInlineAdd = async () => {
   try { await addMusic(addForm.value); isAddingInline.value = false; await loadMusics() } catch(e) { alert('新增失敗: ' + e.message) }
 }
 
-// 行內新增上傳 refs 和狀態
-const addAudioInput = ref(null)
-const addCoverInput = ref(null)
+// 行內新增上傳狀態
 const addAudioUploading = ref(false)
 const addCoverUploading = ref(false)
 
@@ -839,9 +837,7 @@ const handleAddCoverUpload = async (event) => {
   }
 }
 
-// 行內編輯上傳 refs 和狀態
-const editAudioInput = ref(null)
-const editCoverInput = ref(null)
+// 行內編輯上傳狀態
 const editAudioUploading = ref(false)
 const editCoverUploading = ref(false)
 

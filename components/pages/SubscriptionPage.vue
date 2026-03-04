@@ -119,7 +119,12 @@
             <td class="col-name">
               <input v-model="addForm.name" type="text" class="inline-input" placeholder="服務名稱 *" />
               <input v-model="addForm.site" type="url" class="inline-input inline-small" placeholder="網站網址" />
-              <input v-model="addForm.note" type="text" class="inline-input inline-small" placeholder="備註" />
+              <textarea
+                v-model="addForm.note"
+                class="inline-input inline-small inline-textarea"
+                rows="2"
+                placeholder="備註"
+              />
             </td>
             <td class="col-account">
               <input v-model="addForm.account" type="text" class="inline-input" placeholder="帳號/Email" list="account-options" />
@@ -173,7 +178,12 @@
               <td class="col-name">
                 <input v-model="editForm.name" type="text" class="inline-input" placeholder="服務名稱" />
                 <input v-model="editForm.site" type="url" class="inline-input inline-small" placeholder="網站網址" />
-                <input v-model="editForm.note" type="text" class="inline-input inline-small" placeholder="備註" />
+                <textarea
+                  v-model="editForm.note"
+                  class="inline-input inline-small inline-textarea"
+                  rows="2"
+                  placeholder="備註"
+                />
               </td>
               <td class="col-account">
                 <input v-model="editForm.account" type="text" class="inline-input" placeholder="帳號/Email" list="account-options" />
@@ -988,6 +998,12 @@ defineExpose({ subscriptions, totalMonthlyCost })
   margin-top: 0.35rem;
 }
 
+.inline-textarea {
+  resize: vertical;
+  min-height: 3.25rem;
+  line-height: 1.35;
+}
+
 .inline-small {
   font-size: 0.8rem;
   padding: 0.35rem 0.5rem;
@@ -1148,6 +1164,8 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .service-note {
   font-size: 0.8rem;
   color: #6c757d;
+  white-space: pre-line;
+  word-break: break-word;
 }
 
 .account-text {

@@ -1,6 +1,6 @@
 <template>
   <PageContainer>
-    <div class="video-page">
+    <div class="video-page" :class="`mode-${videoDisplayMode}`">
       <h1 class="page-title">鋒兄影片</h1>
 
       <!-- Actions Bar -->
@@ -12,6 +12,24 @@
           class="search-input"
         />
         <div class="csv-actions">
+          <div class="view-switcher" role="group" aria-label="影片顯示風格">
+            <button
+              type="button"
+              class="view-switch-btn"
+              :class="{ active: videoDisplayMode === 'youtube' }"
+              @click="setVideoDisplayMode('youtube')"
+            >
+              YouTube
+            </button>
+            <button
+              type="button"
+              class="view-switch-btn"
+              :class="{ active: videoDisplayMode === 'bilibili' }"
+              @click="setVideoDisplayMode('bilibili')"
+            >
+              Bilibili
+            </button>
+          </div>
           <button @click="exportZip" class="btn-export" title="匯出 ZIP">
             <span>📤</span> 匯出 ZIP
           </button>
@@ -80,7 +98,7 @@
       </div>
 
       <!-- Video Grid -->
-      <div v-if="isAddingInline || filteredVideos.length > 0" class="video-grid">
+      <div v-if="isAddingInline || filteredVideos.length > 0" class="video-grid" :class="`video-grid--${videoDisplayMode}`">
 
         <!-- 行內新增卡片 -->
         <div v-if="isAddingInline" class="video-card">
@@ -135,7 +153,7 @@
           v-for="video in filteredVideos"
           :key="video.id"
           class="video-card"
-          :class="{ 'is-selected': selectedIds.has(video.id) }"
+          :class="{ 'is-selected': selectedIds.has(video.id), 'video-card--bilibili': videoDisplayMode === 'bilibili' }"
           @click="batchMode && toggleSelection(video.id)"
         >
           <!-- 行內編輯模式 -->
@@ -259,12 +277,19 @@
 
             <!-- 影片資訊區 -->
             <div class="video-meta">
-              <h3 class="video-title">{{ video.name || '未命名' }}</h3>
-              <div class="meta-row">
-                <span v-if="video.category" class="category-chip">{{ video.category }}</span>
-                <span v-if="video.ref" class="meta-ref" :title="video.ref">🔗 參考</span>
+              <div v-if="videoDisplayMode === 'bilibili'" class="bilibili-avatar">鋒</div>
+              <div class="video-copy">
+                <h3 class="video-title">{{ video.name || '未命名' }}</h3>
+                <div class="meta-row">
+                  <span v-if="video.category" class="category-chip">{{ video.category }}</span>
+                  <span v-if="video.ref" class="meta-ref" :title="video.ref">🔗 參考</span>
+                </div>
+                <p v-if="video.note" class="video-desc">{{ truncateText(video.note, videoDisplayMode === 'bilibili' ? 56 : 80) }}</p>
+                <div v-if="videoDisplayMode === 'bilibili'" class="bilibili-stats">
+                  <span>{{ video.filetype ? video.filetype.toUpperCase() : 'VIDEO' }}</span>
+                  <span>{{ video.category || '鋒兄頻道' }}</span>
+                </div>
               </div>
-              <p v-if="video.note" class="video-desc">{{ truncateText(video.note, 80) }}</p>
             </div>
 
             <!-- 操作列 -->
@@ -465,6 +490,8 @@ const {
 
 // Search
 const searchQuery = ref('')
+const VIDEO_DISPLAY_MODE_KEY = 'feng-video-display-mode'
+const videoDisplayMode = ref('youtube')
 
 // Batch mode state
 const batchMode = ref(false)
@@ -908,6 +935,14 @@ function truncateText(text, maxLength) {
   return text.substring(0, maxLength) + '...'
 }
 
+function setVideoDisplayMode(mode) {
+  if (!['youtube', 'bilibili'].includes(mode)) return
+  videoDisplayMode.value = mode
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(VIDEO_DISPLAY_MODE_KEY, mode)
+  }
+}
+
 // 行內新增
 const isAddingInline = ref(false)
 const addNewForm = ref({ name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
@@ -1312,6 +1347,12 @@ async function handleImport(event) {
 
 // Lifecycle
 onMounted(() => {
+  if (typeof localStorage !== 'undefined') {
+    const savedMode = localStorage.getItem(VIDEO_DISPLAY_MODE_KEY)
+    if (savedMode === 'youtube' || savedMode === 'bilibili') {
+      videoDisplayMode.value = savedMode
+    }
+  }
   loadVideos()
 })
 
@@ -1380,6 +1421,7 @@ onBeforeUnmount(() => {
 .csv-actions {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .btn-export,
@@ -1405,6 +1447,33 @@ onBeforeUnmount(() => {
 }
 
 .btn-import { cursor: pointer; }
+
+.view-switcher {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.view-switch-btn {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-switch-btn.active {
+  background: white;
+  color: #111827;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+}
 
 /* ── Cache Bar ── */
 .cache-bar {
@@ -1497,6 +1566,11 @@ onBeforeUnmount(() => {
   gap: 1.25rem;
 }
 
+.video-grid--bilibili {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem 1.1rem;
+}
+
 @media (min-width: 1200px) {
   .video-grid {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -1512,6 +1586,12 @@ onBeforeUnmount(() => {
   cursor: default;
   position: relative;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.video-card--bilibili {
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7fb 100%);
+  box-shadow: 0 10px 30px rgba(244, 114, 182, 0.10);
 }
 
 .video-card:hover {
@@ -1633,6 +1713,32 @@ onBeforeUnmount(() => {
   padding: 0.75rem 0.875rem 0.5rem;
 }
 
+.mode-bilibili .video-meta {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.9rem 0.95rem 0.7rem;
+}
+
+.video-copy {
+  min-width: 0;
+}
+
+.bilibili-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fb7185 0%, #f472b6 100%);
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 800;
+  box-shadow: 0 10px 18px rgba(244, 114, 182, 0.28);
+}
+
 .video-title {
   font-size: 0.95rem;
   font-weight: 600;
@@ -1680,6 +1786,22 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
+.bilibili-stats {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin-top: 0.45rem;
+  color: #9ca3af;
+  font-size: 0.73rem;
+}
+
+.bilibili-stats span {
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  background: #fdf2f8;
+  color: #be185d;
+}
+
 /* ── Action Buttons (hover reveal) ── */
 .card-actions-bar {
   display: flex;
@@ -1688,6 +1810,17 @@ onBeforeUnmount(() => {
   opacity: 0;
   transform: translateY(4px);
   transition: all 0.2s ease;
+}
+
+.mode-bilibili .card-actions-bar {
+  opacity: 1;
+  transform: none;
+  padding: 0 0.9rem 0.95rem;
+  gap: 0.4rem;
+}
+
+.mode-bilibili .action-btn {
+  background: #fff;
 }
 
 .video-card:hover .card-actions-bar {

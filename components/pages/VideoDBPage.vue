@@ -231,7 +231,7 @@
               <button @click.stop="playingVideoId = null" class="close-player-btn" title="關閉播放">✕</button>
             </div>
             <!-- 縮圖區域 -->
-            <div v-else class="thumbnail-wrapper" @click="handlePlay(video)">
+            <div v-else class="thumbnail-wrapper" @click="handlePlay(video)" @mouseenter="warmThumbnail(video)">
               <input v-if="batchMode" type="checkbox" :checked="selectedIds.has(video.id)" @click.stop="toggleSelection(video.id)" class="batch-checkbox" />
               <template v-if="video.cover">
                 <img :src="video.cover" :alt="video.name" class="thumbnail-img" />
@@ -509,6 +509,8 @@ const resolvedVideoSources = ref(new Map()) // id -> { blobUrl, size }
 const thumbnailVideoSources = ref(new Map()) // id -> blob url for multipart thumbnail
 const resolvingVideoIds = ref(new Set())
 const resolvingThumbnailIds = ref(new Set())
+const resolvingVideoPromises = new Map()
+const resolvingThumbnailPromises = new Map()
 const cachingVideoId = ref(null)
 const totalCacheSize = ref(0)
 const formVideoPreviewSrc = ref('')
@@ -533,7 +535,9 @@ function isMultipartVideo(file) {
 }
 
 function canRenderVideoThumbnail(video) {
-  return Boolean(getThumbnailVideoSrc(video))
+  if (!video?.file) return false
+  if (!isMultipartVideo(video.file)) return true
+  return thumbnailVideoSources.value.has(video.id)
 }
 
 async function ensureThumbnailVideoSource(video) {
@@ -541,35 +545,44 @@ async function ensureThumbnailVideoSource(video) {
 
   const existing = thumbnailVideoSources.value.get(video.id)
   if (existing) return existing
-  if (resolvingThumbnailIds.value.has(video.id)) return ''
+  if (resolvingThumbnailPromises.has(video.id)) {
+    return await resolvingThumbnailPromises.get(video.id)
+  }
 
   resolvingThumbnailIds.value.add(video.id)
   resolvingThumbnailIds.value = new Set(resolvingThumbnailIds.value)
 
-  try {
-    const { blob } = await resolveMultipartPreviewFile(video.file)
-    const blobUrl = URL.createObjectURL(blob)
-    thumbnailVideoSources.value.set(video.id, blobUrl)
-    thumbnailVideoSources.value = new Map(thumbnailVideoSources.value)
-    return blobUrl
-  } finally {
-    resolvingThumbnailIds.value.delete(video.id)
-    resolvingThumbnailIds.value = new Set(resolvingThumbnailIds.value)
-  }
+  const promise = (async () => {
+    try {
+      const { blob } = await resolveMultipartPreviewFile(video.file)
+      const blobUrl = URL.createObjectURL(blob)
+      thumbnailVideoSources.value.set(video.id, blobUrl)
+      thumbnailVideoSources.value = new Map(thumbnailVideoSources.value)
+      return blobUrl
+    } finally {
+      resolvingThumbnailIds.value.delete(video.id)
+      resolvingThumbnailIds.value = new Set(resolvingThumbnailIds.value)
+      resolvingThumbnailPromises.delete(video.id)
+    }
+  })()
+
+  resolvingThumbnailPromises.set(video.id, promise)
+  return await promise
 }
 
 function getThumbnailVideoSrc(video) {
   if (!video?.file) return ''
   if (!isMultipartVideo(video.file)) return video.file
 
-  const existing = thumbnailVideoSources.value.get(video.id)
-  if (existing) return existing
+  return thumbnailVideoSources.value.get(video.id) || ''
+}
 
+function warmThumbnail(video) {
+  if (!video?.file || video.cover || !isMultipartVideo(video.file)) return
+  if (thumbnailVideoSources.value.has(video.id) || resolvingThumbnailIds.value.has(video.id)) return
   ensureThumbnailVideoSource(video).catch((error) => {
     console.error('縮圖載入失敗:', error)
   })
-
-  return ''
 }
 
 function seekThumbnailFrame(event) {
@@ -597,21 +610,29 @@ async function ensureResolvedVideoSource(video) {
 
   const existing = resolvedVideoSources.value.get(video.id)
   if (existing) return existing.blobUrl
-  if (resolvingVideoIds.value.has(video.id)) return ''
+  if (resolvingVideoPromises.has(video.id)) {
+    return await resolvingVideoPromises.get(video.id)
+  }
 
   resolvingVideoIds.value.add(video.id)
   resolvingVideoIds.value = new Set(resolvingVideoIds.value)
 
-  try {
-    const { blob } = await resolveMultipartFile(video.file)
-    const blobUrl = URL.createObjectURL(blob)
-    resolvedVideoSources.value.set(video.id, { blobUrl, size: blob.size })
-    resolvedVideoSources.value = new Map(resolvedVideoSources.value)
-    return blobUrl
-  } finally {
-    resolvingVideoIds.value.delete(video.id)
-    resolvingVideoIds.value = new Set(resolvingVideoIds.value)
-  }
+  const promise = (async () => {
+    try {
+      const { blob } = await resolveMultipartFile(video.file)
+      const blobUrl = URL.createObjectURL(blob)
+      resolvedVideoSources.value.set(video.id, { blobUrl, size: blob.size })
+      resolvedVideoSources.value = new Map(resolvedVideoSources.value)
+      return blobUrl
+    } finally {
+      resolvingVideoIds.value.delete(video.id)
+      resolvingVideoIds.value = new Set(resolvingVideoIds.value)
+      resolvingVideoPromises.delete(video.id)
+    }
+  })()
+
+  resolvingVideoPromises.set(video.id, promise)
+  return await promise
 }
 
 function getVideoSrc(video) {
@@ -628,8 +649,12 @@ function getVideoSrc(video) {
 async function handlePlay(video) {
   if (!video?.file || batchMode.value) return
   try {
+    let src = video.file
     if (isMultipartVideo(video.file)) {
-      await ensureResolvedVideoSource(video)
+      src = await ensureResolvedVideoSource(video)
+    }
+    if (!src) {
+      throw new Error('影片仍在準備中，請稍後再試')
     }
     playingVideoId.value = video.id
   } catch (error) {

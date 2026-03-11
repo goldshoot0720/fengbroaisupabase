@@ -297,6 +297,7 @@
               <button @click="startInlineEdit(video)" class="action-btn edit-btn" title="編輯">✏️</button>
               <button @click="handleDelete(video)" class="action-btn delete-btn" title="刪除">🗑️</button>
               <template v-if="video.file">
+                <button @click.stop="downloadVideo(video)" class="action-btn download-btn" :disabled="downloadingVideoId === video.id" :title="downloadingVideoId === video.id ? '下載中...' : '下載影片'">{{ downloadingVideoId === video.id ? '⏬' : '⬇️' }}</button>
                 <button v-if="videoCache.has(video.id)" @click.stop="uncacheVideo(video.id)" class="action-btn cached-btn" title="已快取 (點擊清除)">✅</button>
                 <button v-else @click.stop="cacheVideo(video)" class="action-btn cache-btn" :disabled="cachingVideoId === video.id" :title="cachingVideoId === video.id ? '快取中...' : '快取影片'">{{ cachingVideoId === video.id ? '⏳' : '📥' }}</button>
               </template>
@@ -539,6 +540,7 @@ const resolvingThumbnailIds = ref(new Set())
 const resolvingVideoPromises = new Map()
 const resolvingThumbnailPromises = new Map()
 const cachingVideoId = ref(null)
+const downloadingVideoId = ref(null)
 const totalCacheSize = ref(0)
 const formVideoPreviewSrc = ref('')
 const addVideoPreviewSrc = ref('')
@@ -816,6 +818,66 @@ function getVideoSrc(video) {
     return ''
   }
   return video.file
+}
+
+async function getVideoBlobForDownload(video) {
+  const cachedRecord = await readPersistedVideoCache(video.id)
+  if (cachedRecord?.blob && cachedRecord.fileRef === video.file) {
+    return cachedRecord.blob
+  }
+
+  if (isMultipartVideo(video.file)) {
+    return (await resolveMultipartFile(video.file)).blob
+  }
+
+  const response = await fetch(video.file)
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return await response.blob()
+}
+
+function buildDownloadFilename(video) {
+  const safeBaseName = (video.name || 'feng-video')
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, '_')
+    .replace(/\s+/g, '_')
+
+  const ext = (video.filetype || '').trim().replace(/^\./, '').toLowerCase()
+  if (ext) return `${safeBaseName}.${ext}`
+
+  try {
+    const url = new URL(video.file, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+    const pathname = url.pathname || ''
+    const detectedExt = pathname.split('.').pop()
+    if (detectedExt && detectedExt !== pathname) {
+      return `${safeBaseName}.${detectedExt.toLowerCase()}`
+    }
+  } catch {
+    // Ignore invalid URLs and fall back to mp4.
+  }
+
+  return `${safeBaseName}.mp4`
+}
+
+async function downloadVideo(video) {
+  if (!video?.file || downloadingVideoId.value === video.id) return
+
+  downloadingVideoId.value = video.id
+  try {
+    const blob = await getVideoBlobForDownload(video)
+    const blobUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.download = buildDownloadFilename(video)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(blobUrl)
+  } catch (error) {
+    console.error('下載失敗:', error)
+    alert('下載失敗: ' + error.message)
+  } finally {
+    downloadingVideoId.value = null
+  }
 }
 
 async function handlePlay(video) {

@@ -1,6 +1,12 @@
+import { createClient } from '@supabase/supabase-js'
+
 export default defineEventHandler(async (event) => {
   try {
-    const supabase = useSupabaseClient()
+    const config = useRuntimeConfig(event)
+    const supabase = createClient(
+      config.supabaseUrl,
+      config.supabaseAnonKey
+    )
     
     // 測試各個表格
     const tables = ['subscriptions', 'foods', 'banks', 'common_accounts', 'articles']

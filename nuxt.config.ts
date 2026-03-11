@@ -36,7 +36,7 @@ export default defineNuxtConfig({
   },
 
   // 模組
-  modules: ['@nuxtjs/supabase', '@vite-pwa/nuxt'],
+  modules: ['@vite-pwa/nuxt'],
 
   // PWA 設定
   pwa: {
@@ -119,18 +119,6 @@ export default defineNuxtConfig({
     },
     devOptions: {
       enabled: false
-    }
-  },
-
-
-  // Supabase 配置
-  supabase: {
-    url: process.env.SUPABASE_URL,
-    key: process.env.SUPABASE_ANON_KEY,
-    redirectOptions: {
-      login: '/login',
-      callback: '/confirm',
-      exclude: ['/*'],
     }
   },
 

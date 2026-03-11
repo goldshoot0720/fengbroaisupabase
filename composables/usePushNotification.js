@@ -1,8 +1,7 @@
 // composables/usePushNotification.js
 // Web Push 訂閱管理 - 真正的背景推播，不需要開 App
 import { ref } from 'vue'
-import { createClient } from '@supabase/supabase-js'
-import { getSupabaseCredentials } from './useSettings'
+import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 
 const isSubscribed = ref(false)
 const isLoading = ref(false)
@@ -20,11 +19,7 @@ const urlBase64ToUint8Array = (base64String) => {
 
 export const usePushNotification = () => {
   const getSupabaseClient = () => {
-    const creds = getSupabaseCredentials()
-    const config = useRuntimeConfig()
-    const url = creds?.url || config.public.supabaseUrl
-    const key = creds?.key || config.public.supabaseAnonKey
-    return createClient(url, key)
+    return getSupabaseBrowserClient()
   }
 
   // 檢查目前是否已訂閱

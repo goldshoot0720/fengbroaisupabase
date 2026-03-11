@@ -1,8 +1,7 @@
 // composables/useSubscriptions.js
 // 訂閱管理 - Appwrite 欄位名稱映射版本
 import { ref, computed } from 'vue'
-import { createClient } from '@supabase/supabase-js'
-import { getSupabaseCredentials } from './useSettings'
+import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
 
 // 欄位名稱映射 (Appwrite → Supabase)
 const FIELD_MAP = {
@@ -40,11 +39,7 @@ let currentCredentials = null
 export const useSubscriptions = () => {
   const initSupabase = () => {
     if (!process.client) return null
-    const creds = getSupabaseCredentials()
-    const config = useRuntimeConfig()
-    const url = creds?.url || config.public.supabaseUrl
-    const key = creds?.key || config.public.supabaseAnonKey
-    const credKey = `${url}:${key?.slice(0, 20)}`
+    const { credKey } = getSupabaseBrowserConfig()
     
     if (supabase && currentCredentials !== credKey) {
       supabase = null
@@ -53,7 +48,7 @@ export const useSubscriptions = () => {
     }
     
     if (!supabase) {
-      supabase = createClient(url, key)
+      supabase = getSupabaseBrowserClient()
       currentCredentials = credKey
     }
     return supabase

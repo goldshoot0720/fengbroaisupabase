@@ -1,8 +1,7 @@
 // composables/useFoods.js
 // 食物管理的完整邏輯 - 使用共享狀態
 import { ref, computed } from 'vue'
-import { createClient } from '@supabase/supabase-js'
-import { getSupabaseCredentials } from './useSettings'
+import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
 
 // 共享狀態（在模組層級定義，所有組件共用）
 const foods = ref([])
@@ -25,15 +24,7 @@ export const useFoods = () => {
   // 初始化 Supabase（優先使用 localStorage 設定）
   const initSupabase = () => {
     if (!process.client) return null
-    
-    // 檢查認證是否變更
-    const creds = getSupabaseCredentials()
-    const config = useRuntimeConfig()
-    
-    // 決定使用哪個認證
-    const url = creds?.url || config.public.supabaseUrl
-    const key = creds?.key || config.public.supabaseAnonKey
-    const credKey = `${url}:${key?.slice(0, 20)}`
+    const { credKey, source } = getSupabaseBrowserConfig()
     
     // 如果認證變更，重新建立客戶端並重置資料
     if (supabase && currentCredentials !== credKey) {
@@ -44,9 +35,9 @@ export const useFoods = () => {
     }
     
     if (!supabase) {
-      supabase = createClient(url, key)
+      supabase = getSupabaseBrowserClient()
       currentCredentials = credKey
-      console.log('Supabase 客戶端已初始化:', creds ? 'localStorage' : '.env')
+      console.log('Supabase 客戶端已初始化:', source)
     }
     
     return supabase

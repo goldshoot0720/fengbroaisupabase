@@ -1,10 +1,11 @@
 import { ref } from 'vue'
-import { createClient } from '@supabase/supabase-js'
-import { getSupabaseCredentials, getSupabaseBucket } from './useSettings'
+import { getSupabaseBucket } from './useSettings'
+import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 
 const MULTIPART_VIDEO_THRESHOLD = 50 * 1024 * 1024
 const MULTIPART_VIDEO_CHUNK_SIZE = 45 * 1024 * 1024
 const MULTIPART_MANIFEST_SUFFIX = '.manifest.json'
+const MULTIPART_REFERENCE_PREFIX = 'supabase-multipart://'
 
 // 取得 bucket 名稱：localStorage 帳號 → .env → 預設 'uploads'
 const getBucket = () => {
@@ -18,23 +19,10 @@ const getBucket = () => {
   }
 }
 
-let supabase = null
-let currentCredentials = null
 const multipartManifestCache = new Map()
 
 const initSupabase = () => {
-  if (typeof window === 'undefined') return null
-  const creds = getSupabaseCredentials()
-  const config = useRuntimeConfig()
-  const url = creds?.url || config.public.supabaseUrl
-  const key = creds?.key || config.public.supabaseAnonKey
-  const credKey = `${url}:${key?.slice(0, 20)}`
-  if (supabase && currentCredentials !== credKey) supabase = null
-  if (!supabase) {
-    supabase = createClient(url, key)
-    currentCredentials = credKey
-  }
-  return supabase
+  return getSupabaseBrowserClient()
 }
 
 export const useStorage = () => {
@@ -59,28 +47,84 @@ export const useStorage = () => {
     return isVideoFile && file.size > MULTIPART_VIDEO_THRESHOLD
   }
 
-  const isMultipartManifestUrl = (value = '') => {
-    return typeof value === 'string' && value.includes(MULTIPART_MANIFEST_SUFFIX)
+  const getMultipartReference = (bucketName, manifestPath) => {
+    return `${MULTIPART_REFERENCE_PREFIX}${bucketName}/${manifestPath}`
   }
 
-  const fetchMultipartManifest = async (manifestUrl) => {
-    if (!multipartManifestCache.has(manifestUrl)) {
-      multipartManifestCache.set(manifestUrl, (async () => {
-        const response = await fetch(manifestUrl)
-        if (!response.ok) {
-          throw new Error(`無法讀取影片 manifest (HTTP ${response.status})`)
+  const isMultipartManifestUrl = (value = '') => {
+    return typeof value === 'string' && (
+      value.startsWith(MULTIPART_REFERENCE_PREFIX) ||
+      value.includes(MULTIPART_MANIFEST_SUFFIX)
+    )
+  }
+
+  const parseMultipartReference = (value = '') => {
+    if (typeof value !== 'string') return null
+
+    if (value.startsWith(MULTIPART_REFERENCE_PREFIX)) {
+      const rawPath = value.slice(MULTIPART_REFERENCE_PREFIX.length)
+      const slashIndex = rawPath.indexOf('/')
+      if (slashIndex === -1) return null
+      return {
+        bucket: rawPath.slice(0, slashIndex),
+        path: rawPath.slice(slashIndex + 1)
+      }
+    }
+
+    try {
+      const url = new URL(value)
+      const marker = '/storage/v1/object/public/'
+      const markerIndex = url.pathname.indexOf(marker)
+      if (markerIndex === -1) return null
+      const objectPath = decodeURIComponent(url.pathname.slice(markerIndex + marker.length))
+      const slashIndex = objectPath.indexOf('/')
+      if (slashIndex === -1) return null
+      return {
+        bucket: objectPath.slice(0, slashIndex),
+        path: objectPath.slice(slashIndex + 1)
+      }
+    } catch {
+      return null
+    }
+  }
+
+  const downloadStorageObject = async (bucketName, objectPath) => {
+    const client = initSupabase()
+    if (!client) throw new Error('No Supabase client')
+    const { data, error } = await client.storage
+      .from(bucketName)
+      .download(objectPath)
+    if (error) throw error
+    return data
+  }
+
+  const fetchMultipartManifest = async (manifestReference) => {
+    if (!multipartManifestCache.has(manifestReference)) {
+      multipartManifestCache.set(manifestReference, (async () => {
+        const parsed = parseMultipartReference(manifestReference)
+        let manifest
+
+        if (parsed) {
+          const manifestBlob = await downloadStorageObject(parsed.bucket, parsed.path)
+          manifest = JSON.parse(await manifestBlob.text())
+        } else {
+          const response = await fetch(manifestReference)
+          if (!response.ok) {
+            throw new Error(`無法讀取影片 manifest (HTTP ${response.status})`)
+          }
+          manifest = await response.json()
         }
-        const manifest = await response.json()
+
         if (manifest?.type !== 'multipart-video' || !Array.isArray(manifest.parts)) {
           throw new Error('影片 manifest 格式不正確')
         }
         return manifest
       })().catch((error) => {
-        multipartManifestCache.delete(manifestUrl)
+        multipartManifestCache.delete(manifestReference)
         throw error
       }))
     }
-    return multipartManifestCache.get(manifestUrl)
+    return multipartManifestCache.get(manifestReference)
   }
 
   const resolveMultipartFile = async (fileUrl, onProgress = null) => {
@@ -99,11 +143,15 @@ export const useStorage = () => {
     let loadedBytes = 0
 
     for (const part of manifest.parts) {
-      const response = await fetch(part.publicUrl)
-      if (!response.ok) {
-        throw new Error(`無法讀取影片分段 ${part.index} (HTTP ${response.status})`)
-      }
-      const chunkBlob = await response.blob()
+      const chunkBlob = part.path
+        ? await downloadStorageObject(manifest.bucket || getBucket(), part.path)
+        : await (async () => {
+            const response = await fetch(part.publicUrl)
+            if (!response.ok) {
+              throw new Error(`無法讀取影片分段 ${part.index} (HTTP ${response.status})`)
+            }
+            return await response.blob()
+          })()
       chunks.push(chunkBlob)
       loadedBytes += part.size || chunkBlob.size
       if (typeof onProgress === 'function' && manifest.originalSize) {
@@ -155,6 +203,7 @@ export const useStorage = () => {
     const manifest = {
       type: 'multipart-video',
       version: 1,
+      bucket: bucketName,
       originalName: file.name,
       originalType: file.type || 'video/mp4',
       originalSize: file.size,
@@ -179,15 +228,11 @@ export const useStorage = () => {
 
     if (manifestError) throw manifestError
 
-    const { data: manifestUrlData } = client.storage
-      .from(bucketName)
-      .getPublicUrl(manifestPath)
-
     uploadProgress.value = 100
 
     return {
       success: true,
-      url: manifestUrlData.publicUrl,
+      url: getMultipartReference(bucketName, manifestPath),
       path: manifestPath,
       multipart: true,
       previewUrl: URL.createObjectURL(file),

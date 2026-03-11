@@ -1,23 +1,8 @@
 import { ref } from 'vue'
-import { createClient } from '@supabase/supabase-js'
-import { getSupabaseCredentials } from './useSettings'
-
-let supabase = null
-let currentCredentials = null
+import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 
 const initSupabase = () => {
-  if (typeof window === 'undefined') return null
-  const creds = getSupabaseCredentials()
-  const config = useRuntimeConfig()
-  const url = creds?.url || config.public.supabaseUrl
-  const key = creds?.key || config.public.supabaseAnonKey
-  const credKey = `${url}:${key?.slice(0, 20)}`
-  if (supabase && currentCredentials !== credKey) supabase = null
-  if (!supabase) {
-    supabase = createClient(url, key)
-    currentCredentials = credKey
-  }
-  return supabase
+  return getSupabaseBrowserClient()
 }
 
 export const useVideoRecords = () => {

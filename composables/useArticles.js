@@ -1,32 +1,9 @@
 import { ref } from 'vue'
-import { createClient } from '@supabase/supabase-js'
-import { getSupabaseCredentials } from './useSettings'
-
-// 共享狀態
-let supabase = null
-let currentCredentials = null
+import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 
 // 初始化 Supabase（優先使用 localStorage 設定）
 const initSupabase = () => {
-  if (typeof window === 'undefined') return null
-
-  const creds = getSupabaseCredentials()
-  const config = useRuntimeConfig()
-
-  const url = creds?.url || config.public.supabaseUrl
-  const key = creds?.key || config.public.supabaseAnonKey
-  const credKey = `${url}:${key?.slice(0, 20)}`
-
-  if (supabase && currentCredentials !== credKey) {
-    supabase = null
-  }
-
-  if (!supabase) {
-    supabase = createClient(url, key)
-    currentCredentials = credKey
-  }
-
-  return supabase
+  return getSupabaseBrowserClient()
 }
 
 export const useArticles = () => {

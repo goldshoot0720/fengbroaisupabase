@@ -23,7 +23,7 @@
     </div>
 
     <!-- 上傳指南 -->
-    <div class="upload-guide" v-if="videoList.some(v => !v.exists)">
+    <div class="upload-guide" v-if="storageStatusChecked && videoList.some(v => v.exists === false)">
       <h3>📤 影片上傳指南</h3>
       <p>部分影片尚未上傳到 Supabase Storage，請依照以下步驟：</p>
       <ol>
@@ -80,8 +80,9 @@
           <div class="video-header">
             <h4>{{ video.displayName }}</h4>
             <div class="video-status">
-              <span v-if="video.exists" class="status-badge blob-exists">已上傳</span>
-              <span v-else class="status-badge blob-missing">未上傳</span>
+              <span v-if="video.exists === true" class="status-badge blob-exists">已上傳</span>
+              <span v-else-if="video.exists === false" class="status-badge blob-missing">未上傳</span>
+              <span v-else class="status-badge blob-checking">檢查中</span>
               <span v-if="video.cached" class="status-badge cached">已快取</span>
               <span v-else class="status-badge not-cached">未快取</span>
             </div>
@@ -164,7 +165,7 @@
                     🔍 檢查狀態
                   </button>
                   <button
-                    v-if="!video.exists"
+                    v-if="video.exists === false"
                     @click="showUploadInstructions(video.storageKey)"
                     class="retry-btn info"
                   >
@@ -285,6 +286,7 @@ const {
   cachedVideos,
   totalCacheSize,
   isPreloading,
+  storageStatusChecked,
   cacheMessage,
   cacheMessageType,
   getVideoUrl,
@@ -570,6 +572,11 @@ defineExpose({
 .status-badge.blob-missing {
   background: #f8d7da;
   color: #721c24;
+}
+
+.status-badge.blob-checking {
+  background: #fff3cd;
+  color: #856404;
 }
 
 .video-player-container {

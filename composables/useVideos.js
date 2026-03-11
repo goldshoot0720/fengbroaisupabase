@@ -21,7 +21,7 @@ export const useVideos = () => {
       errorDetails: null,
       caching: false,
       poster: null,
-      exists: false,
+      exists: null,
       loadProgress: 0,
       statusInfo: null
     },
@@ -38,7 +38,7 @@ export const useVideos = () => {
       errorDetails: null,
       caching: false,
       poster: null,
-      exists: false,
+      exists: null,
       loadProgress: 0,
       statusInfo: null
     },
@@ -55,7 +55,7 @@ export const useVideos = () => {
       errorDetails: null,
       caching: false,
       poster: null,
-      exists: false,
+      exists: null,
       loadProgress: 0,
       statusInfo: null
     }
@@ -65,6 +65,7 @@ export const useVideos = () => {
   const cachedVideos = ref([])
   const totalCacheSize = ref(0)
   const isPreloading = ref(false)
+  const storageStatusChecked = ref(false)
   const cacheMessage = ref('')
   const cacheMessageType = ref('info')
 
@@ -315,6 +316,7 @@ export const useVideos = () => {
   // 檢查 Supabase Storage 狀態
   const checkStorageStatus = async () => {
     showCacheMessage('正在檢查 Supabase Storage 狀態...', 'info')
+    storageStatusChecked.value = false
 
     try {
       let existingCount = 0
@@ -329,13 +331,15 @@ export const useVideos = () => {
             existingCount++
             video.error = false
           } else {
-            video.error = true
+            video.error = false
           }
         } catch (error) {
           video.exists = false
-          video.error = true
+          video.error = false
         }
       }
+
+      storageStatusChecked.value = true
 
       const total = videoList.value.length
 
@@ -347,6 +351,7 @@ export const useVideos = () => {
         showCacheMessage('沒有影片存在於 Supabase Storage，請先上傳', 'error')
       }
     } catch (error) {
+      storageStatusChecked.value = true
       console.error('檢查 Supabase Storage 狀態失敗:', error)
       showCacheMessage(`檢查失敗: ${error.message}`, 'error')
     }
@@ -460,6 +465,7 @@ export const useVideos = () => {
 
   return {
     videoList,
+    storageStatusChecked,
     cachedVideos,
     totalCacheSize,
     isPreloading,

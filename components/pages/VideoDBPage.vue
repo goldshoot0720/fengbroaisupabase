@@ -237,7 +237,14 @@
                 <img :src="video.cover" :alt="video.name" class="thumbnail-img" />
               </template>
               <template v-else-if="video.file && canRenderVideoThumbnail(video)">
-                <video :src="getVideoSrc(video)" preload="metadata" class="thumbnail-video" muted></video>
+                <video
+                  :src="getThumbnailVideoSrc(video)"
+                  preload="metadata"
+                  class="thumbnail-video"
+                  muted
+                  playsinline
+                  @loadedmetadata="seekThumbnailFrame"
+                ></video>
               </template>
               <div v-else class="thumbnail-placeholder">
                 <span class="placeholder-icon">🎬</span>
@@ -471,7 +478,8 @@ const {
   uploadProgress: videoUploadProgress,
   uploadFile,
   isMultipartManifestUrl,
-  resolveMultipartFile
+  resolveMultipartFile,
+  resolveMultipartPreviewFile
 } = useStorage()
 const coverUploading = ref(false)
 
@@ -498,7 +506,9 @@ const playingVideoId = ref(null)
 // Video caching state
 const videoCache = ref(new Map()) // id -> { blobUrl, size }
 const resolvedVideoSources = ref(new Map()) // id -> { blobUrl, size }
+const thumbnailVideoSources = ref(new Map()) // id -> blob url for multipart thumbnail
 const resolvingVideoIds = ref(new Set())
+const resolvingThumbnailIds = ref(new Set())
 const cachingVideoId = ref(null)
 const totalCacheSize = ref(0)
 const formVideoPreviewSrc = ref('')
@@ -523,7 +533,63 @@ function isMultipartVideo(file) {
 }
 
 function canRenderVideoThumbnail(video) {
-  return !isMultipartVideo(video.file) || resolvedVideoSources.value.has(video.id)
+  return Boolean(getThumbnailVideoSrc(video))
+}
+
+async function ensureThumbnailVideoSource(video) {
+  if (!video?.file || !isMultipartVideo(video.file)) return video?.file || ''
+
+  const existing = thumbnailVideoSources.value.get(video.id)
+  if (existing) return existing
+  if (resolvingThumbnailIds.value.has(video.id)) return ''
+
+  resolvingThumbnailIds.value.add(video.id)
+  resolvingThumbnailIds.value = new Set(resolvingThumbnailIds.value)
+
+  try {
+    const { blob } = await resolveMultipartPreviewFile(video.file)
+    const blobUrl = URL.createObjectURL(blob)
+    thumbnailVideoSources.value.set(video.id, blobUrl)
+    thumbnailVideoSources.value = new Map(thumbnailVideoSources.value)
+    return blobUrl
+  } finally {
+    resolvingThumbnailIds.value.delete(video.id)
+    resolvingThumbnailIds.value = new Set(resolvingThumbnailIds.value)
+  }
+}
+
+function getThumbnailVideoSrc(video) {
+  if (!video?.file) return ''
+  if (!isMultipartVideo(video.file)) return video.file
+
+  const existing = thumbnailVideoSources.value.get(video.id)
+  if (existing) return existing
+
+  ensureThumbnailVideoSource(video).catch((error) => {
+    console.error('縮圖載入失敗:', error)
+  })
+
+  return ''
+}
+
+function seekThumbnailFrame(event) {
+  const videoEl = event.target
+  if (!videoEl || videoEl.dataset.thumbnailSeeked === '1') return
+
+  const duration = Number.isFinite(videoEl.duration) ? videoEl.duration : 0
+  const targetTime = duration > 1 ? 1 : 0
+
+  if (targetTime <= 0) {
+    videoEl.dataset.thumbnailSeeked = '1'
+    return
+  }
+
+  videoEl.dataset.thumbnailSeeked = '1'
+  try {
+    videoEl.currentTime = targetTime
+  } catch {
+    // Ignore seek failures on partial/short videos.
+  }
 }
 
 async function ensureResolvedVideoSource(video) {
@@ -1230,6 +1296,9 @@ onBeforeUnmount(() => {
   }
   for (const [, resolved] of resolvedVideoSources.value) {
     URL.revokeObjectURL(resolved.blobUrl)
+  }
+  for (const [, thumbnailSrc] of thumbnailVideoSources.value) {
+    URL.revokeObjectURL(thumbnailSrc)
   }
   setPreviewSrc(formVideoPreviewSrc, '')
   setPreviewSrc(addVideoPreviewSrc, '')

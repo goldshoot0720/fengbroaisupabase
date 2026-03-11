@@ -197,6 +197,37 @@ export const useStorage = () => {
     }
   }
 
+  const resolveMultipartPreviewFile = async (fileUrl) => {
+    if (!isMultipartManifestUrl(fileUrl)) {
+      const response = await fetch(fileUrl)
+      if (!response.ok) {
+        throw new Error(`無法讀取檔案 (HTTP ${response.status})`)
+      }
+      return {
+        blob: await response.blob(),
+        manifest: null
+      }
+    }
+
+    const manifest = await fetchMultipartManifest(fileUrl)
+    const firstPart = manifest.parts?.[0]
+    if (!firstPart) {
+      throw new Error('影片分段資料不完整')
+    }
+
+    const blob = firstPart.path
+      ? await downloadStorageObject(manifest.bucket || getBucket(), firstPart.path)
+      : await (async () => {
+          const response = await fetch(firstPart.publicUrl)
+          if (!response.ok) {
+            throw new Error(`無法讀取影片第一段 (HTTP ${response.status})`)
+          }
+          return await response.blob()
+        })()
+
+    return { blob, manifest }
+  }
+
   const uploadMultipartVideo = async (client, bucketName, file, filePath) => {
     const totalParts = Math.ceil(file.size / MULTIPART_VIDEO_CHUNK_SIZE)
     const parts = []
@@ -392,6 +423,7 @@ export const useStorage = () => {
     uploadFile,
     isMultipartManifestUrl,
     resolveMultipartFile,
+    resolveMultipartPreviewFile,
     deleteFile,
     getPublicUrl,
     listFiles

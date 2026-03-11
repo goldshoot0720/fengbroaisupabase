@@ -95,8 +95,8 @@
                   {{ addVideoUploading ? '上傳中...' : '選擇影片' }}
                 </button>
               </div>
-              <div v-if="addNewForm.file" class="inline-video-preview">
-                <video :src="addNewForm.file" controls preload="metadata" class="card-video"></video>
+              <div v-if="getAddVideoPreviewSrc()" class="inline-video-preview">
+                <video :src="getAddVideoPreviewSrc()" controls preload="metadata" class="card-video"></video>
               </div>
             </div>
             <div class="inline-form-group"><label>或輸入影片URL</label><input v-model="addNewForm.file" type="text" class="inline-input" placeholder="影片 URL" /></div>
@@ -158,8 +158,8 @@
                     {{ inlineVideoUploading ? '上傳中...' : '選擇影片' }}
                   </button>
                 </div>
-                <div v-if="inlineEditData.file" class="inline-video-preview">
-                  <video :src="inlineEditData.file" controls preload="metadata" class="card-video"></video>
+                <div v-if="getInlineVideoPreviewSrc()" class="inline-video-preview">
+                  <video :src="getInlineVideoPreviewSrc()" controls preload="metadata" class="card-video"></video>
                 </div>
               </div>
               <div class="inline-form-group">
@@ -213,12 +213,12 @@
               <button @click.stop="playingVideoId = null" class="close-player-btn" title="關閉播放">✕</button>
             </div>
             <!-- 縮圖區域 -->
-            <div v-else class="thumbnail-wrapper" @click="video.file && (playingVideoId = video.id)">
+            <div v-else class="thumbnail-wrapper" @click="handlePlay(video)">
               <input v-if="batchMode" type="checkbox" :checked="selectedIds.has(video.id)" @click.stop="toggleSelection(video.id)" class="batch-checkbox" />
               <template v-if="video.cover">
                 <img :src="video.cover" :alt="video.name" class="thumbnail-img" />
               </template>
-              <template v-else-if="video.file">
+              <template v-else-if="video.file && canRenderVideoThumbnail(video)">
                 <video :src="getVideoSrc(video)" preload="metadata" class="thumbnail-video" muted></video>
               </template>
               <div v-else class="thumbnail-placeholder">
@@ -295,8 +295,8 @@
                 </button>
                 <span v-if="videoUploadProgress > 0" class="upload-progress">{{ videoUploadProgress }}%</span>
               </div>
-              <div v-if="formData.file" class="video-preview">
-                <video :src="formData.file" controls class="preview-video"></video>
+              <div v-if="getFormVideoPreviewSrc()" class="video-preview">
+                <video :src="getFormVideoPreviewSrc()" controls class="preview-video"></video>
                 <button type="button" @click="removeVideo" class="btn-remove">移除</button>
               </div>
             </div>
@@ -408,7 +408,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useVideoRecords } from '../../composables/useVideoRecords'
@@ -439,7 +439,13 @@ const selectedIds = ref(new Set())
 // Upload state
 const videoFileInput = ref(null)
 const coverFileInput = ref(null)
-const { uploading: videoUploading, uploadProgress: videoUploadProgress, uploadFile } = useStorage()
+const {
+  uploading: videoUploading,
+  uploadProgress: videoUploadProgress,
+  uploadFile,
+  isMultipartManifestUrl,
+  resolveMultipartFile
+} = useStorage()
 const coverUploading = ref(false)
 
 // Modal state
@@ -464,22 +470,92 @@ const playingVideoId = ref(null)
 
 // Video caching state
 const videoCache = ref(new Map()) // id -> { blobUrl, size }
+const resolvedVideoSources = ref(new Map()) // id -> { blobUrl, size }
+const resolvingVideoIds = ref(new Set())
 const cachingVideoId = ref(null)
 const totalCacheSize = ref(0)
+const formVideoPreviewSrc = ref('')
+const addVideoPreviewSrc = ref('')
+const inlineVideoPreviewSrc = ref('')
+
+function revokeIfBlobUrl(url) {
+  if (typeof url === 'string' && url.startsWith('blob:')) {
+    URL.revokeObjectURL(url)
+  }
+}
+
+function setPreviewSrc(targetRef, nextUrl) {
+  if (targetRef.value && targetRef.value !== nextUrl) {
+    revokeIfBlobUrl(targetRef.value)
+  }
+  targetRef.value = nextUrl || ''
+}
+
+function isMultipartVideo(file) {
+  return isMultipartManifestUrl(file)
+}
+
+function canRenderVideoThumbnail(video) {
+  return !isMultipartVideo(video.file) || resolvedVideoSources.value.has(video.id)
+}
+
+async function ensureResolvedVideoSource(video) {
+  if (!video?.file || !isMultipartVideo(video.file)) return video?.file || ''
+
+  const existing = resolvedVideoSources.value.get(video.id)
+  if (existing) return existing.blobUrl
+  if (resolvingVideoIds.value.has(video.id)) return ''
+
+  resolvingVideoIds.value.add(video.id)
+  resolvingVideoIds.value = new Set(resolvingVideoIds.value)
+
+  try {
+    const { blob } = await resolveMultipartFile(video.file)
+    const blobUrl = URL.createObjectURL(blob)
+    resolvedVideoSources.value.set(video.id, { blobUrl, size: blob.size })
+    resolvedVideoSources.value = new Map(resolvedVideoSources.value)
+    return blobUrl
+  } finally {
+    resolvingVideoIds.value.delete(video.id)
+    resolvingVideoIds.value = new Set(resolvingVideoIds.value)
+  }
+}
 
 function getVideoSrc(video) {
   const cached = videoCache.value.get(video.id)
   if (cached) return cached.blobUrl
+  const resolved = resolvedVideoSources.value.get(video.id)
+  if (resolved) return resolved.blobUrl
+  if (isMultipartVideo(video.file)) {
+    return ''
+  }
   return video.file
+}
+
+async function handlePlay(video) {
+  if (!video?.file || batchMode.value) return
+  try {
+    if (isMultipartVideo(video.file)) {
+      await ensureResolvedVideoSource(video)
+    }
+    playingVideoId.value = video.id
+  } catch (error) {
+    console.error('影片載入失敗:', error)
+    alert('影片載入失敗: ' + error.message)
+  }
 }
 
 async function cacheVideo(video) {
   if (!video.file || videoCache.value.has(video.id)) return
   cachingVideoId.value = video.id
   try {
-    const response = await fetch(video.file)
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    const blob = await response.blob()
+    const blob = isMultipartVideo(video.file)
+      ? (await resolveMultipartFile(video.file)).blob
+      : await (async () => {
+          const response = await fetch(video.file)
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+          return await response.blob()
+        })()
     const blobUrl = URL.createObjectURL(blob)
     videoCache.value.set(video.id, { blobUrl, size: blob.size, name: video.name })
     totalCacheSize.value += blob.size
@@ -523,6 +599,24 @@ function clearAllCache() {
   totalCacheSize.value = 0
 }
 
+function getInlineVideoPreviewSrc() {
+  if (!inlineEditData.value.file) return ''
+  if (inlineVideoPreviewSrc.value) return inlineVideoPreviewSrc.value
+  return isMultipartVideo(inlineEditData.value.file) ? '' : inlineEditData.value.file
+}
+
+function getAddVideoPreviewSrc() {
+  if (!addNewForm.value.file) return ''
+  if (addVideoPreviewSrc.value) return addVideoPreviewSrc.value
+  return isMultipartVideo(addNewForm.value.file) ? '' : addNewForm.value.file
+}
+
+function getFormVideoPreviewSrc() {
+  if (!formData.value.file) return ''
+  if (formVideoPreviewSrc.value) return formVideoPreviewSrc.value
+  return isMultipartVideo(formData.value.file) ? '' : formData.value.file
+}
+
 // Inline editing state
 const inlineEditId = ref(null)
 const inlineEditData = ref({})
@@ -532,6 +626,7 @@ const inlineVideoUploading = ref(false)
 const inlineCoverUploading = ref(false)
 
 function startInlineEdit(video) {
+  setPreviewSrc(inlineVideoPreviewSrc, '')
   inlineEditId.value = video.id
   inlineEditData.value = {
     name: video.name || '',
@@ -546,6 +641,7 @@ function startInlineEdit(video) {
 }
 
 function cancelInlineEdit() {
+  setPreviewSrc(inlineVideoPreviewSrc, '')
   inlineEditId.value = null
   inlineEditData.value = {}
 }
@@ -558,6 +654,7 @@ async function saveInlineEdit() {
   try {
     await updateVideo(inlineEditId.value, inlineEditData.value)
     await loadVideos()
+    setPreviewSrc(inlineVideoPreviewSrc, '')
     inlineEditId.value = null
     inlineEditData.value = {}
   } catch (error) {
@@ -574,6 +671,7 @@ async function handleInlineVideoUpload(event) {
     const result = await uploadFile(file, 'video')
     if (result.success) {
       inlineEditData.value.file = result.url
+      setPreviewSrc(inlineVideoPreviewSrc, result.previewUrl || result.url)
       if (!inlineEditData.value.name) {
         inlineEditData.value.name = file.name.replace(/\.[^.]+$/, '')
       }
@@ -702,12 +800,23 @@ const addCoverUploading = ref(false)
 
 const openInlineAdd = () => {
   addNewForm.value = { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' }
+  setPreviewSrc(addVideoPreviewSrc, '')
   isAddingInline.value = true
 }
-const cancelInlineAdd = () => { isAddingInline.value = false }
+const cancelInlineAdd = () => {
+  setPreviewSrc(addVideoPreviewSrc, '')
+  isAddingInline.value = false
+}
 const saveInlineAdd = async () => {
   if (!addNewForm.value.name) { alert('請輸入影片名稱'); return }
-  try { await addVideo(addNewForm.value); isAddingInline.value = false; await loadVideos() } catch(e) { alert('新增失敗: ' + e.message) }
+  try {
+    await addVideo(addNewForm.value)
+    setPreviewSrc(addVideoPreviewSrc, '')
+    isAddingInline.value = false
+    await loadVideos()
+  } catch(e) {
+    alert('新增失敗: ' + e.message)
+  }
 }
 
 async function handleAddVideoUpload(event) {
@@ -718,6 +827,7 @@ async function handleAddVideoUpload(event) {
     const result = await uploadFile(file, 'video')
     if (result.success) {
       addNewForm.value.file = result.url
+      setPreviewSrc(addVideoPreviewSrc, result.previewUrl || result.url)
       if (!addNewForm.value.name) addNewForm.value.name = file.name.replace(/\.[^.]+$/, '')
       const ext = file.name.split('.').pop()
       if (ext) addNewForm.value.filetype = ext
@@ -740,6 +850,7 @@ function openAddModal() {
   isEditing.value = false
   editingId.value = null
   formData.value = { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' }
+  setPreviewSrc(formVideoPreviewSrc, '')
   showModal.value = true
 }
 
@@ -756,10 +867,12 @@ function openEditModal(video) {
     hash: video.hash || '',
     cover: video.cover || ''
   }
+  setPreviewSrc(formVideoPreviewSrc, '')
   showModal.value = true
 }
 
 function closeModal() {
+  setPreviewSrc(formVideoPreviewSrc, '')
   showModal.value = false
   isEditing.value = false
   editingId.value = null
@@ -774,6 +887,7 @@ async function handleVideoUpload(event) {
     const result = await uploadFile(file, 'video')
     if (result.success) {
       formData.value.file = result.url
+      setPreviewSrc(formVideoPreviewSrc, result.previewUrl || result.url)
       if (!formData.value.name) {
         formData.value.name = file.name.replace(/\.[^.]+$/, '')
       }
@@ -791,6 +905,7 @@ async function handleVideoUpload(event) {
 
 // 移除影片
 function removeVideo() {
+  setPreviewSrc(formVideoPreviewSrc, '')
   formData.value.file = ''
   formData.value.filetype = ''
   if (videoFileInput.value) {
@@ -1080,6 +1195,18 @@ async function handleImport(event) {
 // Lifecycle
 onMounted(() => {
   loadVideos()
+})
+
+onBeforeUnmount(() => {
+  for (const [, cached] of videoCache.value) {
+    URL.revokeObjectURL(cached.blobUrl)
+  }
+  for (const [, resolved] of resolvedVideoSources.value) {
+    URL.revokeObjectURL(resolved.blobUrl)
+  }
+  setPreviewSrc(formVideoPreviewSrc, '')
+  setPreviewSrc(addVideoPreviewSrc, '')
+  setPreviewSrc(inlineVideoPreviewSrc, '')
 })
 </script>
 

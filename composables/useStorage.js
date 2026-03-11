@@ -2,6 +2,10 @@ import { ref } from 'vue'
 import { createClient } from '@supabase/supabase-js'
 import { getSupabaseCredentials, getSupabaseBucket } from './useSettings'
 
+const MULTIPART_VIDEO_THRESHOLD = 50 * 1024 * 1024
+const MULTIPART_VIDEO_CHUNK_SIZE = 45 * 1024 * 1024
+const MULTIPART_MANIFEST_SUFFIX = '.manifest.json'
+
 // 取得 bucket 名稱：localStorage 帳號 → .env → 預設 'uploads'
 const getBucket = () => {
   const fromSettings = getSupabaseBucket()
@@ -16,6 +20,7 @@ const getBucket = () => {
 
 let supabase = null
 let currentCredentials = null
+const multipartManifestCache = new Map()
 
 const initSupabase = () => {
   if (typeof window === 'undefined') return null
@@ -36,6 +41,160 @@ export const useStorage = () => {
   const uploading = ref(false)
   const uploadProgress = ref(0)
 
+  const sanitizeFileName = (name = '') => {
+    return name
+      .replace(/[^a-zA-Z0-9._\-]/g, '_')
+      .replace(/_{2,}/g, '_')
+      .replace(/^_|_$/g, '')
+      || 'file'
+  }
+
+  const buildFilePath = (file, folder, customPath) => {
+    if (customPath) return customPath
+    return `${folder}/${Date.now()}_${sanitizeFileName(file.name)}`
+  }
+
+  const shouldUseMultipartUpload = (file, folder) => {
+    const isVideoFile = file?.type?.startsWith('video/') || folder === 'video'
+    return isVideoFile && file.size > MULTIPART_VIDEO_THRESHOLD
+  }
+
+  const isMultipartManifestUrl = (value = '') => {
+    return typeof value === 'string' && value.includes(MULTIPART_MANIFEST_SUFFIX)
+  }
+
+  const fetchMultipartManifest = async (manifestUrl) => {
+    if (!multipartManifestCache.has(manifestUrl)) {
+      multipartManifestCache.set(manifestUrl, (async () => {
+        const response = await fetch(manifestUrl)
+        if (!response.ok) {
+          throw new Error(`無法讀取影片 manifest (HTTP ${response.status})`)
+        }
+        const manifest = await response.json()
+        if (manifest?.type !== 'multipart-video' || !Array.isArray(manifest.parts)) {
+          throw new Error('影片 manifest 格式不正確')
+        }
+        return manifest
+      })().catch((error) => {
+        multipartManifestCache.delete(manifestUrl)
+        throw error
+      }))
+    }
+    return multipartManifestCache.get(manifestUrl)
+  }
+
+  const resolveMultipartFile = async (fileUrl, onProgress = null) => {
+    if (!isMultipartManifestUrl(fileUrl)) {
+      const response = await fetch(fileUrl)
+      if (!response.ok) {
+        throw new Error(`無法讀取檔案 (HTTP ${response.status})`)
+      }
+      const blob = await response.blob()
+      if (typeof onProgress === 'function') onProgress(100)
+      return { blob, manifest: null }
+    }
+
+    const manifest = await fetchMultipartManifest(fileUrl)
+    const chunks = []
+    let loadedBytes = 0
+
+    for (const part of manifest.parts) {
+      const response = await fetch(part.publicUrl)
+      if (!response.ok) {
+        throw new Error(`無法讀取影片分段 ${part.index} (HTTP ${response.status})`)
+      }
+      const chunkBlob = await response.blob()
+      chunks.push(chunkBlob)
+      loadedBytes += part.size || chunkBlob.size
+      if (typeof onProgress === 'function' && manifest.originalSize) {
+        onProgress(Math.min(100, Math.round((loadedBytes / manifest.originalSize) * 100)))
+      }
+    }
+
+    return {
+      blob: new Blob(chunks, { type: manifest.originalType || 'video/mp4' }),
+      manifest
+    }
+  }
+
+  const uploadMultipartVideo = async (client, bucketName, file, filePath) => {
+    const totalParts = Math.ceil(file.size / MULTIPART_VIDEO_CHUNK_SIZE)
+    const parts = []
+
+    for (let index = 0; index < totalParts; index++) {
+      const start = index * MULTIPART_VIDEO_CHUNK_SIZE
+      const end = Math.min(file.size, start + MULTIPART_VIDEO_CHUNK_SIZE)
+      const chunk = file.slice(start, end)
+      const partPath = `${filePath}.part${String(index + 1).padStart(3, '0')}`
+
+      const { error } = await client.storage
+        .from(bucketName)
+        .upload(partPath, chunk, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: 'application/octet-stream'
+        })
+
+      if (error) throw error
+
+      const { data: partUrlData } = client.storage
+        .from(bucketName)
+        .getPublicUrl(partPath)
+
+      parts.push({
+        index: index + 1,
+        path: partPath,
+        size: chunk.size,
+        publicUrl: partUrlData.publicUrl
+      })
+
+      uploadProgress.value = Math.min(95, Math.round(((index + 1) / totalParts) * 95))
+    }
+
+    const manifestPath = `${filePath}${MULTIPART_MANIFEST_SUFFIX}`
+    const manifest = {
+      type: 'multipart-video',
+      version: 1,
+      originalName: file.name,
+      originalType: file.type || 'video/mp4',
+      originalSize: file.size,
+      chunkSize: MULTIPART_VIDEO_CHUNK_SIZE,
+      partCount: totalParts,
+      parts,
+      uploadedAt: new Date().toISOString()
+    }
+
+    const manifestBlob = new Blob(
+      [JSON.stringify(manifest, null, 2)],
+      { type: 'application/json' }
+    )
+
+    const { error: manifestError } = await client.storage
+      .from(bucketName)
+      .upload(manifestPath, manifestBlob, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: 'application/json'
+      })
+
+    if (manifestError) throw manifestError
+
+    const { data: manifestUrlData } = client.storage
+      .from(bucketName)
+      .getPublicUrl(manifestPath)
+
+    uploadProgress.value = 100
+
+    return {
+      success: true,
+      url: manifestUrlData.publicUrl,
+      path: manifestPath,
+      multipart: true,
+      previewUrl: URL.createObjectURL(file),
+      manifest
+    }
+  }
+
   /**
    * Upload file to Supabase Storage
    * @param {File} file - The file to upload
@@ -52,15 +211,7 @@ export const useStorage = () => {
       uploadProgress.value = 0
 
       // Generate unique file path: folder/timestamp_filename
-      const timestamp = Date.now()
-      // Sanitize filename: only keep ASCII letters, digits, dash, underscore, dot
-      // Supabase Storage rejects non-ASCII characters (CJK, emoji, etc.)
-      const safeName = file.name
-        .replace(/[^a-zA-Z0-9._\-]/g, '_')   // non-ASCII-safe → _
-        .replace(/_{2,}/g, '_')               // collapse __
-        .replace(/^_|_$/g, '')                // trim leading/trailing _
-        || 'file'
-      const filePath = customPath || `${folder}/${timestamp}_${safeName}`
+      const filePath = buildFilePath(file, folder, customPath)
 
       const bucketName = getBucket()
       console.log('[useStorage] bucket =', bucketName)
@@ -68,6 +219,11 @@ export const useStorage = () => {
       if (probe.error) {
         throw new Error(`Bucket "${bucketName}" not found`)
       }
+
+      if (shouldUseMultipartUpload(file, folder)) {
+        return await uploadMultipartVideo(client, bucketName, file, filePath)
+      }
+
       // Upload file
       const { data, error } = await client.storage
         .from(bucketName)
@@ -170,6 +326,8 @@ export const useStorage = () => {
     uploading,
     uploadProgress,
     uploadFile,
+    isMultipartManifestUrl,
+    resolveMultipartFile,
     deleteFile,
     getPublicUrl,
     listFiles

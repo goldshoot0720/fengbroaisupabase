@@ -467,7 +467,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useVideoRecords } from '../../composables/useVideoRecords'
@@ -543,6 +543,148 @@ const totalCacheSize = ref(0)
 const formVideoPreviewSrc = ref('')
 const addVideoPreviewSrc = ref('')
 const inlineVideoPreviewSrc = ref('')
+const VIDEO_CACHE_DB_NAME = 'FengVideoCache'
+const VIDEO_CACHE_STORE_NAME = 'videos'
+let videoCacheDbPromise = null
+
+function updateTotalCacheSize() {
+  let total = 0
+  for (const [, cached] of videoCache.value) {
+    total += cached?.size || 0
+  }
+  totalCacheSize.value = total
+}
+
+function getVideoCacheKey(videoId) {
+  return String(videoId)
+}
+
+async function initVideoCacheDb() {
+  if (typeof window === 'undefined' || !window.indexedDB) return null
+  if (!videoCacheDbPromise) {
+    videoCacheDbPromise = new Promise((resolve, reject) => {
+      const request = window.indexedDB.open(VIDEO_CACHE_DB_NAME, 1)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result
+        if (!db.objectStoreNames.contains(VIDEO_CACHE_STORE_NAME)) {
+          db.createObjectStore(VIDEO_CACHE_STORE_NAME, { keyPath: 'cacheKey' })
+        }
+      }
+    }).catch((error) => {
+      videoCacheDbPromise = null
+      throw error
+    })
+  }
+  return await videoCacheDbPromise
+}
+
+async function readPersistedVideoCache(videoId) {
+  const db = await initVideoCacheDb()
+  if (!db) return null
+
+  return await new Promise((resolve, reject) => {
+    const request = db.transaction([VIDEO_CACHE_STORE_NAME], 'readonly')
+      .objectStore(VIDEO_CACHE_STORE_NAME)
+      .get(getVideoCacheKey(videoId))
+
+    request.onsuccess = () => resolve(request.result || null)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function persistVideoCache(video, blob) {
+  const db = await initVideoCacheDb()
+  if (!db) return
+
+  const record = {
+    cacheKey: getVideoCacheKey(video.id),
+    videoId: video.id,
+    fileRef: video.file,
+    name: video.name || '',
+    size: blob.size,
+    cachedAt: new Date().toISOString(),
+    blob
+  }
+
+  await new Promise((resolve, reject) => {
+    const request = db.transaction([VIDEO_CACHE_STORE_NAME], 'readwrite')
+      .objectStore(VIDEO_CACHE_STORE_NAME)
+      .put(record)
+
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function deletePersistedVideoCache(videoId) {
+  const db = await initVideoCacheDb()
+  if (!db) return
+
+  await new Promise((resolve, reject) => {
+    const request = db.transaction([VIDEO_CACHE_STORE_NAME], 'readwrite')
+      .objectStore(VIDEO_CACHE_STORE_NAME)
+      .delete(getVideoCacheKey(videoId))
+
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function clearPersistedVideoCache() {
+  const db = await initVideoCacheDb()
+  if (!db) return
+
+  await new Promise((resolve, reject) => {
+    const request = db.transaction([VIDEO_CACHE_STORE_NAME], 'readwrite')
+      .objectStore(VIDEO_CACHE_STORE_NAME)
+      .clear()
+
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function hydratePersistedVideoCache() {
+  const currentIds = new Set(videos.value.map(video => String(video.id)))
+  const nextCache = new Map()
+
+  for (const [videoId, cached] of videoCache.value) {
+    if (!currentIds.has(String(videoId))) {
+      revokeIfBlobUrl(cached?.blobUrl)
+      continue
+    }
+    nextCache.set(videoId, cached)
+  }
+
+  for (const video of videos.value) {
+    if (!video?.file || nextCache.has(video.id)) continue
+
+    try {
+      const record = await readPersistedVideoCache(video.id)
+      if (!record) continue
+
+      if (!record.blob || record.fileRef !== video.file) {
+        await deletePersistedVideoCache(video.id)
+        continue
+      }
+
+      const blobUrl = URL.createObjectURL(record.blob)
+      nextCache.set(video.id, {
+        blobUrl,
+        size: record.size || record.blob.size,
+        name: record.name || video.name
+      })
+    } catch (error) {
+      console.error(`載入持久化快取失敗 (${video.name || video.id}):`, error)
+    }
+  }
+
+  videoCache.value = nextCache
+  updateTotalCacheSize()
+}
 
 function revokeIfBlobUrl(url) {
   if (typeof url === 'string' && url.startsWith('blob:')) {
@@ -635,6 +777,9 @@ function seekThumbnailFrame(event) {
 async function ensureResolvedVideoSource(video) {
   if (!video?.file || !isMultipartVideo(video.file)) return video?.file || ''
 
+  const cached = videoCache.value.get(video.id)
+  if (cached?.blobUrl) return cached.blobUrl
+
   const existing = resolvedVideoSources.value.get(video.id)
   if (existing) return existing.blobUrl
   if (resolvingVideoPromises.has(video.id)) {
@@ -676,8 +821,9 @@ function getVideoSrc(video) {
 async function handlePlay(video) {
   if (!video?.file || batchMode.value) return
   try {
-    let src = video.file
-    if (isMultipartVideo(video.file)) {
+    const cached = videoCache.value.get(video.id)
+    let src = cached?.blobUrl || video.file
+    if (isMultipartVideo(video.file) && !cached?.blobUrl) {
       src = await ensureResolvedVideoSource(video)
     }
     if (!src) {
@@ -702,10 +848,11 @@ async function cacheVideo(video) {
           return await response.blob()
         })()
     const blobUrl = URL.createObjectURL(blob)
+    await persistVideoCache(video, blob)
     videoCache.value.set(video.id, { blobUrl, size: blob.size, name: video.name })
-    totalCacheSize.value += blob.size
     // Force reactivity
     videoCache.value = new Map(videoCache.value)
+    updateTotalCacheSize()
     console.log(`✅ 快取成功: ${video.name} (${(blob.size / 1024 / 1024).toFixed(1)} MB)`)
   } catch (err) {
     console.error(`快取失敗: ${video.name}`, err)
@@ -715,13 +862,18 @@ async function cacheVideo(video) {
   }
 }
 
-function uncacheVideo(videoId) {
+async function uncacheVideo(videoId) {
   const cached = videoCache.value.get(videoId)
   if (cached) {
     URL.revokeObjectURL(cached.blobUrl)
-    totalCacheSize.value -= cached.size
     videoCache.value.delete(videoId)
     videoCache.value = new Map(videoCache.value)
+    updateTotalCacheSize()
+  }
+  try {
+    await deletePersistedVideoCache(videoId)
+  } catch (error) {
+    console.error(`刪除持久化快取失敗 (${videoId}):`, error)
   }
 }
 
@@ -735,13 +887,18 @@ async function cacheAllVideos() {
   alert(`快取完成！共 ${videoCache.value.size} 部影片 (${(totalCacheSize.value / 1024 / 1024).toFixed(1)} MB)`)
 }
 
-function clearAllCache() {
+async function clearAllCache() {
   if (!confirm('確定要清除所有影片快取？')) return
   for (const [, cached] of videoCache.value) {
     URL.revokeObjectURL(cached.blobUrl)
   }
   videoCache.value = new Map()
-  totalCacheSize.value = 0
+  updateTotalCacheSize()
+  try {
+    await clearPersistedVideoCache()
+  } catch (error) {
+    console.error('清除持久化快取失敗:', error)
+  }
 }
 
 function getInlineVideoPreviewSrc() {
@@ -917,6 +1074,8 @@ async function deleteSelected() {
   }
 
   try {
+    const cachedDeletePromises = Array.from(selectedIds.value).map(id => uncacheVideo(id))
+    await Promise.all(cachedDeletePromises)
     const deletePromises = Array.from(selectedIds.value).map(id => deleteVideo(id))
     await Promise.all(deletePromises)
     alert(`成功刪除 ${count} 個影片`)
@@ -1118,6 +1277,7 @@ async function handleDelete(video) {
     return
   }
   try {
+    await uncacheVideo(video.id)
     await deleteVideo(video.id)
     alert('影片已刪除')
     await loadVideos()
@@ -1347,13 +1507,20 @@ async function handleImport(event) {
 
 // Lifecycle
 onMounted(() => {
-  if (typeof localStorage !== 'undefined') {
-    const savedMode = localStorage.getItem(VIDEO_DISPLAY_MODE_KEY)
-    if (savedMode === 'youtube' || savedMode === 'bilibili') {
-      videoDisplayMode.value = savedMode
+  ;(async () => {
+    if (typeof localStorage !== 'undefined') {
+      const savedMode = localStorage.getItem(VIDEO_DISPLAY_MODE_KEY)
+      if (savedMode === 'youtube' || savedMode === 'bilibili') {
+        videoDisplayMode.value = savedMode
+      }
     }
-  }
-  loadVideos()
+    await loadVideos()
+    await hydratePersistedVideoCache()
+  })()
+})
+
+watch(videos, async () => {
+  await hydratePersistedVideoCache()
 })
 
 onBeforeUnmount(() => {

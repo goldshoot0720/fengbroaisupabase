@@ -28,7 +28,9 @@
       <div class="summary-bar">
         <div class="summary-left">
           <button v-if="!batchMode && banks.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openInlineAdd" class="btn-add-icon" title="新增帳戶">+</button>
+          <button v-if="banks.length > 0" @click="openTransactionModal('income')" class="btn-transaction income" title="新增收入">新增收入</button>
+          <button v-if="banks.length > 0" @click="openTransactionModal('expense')" class="btn-transaction expense" title="新增支出">新增支出</button>
+          <button @click="openAddModal" class="btn-add-account" title="新增帳戶">新增帳戶</button>
           <template v-if="batchMode">
             <label class="select-all-label">
               <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
@@ -42,6 +44,10 @@
         <div class="summary-right">
           <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除選中 ({{ selectedIds.size }})</button>
         </div>
+      </div>
+
+      <div v-if="banks.length > 0" class="transaction-hint">
+        交易流程：先選銀行，再選收入或支出，最後輸入金額，系統會直接更新該銀行目前餘額。
       </div>
 
       <!-- 載入中 -->
@@ -207,6 +213,89 @@
         </div>
       </div>
 
+      <div v-if="showTransactionModal" class="modal-overlay" @click.self="closeTransactionModal">
+        <div class="modal-content modal-content--transaction">
+          <div class="modal-header">
+            <h3>{{ transactionType === 'income' ? '新增收入' : '新增支出' }}</h3>
+            <button class="btn-close" @click="closeTransactionModal">✕</button>
+          </div>
+
+          <div class="modal-body transaction-body">
+            <div class="transaction-steps">
+              <div class="transaction-step">
+                <span class="step-index">1</span>
+                <div>
+                  <div class="step-title">選擇銀行</div>
+                  <select v-model="transactionForm.bankId" class="form-select">
+                    <option value="" disabled>請選擇銀行帳戶</option>
+                    <option v-for="bank in banks" :key="bank.id" :value="String(bank.id)">
+                      {{ bank.name }} (目前 NT$ {{ formatNumber(bank.deposit) }})
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="transaction-step">
+                <span class="step-index">2</span>
+                <div>
+                  <div class="step-title">選擇類型</div>
+                  <div class="transaction-type-group">
+                    <button
+                      type="button"
+                      class="transaction-type-btn"
+                      :class="{ active: transactionType === 'income' }"
+                      @click="transactionType = 'income'"
+                    >
+                      收入
+                    </button>
+                    <button
+                      type="button"
+                      class="transaction-type-btn"
+                      :class="{ active: transactionType === 'expense' }"
+                      @click="transactionType = 'expense'"
+                    >
+                      支出
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="transaction-step">
+                <span class="step-index">3</span>
+                <div>
+                  <div class="step-title">輸入金額</div>
+                  <input v-model.number="transactionForm.amount" type="number" min="0" class="form-input" placeholder="請輸入金額">
+                </div>
+              </div>
+            </div>
+
+            <div v-if="selectedTransactionBank" class="transaction-preview">
+              <div class="preview-row">
+                <span>目前金額</span>
+                <strong>NT$ {{ formatNumber(selectedTransactionBank.deposit) }}</strong>
+              </div>
+              <div class="preview-row">
+                <span>{{ transactionType === 'income' ? '本次收入' : '本次支出' }}</span>
+                <strong :class="transactionType === 'income' ? 'preview-positive' : 'preview-negative'">
+                  {{ transactionType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(transactionForm.amount || 0) }}
+                </strong>
+              </div>
+              <div class="preview-row preview-total">
+                <span>更新後餘額</span>
+                <strong>NT$ {{ formatNumber(projectedTransactionBalance) }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="closeTransactionModal">取消</button>
+            <button class="btn-submit" @click="submitTransaction" :disabled="loading">
+              {{ loading ? '處理中...' : '確認更新餘額' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- 編輯/新增 Modal -->
       <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
         <div class="modal-content">
@@ -314,6 +403,12 @@ const showModal = ref(false)
 const isEditing = ref(false)
 const showDetails = ref({})
 const customBankName = ref('')
+const showTransactionModal = ref(false)
+const transactionType = ref('income')
+const transactionForm = reactive({
+  bankId: '',
+  amount: null
+})
 
 // 行內編輯
 const editingId = ref(null)
@@ -354,6 +449,18 @@ const saveInlineEdit = async () => {
 
 const batchMode = ref(false)
 const selectedIds = ref(new Set())
+const selectedTransactionBank = computed(() => {
+  if (!transactionForm.bankId) return null
+  return banks.value.find(bank => String(bank.id) === String(transactionForm.bankId)) || null
+})
+const projectedTransactionBalance = computed(() => {
+  const bank = selectedTransactionBank.value
+  if (!bank) return 0
+  const amount = Number(transactionForm.amount) || 0
+  return transactionType.value === 'income'
+    ? (Number(bank.deposit) || 0) + amount
+    : (Number(bank.deposit) || 0) - amount
+})
 
 const enterBatchMode = () => { batchMode.value = true }
 const exitBatchMode = () => { batchMode.value = false; selectedIds.value = new Set() }
@@ -550,6 +657,53 @@ const saveInlineAdd = async () => {
   if (result.success) { isAddingInline.value = false } else { alert('新增失敗: ' + result.error) }
 }
 
+const resetTransactionForm = () => {
+  transactionForm.bankId = ''
+  transactionForm.amount = null
+}
+
+const openTransactionModal = (type) => {
+  transactionType.value = type === 'expense' ? 'expense' : 'income'
+  resetTransactionForm()
+  showTransactionModal.value = true
+}
+
+const closeTransactionModal = () => {
+  showTransactionModal.value = false
+  resetTransactionForm()
+}
+
+const submitTransaction = async () => {
+  const bank = selectedTransactionBank.value
+  const amount = Number(transactionForm.amount)
+
+  if (!bank) {
+    alert('請先選擇銀行')
+    return
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    alert('請輸入正確金額')
+    return
+  }
+
+  const nextDeposit = transactionType.value === 'income'
+    ? (Number(bank.deposit) || 0) + amount
+    : (Number(bank.deposit) || 0) - amount
+
+  const result = await updateBank(bank.id, {
+    ...bank,
+    deposit: nextDeposit
+  })
+
+  if (result.success) {
+    closeTransactionModal()
+    alert(`${bank.name} 已更新為 NT$ ${formatNumber(nextDeposit)}`)
+  } else {
+    alert('更新失敗: ' + result.error)
+  }
+}
+
 // 開啟新增 Modal
 const openAddModal = () => {
   isEditing.value = false
@@ -653,6 +807,143 @@ useHead({
 .card-editing {
   box-shadow: 0 4px 12px rgba(250, 112, 154, 0.2);
   border-left: 4px solid #fa709a;
+}
+
+.transaction-hint {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(14, 165, 233, 0.12));
+  color: #155e75;
+  font-size: 0.92rem;
+}
+
+.btn-transaction,
+.btn-add-account {
+  border: none;
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-transaction:hover,
+.btn-add-account:hover {
+  transform: translateY(-1px);
+}
+
+.btn-transaction.income {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  box-shadow: 0 8px 18px rgba(16, 185, 129, 0.25);
+}
+
+.btn-transaction.expense {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.25);
+}
+
+.btn-add-account {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.modal-content--transaction {
+  max-width: 560px;
+}
+
+.transaction-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.transaction-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.transaction-step {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.step-index {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, #0f766e, #0284c7);
+}
+
+.step-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.45rem;
+}
+
+.transaction-type-group {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.transaction-type-btn {
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 0.8rem 1rem;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.transaction-type-btn.active {
+  border-color: #0f766e;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(14, 165, 233, 0.12));
+  color: #0f766e;
+}
+
+.transaction-preview {
+  border-radius: 18px;
+  padding: 1rem 1.1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  color: #334155;
+}
+
+.preview-total {
+  margin-top: 0.4rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #cbd5e1;
+  font-size: 1rem;
+}
+
+.preview-positive {
+  color: #059669;
+}
+
+.preview-negative {
+  color: #dc2626;
 }
 
 .inline-input {

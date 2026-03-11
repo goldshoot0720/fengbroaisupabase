@@ -1,5 +1,5 @@
 // netlify/functions/send-push-cron.js
-// Netlify 排程函數：每天早上 9 點（UTC+8 = 01:00 UTC）
+// Netlify 排程函數：每天早上 8:30（台灣時間，UTC+8 = 00:30 UTC）
 // 查詢 3 天內到期訂閱，透過 Web Push 推送通知到所有已訂閱裝置
 
 import webpush from 'web-push'
@@ -106,7 +106,7 @@ export default async () => {
   return new Response(`Sent: ${sent}, Removed: ${removed}`, { status: 200 })
 }
 
-// 每天 01:00 UTC = 台灣時間 09:00
+// 每天 00:30 UTC = 台灣時間 08:30
 export const config = {
-  schedule: '0 1 * * *'
+  schedule: '30 0 * * *'
 }

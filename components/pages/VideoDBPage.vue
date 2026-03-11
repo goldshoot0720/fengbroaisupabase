@@ -95,6 +95,15 @@
                   {{ addVideoUploading ? '上傳中...' : '選擇影片' }}
                 </button>
               </div>
+              <div v-if="addVideoUploading" class="upload-progress-block">
+                <div class="upload-progress-head">
+                  <span>影片上傳進度</span>
+                  <span class="upload-progress">{{ videoUploadProgress }}%</span>
+                </div>
+                <div class="upload-progress-bar">
+                  <div class="upload-progress-fill" :style="{ width: `${videoUploadProgress}%` }"></div>
+                </div>
+              </div>
               <div v-if="getAddVideoPreviewSrc()" class="inline-video-preview">
                 <video :src="getAddVideoPreviewSrc()" controls preload="metadata" class="card-video"></video>
               </div>
@@ -157,6 +166,15 @@
                   <button type="button" @click="$refs.inlineVideoInput.click()" class="btn-upload" :disabled="inlineVideoUploading">
                     {{ inlineVideoUploading ? '上傳中...' : '選擇影片' }}
                   </button>
+                </div>
+                <div v-if="inlineVideoUploading" class="upload-progress-block">
+                  <div class="upload-progress-head">
+                    <span>影片上傳進度</span>
+                    <span class="upload-progress">{{ videoUploadProgress }}%</span>
+                  </div>
+                  <div class="upload-progress-bar">
+                    <div class="upload-progress-fill" :style="{ width: `${videoUploadProgress}%` }"></div>
+                  </div>
                 </div>
                 <div v-if="getInlineVideoPreviewSrc()" class="inline-video-preview">
                   <video :src="getInlineVideoPreviewSrc()" controls preload="metadata" class="card-video"></video>
@@ -294,6 +312,15 @@
                   {{ videoUploading ? '上傳中...' : '選擇影片' }}
                 </button>
                 <span v-if="videoUploadProgress > 0" class="upload-progress">{{ videoUploadProgress }}%</span>
+              </div>
+              <div v-if="videoUploading" class="upload-progress-block">
+                <div class="upload-progress-head">
+                  <span>影片上傳進度</span>
+                  <span class="upload-progress">{{ videoUploadProgress }}%</span>
+                </div>
+                <div class="upload-progress-bar">
+                  <div class="upload-progress-fill" :style="{ width: `${videoUploadProgress}%` }"></div>
+                </div>
               </div>
               <div v-if="getFormVideoPreviewSrc()" class="video-preview">
                 <video :src="getFormVideoPreviewSrc()" controls class="preview-video"></video>
@@ -1779,6 +1806,36 @@ onBeforeUnmount(() => {
   font-size: 0.85rem;
   color: #ff6b6b;
   font-weight: 600;
+}
+
+.upload-progress-block {
+  margin-top: 0.5rem;
+}
+
+.upload-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.upload-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #fde2e2;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);
+  border-radius: 999px;
+  transition: width 0.2s ease;
 }
 
 /* ── Summary Bar ── */

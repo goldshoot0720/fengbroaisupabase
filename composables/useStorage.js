@@ -47,8 +47,14 @@ export const useStorage = () => {
     return isVideoFile && file.size > MULTIPART_VIDEO_THRESHOLD
   }
 
-  const getMultipartReference = (bucketName, manifestPath) => {
-    return `${MULTIPART_REFERENCE_PREFIX}${bucketName}/${manifestPath}`
+  const getMultipartReference = (bucketName, filePath, meta = {}) => {
+    const params = new URLSearchParams()
+    if (meta.partCount) params.set('parts', String(meta.partCount))
+    if (meta.originalType) params.set('type', meta.originalType)
+    if (meta.originalSize) params.set('size', String(meta.originalSize))
+    if (meta.originalName) params.set('name', meta.originalName)
+    const query = params.toString()
+    return `${MULTIPART_REFERENCE_PREFIX}${bucketName}/${filePath}${query ? `?${query}` : ''}`
   }
 
   const isMultipartManifestUrl = (value = '') => {
@@ -63,11 +69,17 @@ export const useStorage = () => {
 
     if (value.startsWith(MULTIPART_REFERENCE_PREFIX)) {
       const rawPath = value.slice(MULTIPART_REFERENCE_PREFIX.length)
-      const slashIndex = rawPath.indexOf('/')
+      const [pathPart, queryString = ''] = rawPath.split('?')
+      const slashIndex = pathPart.indexOf('/')
       if (slashIndex === -1) return null
+      const params = new URLSearchParams(queryString)
       return {
-        bucket: rawPath.slice(0, slashIndex),
-        path: rawPath.slice(slashIndex + 1)
+        bucket: pathPart.slice(0, slashIndex),
+        path: pathPart.slice(slashIndex + 1),
+        partCount: Number(params.get('parts') || 0),
+        originalType: params.get('type') || '',
+        originalSize: Number(params.get('size') || 0),
+        originalName: params.get('name') || ''
       }
     }
 
@@ -104,9 +116,29 @@ export const useStorage = () => {
         const parsed = parseMultipartReference(manifestReference)
         let manifest
 
-        if (parsed) {
+        if (parsed?.path?.endsWith(MULTIPART_MANIFEST_SUFFIX)) {
           const manifestBlob = await downloadStorageObject(parsed.bucket, parsed.path)
           manifest = JSON.parse(await manifestBlob.text())
+        } else if (parsed) {
+          const parts = []
+          const totalParts = parsed.partCount || 0
+          for (let index = 0; index < totalParts; index++) {
+            parts.push({
+              index: index + 1,
+              path: `${parsed.path}.part${String(index + 1).padStart(3, '0')}`
+            })
+          }
+          manifest = {
+            type: 'multipart-video',
+            version: 2,
+            bucket: parsed.bucket,
+            originalName: parsed.originalName,
+            originalType: parsed.originalType || 'video/mp4',
+            originalSize: parsed.originalSize || 0,
+            chunkSize: MULTIPART_VIDEO_CHUNK_SIZE,
+            partCount: totalParts,
+            parts
+          }
         } else {
           const response = await fetch(manifestReference)
           if (!response.ok) {
@@ -199,44 +231,31 @@ export const useStorage = () => {
       uploadProgress.value = Math.min(95, Math.round(((index + 1) / totalParts) * 95))
     }
 
-    const manifestPath = `${filePath}${MULTIPART_MANIFEST_SUFFIX}`
-    const manifest = {
-      type: 'multipart-video',
-      version: 1,
-      bucket: bucketName,
-      originalName: file.name,
-      originalType: file.type || 'video/mp4',
-      originalSize: file.size,
-      chunkSize: MULTIPART_VIDEO_CHUNK_SIZE,
-      partCount: totalParts,
-      parts,
-      uploadedAt: new Date().toISOString()
-    }
-
-    const manifestBlob = new Blob(
-      [JSON.stringify(manifest, null, 2)],
-      { type: 'application/json' }
-    )
-
-    const { error: manifestError } = await client.storage
-      .from(bucketName)
-      .upload(manifestPath, manifestBlob, {
-        cacheControl: '3600',
-        upsert: false,
-        contentType: 'application/json'
-      })
-
-    if (manifestError) throw manifestError
-
     uploadProgress.value = 100
 
     return {
       success: true,
-      url: getMultipartReference(bucketName, manifestPath),
-      path: manifestPath,
+      url: getMultipartReference(bucketName, filePath, {
+        partCount: totalParts,
+        originalType: file.type || 'video/mp4',
+        originalSize: file.size,
+        originalName: file.name
+      }),
+      path: filePath,
       multipart: true,
       previewUrl: URL.createObjectURL(file),
-      manifest
+      manifest: {
+        type: 'multipart-video',
+        version: 2,
+        bucket: bucketName,
+        originalName: file.name,
+        originalType: file.type || 'video/mp4',
+        originalSize: file.size,
+        chunkSize: MULTIPART_VIDEO_CHUNK_SIZE,
+        partCount: totalParts,
+        parts,
+        uploadedAt: new Date().toISOString()
+      }
     }
   }
 

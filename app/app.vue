@@ -233,9 +233,32 @@ const foodsCount = computed(() => foods.value.length)
 const isDevelopment = computed(() => false) // 設為 true 以啟用滾動調試
 const placeholderPages = {}
 const placeholderConfig = computed(() => placeholderPages[currentPage.value] || null)
+const SUPABASE_URL_WARNING_KEY = 'feng-supabase-url-warning'
+
+const getSupabaseUrlValidationMessage = (rawUrl) => {
+  const value = String(rawUrl || '').trim()
+  if (!value) return ''
+  if (value.includes('supabse.co')) {
+    return 'Supabase URL 拼字錯誤：目前是 supabse.co，正確應為 supabase.co。請到設定頁修正後再重新整理。'
+  }
+  return ''
+}
 
 // 生命週期
 onMounted(async () => {
+  const config = useRuntimeConfig()
+  const creds = getSupabaseCredentials()
+  const supabaseUrl = creds?.url || config.public.supabaseUrl
+  const supabaseUrlWarning = getSupabaseUrlValidationMessage(supabaseUrl)
+
+  if (supabaseUrlWarning) {
+    toastWarning(supabaseUrlWarning, { duration: 10000 })
+    if (import.meta.client && sessionStorage.getItem(SUPABASE_URL_WARNING_KEY) !== supabaseUrl) {
+      sessionStorage.setItem(SUPABASE_URL_WARNING_KEY, supabaseUrl)
+      alert(supabaseUrlWarning)
+    }
+  }
+
   // 載入初始資料
   await loadSubscriptions()
   loadFoods()
@@ -302,10 +325,8 @@ onMounted(async () => {
   // Service Worker 無法讀取 localStorage，需透過 IndexedDB 傳遞憑證
   if (import.meta.client && 'indexedDB' in window) {
     try {
-      const config = useRuntimeConfig()
-      const creds  = getSupabaseCredentials()
-      const url    = creds?.url || config.public.supabaseUrl
-      const key    = creds?.key || config.public.supabaseAnonKey
+      const url = creds?.url || config.public.supabaseUrl
+      const key = creds?.key || config.public.supabaseAnonKey
 
       if (url && key) {
         const req = indexedDB.open('fengbroai-sw', 1)

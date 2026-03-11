@@ -293,6 +293,23 @@ const bucketChecking = ref(false)
 const showBucketHelp = ref(false)
 const currentBucketName = computed(() => bucketName.value || useRuntimeConfig().public.supabaseBucket || 'uploads')
 
+const getSupabaseUrlValidationMessage = (rawUrl) => {
+  const value = String(rawUrl || '').trim()
+  if (!value) return ''
+  if (value.includes('supabse.co')) {
+    return 'Supabase URL 拼字錯誤：你輸入的是 supabse.co，正確應為 supabase.co'
+  }
+  try {
+    const parsed = new URL(value)
+    if (!/^https?:$/.test(parsed.protocol)) {
+      return 'Supabase URL 必須以 http:// 或 https:// 開頭'
+    }
+  } catch {
+    return 'Supabase URL 格式不正確，請輸入完整網址'
+  }
+  return ''
+}
+
 const tables = reactive([
   {
     name: 'article',
@@ -577,11 +594,20 @@ const checkAllTables = async () => {
   const config = useRuntimeConfig()
   const url = supabaseUrl.value || config.public.supabaseUrl
   const key = supabaseAnonKey.value || config.public.supabaseAnonKey
+  const urlValidationMessage = getSupabaseUrlValidationMessage(url)
   
   if (!url || !key) {
     connectionStatus.value = '⚠️ 請設定 Supabase URL 和 Anon Key（或檢查 .env 檔案）'
     tables.forEach(t => t.exists = false)
     isChecking.value = false
+    return
+  }
+
+  if (urlValidationMessage) {
+    connectionStatus.value = `⚠️ ${urlValidationMessage}`
+    tables.forEach(t => t.exists = false)
+    isChecking.value = false
+    alert(urlValidationMessage)
     return
   }
   
@@ -715,6 +741,12 @@ onMounted(() => {
 })
 
 const handleSave = () => {
+  const urlValidationMessage = getSupabaseUrlValidationMessage(supabaseUrl.value)
+  if (urlValidationMessage) {
+    alert(urlValidationMessage)
+    return
+  }
+
   if (editingAccountId.value) {
     // 更新現有帳號
     updateAccount(editingAccountId.value, {

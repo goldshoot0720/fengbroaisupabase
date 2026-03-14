@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>簡單測試</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        button { margin: 5px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Supabase 連接測試</h1>
+    
+    <button onclick="testConnection()">測試連接</button>
+    <button onclick="testRead()">讀取資料</button>
+    <button onclick="testInsert()">新增測試資料</button>
+    
+    <div id="result" class="result">點擊按鈕開始測試...</div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js'
+        
+        const supabaseUrl = 'https://lgztvgybalhvppkfpwdc.supabase.co'
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnenR2Z3liYWxodnBwa2Zwd2RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzNDkwMTQsImV4cCI6MjA1OTkyNTAxNH0.JfB6J38LmdlvUwIgkdRmQcBDnv6OzFaA-D27S0ylVnA'
+        
+        const supabase = createClient(supabaseUrl, supabaseKey)
+        
+        window.testConnection = async function() {
+            const resultDiv = document.getElementById('result')
+            resultDiv.innerHTML = '測試連接中...'
+            
+            try {
+                const { data, error } = await supabase
+                    .from('subscription')
+                    .select('count', { count: 'exact', head: true })
+                
+                if (error) {
+                    resultDiv.innerHTML = `<div class="error">連接錯誤: ${error.message}</div>`
+                } else {
+                    resultDiv.innerHTML = `<div class="success">✅ 連接成功！</div>`
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<div class="error">連接失敗: ${err.message}</div>`
+            }
+        }
+
+        window.testRead = async function() {
+            const resultDiv = document.getElementById('result')
+            resultDiv.innerHTML = '讀取資料中...'
+            
+            try {
+                const { data, error } = await supabase
+                    .from('subscription')
+                    .select('*')
+                    .limit(5)
+                
+                if (error) {
+                    resultDiv.innerHTML = `<div class="error">讀取錯誤: ${error.message}</div>`
+                } else {
+                    resultDiv.innerHTML = `<div class="success">✅ 讀取成功！找到 ${data.length} 筆記錄</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>`
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<div class="error">讀取失敗: ${err.message}</div>`
+            }
+        }
+
+        window.testInsert = async function() {
+            const resultDiv = document.getElementById('result')
+            resultDiv.innerHTML = '新增資料中...'
+            
+            try {
+                const testData = {
+                    name: '測試服務 ' + Date.now(),
+                    site: 'https://test.com',
+                    account: 'test@example.com',
+                    price: 100,
+                    nextdate: '2025-02-01',
+                    note: '自動測試資料'
+                }
+                
+                const { data, error } = await supabase
+                    .from('subscription')
+                    .insert(testData)
+                    .select()
+                    .single()
+                
+                if (error) {
+                    resultDiv.innerHTML = `<div class="error">新增錯誤: ${error.message}</div>`
+                } else {
+                    resultDiv.innerHTML = `<div class="success">✅ 新增成功！ID: ${data.id}</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>`
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<div class="error">新增失敗: ${err.message}</div>`
+            }
+        }
+    </script>
+</body>
+</html>

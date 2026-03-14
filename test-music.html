@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音樂庫測試 - Netlify Blobs</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .music-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+
+        .music-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .music-card h2 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #f093fb;
+            padding-bottom: 0.5rem;
+        }
+
+        .track-item {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .track-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        .status.loading {
+            background: #ffeaa7;
+            color: #d63031;
+        }
+
+        .status.success {
+            background: #55efc4;
+            color: #00b894;
+        }
+
+        .status.error {
+            background: #fab1a0;
+            color: #d63031;
+        }
+
+        .info {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .info h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+
+        .info p {
+            color: #666;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 音樂庫測試</h1>
+        
+        <div class="info">
+            <h3>測試說明</h3>
+            <p>此頁面用於測試 Netlify Blobs 音樂存取功能。點擊播放按鈕測試音樂是否能正常載入和播放。</p>
+            <p><strong>API 端點:</strong> /api/blobs/music/{blobKey}</p>
+        </div>
+
+        <div class="music-grid" id="musicGrid">
+            <!-- 音樂卡片將由 JavaScript 動態生成 -->
+        </div>
+    </div>
+
+    <script>
+        const musicCategories = [
+            {
+                name: '鋒兄的傳奇人生',
+                tracks: [
+                    { key: '鋒兄的傳奇人生/鋒兄的傳奇人生.mp3', name: '原版' },
+                    { key: '鋒兄的傳奇人生/鋒兄的傳奇人生 (Rose).mp3', name: 'Rose 版' },
+                    { key: '鋒兄的傳奇人生/鋒兄的傳奇人生(日文).mp3', name: '日文版' }
+                ]
+            },
+            {
+                name: '鋒兄進化Show🔥',
+                tracks: [
+                    { key: '鋒兄進化Show🔥/鋒兄進化Show🔥.mp3', name: '原版' },
+                    { key: '鋒兄進化Show🔥/鋒兄進化Show🔥(Rose).mp3', name: 'Rose 版' }
+                ]
+            },
+            {
+                name: '塗哥水電王子爆紅',
+                tracks: [
+                    { key: '塗哥水電王子爆紅/塗哥水電王子爆紅.mp3', name: '原版' },
+                    { key: '塗哥水電王子爆紅/塗哥水電王子爆紅(Rose).mp3', name: 'Rose 版' }
+                ]
+            },
+            {
+                name: '最瞎結婚理由',
+                tracks: [
+                    { key: '最瞎結婚理由/最瞎結婚理由.mp3', name: '原版' },
+                    { key: '最瞎結婚理由/最瞎結婚理由(Rose).mp3', name: 'Rose 版' }
+                ]
+            }
+        ];
+
+        function createMusicCard(category) {
+            const card = document.createElement('div');
+            card.className = 'music-card';
+            
+            const title = document.createElement('h2');
+            title.textContent = category.name;
+            card.appendChild(title);
+
+            category.tracks.forEach(track => {
+                const trackItem = document.createElement('div');
+                trackItem.className = 'track-item';
+
+                const trackName = document.createElement('div');
+                trackName.className = 'track-name';
+                trackName.textContent = track.name;
+                trackItem.appendChild(trackName);
+
+                const audio = document.createElement('audio');
+                audio.controls = true;
+                audio.preload = 'metadata';
+                
+                const source = document.createElement('source');
+                source.src = `/api/blobs/music/${encodeURIComponent(track.key)}`;
+                source.type = 'audio/mpeg';
+                audio.appendChild(source);
+
+                const status = document.createElement('span');
+                status.className = 'status loading';
+                status.textContent = '⏳ 載入中...';
+
+                audio.addEventListener('loadeddata', () => {
+                    status.className = 'status success';
+                    status.textContent = '✅ 載入成功';
+                });
+
+                audio.addEventListener('error', (e) => {
+                    status.className = 'status error';
+                    status.textContent = '❌ 載入失敗';
+                    console.error('音樂載入錯誤:', track.key, e);
+                });
+
+                trackItem.appendChild(audio);
+                trackItem.appendChild(status);
+                card.appendChild(trackItem);
+            });
+
+            return card;
+        }
+
+        const musicGrid = document.getElementById('musicGrid');
+        musicCategories.forEach(category => {
+            musicGrid.appendChild(createMusicCard(category));
+        });
+    </script>
+</body>
+</html>

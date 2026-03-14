@@ -1,0 +1,39 @@
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Node dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+.claude
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Video files (managed by Netlify Blobs)
+# Large video files should not be committed to git
+/videos/
+public/videos/*.mp4
+public/videos/*.avi
+public/videos/*.mov
+public/videos/*.wmv
+public/videos/*.flv
+public/videos/*.mkv
+public/videos/*.webm
+
+# Local Netlify folder
+.netlify

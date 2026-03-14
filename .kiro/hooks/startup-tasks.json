@@ -1,0 +1,12 @@
+{
+  "name": "關機前任務自動完成",
+  "description": "啟動 Kiro 時自動完成圖片畫廊開發和代碼提交",
+  "trigger": {
+    "type": "session_start"
+  },
+  "action": {
+    "type": "message",
+    "content": "🚀 自動執行關機前任務：\n\n1. 完成圖片畫廊的 CSS 樣式（燈箱、響應式設計）\n2. 測試圖片畫廊功能\n3. 提交代碼到 Git\n4. 準備雲端部署\n\n請繼續完成這些任務。"
+  },
+  "enabled": true
+}

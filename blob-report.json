@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-12-16T05:13:01.496Z",
+  "totalVideos": 2,
+  "existingVideos": 2,
+  "missingVideos": 0,
+  "videos": [
+    {
+      "blobKey": "19700121-1829-693fee512bec81918cbfd484c6a5ba8f_enx4rsS0.mp4",
+      "displayName": "鋒兄的傳奇人生",
+      "localPath": "./public/videos/19700121-1829-693fee512bec81918cbfd484c6a5ba8f_enx4rsS0.mp4",
+      "exists": true,
+      "metadata": {
+        "metadata": {
+          "contentType": "video/mp4",
+          "displayName": "鋒兄的傳奇人生",
+          "uploadedAt": "2025-12-16T05:08:20.532Z",
+          "fileSize": 149202463
+        }
+      }
+    },
+    {
+      "blobKey": "clideo-editor-92eb6755d77b4603a482c25764865a58_7sLjgTgc.mp4",
+      "displayName": "鋒兄進化Show🔥",
+      "localPath": "./public/videos/clideo-editor-92eb6755d77b4603a482c25764865a58_7sLjgTgc.mp4",
+      "exists": true,
+      "metadata": {
+        "metadata": {
+          "contentType": "video/mp4",
+          "displayName": "鋒兄進化Show🔥",
+          "uploadedAt": "2025-12-16T05:08:24.054Z",
+          "fileSize": 46317671
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+[functions]
+  directory = "netlify/functions/"
+
+# Netlify Blobs 重定向規則
+[[redirects]]
+  from = "/api/blobs/*"
+  to = "/.netlify/functions/blob-proxy"
+  status = 200
+
+# 快取設定
+[[headers]]
+  for = "/api/blobs/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+    Access-Control-Allow-Origin = "*"

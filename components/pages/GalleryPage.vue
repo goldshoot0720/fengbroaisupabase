@@ -1035,12 +1035,14 @@ useHead({
   margin-bottom: 0.75rem;
   border-radius: 8px;
   overflow: hidden;
+  background: #f8fafc;
 }
 
 .card-image {
   width: 100%;
-  max-height: 200px;
-  object-fit: cover;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
   display: block;
   border-radius: 8px;
   cursor: pointer;

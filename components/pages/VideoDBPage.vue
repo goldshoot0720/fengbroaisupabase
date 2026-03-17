@@ -108,10 +108,17 @@
             <div class="inline-form-group">
               <label>上傳影片</label>
               <div class="upload-area">
-                <input ref="addVideoInput" type="file" accept="video/*" @change="handleAddVideoUpload" style="display:none" />
+                <input ref="addVideoInput" type="file" accept="video/*" multiple @change="handleAddVideoUpload" style="display:none" />
                 <button type="button" @click="$refs.addVideoInput.click()" class="btn-upload" :disabled="addVideoUploading">
                   {{ addVideoUploading ? '上傳中...' : '選擇影片' }}
                 </button>
+              </div>
+              <div v-if="addSelectedVideos.length > 0" class="selected-file-list">
+                <span class="selected-file-summary">已選 {{ addSelectedVideos.length }} 部影片</span>
+                <div class="selected-file-chips">
+                  <span v-for="file in addSelectedVideos" :key="file.name + file.size" class="selected-file-chip">{{ file.name }}</span>
+                </div>
+                <button type="button" @click="clearAddSelectedVideos" class="btn-remove-sm">清除已選</button>
               </div>
               <div v-if="addVideoUploading" class="upload-progress-block">
                 <div class="upload-progress-head">
@@ -126,7 +133,7 @@
                 <video :src="getAddVideoPreviewSrc()" controls preload="metadata" class="card-video"></video>
               </div>
             </div>
-            <div class="inline-form-group"><label>或輸入影片URL</label><input v-model="addNewForm.file" type="text" class="inline-input" placeholder="影片 URL" /></div>
+            <div class="inline-form-group"><label>或輸入影片URL</label><input v-model="addNewForm.file" type="text" class="inline-input" placeholder="影片 URL" :disabled="addSelectedVideos.length > 0" /></div>
             <div class="inline-form-group"><label>檔案類型</label><input v-model="addNewForm.filetype" type="text" class="inline-input" placeholder="mp4, mov..." /></div>
             <div class="inline-form-group">
               <label>封面上傳</label>
@@ -1171,20 +1178,74 @@ const addVideoInput = ref(null)
 const addCoverInput = ref(null)
 const addVideoUploading = ref(false)
 const addCoverUploading = ref(false)
+const addSelectedVideos = ref([])
+
+const getFileBaseName = (fileName = '') => fileName.replace(/\.[^.]+$/, '')
+const getFileExtension = (fileName = '') => fileName.split('.').pop() || ''
+
+const resetInlineAddForm = () => {
+  addNewForm.value = { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' }
+  addSelectedVideos.value = []
+}
 
 const openInlineAdd = () => {
-  addNewForm.value = { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' }
+  resetInlineAddForm()
   setPreviewSrc(addVideoPreviewSrc, '')
   isAddingInline.value = true
 }
 const cancelInlineAdd = () => {
+  resetInlineAddForm()
   setPreviewSrc(addVideoPreviewSrc, '')
   isAddingInline.value = false
 }
+
+const clearAddSelectedVideos = () => {
+  addSelectedVideos.value = []
+  setPreviewSrc(addVideoPreviewSrc, '')
+}
+
 const saveInlineAdd = async () => {
+  if (addSelectedVideos.value.length > 0) {
+    addVideoUploading.value = true
+    try {
+      const records = []
+      for (const file of addSelectedVideos.value) {
+        const result = await uploadFile(file, 'video')
+        if (!result.success) {
+          throw new Error(`${file.name}: ${result.error}`)
+        }
+        records.push({
+          name: addSelectedVideos.value.length === 1 && addNewForm.value.name ? addNewForm.value.name : getFileBaseName(file.name),
+          file: result.url,
+          filetype: addNewForm.value.filetype || getFileExtension(file.name),
+          note: addNewForm.value.note,
+          ref: addNewForm.value.ref,
+          category: addNewForm.value.category,
+          hash: addNewForm.value.hash,
+          cover: addNewForm.value.cover
+        })
+      }
+
+      const result = await importVideos(records)
+      if (!result.success) {
+        throw new Error(result.error || '匯入失敗')
+      }
+      resetInlineAddForm()
+      setPreviewSrc(addVideoPreviewSrc, '')
+      isAddingInline.value = false
+      await loadVideos()
+    } catch (e) {
+      alert('批次上傳失敗: ' + e.message)
+    } finally {
+      addVideoUploading.value = false
+    }
+    return
+  }
+
   if (!addNewForm.value.name) { alert('請輸入影片名稱'); return }
   try {
     await addVideo(addNewForm.value)
+    resetInlineAddForm()
     setPreviewSrc(addVideoPreviewSrc, '')
     isAddingInline.value = false
     await loadVideos()
@@ -1194,19 +1255,20 @@ const saveInlineAdd = async () => {
 }
 
 async function handleAddVideoUpload(event) {
-  const file = event.target.files?.[0]
-  if (!file) return
-  addVideoUploading.value = true
-  try {
-    const result = await uploadFile(file, 'video')
-    if (result.success) {
-      addNewForm.value.file = result.url
-      setPreviewSrc(addVideoPreviewSrc, result.previewUrl || result.url)
-      if (!addNewForm.value.name) addNewForm.value.name = file.name.replace(/\.[^.]+$/, '')
-      const ext = file.name.split('.').pop()
-      if (ext) addNewForm.value.filetype = ext
-    } else { alert('上傳失敗: ' + result.error) }
-  } catch (e) { alert('上傳失敗: ' + e.message) } finally { addVideoUploading.value = false }
+  const files = Array.from(event.target.files || [])
+  if (files.length === 0) return
+  addSelectedVideos.value = files
+  addNewForm.value.file = ''
+  if (files.length === 1) {
+    const file = files[0]
+    if (!addNewForm.value.name) addNewForm.value.name = getFileBaseName(file.name)
+    const ext = getFileExtension(file.name)
+    if (ext && !addNewForm.value.filetype) addNewForm.value.filetype = ext
+    setPreviewSrc(addVideoPreviewSrc, URL.createObjectURL(file))
+  } else {
+    setPreviewSrc(addVideoPreviewSrc, '')
+  }
+  event.target.value = ''
 }
 
 async function handleAddCoverUpload(event) {
@@ -2553,6 +2615,38 @@ onBeforeUnmount(() => {
 
 .btn-upload:hover { background: #e5e7eb; }
 .btn-upload:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.selected-file-list {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.selected-file-summary {
+  font-size: 0.8rem;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.selected-file-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.selected-file-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  word-break: break-all;
+}
 
 /* Active Player */
 .player-wrapper {

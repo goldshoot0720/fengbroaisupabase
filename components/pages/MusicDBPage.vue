@@ -112,12 +112,17 @@
                   <div class="inline-upload-row">
                     <label class="btn-inline-upload-music" :class="{ disabled: addAudioUploading }">
                       {{ addAudioUploading ? '上傳中...' : '🎵 選擇音檔' }}
-                      <input type="file" accept="audio/*" style="display:none" :disabled="addAudioUploading" @change="handleAddAudioUpload" />
+                      <input type="file" accept="audio/*" multiple style="display:none" :disabled="addAudioUploading" @change="handleAddAudioUpload" />
                     </label>
-                    <button v-if="addForm.file" type="button" class="btn-inline-remove-sm" @click="addForm.file = ''">✕</button>
+                    <span v-if="addSelectedAudios.length > 0" class="inline-selected-summary">已選 {{ addSelectedAudios.length }} 首</span>
+                    <button v-if="addSelectedAudios.length > 0" type="button" class="btn-inline-remove-sm" @click="clearAddSelectedAudios">✕</button>
+                    <button v-else-if="addForm.file" type="button" class="btn-inline-remove-sm" @click="addForm.file = ''">✕</button>
                   </div>
-                  <input v-model="addForm.file" type="text" class="inline-input" placeholder="或輸入音檔 URL" style="margin-top:0.3rem" />
-                  <audio v-if="addForm.file" controls :src="addForm.file" class="inline-audio-preview"></audio>
+                  <div v-if="addSelectedAudios.length > 0" class="inline-selected-files">
+                    <span v-for="file in addSelectedAudios" :key="file.name + file.size" class="selected-file-chip">{{ file.name }}</span>
+                  </div>
+                  <input v-model="addForm.file" type="text" class="inline-input" placeholder="或輸入音檔 URL" style="margin-top:0.3rem" :disabled="addSelectedAudios.length > 0" />
+                  <audio v-if="addSelectedAudios.length === 0 && addForm.file" controls :src="addForm.file" class="inline-audio-preview"></audio>
                 </div>
               </div>
               <div class="inline-field-row"><label>格式</label><input v-model="addForm.filetype" type="text" class="inline-input" placeholder="mp3, flac, wav..." /></div>
@@ -356,6 +361,7 @@
                     ref="audioFileInput"
                     type="file"
                     accept="audio/*"
+                    multiple
                     @change="handleAudioUpload"
                     style="display: none"
                   />
@@ -364,6 +370,9 @@
                   </button>
                   <span v-if="uploadProgress > 0" class="upload-progress">{{ uploadProgress }}%</span>
                 </div>
+                <div v-if="modalSelectedAudios.length > 0" class="inline-selected-files" style="margin-top:0.5rem">
+                  <span v-for="file in modalSelectedAudios" :key="file.name + file.size" class="selected-file-chip">{{ file.name }}</span>
+                </div>
                 <div v-if="formData.file" class="file-preview">
                   <audio controls :src="formData.file" class="audio-preview"></audio>
                   <button type="button" @click="removeAudio" class="btn-remove">移除</button>
@@ -371,7 +380,7 @@
               </div>
               <div class="form-group">
                 <label>檔案路徑 (或自動上傳)</label>
-                <input v-model="formData.file" type="text" class="form-input" placeholder="自動填入或手動輸入" />
+                <input v-model="formData.file" type="text" class="form-input" placeholder="自動填入或手動輸入" :disabled="modalSelectedAudios.length > 0" />
               </div>
               <div class="form-group">
                 <label>檔案格式</label>
@@ -538,6 +547,7 @@ const showModal = ref(false)
 const editingMusic = ref(null)
 const audioFileInput = ref(null)
 const coverFileInput = ref(null)
+const modalSelectedAudios = ref([])
 const coverUploading = ref(false)
 const languageSelect = ref('')
 const formData = ref({
@@ -781,41 +791,78 @@ const truncate = (text, length) => {
 // 行內新增
 const isAddingInline = ref(false)
 const addForm = ref({ name: '', file: '', filetype: '', lyrics: '', note: '', ref: '', category: '', hash: '', language: '', cover: '' })
-const openInlineAdd = () => {
+const addSelectedAudios = ref([])
+const getFileBaseName = (fileName = '') => fileName.replace(/\.[^.]+$/, '')
+const getFileExtension = (fileName = '') => fileName.split('.').pop()?.toLowerCase() || ''
+const resetInlineAddForm = () => {
   addForm.value = { name: '', file: '', filetype: '', lyrics: '', note: '', ref: '', category: '', hash: '', language: '', cover: '' }
+  addSelectedAudios.value = []
   addLangSelect.value = ''
+}
+const openInlineAdd = () => {
+  resetInlineAddForm()
   isAddingInline.value = true
 }
-const cancelInlineAdd = () => { isAddingInline.value = false }
+const cancelInlineAdd = () => {
+  resetInlineAddForm()
+  isAddingInline.value = false
+}
+const clearAddSelectedAudios = () => {
+  addSelectedAudios.value = []
+}
 const saveInlineAdd = async () => {
+  if (addSelectedAudios.value.length > 0) {
+    addAudioUploading.value = true
+    try {
+      const records = []
+      for (const file of addSelectedAudios.value) {
+        const result = await uploadFile(file, 'music')
+        if (!result.success) throw new Error(`${file.name}: ${result.error}`)
+        records.push({
+          name: addSelectedAudios.value.length === 1 && addForm.value.name ? addForm.value.name : getFileBaseName(file.name),
+          file: result.url,
+          filetype: addForm.value.filetype || getFileExtension(file.name),
+          lyrics: addForm.value.lyrics,
+          note: addForm.value.note,
+          ref: addForm.value.ref,
+          category: addForm.value.category,
+          hash: addForm.value.hash,
+          language: addForm.value.language,
+          cover: addForm.value.cover
+        })
+      }
+      const result = await importMusics(records)
+      if (!result.success) throw new Error(result.error || '匯入失敗')
+      resetInlineAddForm()
+      isAddingInline.value = false
+      await loadMusics()
+    } catch(e) {
+      alert('批次上傳失敗: ' + e.message)
+    } finally {
+      addAudioUploading.value = false
+    }
+    return
+  }
+
   if (!addForm.value.name) { alert('請輸入歌曲名稱'); return }
-  try { await addMusic(addForm.value); isAddingInline.value = false; await loadMusics() } catch(e) { alert('新增失敗: ' + e.message) }
+  try { await addMusic(addForm.value); resetInlineAddForm(); isAddingInline.value = false; await loadMusics() } catch(e) { alert('新增失敗: ' + e.message) }
 }
 
 // 行內新增上傳狀態
 const addAudioUploading = ref(false)
 const addCoverUploading = ref(false)
 
-const handleAddAudioUpload = async (event) => {
-  const file = event.target.files?.[0]
-  if (!file) return
-  addAudioUploading.value = true
-  try {
-    const ext = file.name.split('.').pop()?.toLowerCase() || ''
-    const result = await uploadFile(file, 'music')
-    if (result.success) {
-      addForm.value.file = result.url
-      if (!addForm.value.filetype) addForm.value.filetype = ext
-      if (!addForm.value.name) addForm.value.name = file.name.replace(/\.[^.]+$/, '')
-    } else {
-      alert('音檔上傳失敗: ' + result.error)
-    }
-  } catch (err) {
-    alert('音檔上傳失敗: ' + err.message)
-  } finally {
-    addAudioUploading.value = false
-    if (event.target) event.target.value = ''
+const handleAddAudioUpload = (event) => {
+  const files = Array.from(event.target.files || [])
+  if (files.length === 0) return
+  addSelectedAudios.value = files
+  addForm.value.file = ''
+  if (files.length === 1) {
+    const file = files[0]
+    if (!addForm.value.filetype) addForm.value.filetype = getFileExtension(file.name)
+    if (!addForm.value.name) addForm.value.name = getFileBaseName(file.name)
   }
+  if (event.target) event.target.value = ''
 }
 
 const handleAddCoverUpload = async (event) => {
@@ -884,6 +931,7 @@ const handleEditCoverUpload = async (event) => {
 const openAddModal = () => {
   editingMusic.value = null
   formData.value = { name: '', file: '', filetype: '', lyrics: '', note: '', ref: '', category: '', hash: '', language: '', cover: '' }
+  modalSelectedAudios.value = []
   showModal.value = true
 }
 
@@ -917,34 +965,21 @@ const closeModal = () => {
   showModal.value = false
   editingMusic.value = null
   languageSelect.value = ''
+  modalSelectedAudios.value = []
 }
 
 // Audio upload handler
-const handleAudioUpload = async (event) => {
-  const file = event.target.files?.[0]
-  if (!file) return
-
-  try {
-    // Get file extension
-    const fileExt = file.name.split('.').pop()
-    formData.value.filetype = fileExt
-
-    // Upload to Supabase Storage
-    const result = await uploadFile(file, 'music')
-
-    if (result.success) {
-      formData.value.file = result.url
-      // 若名稱為空，預設為上傳檔名（去掉副檔名）
-      if (!formData.value.name) {
-        formData.value.name = file.name.replace(/\.[^.]+$/, '')
-      }
-      alert('檔案上傳成功！')
-    } else {
-      alert('上傳失敗: ' + result.error)
+const handleAudioUpload = (event) => {
+  const files = Array.from(event.target.files || [])
+  if (files.length === 0) return
+  modalSelectedAudios.value = files
+  formData.value.file = ''
+  if (files.length === 1) {
+    const file = files[0]
+    formData.value.filetype = getFileExtension(file.name)
+    if (!formData.value.name) {
+      formData.value.name = getFileBaseName(file.name)
     }
-  } catch (error) {
-    console.error('Upload error:', error)
-    alert('上傳失敗: ' + error.message)
   }
 }
 
@@ -952,6 +987,7 @@ const handleAudioUpload = async (event) => {
 const removeAudio = () => {
   formData.value.file = ''
   formData.value.filetype = ''
+  modalSelectedAudios.value = []
   if (audioFileInput.value) {
     audioFileInput.value.value = ''
   }
@@ -996,7 +1032,27 @@ const handleLanguageChange = () => {
 
 const saveMusic = async () => {
   try {
-    if (editingMusic.value) {
+    if (!editingMusic.value && modalSelectedAudios.value.length > 0) {
+      const records = []
+      for (const file of modalSelectedAudios.value) {
+        const result = await uploadFile(file, 'music')
+        if (!result.success) throw new Error(`${file.name}: ${result.error}`)
+        records.push({
+          name: modalSelectedAudios.value.length === 1 && formData.value.name ? formData.value.name : getFileBaseName(file.name),
+          file: result.url,
+          filetype: formData.value.filetype || getFileExtension(file.name),
+          lyrics: formData.value.lyrics,
+          note: formData.value.note,
+          ref: formData.value.ref,
+          category: formData.value.category,
+          hash: formData.value.hash,
+          language: formData.value.language,
+          cover: formData.value.cover
+        })
+      }
+      const result = await importMusics(records)
+      if (!result.success) throw new Error(result.error || '匯入失敗')
+    } else if (editingMusic.value) {
       await updateMusic(editingMusic.value.id, formData.value)
     } else {
       await addMusic(formData.value)
@@ -2281,6 +2337,32 @@ onMounted(() => {
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 0.25rem;
+}
+
+.inline-selected-summary {
+  font-size: 0.8rem;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.inline-selected-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.selected-file-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #245b99;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  word-break: break-all;
 }
 
 .btn-inline-upload-music {

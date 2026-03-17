@@ -69,18 +69,27 @@
               <label>上傳圖片</label>
               <label class="btn-inline-upload" :class="{ disabled: addUploading }">
                 {{ addUploading ? '上傳中...' : '選擇圖片' }}
-                <input type="file" accept="image/*" style="display:none" :disabled="addUploading" @change="handleAddImageUpload" />
+                <input type="file" accept="image/*" multiple style="display:none" :disabled="addUploading" @change="handleAddImageUpload" />
               </label>
-              <span v-if="addForm.file" class="inline-file-name">📎
+              <span v-if="addSelectedFiles.length > 0" class="inline-file-name">
+                已選 {{ addSelectedFiles.length }} 張
+                <button type="button" class="btn-inline-remove" @click="clearAddSelectedFiles">✕</button>
+              </span>
+              <span v-else-if="addForm.file" class="inline-file-name">📎
                 <button type="button" class="btn-inline-remove" @click="addForm.file = ''">✕</button>
               </span>
             </div>
-            <div v-if="addForm.file" class="inline-img-preview-wrap">
+            <div v-if="addSelectedFiles.length > 0" class="inline-selected-files">
+              <span v-for="file in addSelectedFiles" :key="file.name + file.size" class="selected-file-chip">
+                {{ file.name }}
+              </span>
+            </div>
+            <div v-else-if="addForm.file" class="inline-img-preview-wrap">
               <img :src="addForm.file" class="inline-img-preview" alt="預覽" />
             </div>
             <div class="inline-field-row">
               <label>或輸入URL</label>
-              <input v-model="addForm.file" type="text" class="inline-input" placeholder="https://..." />
+              <input v-model="addForm.file" type="text" class="inline-input" placeholder="https://..." :disabled="addSelectedFiles.length > 0" />
             </div>
             <div class="inline-field-row">
               <label>分類</label>
@@ -402,6 +411,7 @@ const toggleSection = (section) => {
 const isAddingInline = ref(false)
 const addForm = reactive({ name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
 const addUploading = ref(false)
+const addSelectedFiles = ref([])
 
 // 行內編輯
 const editingId = ref(null)
@@ -437,31 +447,83 @@ const saveInlineEdit = async () => {
   } catch (e) { alert('儲存失敗: ' + e.message) }
 }
 
-const openInlineAdd = () => {
+const getFileBaseName = (fileName = '') => fileName.replace(/\.[^.]+$/, '')
+const getFileExtension = (fileName = '') => fileName.split('.').pop() || ''
+
+const resetAddForm = () => {
   Object.assign(addForm, { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
+  addSelectedFiles.value = []
+}
+
+const openInlineAdd = () => {
+  resetAddForm()
   isAddingInline.value = true
 }
-const cancelInlineAdd = () => { isAddingInline.value = false }
+const cancelInlineAdd = () => {
+  resetAddForm()
+  isAddingInline.value = false
+}
 
-const handleAddImageUpload = async (event) => {
-  const file = event.target.files?.[0]
-  if (!file) return
-  addUploading.value = true
-  try {
-    const result = await uploadImageFile(file, 'gallery')
-    if (result.success) {
-      addForm.file = result.url
-      if (!addForm.name) addForm.name = file.name.replace(/\.[^.]+$/, '')
-      if (!addForm.filetype) addForm.filetype = file.name.split('.').pop() || ''
-    } else { alert('上傳失敗: ' + result.error) }
-  } catch (e) { alert('上傳失敗: ' + e.message) } finally { addUploading.value = false }
+const clearAddSelectedFiles = () => {
+  addSelectedFiles.value = []
+}
+
+const handleAddImageUpload = (event) => {
+  const files = Array.from(event.target.files || [])
+  if (files.length === 0) return
+  addSelectedFiles.value = files
+  addForm.file = ''
+  if (files.length === 1) {
+    if (!addForm.name) addForm.name = getFileBaseName(files[0].name)
+    if (!addForm.filetype) addForm.filetype = getFileExtension(files[0].name)
+  } else if (!addForm.filetype) {
+    addForm.filetype = ''
+  }
+  event.target.value = ''
 }
 
 const saveInlineAdd = async () => {
+  if (addSelectedFiles.value.length > 0) {
+    addUploading.value = true
+    try {
+      const records = []
+      for (const file of addSelectedFiles.value) {
+        const result = await uploadImageFile(file, 'gallery')
+        if (!result.success) {
+          throw new Error(`${file.name}: ${result.error}`)
+        }
+        records.push({
+          name: addSelectedFiles.value.length === 1 && addForm.name ? addForm.name : getFileBaseName(file.name),
+          file: result.url,
+          filetype: addForm.filetype || getFileExtension(file.name),
+          note: addForm.note,
+          ref: addForm.ref,
+          category: addForm.category,
+          hash: addForm.hash,
+          cover: addForm.cover
+        })
+      }
+
+      const result = await importImages(records)
+      if (result.success) {
+        resetAddForm()
+        isAddingInline.value = false
+        await loadImages()
+      } else {
+        alert('新增失敗: ' + result.error)
+      }
+    } catch (e) {
+      alert('批次上傳失敗: ' + e.message)
+    } finally {
+      addUploading.value = false
+    }
+    return
+  }
+
   if (!addForm.name) { alert('請輸入圖片名稱'); return }
   try {
     const result = await addImage({ ...addForm })
-    if (result.success) { isAddingInline.value = false; await loadImages() }
+    if (result.success) { resetAddForm(); isAddingInline.value = false; await loadImages() }
     else { alert('新增失敗: ' + result.error) }
   } catch (e) { alert('新增失敗: ' + e.message) }
 }
@@ -1397,6 +1459,26 @@ useHead({
 
 .btn-inline-remove:hover {
   background: #fee2e2;
+}
+
+.inline-selected-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.selected-file-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #245b99;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  word-break: break-all;
 }
 
 .inline-img-preview-wrap {

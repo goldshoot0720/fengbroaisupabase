@@ -445,12 +445,21 @@ const formatDate = (dateString) => {
   }
 }
 
+const parseDateOnly = (dateString) => {
+  if (!dateString) return null
+  const [year, month, day] = dateString.split('T')[0].split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
 const getDaysBetween = (date1, date2) => {
-  if (!date1 || !date2) return null
+  if (!date1) return null
   try {
-    const d1 = new Date(date1)
-    const d2 = new Date(date2)
-    const diffMs = Math.abs(d1 - d2)
+    const d1 = parseDateOnly(date1)
+    const d2 = parseDateOnly(date2) || new Date()
+    if (!d1 || Number.isNaN(d2.getTime())) return null
+    const today = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate())
+    const diffMs = Math.abs(today - d1)
     return Math.round(diffMs / (1000 * 60 * 60 * 24))
   } catch (e) {
     return null

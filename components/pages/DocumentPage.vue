@@ -25,6 +25,25 @@
           <button v-if="filterCategory" class="btn-clear-filter" @click="filterCategory = ''" title="清除篩選">✕</button>
         </div>
 
+        <div class="view-switcher" role="group" aria-label="文件顯示模式">
+          <button
+            type="button"
+            class="view-switch-btn"
+            :class="{ active: documentViewMode === 'card' }"
+            @click="setDocumentViewMode('card')"
+          >
+            卡片式
+          </button>
+          <button
+            type="button"
+            class="view-switch-btn"
+            :class="{ active: documentViewMode === 'list' }"
+            @click="setDocumentViewMode('list')"
+          >
+            列表式
+          </button>
+        </div>
+
         <div class="csv-actions">
           <button @click="exportToZip" class="btn btn-export">
             匯出 ZIP
@@ -82,10 +101,10 @@
       </div>
 
       <!-- Documents Grid -->
-      <div v-if="isAddingInline || filteredDocuments.length > 0" class="documents-grid">
+      <div v-if="isAddingInline || filteredDocuments.length > 0" :class="['documents-grid', `documents-grid--${documentViewMode}`]">
 
         <!-- 行內新增卡片 -->
-        <div v-if="isAddingInline" class="document-card card-editing">
+        <div v-if="isAddingInline" class="document-card card-editing" :class="{ 'document-card--list': documentViewMode === 'list' }">
           <div class="card-header">
             <input v-model="addForm.name" type="text" class="inline-input inline-name" placeholder="文件名稱" autofocus>
             <div class="card-actions">
@@ -136,7 +155,7 @@
           v-for="document in filteredDocuments"
           :key="document.id"
           class="document-card"
-          :class="{ 'batch-selected': selectedIds.has(document.id), 'card-editing': inlineEditingId === document.id }"
+          :class="{ 'batch-selected': selectedIds.has(document.id), 'card-editing': inlineEditingId === document.id, 'document-card--list': documentViewMode === 'list' }"
           @click="batchMode && toggleSelect(document.id)"
           :style="{ cursor: batchMode ? 'pointer' : 'default' }"
         >
@@ -433,12 +452,22 @@ const {
 // Search & Filter
 const searchQuery = ref('')
 const filterCategory = ref('')
+const DOCUMENT_VIEW_MODE_KEY = 'feng-document-view-mode'
+const documentViewMode = ref('card')
 
 const availableCategories = computed(() => {
   const cats = new Set()
   documents.value.forEach(doc => { if (doc.category) cats.add(doc.category) })
   return [...cats].sort()
 })
+
+const setDocumentViewMode = (mode) => {
+  if (!['card', 'list'].includes(mode)) return
+  documentViewMode.value = mode
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(DOCUMENT_VIEW_MODE_KEY, mode)
+  }
+}
 
 // Batch mode
 const batchMode = ref(false)
@@ -1004,6 +1033,12 @@ const formatDate = (dateString) => {
 
 // Lifecycle
 onMounted(() => {
+  if (typeof localStorage !== 'undefined') {
+    const savedMode = localStorage.getItem(DOCUMENT_VIEW_MODE_KEY)
+    if (savedMode === 'card' || savedMode === 'list') {
+      documentViewMode.value = savedMode
+    }
+  }
   loadDocuments()
 })
 </script>
@@ -1333,11 +1368,42 @@ onMounted(() => {
   margin-bottom: 2rem;
 }
 
+.view-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  background: #eef2ff;
+  border-radius: 999px;
+}
+
+.view-switch-btn {
+  border: none;
+  background: transparent;
+  color: #475569;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-switch-btn.active {
+  background: white;
+  color: #1d4ed8;
+  box-shadow: 0 2px 6px rgba(29, 78, 216, 0.15);
+}
+
 /* Documents Grid */
 .documents-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
+}
+
+.documents-grid--list {
+  grid-template-columns: 1fr;
 }
 
 .document-card {
@@ -1353,6 +1419,40 @@ onMounted(() => {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(79, 172, 254, 0.2);
   border-color: #4facfe;
+}
+
+.document-card--list {
+  padding: 1.1rem 1.25rem;
+}
+
+.document-card--list:hover {
+  transform: none;
+}
+
+.document-card--list .card-header {
+  margin-bottom: 0.75rem;
+}
+
+.document-card--list .card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.9fr);
+  gap: 1rem 1.25rem;
+  align-items: start;
+}
+
+.document-card--list .card-footer {
+  margin-top: 0.5rem;
+}
+
+.document-card--list .cover-preview {
+  margin-top: 0;
+}
+
+.document-card--list .cover-image,
+.document-card--list .file-img-preview {
+  max-height: 120px;
+  object-fit: contain;
+  background: #f8fafc;
 }
 
 .card-header {
@@ -1623,7 +1723,16 @@ onMounted(() => {
     flex: 1;
   }
 
+  .view-switcher {
+    width: 100%;
+    justify-content: center;
+  }
+
   .documents-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .document-card--list .card-body {
     grid-template-columns: 1fr;
   }
 

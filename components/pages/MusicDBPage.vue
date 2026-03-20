@@ -96,6 +96,10 @@
               :src="currentPlayingSrc"
               class="shared-audio-player"
             ></audio>
+            <div v-if="currentPlayingMusic.lyrics" class="shared-player-lyrics">
+              <p class="shared-player-lyrics-label">歌詞</p>
+              <pre class="shared-player-lyrics-text">{{ currentPlayingMusic.lyrics }}</pre>
+            </div>
           </div>
           <div class="shared-player-actions">
             <button type="button" class="shared-player-btn" @click="stopSharedPlayer">停止</button>
@@ -1710,6 +1714,32 @@ onBeforeUnmount(() => {
 .shared-audio-player {
   width: 100%;
   height: 42px;
+}
+
+.shared-player-lyrics {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(240, 147, 251, 0.18);
+}
+
+.shared-player-lyrics-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #db2777;
+}
+
+.shared-player-lyrics-text {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: #4b5563;
 }
 
 .shared-player-actions {

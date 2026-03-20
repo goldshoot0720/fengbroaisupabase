@@ -779,6 +779,11 @@ const currentPlayingSrc = computed(() => {
   return getAudioSrc(currentPlayingMusic.value)
 })
 
+const isExpectedMediaAbort = (error) => {
+  const message = String(error?.message || '')
+  return error?.name === 'AbortError' || message.includes('aborted by the user agent')
+}
+
 async function cacheMusicItem(music) {
   if (!music.file || musicCache.value.has(music.id)) return
   cachingMusicId.value = music.id
@@ -846,6 +851,7 @@ const playMusic = async (music) => {
   try {
     await audioEl.play()
   } catch (error) {
+    if (isExpectedMediaAbort(error)) return
     console.error('播放失敗:', error)
     alert('播放失敗: ' + error.message)
   }

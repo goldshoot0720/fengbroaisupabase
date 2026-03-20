@@ -492,6 +492,11 @@ const currentPlayingPodcast = computed(() => {
   return podcasts.value.find((podcast) => podcast.id === currentPlayingPodcastId.value) || null
 })
 
+const isExpectedMediaAbort = (error) => {
+  const message = String(error?.message || '')
+  return error?.name === 'AbortError' || message.includes('aborted by the user agent')
+}
+
 // Inline editing state
 const inlineEditId = ref(null)
 const inlineForm = ref({})
@@ -639,6 +644,7 @@ const playPodcast = async (podcast) => {
   try {
     await audioEl.play()
   } catch (error) {
+    if (isExpectedMediaAbort(error)) return
     console.error('播客播放失敗:', error)
     alert('播客播放失敗: ' + error.message)
   }

@@ -589,6 +589,10 @@ const currentPlayingVideoSrc = computed(() => {
   if (!currentPlayingVideo.value?.file) return ''
   return getVideoSrc(currentPlayingVideo.value)
 })
+const isExpectedMediaAbort = (error) => {
+  const message = String(error?.message || '')
+  return error?.name === 'AbortError' || message.includes('aborted by the user agent')
+}
 
 // Video caching state
 const videoCache = ref(new Map()) // id -> { blobUrl, size }
@@ -953,8 +957,15 @@ async function handlePlay(video) {
     window.dispatchEvent(new CustomEvent(MEDIA_PLAY_EVENT, { detail: { source: 'video', id: video.id } }))
     playingVideoId.value = video.id
     await nextTick()
-    await activePlayerRef.value?.play?.().catch(() => {})
+    try {
+      await activePlayerRef.value?.play?.()
+    } catch (error) {
+      if (!isExpectedMediaAbort(error)) {
+        throw error
+      }
+    }
   } catch (error) {
+    if (isExpectedMediaAbort(error)) return
     console.error('影片載入失敗:', error)
     alert('影片載入失敗: ' + error.message)
   }

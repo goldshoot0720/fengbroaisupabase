@@ -575,6 +575,7 @@ const formData = ref({
 // Video player state
 const playingVideoId = ref(null)
 const activePlayerRef = ref(null)
+const MEDIA_PLAY_EVENT = 'feng-global-media-play'
 const pictureInPictureSupported = computed(() => {
   return typeof document !== 'undefined' && document.pictureInPictureEnabled
 })
@@ -947,6 +948,7 @@ async function handlePlay(video) {
     if (!src) {
       throw new Error('影片仍在準備中，請稍後再試')
     }
+    window.dispatchEvent(new CustomEvent(MEDIA_PLAY_EVENT, { detail: { source: 'video', id: video.id } }))
     playingVideoId.value = video.id
     await nextTick()
     await activePlayerRef.value?.play?.().catch(() => {})
@@ -1007,6 +1009,13 @@ async function closeActivePlayer() {
   }
 
   playingVideoId.value = null
+}
+
+const handleExternalMediaPlay = async (event) => {
+  if (event.detail?.source === 'video') return
+  if (playingVideoId.value !== null) {
+    await closeActivePlayer()
+  }
 }
 
 async function cacheVideo(video) {
@@ -1745,6 +1754,9 @@ onMounted(() => {
     await loadVideos()
     await hydratePersistedVideoCache()
   })()
+  if (typeof window !== 'undefined') {
+    window.addEventListener(MEDIA_PLAY_EVENT, handleExternalMediaPlay)
+  }
 })
 
 watch(videos, async () => {
@@ -1756,6 +1768,9 @@ watch(videos, async () => {
 })
 
 onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener(MEDIA_PLAY_EVENT, handleExternalMediaPlay)
+  }
   for (const [, cached] of videoCache.value) {
     URL.revokeObjectURL(cached.blobUrl)
   }

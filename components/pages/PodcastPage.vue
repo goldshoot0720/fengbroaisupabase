@@ -49,6 +49,36 @@
         </div>
       </div>
 
+      <Teleport to="body">
+        <section v-if="currentPlayingPodcast" class="shared-podcast-panel">
+          <div class="shared-podcast-cover">
+            <img
+              v-if="currentPlayingPodcast.cover"
+              :src="currentPlayingPodcast.cover"
+              :alt="currentPlayingPodcast.name || '封面'"
+              class="shared-podcast-cover-image"
+            />
+            <div v-else class="shared-podcast-cover-fallback">🎙️</div>
+          </div>
+          <div class="shared-podcast-main">
+            <div class="shared-podcast-copy">
+              <p class="shared-podcast-kicker">播客播放器</p>
+              <h3>{{ currentPlayingPodcast.name || '未命名播客' }}</h3>
+              <p>{{ currentPlayingPodcast.category || '鋒兄播客' }}</p>
+            </div>
+            <audio
+              ref="sharedPodcastAudioRef"
+              :src="currentPlayingPodcast.file"
+              controls
+              class="shared-podcast-audio"
+            ></audio>
+          </div>
+          <div class="shared-podcast-actions">
+            <button type="button" class="shared-podcast-btn" @click="stopSharedPodcastPlayer">停止</button>
+          </div>
+        </section>
+      </Teleport>
+
       <!-- Loading State -->
       <div v-if="loading" class="loading-state">
         <div class="spinner"></div>
@@ -210,7 +240,14 @@
             </div>
 
             <div v-if="podcast.file" class="card-audio">
-              <audio controls :src="podcast.file" class="audio-player" @play="pauseOthers($event)"></audio>
+              <button
+                type="button"
+                class="card-play-btn"
+                :class="{ active: currentPlayingPodcast?.id === podcast.id }"
+                @click="playPodcast(podcast)"
+              >
+                {{ currentPlayingPodcast?.id === podcast.id ? '播放中' : '播放這集' }}
+              </button>
             </div>
 
             <div v-if="podcast.note" class="note-preview">
@@ -407,7 +444,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { usePodcasts } from '../../composables/usePodcasts'
@@ -446,6 +483,13 @@ const formData = ref({
   category: '',
   hash: '',
   cover: ''
+})
+const sharedPodcastAudioRef = ref(null)
+const currentPlayingPodcastId = ref(null)
+const MEDIA_PLAY_EVENT = 'feng-global-media-play'
+const currentPlayingPodcast = computed(() => {
+  if (currentPlayingPodcastId.value === null) return null
+  return podcasts.value.find((podcast) => podcast.id === currentPlayingPodcastId.value) || null
 })
 
 // Inline editing state
@@ -577,10 +621,42 @@ const cancelInlineEdit = () => {
 }
 
 // 播放時暫停其他音訊
-const pauseOthers = (event) => {
-  document.querySelectorAll('.audio-player').forEach(audio => {
-    if (audio !== event.target) audio.pause()
-  })
+const playPodcast = async (podcast) => {
+  if (!podcast?.file) return
+
+  const isSamePodcast = currentPlayingPodcastId.value === podcast.id
+  window.dispatchEvent(new CustomEvent(MEDIA_PLAY_EVENT, { detail: { source: 'podcast', id: podcast.id } }))
+  currentPlayingPodcastId.value = podcast.id
+  await nextTick()
+
+  const audioEl = sharedPodcastAudioRef.value
+  if (!audioEl) return
+
+  if (!isSamePodcast) {
+    audioEl.load()
+  }
+
+  try {
+    await audioEl.play()
+  } catch (error) {
+    console.error('播客播放失敗:', error)
+    alert('播客播放失敗: ' + error.message)
+  }
+}
+
+const stopSharedPodcastPlayer = () => {
+  if (sharedPodcastAudioRef.value) {
+    sharedPodcastAudioRef.value.pause()
+    sharedPodcastAudioRef.value.currentTime = 0
+  }
+  currentPlayingPodcastId.value = null
+}
+
+const handleExternalMediaPlay = (event) => {
+  if (event.detail?.source === 'podcast') return
+  if (currentPlayingPodcastId.value !== null) {
+    stopSharedPodcastPlayer()
+  }
 }
 
 // Computed
@@ -1052,6 +1128,23 @@ const handleImportZIP = async (event) => {
 // Load data on mount
 onMounted(() => {
   loadPodcasts()
+  if (typeof window !== 'undefined') {
+    window.addEventListener(MEDIA_PLAY_EVENT, handleExternalMediaPlay)
+  }
+})
+
+watch(podcasts, () => {
+  if (currentPlayingPodcastId.value === null) return
+  const stillExists = podcasts.value.some((podcast) => podcast.id === currentPlayingPodcastId.value)
+  if (!stillExists) {
+    stopSharedPodcastPlayer()
+  }
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener(MEDIA_PLAY_EVENT, handleExternalMediaPlay)
+  }
 })
 </script>
 
@@ -1818,4 +1911,128 @@ onMounted(() => {
   transition: all 0.2s;
 }
 .btn-inline-cancel:hover { background: #d0d0d0; }
+
+.shared-podcast-panel {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 8.5rem;
+  z-index: 1200;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  width: min(720px, calc(100vw - 2rem));
+  padding: 1rem 1.1rem;
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.97) 0%, rgba(239, 246, 255, 0.98) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.24);
+  border-radius: 18px;
+  box-shadow: 0 16px 32px rgba(16, 185, 129, 0.12);
+  backdrop-filter: blur(14px);
+}
+
+.shared-podcast-cover {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #ecfeff 0%, #dcfce7 100%);
+  display: grid;
+  place-items: center;
+}
+
+.shared-podcast-cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.shared-podcast-cover-fallback {
+  font-size: 1.8rem;
+}
+
+.shared-podcast-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.shared-podcast-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #059669;
+}
+
+.shared-podcast-copy h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #111827;
+}
+
+.shared-podcast-copy p {
+  margin: 0.2rem 0 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.shared-podcast-audio {
+  width: 100%;
+  height: 42px;
+}
+
+.shared-podcast-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+  background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.shared-podcast-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(16, 185, 129, 0.24);
+}
+
+.card-play-btn {
+  width: 100%;
+  min-height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-play-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(14, 165, 233, 0.22);
+}
+
+.card-play-btn.active {
+  background: linear-gradient(135deg, #059669 0%, #0284c7 100%);
+}
+
+@media (max-width: 768px) {
+  .shared-podcast-panel {
+    right: 0.75rem;
+    bottom: 7.5rem;
+    width: calc(100vw - 1.5rem);
+    grid-template-columns: 1fr;
+  }
+
+  .shared-podcast-cover {
+    width: 64px;
+    height: 64px;
+  }
+}
 </style>

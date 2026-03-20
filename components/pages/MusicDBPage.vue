@@ -69,37 +69,39 @@
         </div>
       </div>
 
-      <section v-if="currentPlayingMusic" class="shared-player-panel">
-        <div class="shared-player-cover">
-          <img
-            v-if="currentPlayingMusic.cover"
-            :src="currentPlayingMusic.cover"
-            :alt="currentPlayingMusic.name || '封面'"
-            class="shared-player-cover-image"
-          />
-          <div v-else class="shared-player-cover-fallback">🎵</div>
-        </div>
-        <div class="shared-player-main">
-          <div class="shared-player-copy">
-            <p class="shared-player-kicker">共用播放器</p>
-            <h3>{{ currentPlayingMusic.name || '未命名歌曲' }}</h3>
-            <p>
-              <span v-if="currentPlayingMusic.language">{{ currentPlayingMusic.language }}</span>
-              <span v-if="currentPlayingMusic.language && currentPlayingMusic.category">・</span>
-              <span v-if="currentPlayingMusic.category">{{ currentPlayingMusic.category }}</span>
-            </p>
+      <Teleport to="body">
+        <section v-if="currentPlayingMusic" class="shared-player-panel shared-player-panel--music">
+          <div class="shared-player-cover">
+            <img
+              v-if="currentPlayingMusic.cover"
+              :src="currentPlayingMusic.cover"
+              :alt="currentPlayingMusic.name || '封面'"
+              class="shared-player-cover-image"
+            />
+            <div v-else class="shared-player-cover-fallback">🎵</div>
           </div>
-          <audio
-            ref="sharedAudioRef"
-            controls
-            :src="currentPlayingSrc"
-            class="shared-audio-player"
-          ></audio>
-        </div>
-        <div class="shared-player-actions">
-          <button type="button" class="shared-player-btn" @click="stopSharedPlayer">停止</button>
-        </div>
-      </section>
+          <div class="shared-player-main">
+            <div class="shared-player-copy">
+              <p class="shared-player-kicker">音樂播放器</p>
+              <h3>{{ currentPlayingMusic.name || '未命名歌曲' }}</h3>
+              <p>
+                <span v-if="currentPlayingMusic.language">{{ currentPlayingMusic.language }}</span>
+                <span v-if="currentPlayingMusic.language && currentPlayingMusic.category">・</span>
+                <span v-if="currentPlayingMusic.category">{{ currentPlayingMusic.category }}</span>
+              </p>
+            </div>
+            <audio
+              ref="sharedAudioRef"
+              controls
+              :src="currentPlayingSrc"
+              class="shared-audio-player"
+            ></audio>
+          </div>
+          <div class="shared-player-actions">
+            <button type="button" class="shared-player-btn" @click="stopSharedPlayer">停止</button>
+          </div>
+        </section>
+      </Teleport>
 
       <div v-if="loading" class="loading-state">載入中...</div>
 
@@ -505,7 +507,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, reactive, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, reactive, nextTick } from 'vue'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useMusicRecords } from '../../composables/useMusicRecords'
@@ -603,6 +605,7 @@ const formData = ref({
 })
 const sharedAudioRef = ref(null)
 const currentPlayingId = ref(null)
+const MEDIA_PLAY_EVENT = 'feng-global-media-play'
 
 // Batch mode state
 const batchMode = ref(false)
@@ -829,6 +832,7 @@ const playMusic = async (music) => {
   if (!music?.file) return
 
   const isSameTrack = currentPlayingId.value === music.id
+  window.dispatchEvent(new CustomEvent(MEDIA_PLAY_EVENT, { detail: { source: 'music', id: music.id } }))
   currentPlayingId.value = music.id
   await nextTick()
 
@@ -853,6 +857,13 @@ const stopSharedPlayer = () => {
     sharedAudioRef.value.currentTime = 0
   }
   currentPlayingId.value = null
+}
+
+const handleExternalMediaPlay = (event) => {
+  if (event.detail?.source === 'music') return
+  if (currentPlayingId.value !== null) {
+    stopSharedPlayer()
+  }
 }
 
 // 歌詞展開/收合
@@ -1418,6 +1429,9 @@ const handleFileImport = async (event) => {
 
 onMounted(() => {
   loadMusics()
+  if (typeof window !== 'undefined') {
+    window.addEventListener(MEDIA_PLAY_EVENT, handleExternalMediaPlay)
+  }
 })
 
 watch(musics, () => {
@@ -1425,6 +1439,12 @@ watch(musics, () => {
   const stillExists = musics.value.some((music) => music.id === currentPlayingId.value)
   if (!stillExists) {
     stopSharedPlayer()
+  }
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener(MEDIA_PLAY_EVENT, handleExternalMediaPlay)
   }
 })
 </script>
@@ -1606,20 +1626,25 @@ watch(musics, () => {
 }
 
 .shared-player-panel {
-  position: sticky;
-  top: 108px;
-  z-index: 20;
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1200;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 1rem;
   align-items: center;
   padding: 1rem 1.1rem;
-  margin-bottom: 1.25rem;
+  width: min(720px, calc(100vw - 2rem));
   background: linear-gradient(135deg, rgba(253, 242, 248, 0.96) 0%, rgba(245, 243, 255, 0.98) 100%);
   border: 1px solid rgba(240, 147, 251, 0.28);
   border-radius: 18px;
   box-shadow: 0 16px 32px rgba(240, 147, 251, 0.12);
   backdrop-filter: blur(14px);
+}
+
+.shared-player-panel--music {
+  bottom: 1.25rem;
 }
 
 .shared-player-cover {
@@ -2147,7 +2172,9 @@ watch(musics, () => {
   }
 
   .shared-player-panel {
-    top: 88px;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    width: calc(100vw - 1.5rem);
     grid-template-columns: 1fr;
   }
 

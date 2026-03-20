@@ -91,25 +91,27 @@
       <Teleport to="body">
         <section v-if="currentPlayingVideo" class="shared-video-panel">
           <div class="shared-video-stage">
-            <video
-              ref="activePlayerRef"
-              :src="currentPlayingVideoSrc"
-              controls
-              autoplay
-              playsinline
-              class="active-player"
-            ></video>
-            <div class="player-actions">
-              <button
-                v-if="pictureInPictureSupported"
-                @click.stop="enterPictureInPictureIfPlaying"
-                class="pip-player-btn"
-                title="切換到子母畫面"
-                type="button"
-              >
-                子母畫面
-              </button>
-              <button @click.stop="closeActivePlayer" class="close-player-btn" title="關閉播放" type="button">✕</button>
+            <div v-show="!isVideoPlayerCollapsed">
+              <video
+                ref="activePlayerRef"
+                :src="currentPlayingVideoSrc"
+                controls
+                autoplay
+                playsinline
+                class="active-player"
+              ></video>
+              <div class="player-actions">
+                <button
+                  v-if="pictureInPictureSupported"
+                  @click.stop="enterPictureInPictureIfPlaying"
+                  class="pip-player-btn"
+                  title="切換到子母畫面"
+                  type="button"
+                >
+                  子母畫面
+                </button>
+                <button @click.stop="closeActivePlayer" class="close-player-btn" title="關閉播放" type="button">✕</button>
+              </div>
             </div>
           </div>
           <div class="shared-video-copy">
@@ -120,6 +122,9 @@
               <span v-if="currentPlayingVideo.category && currentPlayingVideo.filetype">・</span>
               <span v-if="currentPlayingVideo.filetype">{{ currentPlayingVideo.filetype.toUpperCase() }}</span>
             </p>
+            <button type="button" class="shared-video-collapse" @click="toggleVideoPlayerCollapsed">
+              {{ isVideoPlayerCollapsed ? '展開' : '收合' }}
+            </button>
           </div>
         </section>
       </Teleport>
@@ -577,6 +582,7 @@ const formData = ref({
 // Video player state
 const playingVideoId = ref(null)
 const activePlayerRef = ref(null)
+const isVideoPlayerCollapsed = ref(false)
 const MEDIA_PLAY_EVENT = 'feng-global-media-play'
 const pictureInPictureSupported = computed(() => {
   return typeof document !== 'undefined' && document.pictureInPictureEnabled
@@ -1022,6 +1028,10 @@ async function closeActivePlayer() {
   }
 
   playingVideoId.value = null
+}
+
+const toggleVideoPlayerCollapsed = () => {
+  isVideoPlayerCollapsed.value = !isVideoPlayerCollapsed.value
 }
 
 const handleExternalMediaPlay = async (event) => {
@@ -2855,7 +2865,7 @@ defineExpose({
 .shared-video-panel {
   position: fixed;
   right: 1.25rem;
-  bottom: 12rem;
+  bottom: 5rem;
   z-index: 1200;
   display: grid;
   gap: 0.9rem;
@@ -2902,6 +2912,19 @@ defineExpose({
   font-size: 0.9rem;
 }
 
+.shared-video-collapse {
+  margin-top: 0.6rem;
+  align-self: flex-start;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .play-card-btn {
   background: linear-gradient(135deg, #2563eb, #7c3aed);
   color: white;
@@ -2914,7 +2937,7 @@ defineExpose({
 @media (max-width: 768px) {
   .shared-video-panel {
     right: 0.75rem;
-    bottom: 11rem;
+    bottom: 4.5rem;
     width: calc(100vw - 1.5rem);
   }
 }

@@ -333,9 +333,9 @@
                 @click="toggleLyrics(getActiveItem(group).id)"
               >
                 <span>📝 歌詞</span>
-                <span class="lyrics-toggle-icon" :class="{ open: expandedLyrics.has(getActiveItem(group).id) }">▼</span>
+                <span class="lyrics-toggle-icon" :class="{ open: isLyricsExpanded(getActiveItem(group).id) }">▼</span>
               </button>
-              <div class="lyrics-body" :class="{ expanded: expandedLyrics.has(getActiveItem(group).id) }">
+              <div class="lyrics-body" :class="{ expanded: isLyricsExpanded(getActiveItem(group).id) }">
                 <pre class="lyrics-text">{{ getActiveItem(group).lyrics }}</pre>
               </div>
             </div>
@@ -873,12 +873,13 @@ const handleExternalMediaPlay = (event) => {
 }
 
 // 歌詞展開/收合
-const expandedLyrics = ref(new Set())
+const collapsedLyrics = ref(new Set())
+const isLyricsExpanded = (id) => !collapsedLyrics.value.has(id)
 const toggleLyrics = (id) => {
-  const s = new Set(expandedLyrics.value)
+  const s = new Set(collapsedLyrics.value)
   if (s.has(id)) s.delete(id)
   else s.add(id)
-  expandedLyrics.value = s
+  collapsedLyrics.value = s
 }
 
 const truncate = (text, length) => {

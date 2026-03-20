@@ -140,8 +140,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
-  padding: 1.2rem 1.4rem 1.1rem;
+  padding: clamp(1rem, 0.85rem + 0.55vw, 1.2rem) clamp(1rem, 0.7rem + 1vw, 1.4rem) clamp(0.95rem, 0.8rem + 0.45vw, 1.1rem);
   margin-bottom: 1rem;
   background: color-mix(in oklab, var(--header-bg) 86%, transparent);
   backdrop-filter: blur(18px);
@@ -159,9 +160,17 @@ onUnmounted(() => {
 
 .header-left {
   min-width: 0;
+  flex: 1 1 420px;
 }
 
 .title-block {
+  min-width: 0;
+}
+
+.header-right {
+  flex: 1 1 420px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   min-width: 0;
 }
 
@@ -222,6 +231,7 @@ onUnmounted(() => {
   gap: 0.1rem;
   padding: 0.7rem 0.9rem;
   border-radius: 20px;
+  flex: 0 1 280px;
 }
 
 .signal-label {
@@ -237,6 +247,7 @@ onUnmounted(() => {
 
 .account-switcher {
   position: relative;
+  min-width: 0;
 }
 
 .account-btn {
@@ -246,6 +257,7 @@ onUnmounted(() => {
   padding: 0.65rem 0.85rem;
   cursor: pointer;
   transition: transform var(--transition-fast), background var(--transition-fast);
+  max-width: 100%;
 }
 
 .account-chip,
@@ -264,7 +276,7 @@ onUnmounted(() => {
 }
 
 .account-name {
-  max-width: 180px;
+  max-width: clamp(120px, 14vw, 180px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -337,6 +349,32 @@ onUnmounted(() => {
   font-family: var(--font-display);
   font-size: 0.8rem;
   letter-spacing: 0.08em;
+}
+
+@media (max-width: 1440px) {
+  .top-header {
+    gap: 0.85rem;
+  }
+
+  .top-header h1 {
+    font-size: clamp(1.45rem, 1.2rem + 1vw, 2.3rem);
+  }
+
+  .header-subtitle {
+    font-size: 0.88rem;
+    max-width: 38ch;
+  }
+
+  .signal-card {
+    flex-basis: 240px;
+    padding: 0.62rem 0.8rem;
+  }
+
+  .account-btn,
+  .mobile-menu-btn,
+  .dark-mode-toggle {
+    padding: 0.7rem 0.85rem;
+  }
 }
 
 @media (max-width: 1120px) {

@@ -8,6 +8,24 @@
           <input v-model="searchQuery" type="text" placeholder="搜尋圖片名稱..." class="search-input">
         </div>
         <div class="action-buttons">
+          <div class="view-switcher" role="group" aria-label="圖片顯示模式">
+            <button
+              type="button"
+              class="view-switch-btn"
+              :class="{ active: imageViewMode === 'card' }"
+              @click="setImageViewMode('card')"
+            >
+              卡片式
+            </button>
+            <button
+              type="button"
+              class="view-switch-btn"
+              :class="{ active: imageViewMode === 'list' }"
+              @click="setImageViewMode('list')"
+            >
+              列表式
+            </button>
+          </div>
           <div class="csv-actions">
             <button v-if="images.length > 0" @click="exportImagesZip" class="btn-export">
               <span class="icon">📤</span> 匯出 ZIP
@@ -53,10 +71,10 @@
       </div>
 
       <!-- 圖片列表 -->
-      <div v-if="isAddingInline || filteredImages.length > 0 || !loading" class="images-container">
+      <div v-if="isAddingInline || filteredImages.length > 0 || !loading" :class="['images-container', `images-container--${imageViewMode}`]">
 
         <!-- 行內新增卡片 -->
-        <div v-if="isAddingInline" class="image-card card-editing">
+        <div v-if="isAddingInline" class="image-card card-editing" :class="{ 'image-card--list': imageViewMode === 'list' }">
           <div class="image-header">
             <input v-model="addForm.name" type="text" class="inline-input inline-name" placeholder="圖片名稱 *" style="flex:1" />
             <div class="image-actions">
@@ -110,7 +128,7 @@
           <p>沒有找到相關圖片</p>
         </div>
 
-        <div v-for="image in filteredImages" :key="image.id" class="image-card" :class="{ 'card-editing': editingId === image.id }">
+        <div v-for="image in filteredImages" :key="image.id" class="image-card" :class="{ 'card-editing': editingId === image.id, 'image-card--list': imageViewMode === 'list' }">
 
           <!-- 行內編輯模式 -->
           <template v-if="editingId === image.id">
@@ -337,9 +355,19 @@ const {
 const showModal = ref(false)
 const isEditing = ref(false)
 const searchQuery = ref('')
+const IMAGE_VIEW_MODE_KEY = 'feng-gallery-view-mode'
+const imageViewMode = ref('card')
 const showSection = reactive({
   extra: false
 })
+
+const setImageViewMode = (mode) => {
+  if (!['card', 'list'].includes(mode)) return
+  imageViewMode.value = mode
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(IMAGE_VIEW_MODE_KEY, mode)
+  }
+}
 
 const batchMode = ref(false)
 const selectedIds = ref(new Set())
@@ -383,6 +411,12 @@ const formData = reactive({
 
 // 初始化
 onMounted(() => {
+  if (typeof localStorage !== 'undefined') {
+    const savedMode = localStorage.getItem(IMAGE_VIEW_MODE_KEY)
+    if (savedMode === 'card' || savedMode === 'list') {
+      imageViewMode.value = savedMode
+    }
+  }
   loadImages()
 })
 
@@ -866,6 +900,33 @@ useHead({
   flex-wrap: wrap;
 }
 
+.view-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  background: #eef2ff;
+  border-radius: 999px;
+}
+
+.view-switch-btn {
+  border: none;
+  background: transparent;
+  color: #475569;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-switch-btn.active {
+  background: white;
+  color: #1d4ed8;
+  box-shadow: 0 2px 6px rgba(29, 78, 216, 0.15);
+}
+
 .csv-actions {
   display: flex;
   gap: 0.5rem;
@@ -935,6 +996,10 @@ useHead({
   }
 }
 
+.images-container--list {
+  grid-template-columns: 1fr;
+}
+
 .image-card {
   background: white;
   border-radius: 12px;
@@ -950,6 +1015,29 @@ useHead({
 .image-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+}
+
+.image-card--list {
+  padding: 1.2rem 1.25rem;
+}
+
+.image-card--list:hover {
+  transform: none;
+}
+
+.image-card--list .image-details {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  align-items: start;
+  gap: 0.9rem 1.2rem;
+}
+
+.image-card--list .card-image-wrapper {
+  margin-bottom: 0;
+}
+
+.image-card--list .image-extra {
+  margin-top: 0.75rem;
 }
 
 .image-header {
@@ -1292,6 +1380,17 @@ useHead({
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .view-switcher {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .image-card--list .image-details {
+    grid-template-columns: 1fr;
   }
 }
 

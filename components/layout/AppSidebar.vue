@@ -18,7 +18,6 @@
     </div>
 
     <div class="sidebar-section">
-      <p class="section-label">Priority Views</p>
       <div class="quick-grid">
         <button class="quick-card" type="button" @click="$emit('navigate', 'dashboard')">
           <span class="quick-index">02</span>
@@ -78,17 +77,17 @@ defineEmits(['toggle', 'navigate'])
 
 <style scoped>
 .sidebar {
-  width: 320px;
+  width: clamp(268px, 18vw, 320px);
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
   position: fixed;
   top: 0;
-  left: -320px;
+  left: calc(-1 * clamp(268px, 18vw, 320px));
   height: 100vh;
-  padding: 1.1rem;
+  padding: clamp(0.85rem, 0.8rem + 0.3vw, 1.1rem);
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: clamp(0.9rem, 0.8rem + 0.35vw, 1.25rem);
   transition: left var(--transition-slow), box-shadow var(--transition-normal);
   z-index: 1000;
   overflow-y: auto;
@@ -110,7 +109,7 @@ defineEmits(['toggle', 'navigate'])
 }
 
 .sidebar-header {
-  padding: 1rem;
+  padding: clamp(0.85rem, 0.75rem + 0.3vw, 1rem);
 }
 
 .brand-lockup {
@@ -173,7 +172,7 @@ defineEmits(['toggle', 'navigate'])
 
 .sidebar-section,
 .sidebar-footer {
-  padding: 1rem;
+  padding: clamp(0.85rem, 0.75rem + 0.3vw, 1rem);
 }
 
 .quick-grid {
@@ -293,7 +292,7 @@ defineEmits(['toggle', 'navigate'])
   .sidebar {
     position: sticky;
     left: 0;
-    width: 320px;
+    width: clamp(268px, 18vw, 320px);
     box-shadow: none;
   }
 
@@ -302,10 +301,39 @@ defineEmits(['toggle', 'navigate'])
   }
 }
 
+@media (max-width: 1500px) {
+  .quick-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-card {
+    padding: 0.75rem 0.8rem;
+  }
+
+  .nav-btn {
+    grid-template-columns: 38px 1fr;
+    gap: 0.75rem;
+    padding: 0.72rem;
+  }
+
+  .nav-meta {
+    font-size: 0.76rem;
+  }
+
+  .brand-title {
+    font-size: 1.08rem;
+  }
+
+  .brand-subtitle,
+  .footer-text {
+    font-size: 0.82rem;
+  }
+}
+
 @media (max-width: 1199px) {
   .sidebar {
-    width: 300px;
-    left: -300px;
+    width: min(300px, 32vw);
+    left: calc(-1 * min(300px, 32vw));
   }
 }
 

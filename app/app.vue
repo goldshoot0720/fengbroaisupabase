@@ -52,12 +52,12 @@
 
           <!-- 影片管理 -->
           <VideoDBPage
-            v-if="currentPage === 'video'"
+            v-show="currentPage === 'video'"
           />
 
           <!-- 音樂管理 -->
           <MusicDBPage
-            v-if="currentPage === 'music'"
+            v-show="currentPage === 'music'"
           />
 
           <!-- 文件管理 -->
@@ -67,7 +67,7 @@
 
           <!-- 播客管理 -->
           <PodcastPage
-            v-if="currentPage === 'podcast'"
+            v-show="currentPage === 'podcast'"
           />
 
           <!-- 例行事務 -->
@@ -413,8 +413,8 @@ onUnmounted(() => {
 .app-container {
   display: flex;
   min-height: 100vh;
-  gap: 1rem;
-  padding: 1rem;
+  gap: clamp(0.7rem, 0.55rem + 0.55vw, 1rem);
+  padding: clamp(0.7rem, 0.55rem + 0.55vw, 1rem);
 }
 
 .main-content {
@@ -429,7 +429,7 @@ onUnmounted(() => {
 .page-content {
   flex: 1;
   width: 100%;
-  padding: 1rem 1.25rem 1.5rem;
+  padding: clamp(0.75rem, 0.6rem + 0.5vw, 1rem) clamp(0.85rem, 0.5rem + 1vw, 1.25rem) 1.5rem;
   overflow-y: auto;
   background: transparent;
   transition: all var(--transition-normal);
@@ -450,6 +450,12 @@ onUnmounted(() => {
 @media (min-width: 1200px) {
   .main-content { margin-left: 0; }
   .page-content { padding: 1rem 1.5rem 1.5rem; }
+}
+
+@media (max-width: 1500px) {
+  .page-content {
+    padding: 0.8rem 1rem 1.4rem;
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1199px) {

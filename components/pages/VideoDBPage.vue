@@ -2855,7 +2855,7 @@ defineExpose({
 .shared-video-panel {
   position: fixed;
   right: 1.25rem;
-  bottom: 15.75rem;
+  bottom: 12rem;
   z-index: 1200;
   display: grid;
   gap: 0.9rem;
@@ -2914,7 +2914,7 @@ defineExpose({
 @media (max-width: 768px) {
   .shared-video-panel {
     right: 0.75rem;
-    bottom: 14.5rem;
+    bottom: 11rem;
     width: calc(100vw - 1.5rem);
   }
 }

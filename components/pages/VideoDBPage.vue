@@ -88,6 +88,40 @@
         </div>
       </div>
 
+      <section v-if="currentPlayingVideo" class="shared-video-panel">
+        <div class="shared-video-stage">
+          <video
+            ref="activePlayerRef"
+            :src="currentPlayingVideoSrc"
+            controls
+            autoplay
+            playsinline
+            class="active-player"
+          ></video>
+          <div class="player-actions">
+            <button
+              v-if="pictureInPictureSupported"
+              @click.stop="enterPictureInPictureIfPlaying"
+              class="pip-player-btn"
+              title="切換到子母畫面"
+              type="button"
+            >
+              子母畫面
+            </button>
+            <button @click.stop="closeActivePlayer" class="close-player-btn" title="關閉播放" type="button">✕</button>
+          </div>
+        </div>
+        <div class="shared-video-copy">
+          <p class="shared-video-kicker">共用播放器</p>
+          <h3>{{ currentPlayingVideo.name || '未命名影片' }}</h3>
+          <p>
+            <span v-if="currentPlayingVideo.category">{{ currentPlayingVideo.category }}</span>
+            <span v-if="currentPlayingVideo.category && currentPlayingVideo.filetype">・</span>
+            <span v-if="currentPlayingVideo.filetype">{{ currentPlayingVideo.filetype.toUpperCase() }}</span>
+          </p>
+        </div>
+      </section>
+
       <!-- Loading State -->
       <div v-if="loading" class="loading">載入中...</div>
 
@@ -250,24 +284,8 @@
 
           <!-- YouTube/Bilibili 風格顯示模式 -->
           <template v-else>
-            <!-- 播放模式 -->
-            <div v-if="playingVideoId === video.id && video.file" class="player-wrapper">
-              <video ref="activePlayerRef" :src="getVideoSrc(video)" controls autoplay playsinline class="active-player"></video>
-              <div class="player-actions">
-                <button
-                  v-if="pictureInPictureSupported"
-                  @click.stop="enterPictureInPictureIfPlaying"
-                  class="pip-player-btn"
-                  title="切換到子母畫面"
-                  type="button"
-                >
-                  子母畫面
-                </button>
-                <button @click.stop="closeActivePlayer" class="close-player-btn" title="關閉播放" type="button">✕</button>
-              </div>
-            </div>
             <!-- 縮圖區域 -->
-            <div v-else class="thumbnail-wrapper" @click="handlePlay(video)" @mouseenter="warmThumbnail(video)">
+            <div class="thumbnail-wrapper" @click="handlePlay(video)" @mouseenter="warmThumbnail(video)">
               <input v-if="batchMode" type="checkbox" :checked="selectedIds.has(video.id)" @click.stop="toggleSelection(video.id)" class="batch-checkbox" />
               <template v-if="video.cover">
                 <img :src="video.cover" :alt="video.name" class="thumbnail-img" />
@@ -312,6 +330,14 @@
 
             <!-- 操作列 -->
             <div v-if="!batchMode" class="card-actions-bar">
+              <button
+                v-if="video.file"
+                @click.stop="handlePlay(video)"
+                class="action-btn play-card-btn"
+                :title="playingVideoId === video.id ? '播放中' : '播放影片'"
+              >
+                {{ playingVideoId === video.id ? '⏸️' : '▶️' }}
+              </button>
               <button @click="startInlineEdit(video)" class="action-btn edit-btn" title="編輯">✏️</button>
               <button @click="handleDelete(video)" class="action-btn delete-btn" title="刪除">🗑️</button>
               <template v-if="video.file">
@@ -551,6 +577,14 @@ const playingVideoId = ref(null)
 const activePlayerRef = ref(null)
 const pictureInPictureSupported = computed(() => {
   return typeof document !== 'undefined' && document.pictureInPictureEnabled
+})
+const currentPlayingVideo = computed(() => {
+  if (playingVideoId.value === null) return null
+  return videos.value.find((video) => video.id === playingVideoId.value) || null
+})
+const currentPlayingVideoSrc = computed(() => {
+  if (!currentPlayingVideo.value?.file) return ''
+  return getVideoSrc(currentPlayingVideo.value)
 })
 
 // Video caching state
@@ -914,6 +948,8 @@ async function handlePlay(video) {
       throw new Error('影片仍在準備中，請稍後再試')
     }
     playingVideoId.value = video.id
+    await nextTick()
+    await activePlayerRef.value?.play?.().catch(() => {})
   } catch (error) {
     console.error('影片載入失敗:', error)
     alert('影片載入失敗: ' + error.message)
@@ -1713,6 +1749,10 @@ onMounted(() => {
 
 watch(videos, async () => {
   await hydratePersistedVideoCache()
+
+  if (playingVideoId.value !== null && !videos.value.some(video => video.id === playingVideoId.value)) {
+    await closeActivePlayer()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -2782,5 +2822,68 @@ defineExpose({
 .close-player-btn:hover {
   background: rgba(255, 107, 107, 0.9);
   transform: scale(1.1);
+}
+
+.shared-video-panel {
+  position: sticky;
+  top: 108px;
+  z-index: 20;
+  display: grid;
+  gap: 0.9rem;
+  margin-bottom: 1.2rem;
+  padding: 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.96) 0%, rgba(245, 243, 255, 0.98) 100%);
+  box-shadow: 0 16px 32px rgba(59, 130, 246, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.shared-video-stage {
+  position: relative;
+  width: 100%;
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.shared-video-copy {
+  min-width: 0;
+}
+
+.shared-video-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.shared-video-copy h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #111827;
+}
+
+.shared-video-copy p {
+  margin: 0.2rem 0 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.play-card-btn {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+}
+
+.play-card-btn:hover {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 768px) {
+  .shared-video-panel {
+    top: 88px;
+  }
 }
 </style>

@@ -69,6 +69,38 @@
         </div>
       </div>
 
+      <section v-if="currentPlayingMusic" class="shared-player-panel">
+        <div class="shared-player-cover">
+          <img
+            v-if="currentPlayingMusic.cover"
+            :src="currentPlayingMusic.cover"
+            :alt="currentPlayingMusic.name || '封面'"
+            class="shared-player-cover-image"
+          />
+          <div v-else class="shared-player-cover-fallback">🎵</div>
+        </div>
+        <div class="shared-player-main">
+          <div class="shared-player-copy">
+            <p class="shared-player-kicker">共用播放器</p>
+            <h3>{{ currentPlayingMusic.name || '未命名歌曲' }}</h3>
+            <p>
+              <span v-if="currentPlayingMusic.language">{{ currentPlayingMusic.language }}</span>
+              <span v-if="currentPlayingMusic.language && currentPlayingMusic.category">・</span>
+              <span v-if="currentPlayingMusic.category">{{ currentPlayingMusic.category }}</span>
+            </p>
+          </div>
+          <audio
+            ref="sharedAudioRef"
+            controls
+            :src="currentPlayingSrc"
+            class="shared-audio-player"
+          ></audio>
+        </div>
+        <div class="shared-player-actions">
+          <button type="button" class="shared-player-btn" @click="stopSharedPlayer">停止</button>
+        </div>
+      </section>
+
       <div v-if="loading" class="loading-state">載入中...</div>
 
       <div v-else-if="filteredMusics.length === 0 && !isAddingInline" class="empty-state">
@@ -283,7 +315,14 @@
                 <img :src="getActiveItem(group).cover" :alt="group.name || '封面'" class="card-cover-image" />
               </div>
               <div v-if="getActiveItem(group).file" class="card-audio">
-                <audio controls :src="getAudioSrc(getActiveItem(group))" class="audio-player" @play="pauseOthers($event)"></audio>
+                <button
+                  type="button"
+                  class="card-play-btn"
+                  :class="{ active: currentPlayingMusic?.id === getActiveItem(group).id }"
+                  @click="playMusic(getActiveItem(group))"
+                >
+                  {{ currentPlayingMusic?.id === getActiveItem(group).id ? '播放中' : '播放這首' }}
+                </button>
               </div>
             </div>
             <div v-if="getActiveItem(group).lyrics" class="card-field lyrics-collapsible">
@@ -466,7 +505,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, reactive } from 'vue'
+import { ref, computed, onMounted, watch, reactive, nextTick } from 'vue'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useMusicRecords } from '../../composables/useMusicRecords'
@@ -562,6 +601,8 @@ const formData = ref({
   language: '',
   cover: ''
 })
+const sharedAudioRef = ref(null)
+const currentPlayingId = ref(null)
 
 // Batch mode state
 const batchMode = ref(false)
@@ -669,6 +710,12 @@ function setActiveVersion(groupName, idx) {
   const key = (groupName || '').trim().toLowerCase()
   activeVersionMap.value.set(key, idx)
   activeVersionMap.value = new Map(activeVersionMap.value) // trigger reactivity
+
+  const targetGroup = groupedMusics.value.find(group => (group.name || '').trim().toLowerCase() === key)
+  const targetItem = targetGroup?.items[idx]
+  if (targetItem && currentPlayingMusic.value && (currentPlayingMusic.value.name || '').trim().toLowerCase() === key) {
+    playMusic(targetItem)
+  }
 }
 
 function toggleGroupSelect(group) {
@@ -719,6 +766,16 @@ function getAudioSrc(music) {
   return music.file
 }
 
+const currentPlayingMusic = computed(() => {
+  if (currentPlayingId.value === null) return null
+  return musics.value.find((music) => music.id === currentPlayingId.value) || null
+})
+
+const currentPlayingSrc = computed(() => {
+  if (!currentPlayingMusic.value?.file) return ''
+  return getAudioSrc(currentPlayingMusic.value)
+})
+
 async function cacheMusicItem(music) {
   if (!music.file || musicCache.value.has(music.id)) return
   cachingMusicId.value = music.id
@@ -768,10 +825,34 @@ function clearAllMusicCache() {
   totalCacheSize.value = 0
 }
 
-const pauseOthers = (event) => {
-  document.querySelectorAll('.audio-player').forEach(audio => {
-    if (audio !== event.target) audio.pause()
-  })
+const playMusic = async (music) => {
+  if (!music?.file) return
+
+  const isSameTrack = currentPlayingId.value === music.id
+  currentPlayingId.value = music.id
+  await nextTick()
+
+  const audioEl = sharedAudioRef.value
+  if (!audioEl) return
+
+  if (!isSameTrack) {
+    audioEl.load()
+  }
+
+  try {
+    await audioEl.play()
+  } catch (error) {
+    console.error('播放失敗:', error)
+    alert('播放失敗: ' + error.message)
+  }
+}
+
+const stopSharedPlayer = () => {
+  if (sharedAudioRef.value) {
+    sharedAudioRef.value.pause()
+    sharedAudioRef.value.currentTime = 0
+  }
+  currentPlayingId.value = null
 }
 
 // 歌詞展開/收合
@@ -1338,6 +1419,14 @@ const handleFileImport = async (event) => {
 onMounted(() => {
   loadMusics()
 })
+
+watch(musics, () => {
+  if (currentPlayingId.value === null) return
+  const stillExists = musics.value.some((music) => music.id === currentPlayingId.value)
+  if (!stillExists) {
+    stopSharedPlayer()
+  }
+})
 </script>
 
 <style scoped>
@@ -1514,6 +1603,103 @@ onMounted(() => {
   padding: 3rem;
   color: #666;
   font-size: 1.1rem;
+}
+
+.shared-player-panel {
+  position: sticky;
+  top: 108px;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.25rem;
+  background: linear-gradient(135deg, rgba(253, 242, 248, 0.96) 0%, rgba(245, 243, 255, 0.98) 100%);
+  border: 1px solid rgba(240, 147, 251, 0.28);
+  border-radius: 18px;
+  box-shadow: 0 16px 32px rgba(240, 147, 251, 0.12);
+  backdrop-filter: blur(14px);
+}
+
+.shared-player-cover {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #fdf2f8 0%, #ede9fe 100%);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.shared-player-cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.shared-player-cover-fallback {
+  font-size: 1.8rem;
+}
+
+.shared-player-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.shared-player-copy {
+  min-width: 0;
+}
+
+.shared-player-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #db2777;
+}
+
+.shared-player-copy h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1f2937;
+}
+
+.shared-player-copy p {
+  margin: 0.2rem 0 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.shared-audio-player {
+  width: 100%;
+  height: 42px;
+}
+
+.shared-player-actions {
+  display: flex;
+  align-items: center;
+}
+
+.shared-player-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.shared-player-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(244, 63, 94, 0.24);
 }
 
 /* ── Cache Bar ── */
@@ -1960,6 +2146,20 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
+  .shared-player-panel {
+    top: 88px;
+    grid-template-columns: 1fr;
+  }
+
+  .shared-player-cover {
+    width: 64px;
+    height: 64px;
+  }
+
+  .shared-player-actions {
+    justify-content: flex-end;
+  }
+
   .modal-content {
     max-height: 95vh;
   }
@@ -1996,10 +2196,26 @@ onMounted(() => {
   min-width: 0;
 }
 
-.audio-player {
+.card-play-btn {
   width: 100%;
-  height: 40px;
-  border-radius: 8px;
+  min-height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-play-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.22);
+}
+
+.card-play-btn.active {
+  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
 }
 
 .lyrics-text {

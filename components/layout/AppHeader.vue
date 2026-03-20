@@ -65,6 +65,15 @@
       <slot name="actions" />
 
       <button
+        @click="refreshPage"
+        class="refresh-btn"
+        title="重新整理目前頁面"
+        type="button"
+      >
+        <span class="refresh-icon">Refresh</span>
+      </button>
+
+      <button
         @click="$emit('toggleDarkMode')"
         class="dark-mode-toggle"
         :title="isDarkMode ? '切換為淺色模式' : '切換為深色模式'"
@@ -108,6 +117,10 @@ const handleSwitch = (id) => {
 const handleUseEnv = () => {
   clearSettings()
   showDropdown.value = false
+  window.location.reload()
+}
+
+const refreshPage = () => {
   window.location.reload()
 }
 
@@ -197,6 +210,7 @@ onUnmounted(() => {
 }
 
 .mobile-menu-btn,
+.refresh-btn,
 .dark-mode-toggle,
 .account-btn,
 .signal-card {
@@ -206,6 +220,7 @@ onUnmounted(() => {
 }
 
 .mobile-menu-btn,
+.refresh-btn,
 .dark-mode-toggle,
 .account-btn {
   border-radius: 999px;
@@ -213,6 +228,7 @@ onUnmounted(() => {
 }
 
 .mobile-menu-btn,
+.refresh-btn,
 .dark-mode-toggle {
   padding: 0.8rem 1rem;
   cursor: pointer;
@@ -220,6 +236,7 @@ onUnmounted(() => {
 }
 
 .mobile-menu-btn:hover,
+.refresh-btn:hover,
 .dark-mode-toggle:hover,
 .account-btn:hover {
   transform: translateY(-1px);
@@ -351,6 +368,12 @@ onUnmounted(() => {
   letter-spacing: 0.08em;
 }
 
+.refresh-icon {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
 @media (max-width: 1440px) {
   .top-header {
     gap: 0.85rem;
@@ -371,6 +394,7 @@ onUnmounted(() => {
   }
 
   .account-btn,
+  .refresh-btn,
   .mobile-menu-btn,
   .dark-mode-toggle {
     padding: 0.7rem 0.85rem;

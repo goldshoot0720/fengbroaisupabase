@@ -88,39 +88,41 @@
         </div>
       </div>
 
-      <section v-if="currentPlayingVideo" class="shared-video-panel">
-        <div class="shared-video-stage">
-          <video
-            ref="activePlayerRef"
-            :src="currentPlayingVideoSrc"
-            controls
-            autoplay
-            playsinline
-            class="active-player"
-          ></video>
-          <div class="player-actions">
-            <button
-              v-if="pictureInPictureSupported"
-              @click.stop="enterPictureInPictureIfPlaying"
-              class="pip-player-btn"
-              title="切換到子母畫面"
-              type="button"
-            >
-              子母畫面
-            </button>
-            <button @click.stop="closeActivePlayer" class="close-player-btn" title="關閉播放" type="button">✕</button>
+      <Teleport to="body">
+        <section v-if="currentPlayingVideo" class="shared-video-panel">
+          <div class="shared-video-stage">
+            <video
+              ref="activePlayerRef"
+              :src="currentPlayingVideoSrc"
+              controls
+              autoplay
+              playsinline
+              class="active-player"
+            ></video>
+            <div class="player-actions">
+              <button
+                v-if="pictureInPictureSupported"
+                @click.stop="enterPictureInPictureIfPlaying"
+                class="pip-player-btn"
+                title="切換到子母畫面"
+                type="button"
+              >
+                子母畫面
+              </button>
+              <button @click.stop="closeActivePlayer" class="close-player-btn" title="關閉播放" type="button">✕</button>
+            </div>
           </div>
-        </div>
-        <div class="shared-video-copy">
-          <p class="shared-video-kicker">共用播放器</p>
-          <h3>{{ currentPlayingVideo.name || '未命名影片' }}</h3>
-          <p>
-            <span v-if="currentPlayingVideo.category">{{ currentPlayingVideo.category }}</span>
-            <span v-if="currentPlayingVideo.category && currentPlayingVideo.filetype">・</span>
-            <span v-if="currentPlayingVideo.filetype">{{ currentPlayingVideo.filetype.toUpperCase() }}</span>
-          </p>
-        </div>
-      </section>
+          <div class="shared-video-copy">
+            <p class="shared-video-kicker">影片播放器</p>
+            <h3>{{ currentPlayingVideo.name || '未命名影片' }}</h3>
+            <p>
+              <span v-if="currentPlayingVideo.category">{{ currentPlayingVideo.category }}</span>
+              <span v-if="currentPlayingVideo.category && currentPlayingVideo.filetype">・</span>
+              <span v-if="currentPlayingVideo.filetype">{{ currentPlayingVideo.filetype.toUpperCase() }}</span>
+            </p>
+          </div>
+        </section>
+      </Teleport>
 
       <!-- Loading State -->
       <div v-if="loading" class="loading">載入中...</div>
@@ -2840,12 +2842,13 @@ defineExpose({
 }
 
 .shared-video-panel {
-  position: sticky;
-  top: 108px;
-  z-index: 20;
+  position: fixed;
+  right: 1.25rem;
+  bottom: 15.75rem;
+  z-index: 1200;
   display: grid;
   gap: 0.9rem;
-  margin-bottom: 1.2rem;
+  width: min(460px, calc(100vw - 2rem));
   padding: 1rem;
   border-radius: 20px;
   border: 1px solid rgba(99, 102, 241, 0.18);
@@ -2860,6 +2863,7 @@ defineExpose({
   background: #000;
   border-radius: 16px;
   overflow: hidden;
+  aspect-ratio: 16 / 9;
 }
 
 .shared-video-copy {
@@ -2898,7 +2902,9 @@ defineExpose({
 
 @media (max-width: 768px) {
   .shared-video-panel {
-    top: 88px;
+    right: 0.75rem;
+    bottom: 14.5rem;
+    width: calc(100vw - 1.5rem);
   }
 }
 </style>

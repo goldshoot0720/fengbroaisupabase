@@ -1,69 +1,57 @@
-// composables/useNavigation.js
-// 導航管理 - 頁面切換和側邊欄控制
 import { ref, computed } from 'vue'
 
-// 共享狀態
 const currentPage = ref('home')
 const sidebarOpen = ref(false)
 
-// 頁面配置
 const pages = [
-  { id: 'home', name: '鋒兄首頁', icon: '🏠', title: '🏠 鋒兄首頁', subtitle: '歡迎來到鋒兄管理系統' },
-  { id: 'dashboard', name: '鋒兄儀表', icon: '📊', title: '📊 鋒兄儀表', subtitle: '總覽系統數據與統計資訊' },
-  { id: 'subscription', name: '鋒兄訂閱', icon: '💳', title: '💳 鋒兄訂閱', subtitle: '管理訂閱服務與費用追蹤' },
-  { id: 'food', name: '鋒兄食品', icon: '🛒', title: '🛒 鋒兄食品', subtitle: '管理食品項目與庫存記錄' },
-  { id: 'note', name: '鋒兄筆記', icon: '📝', title: '📝 鋒兄筆記', subtitle: '記錄與管理個人筆記內容' },
-  { id: 'common', name: '鋒兄常用', icon: '⭐', title: '⭐ 鋒兄常用', subtitle: '快速存取常用功能與連結' },
-  { id: 'gallery', name: '鋒兄圖片', icon: '🖼️', title: '🖼️ 鋒兄圖片', subtitle: '瀏覽與管理圖片庫' },
-  { id: 'video', name: '鋒兄影片', icon: '🎥', title: '🎥 鋒兄影片', subtitle: '瀏覽與管理影片內容' },
-  { id: 'music', name: '鋒兄音樂', icon: '🎵', title: '🎵 鋒兄音樂', subtitle: '播放與管理音樂收藏' },
-  { id: 'document', name: '鋒兄文件', icon: '📄', title: '📄 鋒兄文件', subtitle: '管理與查閱文件資料' },
-  { id: 'podcast', name: '鋒兄播客', icon: '🎙️', title: '🎙️ 鋒兄播客', subtitle: '收聽與管理播客節目' },
-  { id: 'bank', name: '鋒兄銀行', icon: '💰', title: '💰 鋒兄銀行', subtitle: '查看銀行帳戶與財務統計' },
-  { id: 'routine', name: '鋒兄例行', icon: '📅', title: '📅 鋒兄例行', subtitle: '管理日常例行事務排程' },
-  { id: 'settings', name: '鋒兄設定', icon: '⚙️', title: '⚙️ 鋒兄設定', subtitle: '設定個人資料與資料庫連線資訊' },
-  { id: 'about', name: '鋒兄關於', icon: 'ℹ️', title: 'ℹ️ 鋒兄關於', subtitle: '關於鋒兄管理系統資訊' }
+  { id: 'home', name: '首頁', icon: '01', title: '控制首頁', subtitle: '用編輯式視角快速進入所有資料入口' },
+  { id: 'dashboard', name: '總覽', icon: '02', title: '資訊總覽', subtitle: '集中查看訂閱、食品與日常資料的關鍵狀態' },
+  { id: 'subscription', name: '訂閱管理', icon: '03', title: '訂閱管理', subtitle: '追蹤付款節點、平台成本與續訂節奏' },
+  { id: 'food', name: '食品管理', icon: '04', title: '食品管理', subtitle: '掌握庫存、保存期限與補貨優先順序' },
+  { id: 'note', name: '筆記', icon: '05', title: '筆記系統', subtitle: '記錄碎片想法與日常維運資訊' },
+  { id: 'common', name: '常用帳號', icon: '06', title: '常用帳號', subtitle: '整理常用登入資訊與共享入口' },
+  { id: 'gallery', name: '圖庫', icon: '07', title: '圖像資料', subtitle: '管理視覺素材與收藏內容' },
+  { id: 'video', name: '影片資料', icon: '08', title: '影片資料庫', subtitle: '統整影片檔案與來源資訊' },
+  { id: 'music', name: '音樂資料', icon: '09', title: '音樂資料庫', subtitle: '整理曲目、播放來源與音訊內容' },
+  { id: 'document', name: '文件', icon: '10', title: '文件中心', subtitle: '管理結構化文件與工作紀錄' },
+  { id: 'podcast', name: 'Podcast', icon: '11', title: 'Podcast 管理', subtitle: '收整節目、連結與音訊筆記' },
+  { id: 'bank', name: '銀行資訊', icon: '12', title: '銀行資訊', subtitle: '查看帳務資料與金融備忘錄' },
+  { id: 'routine', name: '例行流程', icon: '13', title: '例行流程', subtitle: '追蹤固定任務與週期性工作' },
+  { id: 'settings', name: '設定', icon: '14', title: '系統設定', subtitle: '調整資料來源、帳號與介面偏好' },
+  { id: 'about', name: '關於', icon: '15', title: '關於系統', subtitle: '了解這套管理平台的架構與定位' }
 ]
 
 export const useNavigation = () => {
-  // 當前頁面配置
   const currentPageConfig = computed(() => {
-    return pages.find(p => p.id === currentPage.value) || pages[0]
+    return pages.find((page) => page.id === currentPage.value) || pages[0]
   })
 
-  // 頁面標題
   const pageTitle = computed(() => currentPageConfig.value.title)
-  const pageSubtitle = computed(() => currentPageConfig.value.subtitle || '鋒兄AI')
+  const pageSubtitle = computed(() => currentPageConfig.value.subtitle || '科技編輯式管理平台')
 
-  // 設置當前頁面
   const setCurrentPage = (pageId) => {
     currentPage.value = pageId
-    
-    // 手機版自動關閉側邊欄
+
     if (typeof window !== 'undefined' && window.innerWidth <= 768) {
       sidebarOpen.value = false
     }
-    
-    // 更新頁面標題
+
     if (typeof document !== 'undefined') {
-      const config = pages.find(p => p.id === pageId)
+      const config = pages.find((page) => page.id === pageId)
       if (config) {
-        document.title = `${config.name} - 鋒兄AI Supabase`
+        document.title = `${config.title} - Feng AI Supabase`
       }
     }
   }
 
-  // 切換側邊欄
   const toggleSidebar = () => {
     sidebarOpen.value = !sidebarOpen.value
   }
 
-  // 關閉側邊欄
   const closeSidebar = () => {
     sidebarOpen.value = false
   }
 
-  // 響應式處理
   const handleResize = () => {
     if (typeof window !== 'undefined' && window.innerWidth > 768) {
       sidebarOpen.value = false

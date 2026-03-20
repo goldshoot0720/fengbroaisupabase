@@ -400,8 +400,11 @@ onUnmounted(() => {
 /* 應用程式主要樣式 */
 
 #app {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: var(--bg-primary);
+  font-family: var(--font-body);
+  background:
+    radial-gradient(circle at top left, color-mix(in oklab, var(--accent) 14%, transparent), transparent 24%),
+    radial-gradient(circle at right 12%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 26%),
+    var(--bg-primary);
   min-height: 100vh;
   color: var(--text-primary);
   transition: background-color var(--transition-normal), color var(--transition-normal);
@@ -410,6 +413,8 @@ onUnmounted(() => {
 .app-container {
   display: flex;
   min-height: 100vh;
+  gap: 1rem;
+  padding: 1rem;
 }
 
 .main-content {
@@ -424,19 +429,19 @@ onUnmounted(() => {
 .page-content {
   flex: 1;
   width: 100%;
-  padding: 2.5rem;
+  padding: 1rem 1.25rem 1.5rem;
   overflow-y: auto;
-  background: var(--bg-primary);
-  transition: all var(--transition-bounce);
-  min-height: calc(100vh - 80px);
-  max-height: calc(100vh - 80px);
+  background: transparent;
+  transition: all var(--transition-normal);
+  min-height: calc(100vh - 2rem);
+  max-height: calc(100vh - 2rem);
 }
 
 /* 手機版遮罩層 */
 .mobile-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(8, 12, 22, 0.45);
   z-index: 999;
   display: none;
 }
@@ -444,18 +449,19 @@ onUnmounted(() => {
 /* 響應式設計 */
 @media (min-width: 1200px) {
   .main-content { margin-left: 0; }
-  .page-content { padding: 2rem 3rem; }
+  .page-content { padding: 1rem 1.5rem 1.5rem; }
 }
 
 @media (min-width: 769px) and (max-width: 1199px) {
   .main-content { margin-left: 0; }
-  .page-content { padding: 2.5rem 3rem; }
+  .page-content { padding: 1rem 1.25rem 1.5rem; }
 }
 
 @media (max-width: 768px) {
   .mobile-overlay { display: block; }
+  .app-container { padding: 0.75rem; }
   .page-content {
-    padding: 1.5rem;
+    padding: 0.75rem 0 1.25rem;
     padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
     min-height: auto;
     max-height: none;
@@ -470,7 +476,7 @@ onUnmounted(() => {
 
 @media (max-width: 480px) {
   .page-content {
-    padding: 1rem;
+    padding: 0.5rem 0 1rem;
     padding-bottom: calc(1rem + env(safe-area-inset-bottom));
     min-height: auto;
     max-height: none;
@@ -479,7 +485,7 @@ onUnmounted(() => {
 
 /* 頁面切換動畫 */
 .page-content > * {
-  animation: slideInUp 0.6s var(--transition-bounce);
+  animation: slideInUp 0.6s ease;
 }
 
 /* 滾動按鈕 */

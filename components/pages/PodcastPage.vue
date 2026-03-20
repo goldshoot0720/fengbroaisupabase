@@ -66,7 +66,11 @@
               <h3>{{ currentPlayingPodcast.name || '未命名播客' }}</h3>
               <p>{{ currentPlayingPodcast.category || '鋒兄播客' }}</p>
             </div>
+            <button type="button" class="shared-podcast-collapse" @click="togglePodcastPlayerCollapsed">
+              {{ isPodcastPlayerCollapsed ? '展開' : '收合' }}
+            </button>
             <audio
+              v-show="!isPodcastPlayerCollapsed"
               ref="sharedPodcastAudioRef"
               :src="currentPlayingPodcast.file"
               controls
@@ -486,6 +490,7 @@ const formData = ref({
 })
 const sharedPodcastAudioRef = ref(null)
 const currentPlayingPodcastId = ref(null)
+const isPodcastPlayerCollapsed = ref(false)
 const MEDIA_PLAY_EVENT = 'feng-global-media-play'
 const currentPlayingPodcast = computed(() => {
   if (currentPlayingPodcastId.value === null) return null
@@ -656,6 +661,10 @@ const stopSharedPodcastPlayer = () => {
     sharedPodcastAudioRef.value.currentTime = 0
   }
   currentPlayingPodcastId.value = null
+}
+
+const togglePodcastPlayerCollapsed = () => {
+  isPodcastPlayerCollapsed.value = !isPodcastPlayerCollapsed.value
 }
 
 const handleExternalMediaPlay = (event) => {
@@ -1982,6 +1991,18 @@ onBeforeUnmount(() => {
   margin: 0.2rem 0 0;
   color: #6b7280;
   font-size: 0.9rem;
+}
+
+.shared-podcast-collapse {
+  align-self: flex-start;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  background: rgba(5, 150, 105, 0.12);
+  color: #047857;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .shared-podcast-audio {

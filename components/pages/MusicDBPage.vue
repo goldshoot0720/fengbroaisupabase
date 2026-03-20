@@ -90,15 +90,20 @@
                 <span v-if="currentPlayingMusic.category">{{ currentPlayingMusic.category }}</span>
               </p>
             </div>
-            <audio
-              ref="sharedAudioRef"
-              controls
-              :src="currentPlayingSrc"
-              class="shared-audio-player"
-            ></audio>
-            <div v-if="currentPlayingMusic.lyrics" class="shared-player-lyrics">
-              <p class="shared-player-lyrics-label">歌詞</p>
-              <pre class="shared-player-lyrics-text">{{ currentPlayingMusic.lyrics }}</pre>
+            <button type="button" class="shared-player-collapse" @click="toggleMusicPlayerCollapsed">
+              {{ isMusicPlayerCollapsed ? '展開' : '收合' }}
+            </button>
+            <div v-show="!isMusicPlayerCollapsed">
+              <audio
+                ref="sharedAudioRef"
+                controls
+                :src="currentPlayingSrc"
+                class="shared-audio-player"
+              ></audio>
+              <div v-if="currentPlayingMusic.lyrics" class="shared-player-lyrics">
+                <p class="shared-player-lyrics-label">歌詞</p>
+                <pre class="shared-player-lyrics-text">{{ currentPlayingMusic.lyrics }}</pre>
+              </div>
             </div>
           </div>
           <div class="shared-player-actions">
@@ -609,6 +614,7 @@ const formData = ref({
 })
 const sharedAudioRef = ref(null)
 const currentPlayingId = ref(null)
+const isMusicPlayerCollapsed = ref(false)
 const MEDIA_PLAY_EVENT = 'feng-global-media-play'
 
 // Batch mode state
@@ -867,6 +873,10 @@ const stopSharedPlayer = () => {
     sharedAudioRef.value.currentTime = 0
   }
   currentPlayingId.value = null
+}
+
+const toggleMusicPlayerCollapsed = () => {
+  isMusicPlayerCollapsed.value = !isMusicPlayerCollapsed.value
 }
 
 const handleExternalMediaPlay = (event) => {
@@ -1709,6 +1719,18 @@ onBeforeUnmount(() => {
   margin: 0.2rem 0 0;
   color: #6b7280;
   font-size: 0.9rem;
+}
+
+.shared-player-collapse {
+  align-self: flex-start;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  background: rgba(219, 39, 119, 0.12);
+  color: #be185d;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .shared-audio-player {

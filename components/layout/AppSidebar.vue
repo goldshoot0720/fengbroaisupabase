@@ -18,7 +18,6 @@
     </div>
 
     <nav class="sidebar-nav" aria-label="主要導覽">
-      <p class="section-label">All Sections</p>
       <ul>
         <li v-for="page in pages" :key="page.id">
           <button
@@ -110,7 +109,6 @@ defineEmits(['toggle', 'navigate'])
 }
 
 .brand-kicker,
-.section-label,
 .footer-label {
   font-size: 0.72rem;
   text-transform: uppercase;
@@ -239,14 +237,6 @@ defineEmits(['toggle', 'navigate'])
 }
 
 @media (max-width: 1500px) {
-  .quick-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .quick-card {
-    padding: 0.75rem 0.8rem;
-  }
-
   .nav-btn {
     grid-template-columns: 38px 1fr;
     gap: 0.75rem;
@@ -278,10 +268,6 @@ defineEmits(['toggle', 'navigate'])
   .sidebar {
     width: min(88vw, 320px);
     left: calc(-1 * min(88vw, 320px));
-  }
-
-  .quick-grid {
-    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -17,26 +17,6 @@
       </button>
     </div>
 
-    <div class="sidebar-section">
-      <div class="quick-grid">
-        <button class="quick-card" type="button" @click="$emit('navigate', 'dashboard')">
-          <span class="quick-index">02</span>
-          <strong>總覽</strong>
-          <small>付款與到期</small>
-        </button>
-        <button class="quick-card" type="button" @click="$emit('navigate', 'subscription')">
-          <span class="quick-index">03</span>
-          <strong>訂閱</strong>
-          <small>成本節奏</small>
-        </button>
-        <button class="quick-card" type="button" @click="$emit('navigate', 'food')">
-          <span class="quick-index">04</span>
-          <strong>食品</strong>
-          <small>期限與庫存</small>
-        </button>
-      </div>
-    </div>
-
     <nav class="sidebar-nav" aria-label="主要導覽">
       <p class="section-label">All Sections</p>
       <ul>
@@ -100,7 +80,6 @@ defineEmits(['toggle', 'navigate'])
 }
 
 .sidebar-header,
-.sidebar-section,
 .sidebar-nav,
 .sidebar-footer {
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -170,50 +149,8 @@ defineEmits(['toggle', 'navigate'])
   transform: translateY(-1px);
 }
 
-.sidebar-section,
 .sidebar-footer {
   padding: clamp(0.85rem, 0.75rem + 0.3vw, 1rem);
-}
-
-.quick-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.7rem;
-  margin-top: 0.85rem;
-}
-
-.quick-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
-  border-radius: 22px;
-  padding: 0.85rem 0.7rem;
-  text-align: left;
-  cursor: pointer;
-  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
-}
-
-.quick-card:hover {
-  transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
-}
-
-.quick-card strong,
-.quick-card small,
-.quick-index {
-  display: block;
-}
-
-.quick-index {
-  font-family: var(--font-display);
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 0.5rem;
-}
-
-.quick-card small {
-  margin-top: 0.25rem;
-  color: rgba(255, 255, 255, 0.66);
 }
 
 .sidebar-nav {

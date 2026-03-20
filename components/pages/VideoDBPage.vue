@@ -252,8 +252,19 @@
           <template v-else>
             <!-- 播放模式 -->
             <div v-if="playingVideoId === video.id && video.file" class="player-wrapper">
-              <video :src="getVideoSrc(video)" controls autoplay class="active-player"></video>
-              <button @click.stop="playingVideoId = null" class="close-player-btn" title="關閉播放">✕</button>
+              <video ref="activePlayerRef" :src="getVideoSrc(video)" controls autoplay playsinline class="active-player"></video>
+              <div class="player-actions">
+                <button
+                  v-if="pictureInPictureSupported"
+                  @click.stop="enterPictureInPictureIfPlaying"
+                  class="pip-player-btn"
+                  title="切換到子母畫面"
+                  type="button"
+                >
+                  子母畫面
+                </button>
+                <button @click.stop="closeActivePlayer" class="close-player-btn" title="關閉播放" type="button">✕</button>
+              </div>
             </div>
             <!-- 縮圖區域 -->
             <div v-else class="thumbnail-wrapper" @click="handlePlay(video)" @mouseenter="warmThumbnail(video)">
@@ -475,7 +486,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useVideoRecords } from '../../composables/useVideoRecords'
@@ -537,6 +548,10 @@ const formData = ref({
 
 // Video player state
 const playingVideoId = ref(null)
+const activePlayerRef = ref(null)
+const pictureInPictureSupported = computed(() => {
+  return typeof document !== 'undefined' && document.pictureInPictureEnabled
+})
 
 // Video caching state
 const videoCache = ref(new Map()) // id -> { blobUrl, size }
@@ -903,6 +918,59 @@ async function handlePlay(video) {
     console.error('影片載入失敗:', error)
     alert('影片載入失敗: ' + error.message)
   }
+}
+
+async function ensureActivePlayerReady(videoEl) {
+  if (!videoEl || videoEl.readyState >= 1) return
+
+  await new Promise((resolve) => {
+    const cleanup = () => {
+      videoEl.removeEventListener('loadedmetadata', cleanup)
+      videoEl.removeEventListener('error', cleanup)
+      resolve()
+    }
+
+    videoEl.addEventListener('loadedmetadata', cleanup, { once: true })
+    videoEl.addEventListener('error', cleanup, { once: true })
+  })
+}
+
+async function enterPictureInPictureIfPlaying() {
+  if (!pictureInPictureSupported.value || playingVideoId.value === null) return false
+
+  await nextTick()
+  const videoEl = activePlayerRef.value
+  if (!videoEl || typeof videoEl.requestPictureInPicture !== 'function') return false
+
+  if (document.pictureInPictureElement === videoEl) return true
+
+  try {
+    await ensureActivePlayerReady(videoEl)
+    await videoEl.play().catch(() => {})
+    await videoEl.requestPictureInPicture()
+    return true
+  } catch (error) {
+    console.warn('子母畫面啟動失敗:', error)
+    return false
+  }
+}
+
+async function closeActivePlayer() {
+  const videoEl = activePlayerRef.value
+
+  if (typeof document !== 'undefined' && document.pictureInPictureElement === videoEl && document.exitPictureInPicture) {
+    try {
+      await document.exitPictureInPicture()
+    } catch (error) {
+      console.warn('關閉子母畫面失敗:', error)
+    }
+  }
+
+  if (videoEl) {
+    videoEl.pause()
+  }
+
+  playingVideoId.value = null
 }
 
 async function cacheVideo(video) {
@@ -1660,6 +1728,10 @@ onBeforeUnmount(() => {
   setPreviewSrc(formVideoPreviewSrc, '')
   setPreviewSrc(addVideoPreviewSrc, '')
   setPreviewSrc(inlineVideoPreviewSrc, '')
+})
+
+defineExpose({
+  enterPictureInPictureIfPlaying
 })
 </script>
 
@@ -2661,23 +2733,50 @@ onBeforeUnmount(() => {
   max-height: 300px;
 }
 
-.close-player-btn {
+.player-actions {
   position: absolute;
   top: 8px;
   right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  z-index: 2;
+}
+
+.pip-player-btn,
+.close-player-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pip-player-btn {
+  min-width: 92px;
+  height: 32px;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.88);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.pip-player-btn:hover {
+  background: rgba(29, 78, 216, 0.96);
+  transform: translateY(-1px);
+}
+
+.close-player-btn {
   width: 28px;
   height: 28px;
   background: rgba(0, 0, 0, 0.65);
   color: white;
-  border: none;
   border-radius: 50%;
   font-size: 0.85rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  z-index: 2;
 }
 
 .close-player-btn:hover {

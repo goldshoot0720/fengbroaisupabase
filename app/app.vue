@@ -8,7 +8,7 @@
         :current-page="currentPage"
         :pages="pages"
         @toggle="toggleSidebar"
-        @navigate="setCurrentPage"
+        @navigate="navigateToPage"
       />
 
       <!-- 主要內容區 -->
@@ -30,7 +30,7 @@
             :subscriptions-count="subscriptionsCount"
             :foods-count="foodsCount"
             :total-monthly-cost="totalMonthlyCost"
-            @navigate="setCurrentPage"
+            @navigate="navigateToPage"
           />
 
           <!-- 訂閱管理 -->
@@ -52,6 +52,7 @@
 
           <!-- 影片管理 -->
           <VideoDBPage
+            ref="videoPageRef"
             v-show="currentPage === 'video'"
           />
 
@@ -103,7 +104,7 @@
           <!-- 鋒兄首頁 -->
           <HomePage
             v-if="currentPage === 'home'"
-            @navigate="setCurrentPage"
+            @navigate="navigateToPage"
           />
 
           <PageContainer
@@ -199,6 +200,7 @@ import { usePushNotification } from '../composables/usePushNotification'
 const subscriptionPageRef = ref(null)
 const foodPageRef = ref(null)
 const bankPageRef = ref(null)
+const videoPageRef = ref(null)
 
 // 使用 composables
 const { subscriptions, totalMonthlyCost, loadSubscriptions, getUpcomingSubscriptions } = useSubscriptions()
@@ -242,6 +244,16 @@ const getSupabaseUrlValidationMessage = (rawUrl) => {
     return 'Supabase URL 拼字錯誤：目前是 supabse.co，正確應為 supabase.co。請到設定頁修正後再重新整理。'
   }
   return ''
+}
+
+const navigateToPage = async (pageId) => {
+  if (!pageId || pageId === currentPage.value) return
+
+  if (currentPage.value === 'video' && pageId !== 'video') {
+    await videoPageRef.value?.enterPictureInPictureIfPlaying?.()
+  }
+
+  setCurrentPage(pageId)
 }
 
 // 生命週期

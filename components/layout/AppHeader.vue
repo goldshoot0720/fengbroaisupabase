@@ -413,8 +413,18 @@ onUnmounted(() => {
     align-items: stretch;
   }
 
+  .header-left,
   .header-right {
-    justify-content: space-between;
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .header-left {
+    align-items: flex-start;
+  }
+
+  .header-right {
+    justify-content: flex-start;
     flex-wrap: wrap;
   }
 

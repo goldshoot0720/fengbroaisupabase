@@ -56,12 +56,12 @@ defineEmits(['toggle', 'navigate'])
 
 <style scoped>
 .sidebar {
-  width: clamp(268px, 18vw, 320px);
+  width: clamp(232px, 15vw, 276px);
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
   position: fixed;
   top: 0;
-  left: calc(-1 * clamp(268px, 18vw, 320px));
+  left: calc(-1 * clamp(232px, 15vw, 276px));
   height: 100vh;
   padding: clamp(0.85rem, 0.8rem + 0.3vw, 1.1rem);
   display: flex;
@@ -227,7 +227,7 @@ defineEmits(['toggle', 'navigate'])
   .sidebar {
     position: sticky;
     left: 0;
-    width: clamp(268px, 18vw, 320px);
+    width: clamp(232px, 15vw, 276px);
     box-shadow: none;
   }
 
@@ -259,8 +259,8 @@ defineEmits(['toggle', 'navigate'])
 
 @media (max-width: 1199px) {
   .sidebar {
-    width: min(300px, 32vw);
-    left: calc(-1 * min(300px, 32vw));
+    width: min(272px, 28vw);
+    left: calc(-1 * min(272px, 28vw));
   }
 }
 

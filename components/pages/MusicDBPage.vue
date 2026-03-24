@@ -69,49 +69,6 @@
         </div>
       </div>
 
-      <Teleport to="body">
-        <section v-if="currentPlayingMusic" class="shared-player-panel shared-player-panel--music">
-          <div class="shared-player-cover">
-            <img
-              v-if="currentPlayingMusic.cover"
-              :src="currentPlayingMusic.cover"
-              :alt="currentPlayingMusic.name || '封面'"
-              class="shared-player-cover-image"
-            />
-            <div v-else class="shared-player-cover-fallback">🎵</div>
-          </div>
-          <div class="shared-player-main">
-            <div class="shared-player-copy">
-              <p class="shared-player-kicker">音樂播放器</p>
-              <h3>{{ currentPlayingMusic.name || '未命名歌曲' }}</h3>
-              <p>
-                <span v-if="currentPlayingMusic.language">{{ currentPlayingMusic.language }}</span>
-                <span v-if="currentPlayingMusic.language && currentPlayingMusic.category">・</span>
-                <span v-if="currentPlayingMusic.category">{{ currentPlayingMusic.category }}</span>
-              </p>
-            </div>
-            <button type="button" class="shared-player-collapse" @click="toggleMusicPlayerCollapsed">
-              {{ isMusicPlayerCollapsed ? '展開' : '收合' }}
-            </button>
-            <div v-show="!isMusicPlayerCollapsed">
-              <audio
-                ref="sharedAudioRef"
-                controls
-                :src="currentPlayingSrc"
-                class="shared-audio-player"
-              ></audio>
-              <div v-if="currentPlayingMusic.lyrics" class="shared-player-lyrics">
-                <p class="shared-player-lyrics-label">歌詞</p>
-                <pre class="shared-player-lyrics-text">{{ currentPlayingMusic.lyrics }}</pre>
-              </div>
-            </div>
-          </div>
-          <div class="shared-player-actions">
-            <button type="button" class="shared-player-btn" @click="stopSharedPlayer">停止</button>
-          </div>
-        </section>
-      </Teleport>
-
       <div v-if="loading" class="loading-state">載入中...</div>
 
       <div v-else-if="filteredMusics.length === 0 && !isAddingInline" class="empty-state">
@@ -326,14 +283,17 @@
                 <img :src="getActiveItem(group).cover" :alt="group.name || '封面'" class="card-cover-image" />
               </div>
               <div v-if="getActiveItem(group).file" class="card-audio">
-                <button
-                  type="button"
-                  class="card-play-btn"
-                  :class="{ active: currentPlayingMusic?.id === getActiveItem(group).id }"
-                  @click="playMusic(getActiveItem(group))"
-                >
-                  {{ currentPlayingMusic?.id === getActiveItem(group).id ? '播放中' : '播放這首' }}
-                </button>
+                <audio
+                  :ref="(el) => setAudioElementRef(getActiveItem(group).id, el)"
+                  controls
+                  :src="getAudioSrc(getActiveItem(group))"
+                  class="audio-player"
+                  @play="handleTrackPlay($event, getActiveItem(group))"
+                  @pause="handleTrackPause($event, getActiveItem(group))"
+                  @timeupdate="handleTrackProgress($event, getActiveItem(group))"
+                  @loadedmetadata="handleTrackProgress($event, getActiveItem(group))"
+                  @volumechange="handleTrackProgress($event, getActiveItem(group))"
+                ></audio>
               </div>
             </div>
             <div v-if="getActiveItem(group).lyrics" class="card-field lyrics-collapsible">
@@ -342,9 +302,9 @@
                 @click="toggleLyrics(getActiveItem(group).id)"
               >
                 <span>📝 歌詞</span>
-                <span class="lyrics-toggle-icon" :class="{ open: isLyricsExpanded(getActiveItem(group).id) }">▼</span>
+                <span class="lyrics-toggle-icon" :class="{ open: expandedLyrics.has(getActiveItem(group).id) }">▼</span>
               </button>
-              <div class="lyrics-body" :class="{ expanded: isLyricsExpanded(getActiveItem(group).id) }">
+              <div class="lyrics-body" :class="{ expanded: expandedLyrics.has(getActiveItem(group).id) }">
                 <pre class="lyrics-text">{{ getActiveItem(group).lyrics }}</pre>
               </div>
             </div>
@@ -516,11 +476,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, reactive, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, reactive } from 'vue'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useMusicRecords } from '../../composables/useMusicRecords'
 import { useStorage } from '../../composables/useStorage'
+import { usePersistentAudioPlayer } from '../../composables/usePersistentAudioPlayer'
 
 useHead({
   title: '鋒兄音樂 - 鋒兄AI Supabase'
@@ -528,6 +489,13 @@ useHead({
 
 const { musics, loading, FIELDS, loadMusics, addMusic, updateMusic, deleteMusic, importMusics } = useMusicRecords()
 const { uploading, uploadProgress, uploadFile } = useStorage()
+const {
+  currentTrack: persistentTrack,
+  pauseGlobal,
+  snapshotFromElement,
+  takeoverFromElement,
+  restoreToElement
+} = usePersistentAudioPlayer()
 
 // 行內編輯
 const editingId = ref(null)
@@ -612,10 +580,6 @@ const formData = ref({
   language: '',
   cover: ''
 })
-const sharedAudioRef = ref(null)
-const currentPlayingId = ref(null)
-const isMusicPlayerCollapsed = ref(false)
-const MEDIA_PLAY_EVENT = 'feng-global-media-play'
 
 // Batch mode state
 const batchMode = ref(false)
@@ -723,12 +687,6 @@ function setActiveVersion(groupName, idx) {
   const key = (groupName || '').trim().toLowerCase()
   activeVersionMap.value.set(key, idx)
   activeVersionMap.value = new Map(activeVersionMap.value) // trigger reactivity
-
-  const targetGroup = groupedMusics.value.find(group => (group.name || '').trim().toLowerCase() === key)
-  const targetItem = targetGroup?.items[idx]
-  if (targetItem && currentPlayingMusic.value && (currentPlayingMusic.value.name || '').trim().toLowerCase() === key) {
-    playMusic(targetItem)
-  }
 }
 
 function toggleGroupSelect(group) {
@@ -769,6 +727,7 @@ function resetImportProgress() {
 const musicCache = ref(new Map()) // id -> { blobUrl, size }
 const cachingMusicId = ref(null)
 const totalCacheSize = ref(0)
+const audioElementRefs = new Map()
 
 const musicsWithFile = computed(() => musics.value.filter(m => m.file))
 const cachedCount = computed(() => musicCache.value.size)
@@ -779,19 +738,22 @@ function getAudioSrc(music) {
   return music.file
 }
 
-const currentPlayingMusic = computed(() => {
-  if (currentPlayingId.value === null) return null
-  return musics.value.find((music) => music.id === currentPlayingId.value) || null
-})
+function setAudioElementRef(id, element) {
+  if (element) {
+    audioElementRefs.set(id, element)
+  } else {
+    audioElementRefs.delete(id)
+  }
+}
 
-const currentPlayingSrc = computed(() => {
-  if (!currentPlayingMusic.value?.file) return ''
-  return getAudioSrc(currentPlayingMusic.value)
-})
-
-const isExpectedMediaAbort = (error) => {
-  const message = String(error?.message || '')
-  return error?.name === 'AbortError' || message.includes('aborted by the user agent')
+function getTrackMeta(music) {
+  return {
+    id: music.id,
+    name: music.name || '未命名音樂',
+    src: getAudioSrc(music),
+    cover: music.cover || '',
+    meta: music.language || music.category || ''
+  }
 }
 
 async function cacheMusicItem(music) {
@@ -843,57 +805,39 @@ function clearAllMusicCache() {
   totalCacheSize.value = 0
 }
 
-const playMusic = async (music) => {
-  if (!music?.file) return
-
-  const isSameTrack = currentPlayingId.value === music.id
-  window.dispatchEvent(new CustomEvent(MEDIA_PLAY_EVENT, { detail: { source: 'music', id: music.id } }))
-  currentPlayingId.value = music.id
-  await nextTick()
-
-  const audioEl = sharedAudioRef.value
-  if (!audioEl) return
-
-  if (!isSameTrack) {
-    audioEl.load()
-  }
-
-  try {
-    await audioEl.play()
-  } catch (error) {
-    if (isExpectedMediaAbort(error)) return
-    console.error('播放失敗:', error)
-    alert('播放失敗: ' + error.message)
-  }
+const pauseOthers = (event) => {
+  document.querySelectorAll('.audio-player').forEach(audio => {
+    if (audio !== event.target) audio.pause()
+  })
 }
 
-const stopSharedPlayer = () => {
-  if (sharedAudioRef.value) {
-    sharedAudioRef.value.pause()
-    sharedAudioRef.value.currentTime = 0
+const handleTrackPlay = async (event, music) => {
+  const element = event.target
+  pauseOthers(event)
+
+  if (!persistentTrack.value || persistentTrack.value.id !== music.id) {
+    pauseGlobal()
   }
-  currentPlayingId.value = null
+
+  await restoreToElement(element, getTrackMeta(music))
+  snapshotFromElement(element, getTrackMeta(music), { playing: true })
 }
 
-const toggleMusicPlayerCollapsed = () => {
-  isMusicPlayerCollapsed.value = !isMusicPlayerCollapsed.value
+const handleTrackPause = (event, music) => {
+  snapshotFromElement(event.target, getTrackMeta(music), { playing: false })
 }
 
-const handleExternalMediaPlay = (event) => {
-  if (event.detail?.source === 'music') return
-  if (currentPlayingId.value !== null) {
-    stopSharedPlayer()
-  }
+const handleTrackProgress = (event, music) => {
+  snapshotFromElement(event.target, getTrackMeta(music))
 }
 
 // 歌詞展開/收合
-const collapsedLyrics = ref(new Set())
-const isLyricsExpanded = (id) => !collapsedLyrics.value.has(id)
+const expandedLyrics = ref(new Set())
 const toggleLyrics = (id) => {
-  const s = new Set(collapsedLyrics.value)
+  const s = new Set(expandedLyrics.value)
   if (s.has(id)) s.delete(id)
   else s.add(id)
-  collapsedLyrics.value = s
+  expandedLyrics.value = s
 }
 
 const truncate = (text, length) => {
@@ -1450,23 +1394,17 @@ const handleFileImport = async (event) => {
 
 onMounted(() => {
   loadMusics()
-  if (typeof window !== 'undefined') {
-    window.addEventListener(MEDIA_PLAY_EVENT, handleExternalMediaPlay)
-  }
 })
 
-watch(musics, () => {
-  if (currentPlayingId.value === null) return
-  const stillExists = musics.value.some((music) => music.id === currentPlayingId.value)
-  if (!stillExists) {
-    stopSharedPlayer()
-  }
-})
+onBeforeUnmount(async () => {
+  const activeEntry = Array.from(audioElementRefs.entries()).find(([, element]) => element && !element.paused && !element.ended)
+  if (!activeEntry) return
 
-onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener(MEDIA_PLAY_EVENT, handleExternalMediaPlay)
-  }
+  const [musicId, element] = activeEntry
+  const activeMusic = musics.value.find((music) => music.id === musicId)
+  if (!activeMusic) return
+
+  await takeoverFromElement(element, getTrackMeta(activeMusic))
 })
 </script>
 
@@ -1644,146 +1582,6 @@ onBeforeUnmount(() => {
   padding: 3rem;
   color: #666;
   font-size: 1.1rem;
-}
-
-.shared-player-panel {
-  position: fixed;
-  right: 1.25rem;
-  bottom: 1.25rem;
-  z-index: 1200;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 1rem;
-  align-items: center;
-  padding: 1rem 1.1rem;
-  width: min(720px, calc(100vw - 2rem));
-  background: linear-gradient(135deg, rgba(253, 242, 248, 0.96) 0%, rgba(245, 243, 255, 0.98) 100%);
-  border: 1px solid rgba(240, 147, 251, 0.28);
-  border-radius: 18px;
-  box-shadow: 0 16px 32px rgba(240, 147, 251, 0.12);
-  backdrop-filter: blur(14px);
-}
-
-.shared-player-panel--music {
-  bottom: 1.25rem;
-}
-
-.shared-player-cover {
-  width: 72px;
-  height: 72px;
-  border-radius: 16px;
-  overflow: hidden;
-  background: linear-gradient(135deg, #fdf2f8 0%, #ede9fe 100%);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-.shared-player-cover-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.shared-player-cover-fallback {
-  font-size: 1.8rem;
-}
-
-.shared-player-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.shared-player-copy {
-  min-width: 0;
-}
-
-.shared-player-kicker {
-  margin: 0 0 0.2rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #db2777;
-}
-
-.shared-player-copy h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  color: #1f2937;
-}
-
-.shared-player-copy p {
-  margin: 0.2rem 0 0;
-  color: #6b7280;
-  font-size: 0.9rem;
-}
-
-.shared-player-collapse {
-  align-self: flex-start;
-  border: none;
-  border-radius: 999px;
-  padding: 0.4rem 0.8rem;
-  background: rgba(219, 39, 119, 0.12);
-  color: #be185d;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.shared-audio-player {
-  width: 100%;
-  height: 42px;
-}
-
-.shared-player-lyrics {
-  max-height: 180px;
-  overflow-y: auto;
-  padding: 0.75rem 0.85rem;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(240, 147, 251, 0.18);
-}
-
-.shared-player-lyrics-label {
-  margin: 0 0 0.4rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #db2777;
-}
-
-.shared-player-lyrics-text {
-  margin: 0;
-  white-space: pre-wrap;
-  font-family: inherit;
-  font-size: 0.88rem;
-  line-height: 1.65;
-  color: #4b5563;
-}
-
-.shared-player-actions {
-  display: flex;
-  align-items: center;
-}
-
-.shared-player-btn {
-  border: none;
-  border-radius: 999px;
-  padding: 0.7rem 1rem;
-  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
-  color: white;
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.shared-player-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(244, 63, 94, 0.24);
 }
 
 /* ── Cache Bar ── */
@@ -2230,22 +2028,6 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
-  .shared-player-panel {
-    right: 0.75rem;
-    bottom: 0.75rem;
-    width: calc(100vw - 1.5rem);
-    grid-template-columns: 1fr;
-  }
-
-  .shared-player-cover {
-    width: 64px;
-    height: 64px;
-  }
-
-  .shared-player-actions {
-    justify-content: flex-end;
-  }
-
   .modal-content {
     max-height: 95vh;
   }
@@ -2282,26 +2064,10 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-.card-play-btn {
+.audio-player {
   width: 100%;
-  min-height: 44px;
-  border: none;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card-play-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.22);
-}
-
-.card-play-btn.active {
-  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+  height: 40px;
+  border-radius: 8px;
 }
 
 .lyrics-text {

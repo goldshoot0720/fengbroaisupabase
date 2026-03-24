@@ -48,6 +48,18 @@
           </span>
         </div>
         <div class="summary-right">
+          <div v-if="filteredArticles.length > 0 || showAddRow" class="view-switcher" role="tablist" aria-label="筆記版型切換">
+            <button
+              v-for="option in viewOptions"
+              :key="option.value"
+              type="button"
+              class="view-chip"
+              :class="{ active: viewMode === option.value }"
+              @click="viewMode = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
           <button
             v-if="selectedIds.size > 0"
             class="btn-batch-delete"
@@ -71,10 +83,14 @@
       </div>
 
       <!-- 筆記列表 -->
-      <div class="notes-container" v-if="filteredArticles.length > 0 || showAddRow">
+      <div
+        class="notes-container"
+        :class="[`notes-container--${viewMode}`]"
+        v-if="filteredArticles.length > 0 || showAddRow"
+      >
 
         <!-- 行內新增卡片 -->
-        <div v-if="showAddRow" class="note-card note-card-editing add-card">
+        <div v-if="showAddRow" class="note-card note-card-editing add-card note-card--editor">
           <div class="inline-form">
             <div class="inline-row">
               <input v-model="addForm.title" type="text" class="inline-input" placeholder="標題 *" />
@@ -129,7 +145,18 @@
         </div>
 
         <!-- 筆記卡片列表 -->
-        <div v-for="article in filteredArticles" :key="article.id" class="note-card" :class="{ 'note-selected': selectedIds.has(article.id), 'note-card-editing': editingRowId === article.id }">
+        <div
+          v-for="article in filteredArticles"
+          :key="article.id"
+          class="note-card"
+          :class="[
+            {
+              'note-selected': selectedIds.has(article.id),
+              'note-card-editing': editingRowId === article.id
+            },
+            noteCardModeClass(article.id)
+          ]"
+        >
 
           <!-- 編輯模式 -->
           <template v-if="editingRowId === article.id">
@@ -285,10 +312,17 @@ const emptyForm = () => ({
 
 // 狀態
 const searchQuery = ref('')
+const viewMode = ref('hybrid')
 const uploadingSlot = ref(null)
 const previewUrl = ref(null)
 const batchMode = ref(false)
 const selectedIds = ref(new Set())
+
+const viewOptions = [
+  { value: 'hybrid', label: '混合' },
+  { value: 'card', label: '卡片' },
+  { value: 'list', label: '列表' }
+]
 
 // 行內新增
 const showAddRow = ref(false)
@@ -317,6 +351,14 @@ const filteredArticles = computed(() => {
     (article.content && article.content.toLowerCase().includes(query))
   )
 })
+
+const noteCardModeClass = (articleId) => {
+  if (viewMode.value === 'card') return 'note-card--card'
+  if (viewMode.value === 'list') return 'note-card--list'
+
+  const index = filteredArticles.value.findIndex((article) => article.id === articleId)
+  return index >= 0 && index < 2 ? 'note-card--card' : 'note-card--list'
+}
 
 // 格式化日期
 const formatDate = (dateStr) => {
@@ -889,6 +931,34 @@ useHead({
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.view-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
+}
+
+.view-chip {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: all var(--transition-fast);
+}
+
+.view-chip.active {
+  background: var(--surface-strong);
+  color: var(--text-inverse);
 }
 
 .select-all-label {
@@ -983,8 +1053,8 @@ useHead({
 }
 
 .note-selected {
-  border-left-color: #f87171 !important;
-  background: #fef8f8;
+  border-color: color-mix(in oklab, var(--danger) 38%, var(--border-color)) !important;
+  background: color-mix(in oklab, var(--danger-light) 28%, var(--bg-secondary));
 }
 
 .actions-bar {
@@ -1057,30 +1127,94 @@ useHead({
 
 .notes-container {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
 }
 
-@media (min-width: 769px) {
-  .notes-container {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  }
+.notes-container--card {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.notes-container--list {
+  grid-template-columns: 1fr;
+}
+
+.notes-container--hybrid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.note-card--editor {
+  grid-column: 1 / -1;
 }
 
 .note-card {
-  background: white;
-  border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-secondary) 94%, transparent);
+  border-radius: 24px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s, box-shadow 0.2s;
-  border-left: 4px solid #a8edea;
+  box-shadow: var(--shadow-soft);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .note-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
+  border-color: var(--border-strong);
+}
+
+.note-card--card {
+  min-height: 340px;
+}
+
+.notes-container--hybrid .note-card--card:nth-of-type(2),
+.notes-container--hybrid .note-card--card:nth-of-type(3) {
+  grid-column: span 6;
+}
+
+.notes-container--hybrid .note-card--list {
+  grid-column: 1 / -1;
+}
+
+.note-card--list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem 1.25rem;
+  align-items: start;
+}
+
+.note-card--list .note-header,
+.note-card--list .note-title,
+.note-card--list .note-content,
+.note-card--list .note-attachments {
+  grid-column: 1;
+}
+
+.note-card--list .note-actions {
+  grid-column: 2;
+}
+
+.note-card--list .note-header {
+  margin-bottom: 0;
+  padding-bottom: 0.25rem;
+  border-bottom: none;
+}
+
+.note-card--list .note-title {
+  margin-bottom: 0.35rem;
+  font-size: 1.05rem;
+}
+
+.note-card--list .note-content {
+  max-height: 96px;
+  margin-bottom: 0;
+}
+
+.note-card--list .note-attachments {
+  margin-top: 0.4rem;
+  padding-top: 0.8rem;
 }
 
 .note-header {
@@ -1089,15 +1223,15 @@ useHead({
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .note-date {
   font-size: 0.85rem;
-  color: #888;
-  background: #f5f5f5;
+  color: var(--text-secondary);
+  background: color-mix(in oklab, var(--bg-tertiary) 88%, transparent);
   padding: 0.2rem 0.6rem;
-  border-radius: 12px;
+  border-radius: 999px;
 }
 
 .note-actions {
@@ -1126,16 +1260,16 @@ useHead({
 }
 
 .note-title {
-  font-size: 1.3rem;
+  font-size: 1.28rem;
   font-weight: 700;
-  color: #333;
+  color: var(--text-primary);
   margin: 0 0 0.75rem 0;
   line-height: 1.4;
 }
 
 .note-content {
   flex: 1;
-  color: #555;
+  color: var(--text-secondary);
   line-height: 1.6;
   font-size: 0.95rem;
   white-space: pre-wrap;
@@ -1147,7 +1281,7 @@ useHead({
 .note-attachments {
   margin-top: auto;
   padding-top: 1rem;
-  border-top: 1px dashed #eee;
+  border-top: 1px dashed var(--border-color);
   font-size: 0.9rem;
 }
 
@@ -1253,13 +1387,13 @@ useHead({
 
 /* 行內編輯卡片 */
 .note-card-editing {
-  border-left-color: #fbbf24 !important;
-  background: #fffbeb;
+  border-color: color-mix(in oklab, var(--warning) 40%, var(--border-color)) !important;
+  background: color-mix(in oklab, var(--warning-light) 40%, var(--bg-secondary));
 }
 
 .add-card {
-  border-left-color: #34d399 !important;
-  background: #ecfdf5;
+  border-color: color-mix(in oklab, var(--success) 40%, var(--border-color)) !important;
+  background: color-mix(in oklab, var(--success-light) 35%, var(--bg-secondary));
 }
 
 .inline-form {
@@ -1616,6 +1750,49 @@ useHead({
   background: #f9f9f9;
   border-radius: 12px;
   grid-column: 1 / -1;
+}
+
+@media (max-width: 960px) {
+  .notes-container--hybrid {
+    grid-template-columns: 1fr;
+  }
+
+  .notes-container--hybrid .note-card--card,
+  .notes-container--hybrid .note-card--list {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .summary-bar,
+  .summary-left,
+  .summary-right,
+  .actions-bar {
+    align-items: stretch;
+  }
+
+  .summary-right,
+  .action-buttons {
+    width: 100%;
+  }
+
+  .view-switcher {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .view-chip {
+    flex: 1;
+  }
+
+  .note-card--list {
+    grid-template-columns: 1fr;
+  }
+
+  .note-card--list .note-actions {
+    grid-column: 1;
+    justify-self: end;
+  }
 }
 
 @keyframes spin {

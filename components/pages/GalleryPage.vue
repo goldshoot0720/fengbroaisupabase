@@ -8,24 +8,6 @@
           <input v-model="searchQuery" type="text" placeholder="搜尋圖片名稱..." class="search-input">
         </div>
         <div class="action-buttons">
-          <div class="view-switcher" role="group" aria-label="圖片顯示模式">
-            <button
-              type="button"
-              class="view-switch-btn"
-              :class="{ active: imageViewMode === 'card' }"
-              @click="setImageViewMode('card')"
-            >
-              卡片式
-            </button>
-            <button
-              type="button"
-              class="view-switch-btn"
-              :class="{ active: imageViewMode === 'list' }"
-              @click="setImageViewMode('list')"
-            >
-              列表式
-            </button>
-          </div>
           <div class="csv-actions">
             <button v-if="images.length > 0" @click="exportImagesZip" class="btn-export">
               <span class="icon">📤</span> 匯出 ZIP
@@ -71,10 +53,10 @@
       </div>
 
       <!-- 圖片列表 -->
-      <div v-if="isAddingInline || filteredImages.length > 0 || !loading" :class="['images-container', `images-container--${imageViewMode}`]">
+      <div v-if="isAddingInline || filteredImages.length > 0 || !loading" class="images-container" :class="[`images-container--${viewMode}`]">
 
         <!-- 行內新增卡片 -->
-        <div v-if="isAddingInline" class="image-card card-editing" :class="{ 'image-card--list': imageViewMode === 'list' }">
+        <div v-if="isAddingInline" class="image-card card-editing image-card--editor">
           <div class="image-header">
             <input v-model="addForm.name" type="text" class="inline-input inline-name" placeholder="圖片名稱 *" style="flex:1" />
             <div class="image-actions">
@@ -128,7 +110,7 @@
           <p>沒有找到相關圖片</p>
         </div>
 
-        <div v-for="image in filteredImages" :key="image.id" class="image-card" :class="{ 'card-editing': editingId === image.id, 'image-card--list': imageViewMode === 'list' }">
+        <div v-for="image in filteredImages" :key="image.id" class="image-card" :class="[{ 'card-editing': editingId === image.id }, imageCardModeClass(image.id)]">
 
           <!-- 行內編輯模式 -->
           <template v-if="editingId === image.id">
@@ -355,19 +337,10 @@ const {
 const showModal = ref(false)
 const isEditing = ref(false)
 const searchQuery = ref('')
-const IMAGE_VIEW_MODE_KEY = 'feng-gallery-view-mode'
-const imageViewMode = ref('card')
+const viewMode = ref('hybrid')
 const showSection = reactive({
   extra: false
 })
-
-const setImageViewMode = (mode) => {
-  if (!['card', 'list'].includes(mode)) return
-  imageViewMode.value = mode
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(IMAGE_VIEW_MODE_KEY, mode)
-  }
-}
 
 const batchMode = ref(false)
 const selectedIds = ref(new Set())
@@ -376,6 +349,12 @@ const exitBatchMode = () => { batchMode.value = false; selectedIds.value = new S
 const isAllSelected = computed(() => filteredImages.value.length > 0 && filteredImages.value.every(a => selectedIds.value.has(a.id)))
 const toggleSelect = (id) => { const s = new Set(selectedIds.value); if (s.has(id)) s.delete(id); else s.add(id); selectedIds.value = s }
 const toggleSelectAll = () => { if (isAllSelected.value) selectedIds.value = new Set(); else selectedIds.value = new Set(filteredImages.value.map(a => a.id)) }
+const viewOptions = [
+  { value: 'hybrid', label: '??' },
+  { value: 'card', label: '??' },
+  { value: 'list', label: '??' }
+]
+
 const deleteSelected = async () => {
   const count = selectedIds.value.size
   if (count === 0) return
@@ -411,12 +390,6 @@ const formData = reactive({
 
 // 初始化
 onMounted(() => {
-  if (typeof localStorage !== 'undefined') {
-    const savedMode = localStorage.getItem(IMAGE_VIEW_MODE_KEY)
-    if (savedMode === 'card' || savedMode === 'list') {
-      imageViewMode.value = savedMode
-    }
-  }
   loadImages()
 })
 
@@ -430,6 +403,14 @@ const filteredImages = computed(() => {
     (image.category && image.category.toLowerCase().includes(query))
   )
 })
+
+const imageCardModeClass = (imageId) => {
+  if (viewMode.value === 'card') return 'image-card--card'
+  if (viewMode.value === 'list') return 'image-card--list'
+
+  const index = filteredImages.value.findIndex((image) => image.id === imageId)
+  return index >= 0 && index < 2 ? 'image-card--card' : 'image-card--list'
+}
 
 // 檢查是否有額外資訊
 const hasExtra = (image) => {
@@ -900,31 +881,39 @@ useHead({
   flex-wrap: wrap;
 }
 
+.summary-left,
+.summary-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .view-switcher {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem;
-  background: #eef2ff;
+  gap: 0.4rem;
+  padding: 0.3rem;
+  border: 1px solid var(--border-color);
   border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
 }
 
-.view-switch-btn {
+.view-chip {
   border: none;
   background: transparent;
-  color: #475569;
-  padding: 0.45rem 0.85rem;
+  color: var(--text-secondary);
+  padding: 0.45rem 0.9rem;
   border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: all var(--transition-fast);
 }
 
-.view-switch-btn.active {
-  background: white;
-  color: #1d4ed8;
-  box-shadow: 0 2px 6px rgba(29, 78, 216, 0.15);
+.view-chip.active {
+  background: var(--surface-strong);
+  color: var(--text-inverse);
 }
 
 .csv-actions {
@@ -986,58 +975,80 @@ useHead({
 
 .images-container {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
 }
 
-@media (min-width: 769px) {
-  .images-container {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  }
+.images-container--card {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 }
 
 .images-container--list {
   grid-template-columns: 1fr;
 }
 
+.images-container--hybrid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.image-card--editor {
+  grid-column: 1 / -1;
+}
+
 .image-card {
-  background: white;
-  border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-secondary) 94%, transparent);
+  border-radius: 24px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s, box-shadow 0.2s;
-  border-left: 4px solid #667eea;
+  box-shadow: var(--shadow-soft);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
 }
 
 .image-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
+  border-color: var(--border-strong);
+}
+
+.image-card--card {
+  min-height: 360px;
+}
+
+.images-container--hybrid .image-card--card:nth-of-type(2),
+.images-container--hybrid .image-card--card:nth-of-type(3) {
+  grid-column: span 6;
+}
+
+.images-container--hybrid .image-card--list {
+  grid-column: 1 / -1;
 }
 
 .image-card--list {
-  padding: 1.2rem 1.25rem;
-}
-
-.image-card--list:hover {
-  transform: none;
-}
-
-.image-card--list .image-details {
   display: grid;
-  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 1rem 1.25rem;
   align-items: start;
-  gap: 0.9rem 1.2rem;
+}
+
+.image-card--list .image-header,
+.image-card--list .image-name,
+.image-card--list .image-details,
+.image-card--list .image-extra {
+  grid-column: 2;
 }
 
 .image-card--list .card-image-wrapper {
-  margin-bottom: 0;
+  grid-column: 1;
+  grid-row: 1 / span 4;
+  margin-top: 0;
 }
 
-.image-card--list .image-extra {
-  margin-top: 0.75rem;
+.image-card--list .card-image {
+  aspect-ratio: 4 / 3;
 }
 
 .image-header {
@@ -1046,13 +1057,13 @@ useHead({
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .category-badge {
   font-size: 0.85rem;
-  color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: var(--text-inverse);
+  background: linear-gradient(135deg, var(--primary) 0%, color-mix(in oklab, var(--primary) 72%, black 28%) 100%);
   padding: 0.3rem 0.8rem;
   border-radius: 12px;
   font-weight: 500;
@@ -1383,17 +1394,6 @@ useHead({
   }
 }
 
-@media (max-width: 768px) {
-  .view-switcher {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .image-card--list .image-details {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* Upload Area Styles */
 .upload-area {
   display: flex;
@@ -1602,3 +1602,44 @@ useHead({
   background: #ecfdf5;
 }
 </style>
+
+@media (max-width: 960px) {
+  .images-container--hybrid {
+    grid-template-columns: 1fr;
+  }
+
+  .images-container--hybrid .image-card--card,
+  .images-container--hybrid .image-card--list {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .summary-right,
+  .csv-actions,
+  .action-buttons {
+    width: 100%;
+  }
+
+  .view-switcher {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .view-chip {
+    flex: 1;
+  }
+
+  .image-card--list {
+    grid-template-columns: 1fr;
+  }
+
+  .image-card--list .image-header,
+  .image-card--list .image-name,
+  .image-card--list .image-details,
+  .image-card--list .image-extra,
+  .image-card--list .card-image-wrapper {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}

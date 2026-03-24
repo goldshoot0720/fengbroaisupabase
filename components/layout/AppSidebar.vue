@@ -17,7 +17,29 @@
       </button>
     </div>
 
+    <div class="sidebar-section">
+      <p class="section-label">Priority Views</p>
+      <div class="quick-grid">
+        <button class="quick-card" type="button" @click="$emit('navigate', 'dashboard')">
+          <span class="quick-index">02</span>
+          <strong>總覽</strong>
+          <small>付款與到期</small>
+        </button>
+        <button class="quick-card" type="button" @click="$emit('navigate', 'subscription')">
+          <span class="quick-index">03</span>
+          <strong>訂閱</strong>
+          <small>成本節奏</small>
+        </button>
+        <button class="quick-card" type="button" @click="$emit('navigate', 'food')">
+          <span class="quick-index">04</span>
+          <strong>食品</strong>
+          <small>期限與庫存</small>
+        </button>
+      </div>
+    </div>
+
     <nav class="sidebar-nav" aria-label="主要導覽">
+      <p class="section-label">All Sections</p>
       <ul>
         <li v-for="page in pages" :key="page.id">
           <button
@@ -56,21 +78,22 @@ defineEmits(['toggle', 'navigate'])
 
 <style scoped>
 .sidebar {
-  width: clamp(232px, 15vw, 276px);
+  width: 320px;
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
   position: fixed;
   top: 0;
-  left: calc(-1 * clamp(232px, 15vw, 276px));
+  left: -320px;
   height: 100vh;
-  padding: clamp(0.85rem, 0.8rem + 0.3vw, 1.1rem);
+  padding: 1.1rem;
   display: flex;
   flex-direction: column;
-  gap: clamp(0.9rem, 0.8rem + 0.35vw, 1.25rem);
+  gap: 1.25rem;
   transition: left var(--transition-slow), box-shadow var(--transition-normal);
   z-index: 1000;
   overflow-y: auto;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
+  overscroll-behavior: contain;
 }
 
 .sidebar.sidebar-open {
@@ -79,6 +102,7 @@ defineEmits(['toggle', 'navigate'])
 }
 
 .sidebar-header,
+.sidebar-section,
 .sidebar-nav,
 .sidebar-footer {
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -87,7 +111,7 @@ defineEmits(['toggle', 'navigate'])
 }
 
 .sidebar-header {
-  padding: clamp(0.85rem, 0.75rem + 0.3vw, 1rem);
+  padding: 1rem;
 }
 
 .brand-lockup {
@@ -109,6 +133,7 @@ defineEmits(['toggle', 'navigate'])
 }
 
 .brand-kicker,
+.section-label,
 .footer-label {
   font-size: 0.72rem;
   text-transform: uppercase;
@@ -147,8 +172,50 @@ defineEmits(['toggle', 'navigate'])
   transform: translateY(-1px);
 }
 
+.sidebar-section,
 .sidebar-footer {
-  padding: clamp(0.85rem, 0.75rem + 0.3vw, 1rem);
+  padding: 1rem;
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-top: 0.85rem;
+}
+
+.quick-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  border-radius: 22px;
+  padding: 0.85rem 0.7rem;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.quick-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.quick-card strong,
+.quick-card small,
+.quick-index {
+  display: block;
+}
+
+.quick-index {
+  font-family: var(--font-display);
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 0.5rem;
+}
+
+.quick-card small {
+  margin-top: 0.25rem;
+  color: rgba(255, 255, 255, 0.66);
 }
 
 .sidebar-nav {
@@ -226,9 +293,12 @@ defineEmits(['toggle', 'navigate'])
 @media (min-width: 1200px) {
   .sidebar {
     position: sticky;
+    top: 1rem;
     left: 0;
-    width: clamp(232px, 15vw, 276px);
+    width: 320px;
+    height: calc(100vh - 2rem);
     box-shadow: none;
+    border-radius: 32px;
   }
 
   .sidebar-toggle {
@@ -236,31 +306,22 @@ defineEmits(['toggle', 'navigate'])
   }
 }
 
-@media (max-width: 1500px) {
-  .nav-btn {
-    grid-template-columns: 38px 1fr;
-    gap: 0.75rem;
-    padding: 0.72rem;
-  }
-
-  .nav-meta {
-    font-size: 0.76rem;
-  }
-
-  .brand-title {
-    font-size: 1.08rem;
-  }
-
-  .brand-subtitle,
-  .footer-text {
-    font-size: 0.82rem;
-  }
-}
-
-@media (max-width: 1199px) {
+@media (min-width: 769px) and (max-width: 1199px) {
   .sidebar {
-    width: min(272px, 28vw);
-    left: calc(-1 * min(272px, 28vw));
+    top: 0.75rem;
+    left: calc(-1 * min(360px, 78vw));
+    width: min(360px, 78vw);
+    height: calc(100vh - 1.5rem);
+    border-radius: 0 30px 30px 0;
+  }
+
+  .quick-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .nav-btn {
+    grid-template-columns: 40px 1fr;
+    gap: 0.75rem;
   }
 }
 
@@ -268,6 +329,41 @@ defineEmits(['toggle', 'navigate'])
   .sidebar {
     width: min(88vw, 320px);
     left: calc(-1 * min(88vw, 320px));
+    top: 0;
+    height: 100vh;
+    padding: 0.9rem;
+    border-radius: 0 26px 26px 0;
+  }
+
+  .quick-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-header,
+  .sidebar-section,
+  .sidebar-nav,
+  .sidebar-footer {
+    border-radius: 24px;
+  }
+
+  .nav-btn {
+    padding: 0.72rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-lockup {
+    gap: 0.75rem;
+  }
+
+  .brand-mark {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+  }
+
+  .brand-title {
+    font-size: 1.05rem;
   }
 }
 </style>

@@ -58,6 +58,18 @@
           <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
         </div>
         <div class="summary-right">
+          <div v-if="isAddingInline || filteredVideos.length > 0" class="layout-switcher" role="tablist" aria-label="影片版型切換">
+            <button
+              v-for="option in layoutOptions"
+              :key="option.value"
+              type="button"
+              class="layout-switch-btn"
+              :class="{ active: videoLayoutMode === option.value }"
+              @click="videoLayoutMode = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
           <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除選中 ({{ selectedIds.size }})</button>
         </div>
       </div>
@@ -88,47 +100,6 @@
         </div>
       </div>
 
-      <Teleport to="body">
-        <section v-if="currentPlayingVideo" class="shared-video-panel">
-          <div class="shared-video-stage">
-            <div v-show="!isVideoPlayerCollapsed">
-              <video
-                ref="activePlayerRef"
-                :src="currentPlayingVideoSrc"
-                controls
-                autoplay
-                playsinline
-                class="active-player"
-              ></video>
-              <div class="player-actions">
-                <button
-                  v-if="pictureInPictureSupported"
-                  @click.stop="enterPictureInPictureIfPlaying"
-                  class="pip-player-btn"
-                  title="切換到子母畫面"
-                  type="button"
-                >
-                  子母畫面
-                </button>
-                <button @click.stop="closeActivePlayer" class="close-player-btn" title="關閉播放" type="button">✕</button>
-              </div>
-            </div>
-          </div>
-          <div class="shared-video-copy">
-            <p class="shared-video-kicker">影片播放器</p>
-            <h3>{{ currentPlayingVideo.name || '未命名影片' }}</h3>
-            <p>
-              <span v-if="currentPlayingVideo.category">{{ currentPlayingVideo.category }}</span>
-              <span v-if="currentPlayingVideo.category && currentPlayingVideo.filetype">・</span>
-              <span v-if="currentPlayingVideo.filetype">{{ currentPlayingVideo.filetype.toUpperCase() }}</span>
-            </p>
-            <button type="button" class="shared-video-collapse" @click="toggleVideoPlayerCollapsed">
-              {{ isVideoPlayerCollapsed ? '展開' : '收合' }}
-            </button>
-          </div>
-        </section>
-      </Teleport>
-
       <!-- Loading State -->
       <div v-if="loading" class="loading">載入中...</div>
 
@@ -139,10 +110,14 @@
       </div>
 
       <!-- Video Grid -->
-      <div v-if="isAddingInline || filteredVideos.length > 0" class="video-grid" :class="`video-grid--${videoDisplayMode}`">
+      <div
+        v-if="isAddingInline || filteredVideos.length > 0"
+        class="video-grid"
+        :class="[`video-grid--${videoDisplayMode}`, `video-grid--${videoLayoutMode}`]"
+      >
 
         <!-- 行內新增卡片 -->
-        <div v-if="isAddingInline" class="video-card">
+        <div v-if="isAddingInline" class="video-card video-card--editor">
           <div class="inline-edit-form">
             <div class="inline-form-group"><label>名稱 *</label><input v-model="addNewForm.name" type="text" class="inline-input" placeholder="影片名稱" /></div>
             <div class="inline-form-group"><label>分類</label><input v-model="addNewForm.category" type="text" class="inline-input" placeholder="分類" /></div>
@@ -201,7 +176,13 @@
           v-for="video in filteredVideos"
           :key="video.id"
           class="video-card"
-          :class="{ 'is-selected': selectedIds.has(video.id), 'video-card--bilibili': videoDisplayMode === 'bilibili' }"
+          :class="[
+            {
+              'is-selected': selectedIds.has(video.id),
+              'video-card--bilibili': videoDisplayMode === 'bilibili'
+            },
+            getVideoLayoutClass(video.id)
+          ]"
           @click="batchMode && toggleSelection(video.id)"
         >
           <!-- 行內編輯模式 -->
@@ -291,8 +272,24 @@
 
           <!-- YouTube/Bilibili 風格顯示模式 -->
           <template v-else>
+            <!-- 播放模式 -->
+            <div v-if="playingVideoId === video.id && video.file" class="player-wrapper">
+              <video
+                :ref="setActiveVideoRef"
+                :src="getVideoSrc(video)"
+                controls
+                autoplay
+                class="active-player"
+                @play="handleInlineVideoPlay($event, video)"
+                @pause="handleInlineVideoPause($event, video)"
+                @timeupdate="handleInlineVideoProgress($event, video)"
+                @loadedmetadata="handleInlineVideoProgress($event, video)"
+                @volumechange="handleInlineVideoProgress($event, video)"
+              ></video>
+              <button @click.stop="playingVideoId = null" class="close-player-btn" title="關閉播放">✕</button>
+            </div>
             <!-- 縮圖區域 -->
-            <div class="thumbnail-wrapper" @click="handlePlay(video)" @mouseenter="warmThumbnail(video)">
+            <div v-else class="thumbnail-wrapper" @click="handlePlay(video)" @mouseenter="warmThumbnail(video)">
               <input v-if="batchMode" type="checkbox" :checked="selectedIds.has(video.id)" @click.stop="toggleSelection(video.id)" class="batch-checkbox" />
               <template v-if="video.cover">
                 <img :src="video.cover" :alt="video.name" class="thumbnail-img" />
@@ -337,14 +334,6 @@
 
             <!-- 操作列 -->
             <div v-if="!batchMode" class="card-actions-bar">
-              <button
-                v-if="video.file"
-                @click.stop="handlePlay(video)"
-                class="action-btn play-card-btn"
-                :title="playingVideoId === video.id ? '播放中' : '播放影片'"
-              >
-                {{ playingVideoId === video.id ? '⏸️' : '▶️' }}
-              </button>
               <button @click="startInlineEdit(video)" class="action-btn edit-btn" title="編輯">✏️</button>
               <button @click="handleDelete(video)" class="action-btn delete-btn" title="刪除">🗑️</button>
               <template v-if="video.file">
@@ -519,11 +508,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useVideoRecords } from '../../composables/useVideoRecords'
 import { useStorage } from '../../composables/useStorage'
+import { usePersistentVideoPlayer } from '../../composables/usePersistentVideoPlayer'
 
 useHead({
   title: '鋒兄影片 - 鋒兄AI Supabase'
@@ -544,6 +534,12 @@ const {
 const searchQuery = ref('')
 const VIDEO_DISPLAY_MODE_KEY = 'feng-video-display-mode'
 const videoDisplayMode = ref('youtube')
+const videoLayoutMode = ref('hybrid')
+const layoutOptions = [
+  { value: 'hybrid', label: '混合' },
+  { value: 'card', label: '卡片' },
+  { value: 'list', label: '列表' }
+]
 
 // Batch mode state
 const batchMode = ref(false)
@@ -560,6 +556,13 @@ const {
   resolveMultipartFile,
   resolveMultipartPreviewFile
 } = useStorage()
+const {
+  currentVideo: persistentVideoTrack,
+  getSnapshot: snapshotPersistentVideo,
+  takeoverFromElement: takeoverPersistentVideo,
+  restoreToElement: restorePersistentVideo,
+  pauseGlobal: pausePersistentVideo
+} = usePersistentVideoPlayer()
 const coverUploading = ref(false)
 
 // Modal state
@@ -581,24 +584,7 @@ const formData = ref({
 
 // Video player state
 const playingVideoId = ref(null)
-const activePlayerRef = ref(null)
-const isVideoPlayerCollapsed = ref(false)
-const MEDIA_PLAY_EVENT = 'feng-global-media-play'
-const pictureInPictureSupported = computed(() => {
-  return typeof document !== 'undefined' && document.pictureInPictureEnabled
-})
-const currentPlayingVideo = computed(() => {
-  if (playingVideoId.value === null) return null
-  return videos.value.find((video) => video.id === playingVideoId.value) || null
-})
-const currentPlayingVideoSrc = computed(() => {
-  if (!currentPlayingVideo.value?.file) return ''
-  return getVideoSrc(currentPlayingVideo.value)
-})
-const isExpectedMediaAbort = (error) => {
-  const message = String(error?.message || '')
-  return error?.name === 'AbortError' || message.includes('aborted by the user agent')
-}
+const activeVideoElement = ref(null)
 
 // Video caching state
 const videoCache = ref(new Map()) // id -> { blobUrl, size }
@@ -889,6 +875,20 @@ function getVideoSrc(video) {
   return video.file
 }
 
+function setActiveVideoRef(element) {
+  activeVideoElement.value = element || null
+}
+
+function getPersistentVideoMeta(video) {
+  return {
+    id: video.id,
+    name: video.name || '未命名影片',
+    src: getVideoSrc(video),
+    cover: video.cover || '',
+    meta: video.category || video.filetype || ''
+  }
+}
+
 async function getVideoBlobForDownload(video) {
   const cachedRecord = await readPersistedVideoCache(video.id)
   if (cachedRecord?.blob && cachedRecord.fileRef === video.file) {
@@ -960,84 +960,13 @@ async function handlePlay(video) {
     if (!src) {
       throw new Error('影片仍在準備中，請稍後再試')
     }
-    window.dispatchEvent(new CustomEvent(MEDIA_PLAY_EVENT, { detail: { source: 'video', id: video.id } }))
-    playingVideoId.value = video.id
-    await nextTick()
-    try {
-      await activePlayerRef.value?.play?.()
-    } catch (error) {
-      if (!isExpectedMediaAbort(error)) {
-        throw error
-      }
+    if (!persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) {
+      pausePersistentVideo()
     }
+    playingVideoId.value = video.id
   } catch (error) {
-    if (isExpectedMediaAbort(error)) return
     console.error('影片載入失敗:', error)
     alert('影片載入失敗: ' + error.message)
-  }
-}
-
-async function ensureActivePlayerReady(videoEl) {
-  if (!videoEl || videoEl.readyState >= 1) return
-
-  await new Promise((resolve) => {
-    const cleanup = () => {
-      videoEl.removeEventListener('loadedmetadata', cleanup)
-      videoEl.removeEventListener('error', cleanup)
-      resolve()
-    }
-
-    videoEl.addEventListener('loadedmetadata', cleanup, { once: true })
-    videoEl.addEventListener('error', cleanup, { once: true })
-  })
-}
-
-async function enterPictureInPictureIfPlaying() {
-  if (!pictureInPictureSupported.value || playingVideoId.value === null) return false
-
-  await nextTick()
-  const videoEl = activePlayerRef.value
-  if (!videoEl || typeof videoEl.requestPictureInPicture !== 'function') return false
-
-  if (document.pictureInPictureElement === videoEl) return true
-
-  try {
-    await ensureActivePlayerReady(videoEl)
-    await videoEl.play().catch(() => {})
-    await videoEl.requestPictureInPicture()
-    return true
-  } catch (error) {
-    console.warn('子母畫面啟動失敗:', error)
-    return false
-  }
-}
-
-async function closeActivePlayer() {
-  const videoEl = activePlayerRef.value
-
-  if (typeof document !== 'undefined' && document.pictureInPictureElement === videoEl && document.exitPictureInPicture) {
-    try {
-      await document.exitPictureInPicture()
-    } catch (error) {
-      console.warn('關閉子母畫面失敗:', error)
-    }
-  }
-
-  if (videoEl) {
-    videoEl.pause()
-  }
-
-  playingVideoId.value = null
-}
-
-const toggleVideoPlayerCollapsed = () => {
-  isVideoPlayerCollapsed.value = !isVideoPlayerCollapsed.value
-}
-
-const handleExternalMediaPlay = async (event) => {
-  if (event.detail?.source === 'video') return
-  if (playingVideoId.value !== null) {
-    await closeActivePlayer()
   }
 }
 
@@ -1222,6 +1151,14 @@ const filteredVideos = computed(() => {
     video.name?.toLowerCase().includes(query)
   )
 })
+
+function getVideoLayoutClass(videoId) {
+  if (videoLayoutMode.value === 'card') return 'video-card--card'
+  if (videoLayoutMode.value === 'list') return 'video-card--list'
+
+  const index = filteredVideos.value.findIndex((video) => video.id === videoId)
+  return index >= 0 && index < 2 ? 'video-card--card' : 'video-card--list'
+}
 
 const isAllSelected = computed(() => {
   return filteredVideos.value.length > 0 && filteredVideos.value.every(v => selectedIds.value.has(v.id))
@@ -1777,23 +1714,20 @@ onMounted(() => {
     await loadVideos()
     await hydratePersistedVideoCache()
   })()
-  if (typeof window !== 'undefined') {
-    window.addEventListener(MEDIA_PLAY_EVENT, handleExternalMediaPlay)
-  }
 })
 
 watch(videos, async () => {
   await hydratePersistedVideoCache()
-
-  if (playingVideoId.value !== null && !videos.value.some(video => video.id === playingVideoId.value)) {
-    await closeActivePlayer()
-  }
 })
 
 onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener(MEDIA_PLAY_EVENT, handleExternalMediaPlay)
+  if (activeVideoElement.value && playingVideoId.value) {
+    const activeVideo = videos.value.find((video) => video.id === playingVideoId.value)
+    if (activeVideo) {
+      takeoverPersistentVideo(activeVideoElement.value, getPersistentVideoMeta(activeVideo))
+    }
   }
+
   for (const [, cached] of videoCache.value) {
     URL.revokeObjectURL(cached.blobUrl)
   }
@@ -1806,10 +1740,6 @@ onBeforeUnmount(() => {
   setPreviewSrc(formVideoPreviewSrc, '')
   setPreviewSrc(addVideoPreviewSrc, '')
   setPreviewSrc(inlineVideoPreviewSrc, '')
-})
-
-defineExpose({
-  enterPictureInPictureIfPlaying
 })
 </script>
 
@@ -2007,6 +1937,18 @@ defineExpose({
   gap: 1.25rem;
 }
 
+.video-grid--card {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.video-grid--list {
+  grid-template-columns: 1fr;
+}
+
+.video-grid--hybrid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
 .video-grid--bilibili {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem 1.1rem;
@@ -2029,6 +1971,29 @@ defineExpose({
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
+.video-card--editor {
+  grid-column: 1 / -1;
+}
+
+.video-card--card {
+  min-height: 100%;
+}
+
+.video-grid--hybrid .video-card--card:nth-of-type(1),
+.video-grid--hybrid .video-card--card:nth-of-type(2) {
+  grid-column: span 6;
+}
+
+.video-grid--hybrid .video-card--list {
+  grid-column: 1 / -1;
+}
+
+.video-card--list {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  align-items: stretch;
+}
+
 .video-card--bilibili {
   border-radius: 16px;
   background: linear-gradient(180deg, #ffffff 0%, #fff7fb 100%);
@@ -2038,6 +2003,23 @@ defineExpose({
 .video-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+
+.video-card--list .thumbnail-wrapper,
+.video-card--list .player-wrapper {
+  height: 100%;
+  min-height: 210px;
+}
+
+.video-card--list .video-meta,
+.video-card--list .card-actions-bar {
+  grid-column: 2;
+}
+
+.video-card--list .card-actions-bar {
+  opacity: 1;
+  transform: none;
+  padding-top: 0;
 }
 
 /* ── Thumbnail Area ── */
@@ -2530,6 +2512,34 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.layout-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
+}
+
+.layout-switch-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: all var(--transition-fast);
+}
+
+.layout-switch-btn.active {
+  background: var(--surface-strong);
+  color: var(--text-inverse);
 }
 
 .selected-count {
@@ -2811,50 +2821,23 @@ defineExpose({
   max-height: 300px;
 }
 
-.player-actions {
+.close-player-btn {
   position: absolute;
   top: 8px;
   right: 8px;
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  z-index: 2;
-}
-
-.pip-player-btn,
-.close-player-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.pip-player-btn {
-  min-width: 92px;
-  height: 32px;
-  padding: 0 0.8rem;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.88);
-  color: white;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.pip-player-btn:hover {
-  background: rgba(29, 78, 216, 0.96);
-  transform: translateY(-1px);
-}
-
-.close-player-btn {
   width: 28px;
   height: 28px;
   background: rgba(0, 0, 0, 0.65);
   color: white;
+  border: none;
   border-radius: 50%;
   font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 2;
 }
 
 .close-player-btn:hover {
@@ -2862,83 +2845,39 @@ defineExpose({
   transform: scale(1.1);
 }
 
-.shared-video-panel {
-  position: fixed;
-  right: 1.25rem;
-  bottom: 5rem;
-  z-index: 1200;
-  display: grid;
-  gap: 0.9rem;
-  width: min(460px, calc(100vw - 2rem));
-  padding: 1rem;
-  border-radius: 20px;
-  border: 1px solid rgba(99, 102, 241, 0.18);
-  background: linear-gradient(135deg, rgba(239, 246, 255, 0.96) 0%, rgba(245, 243, 255, 0.98) 100%);
-  box-shadow: 0 16px 32px rgba(59, 130, 246, 0.12);
-  backdrop-filter: blur(12px);
+@media (max-width: 960px) {
+  .video-grid--hybrid {
+    grid-template-columns: 1fr;
+  }
+
+  .video-grid--hybrid .video-card--card,
+  .video-grid--hybrid .video-card--list {
+    grid-column: 1 / -1;
+  }
 }
 
-.shared-video-stage {
-  position: relative;
-  width: 100%;
-  background: #000;
-  border-radius: 16px;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-}
+@media (max-width: 760px) {
+  .summary-right,
+  .csv-actions {
+    width: 100%;
+  }
 
-.shared-video-copy {
-  min-width: 0;
-}
+  .layout-switcher {
+    width: 100%;
+    justify-content: space-between;
+  }
 
-.shared-video-kicker {
-  margin: 0 0 0.2rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #2563eb;
-}
+  .layout-switch-btn {
+    flex: 1;
+  }
 
-.shared-video-copy h3 {
-  margin: 0;
-  font-size: 1.05rem;
-  color: #111827;
-}
+  .video-card--list {
+    grid-template-columns: 1fr;
+  }
 
-.shared-video-copy p {
-  margin: 0.2rem 0 0;
-  color: #6b7280;
-  font-size: 0.9rem;
-}
-
-.shared-video-collapse {
-  margin-top: 0.6rem;
-  align-self: flex-start;
-  border: none;
-  border-radius: 999px;
-  padding: 0.4rem 0.8rem;
-  background: rgba(37, 99, 235, 0.12);
-  color: #1d4ed8;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.play-card-btn {
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
-  color: white;
-}
-
-.play-card-btn:hover {
-  filter: brightness(1.05);
-}
-
-@media (max-width: 768px) {
-  .shared-video-panel {
-    right: 0.75rem;
-    bottom: 4.5rem;
-    width: calc(100vw - 1.5rem);
+  .video-card--list .video-meta,
+  .video-card--list .card-actions-bar {
+    grid-column: 1;
   }
 }
 </style>

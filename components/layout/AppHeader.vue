@@ -65,15 +65,6 @@
       <slot name="actions" />
 
       <button
-        @click="refreshPage"
-        class="refresh-btn"
-        title="重新整理目前頁面"
-        type="button"
-      >
-        <span class="refresh-icon">Refresh</span>
-      </button>
-
-      <button
         @click="$emit('toggleDarkMode')"
         class="dark-mode-toggle"
         :title="isDarkMode ? '切換為淺色模式' : '切換為深色模式'"
@@ -120,10 +111,6 @@ const handleUseEnv = () => {
   window.location.reload()
 }
 
-const refreshPage = () => {
-  window.location.reload()
-}
-
 const goToSettings = () => {
   showDropdown.value = false
   router.push('/?page=settings')
@@ -148,14 +135,13 @@ onUnmounted(() => {
 <style scoped>
 .top-header {
   position: sticky;
-  top: 0;
+  top: 0.75rem;
   z-index: var(--z-sticky);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
   gap: 1rem;
-  padding: clamp(1rem, 0.85rem + 0.55vw, 1.2rem) clamp(1rem, 0.7rem + 1vw, 1.4rem) clamp(0.95rem, 0.8rem + 0.45vw, 1.1rem);
+  padding: 1.2rem 1.4rem 1.1rem;
   margin-bottom: 1rem;
   background: color-mix(in oklab, var(--header-bg) 86%, transparent);
   backdrop-filter: blur(18px);
@@ -169,21 +155,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.9rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .header-left {
   min-width: 0;
-  flex: 1 1 420px;
 }
 
 .title-block {
-  min-width: 0;
-}
-
-.header-right {
-  flex: 1 1 420px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
   min-width: 0;
 }
 
@@ -210,7 +190,6 @@ onUnmounted(() => {
 }
 
 .mobile-menu-btn,
-.refresh-btn,
 .dark-mode-toggle,
 .account-btn,
 .signal-card {
@@ -220,7 +199,6 @@ onUnmounted(() => {
 }
 
 .mobile-menu-btn,
-.refresh-btn,
 .dark-mode-toggle,
 .account-btn {
   border-radius: 999px;
@@ -228,7 +206,6 @@ onUnmounted(() => {
 }
 
 .mobile-menu-btn,
-.refresh-btn,
 .dark-mode-toggle {
   padding: 0.8rem 1rem;
   cursor: pointer;
@@ -236,7 +213,6 @@ onUnmounted(() => {
 }
 
 .mobile-menu-btn:hover,
-.refresh-btn:hover,
 .dark-mode-toggle:hover,
 .account-btn:hover {
   transform: translateY(-1px);
@@ -248,7 +224,6 @@ onUnmounted(() => {
   gap: 0.1rem;
   padding: 0.7rem 0.9rem;
   border-radius: 20px;
-  flex: 0 1 280px;
 }
 
 .signal-label {
@@ -264,7 +239,6 @@ onUnmounted(() => {
 
 .account-switcher {
   position: relative;
-  min-width: 0;
 }
 
 .account-btn {
@@ -274,7 +248,6 @@ onUnmounted(() => {
   padding: 0.65rem 0.85rem;
   cursor: pointer;
   transition: transform var(--transition-fast), background var(--transition-fast);
-  max-width: 100%;
 }
 
 .account-chip,
@@ -293,7 +266,7 @@ onUnmounted(() => {
 }
 
 .account-name {
-  max-width: clamp(120px, 14vw, 180px);
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -368,42 +341,34 @@ onUnmounted(() => {
   letter-spacing: 0.08em;
 }
 
-.refresh-icon {
-  font-family: var(--font-display);
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-}
-
-@media (max-width: 1440px) {
-  .top-header {
-    gap: 0.85rem;
-  }
-
-  .top-header h1 {
-    font-size: clamp(1.45rem, 1.2rem + 1vw, 2.3rem);
-  }
-
-  .header-subtitle {
-    font-size: 0.88rem;
-    max-width: 38ch;
-  }
-
-  .signal-card {
-    flex-basis: 240px;
-    padding: 0.62rem 0.8rem;
-  }
-
-  .account-btn,
-  .refresh-btn,
-  .mobile-menu-btn,
-  .dark-mode-toggle {
-    padding: 0.7rem 0.85rem;
-  }
-}
-
 @media (max-width: 1120px) {
   .signal-card {
     display: none;
+  }
+
+  .top-header {
+    padding: 1rem 1.1rem;
+  }
+
+  .header-right {
+    gap: 0.7rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .top-header {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .header-left,
+  .header-right {
+    width: 100%;
+  }
+
+  .header-right {
+    justify-content: space-between;
   }
 }
 
@@ -411,12 +376,9 @@ onUnmounted(() => {
   .top-header {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .header-left,
-  .header-right {
-    flex: 0 0 auto;
-    width: 100%;
+    top: 0.5rem;
+    padding: 0.95rem;
+    border-radius: 24px;
   }
 
   .header-left {
@@ -424,18 +386,65 @@ onUnmounted(() => {
   }
 
   .header-right {
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .title-kicker {
+    font-size: 0.68rem;
+  }
+
+  .header-subtitle {
+    font-size: 0.88rem;
+    max-width: none;
+  }
+
+  .mobile-menu-btn,
+  .dark-mode-toggle {
+    min-height: 46px;
+  }
+
+  .account-btn {
+    width: 100%;
+    min-height: 46px;
+    justify-content: space-between;
+  }
+
+  .account-switcher {
+    grid-column: 1 / -1;
+  }
+
+  .account-dropdown {
+    left: 0;
+    right: 0;
+    min-width: 0;
   }
 
   .account-name {
-    max-width: 120px;
+    max-width: 100%;
   }
 }
 
 @media (min-width: 1200px) {
   .mobile-menu-btn {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-header h1 {
+    font-size: clamp(1.5rem, 1.2rem + 2vw, 1.95rem);
+  }
+
+  .header-right {
+    grid-template-columns: 1fr;
+  }
+
+  .dark-mode-toggle {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

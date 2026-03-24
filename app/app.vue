@@ -8,7 +8,7 @@
         :current-page="currentPage"
         :pages="pages"
         @toggle="toggleSidebar"
-        @navigate="navigateToPage"
+        @navigate="setCurrentPage"
       />
 
       <!-- 主要內容區 -->
@@ -30,7 +30,7 @@
             :subscriptions-count="subscriptionsCount"
             :foods-count="foodsCount"
             :total-monthly-cost="totalMonthlyCost"
-            @navigate="navigateToPage"
+            @navigate="setCurrentPage"
           />
 
           <!-- 訂閱管理 -->
@@ -52,13 +52,12 @@
 
           <!-- 影片管理 -->
           <VideoDBPage
-            ref="videoPageRef"
-            v-show="currentPage === 'video'"
+            v-if="currentPage === 'video'"
           />
 
           <!-- 音樂管理 -->
           <MusicDBPage
-            v-show="currentPage === 'music'"
+            v-if="currentPage === 'music'"
           />
 
           <!-- 文件管理 -->
@@ -68,7 +67,7 @@
 
           <!-- 播客管理 -->
           <PodcastPage
-            v-show="currentPage === 'podcast'"
+            v-if="currentPage === 'podcast'"
           />
 
           <!-- 例行事務 -->
@@ -104,7 +103,7 @@
           <!-- 鋒兄首頁 -->
           <HomePage
             v-if="currentPage === 'home'"
-            @navigate="navigateToPage"
+            @navigate="setCurrentPage"
           />
 
           <PageContainer
@@ -151,6 +150,100 @@
     </div>
 
     <!-- Toast 通知容器 -->
+    <div v-if="persistentAudioTrack" class="persistent-audio-bar">
+      <div class="persistent-audio-copy">
+        <p class="persistent-audio-kicker">Now Playing</p>
+        <strong>{{ persistentAudioTrack.name }}</strong>
+        <span>{{ persistentAudioTrack.meta || '鋒兄音樂' }}</span>
+      </div>
+
+      <div class="persistent-audio-controls">
+        <button
+          type="button"
+          class="persistent-audio-btn"
+          @click="persistentAudioPlaying ? pauseGlobal() : resumeGlobal()"
+        >
+          {{ persistentAudioPlaying ? 'Pause' : 'Play' }}
+        </button>
+
+        <label class="persistent-audio-range">
+          <span>{{ formatAudioTime(persistentAudioTime) }}</span>
+          <input
+            type="range"
+            min="0"
+            :max="Math.max(persistentAudioDuration, 1)"
+            :value="persistentAudioTime"
+            @input="seekGlobal($event.target.value)"
+          />
+          <span>{{ formatAudioTime(persistentAudioDuration) }}</span>
+        </label>
+
+        <label class="persistent-audio-volume">
+          <span>Vol</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            :value="persistentAudioVolume"
+            @input="setGlobalVolume($event.target.value)"
+          />
+        </label>
+
+        <button type="button" class="persistent-audio-btn persistent-audio-btn-close" @click="stopGlobal()">
+          Close
+        </button>
+      </div>
+    </div>
+
+    <div v-if="persistentVideoTrack" class="persistent-video-bar">
+      <video class="persistent-video-preview" :src="persistentVideoTrack.src" autoplay muted playsinline></video>
+
+      <div class="persistent-video-copy">
+        <p class="persistent-audio-kicker">Now Watching</p>
+        <strong>{{ persistentVideoTrack.name }}</strong>
+        <span>{{ persistentVideoTrack.meta || '鋒兄影片' }}</span>
+      </div>
+
+      <div class="persistent-video-controls">
+        <button
+          type="button"
+          class="persistent-audio-btn"
+          @click="persistentVideoPlaying ? pausePersistentVideo() : resumePersistentVideo()"
+        >
+          {{ persistentVideoPlaying ? 'Pause' : 'Play' }}
+        </button>
+
+        <label class="persistent-audio-range">
+          <span>{{ formatAudioTime(persistentVideoTime) }}</span>
+          <input
+            type="range"
+            min="0"
+            :max="Math.max(persistentVideoDuration, 1)"
+            :value="persistentVideoTime"
+            @input="seekPersistentVideo($event.target.value)"
+          />
+          <span>{{ formatAudioTime(persistentVideoDuration) }}</span>
+        </label>
+
+        <label class="persistent-audio-volume">
+          <span>Vol</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            :value="persistentVideoVolume"
+            @input="setPersistentVideoVolume($event.target.value)"
+          />
+        </label>
+
+        <button type="button" class="persistent-audio-btn persistent-audio-btn-close" @click="stopPersistentVideo()">
+          Close
+        </button>
+      </div>
+    </div>
+
     <ToastContainer />
 
     <!-- 開發模式下的滾動狀態指示器 -->
@@ -195,12 +288,13 @@ import { useScroll } from '../composables/useScroll'
 import { useToast } from '../composables/useToast'
 import { getSupabaseCredentials } from '../composables/useSettings'
 import { usePushNotification } from '../composables/usePushNotification'
+import { usePersistentAudioPlayer } from '../composables/usePersistentAudioPlayer'
+import { usePersistentVideoPlayer } from '../composables/usePersistentVideoPlayer'
 
 // 組件引用
 const subscriptionPageRef = ref(null)
 const foodPageRef = ref(null)
 const bankPageRef = ref(null)
-const videoPageRef = ref(null)
 
 // 使用 composables
 const { subscriptions, totalMonthlyCost, loadSubscriptions, getUpcomingSubscriptions } = useSubscriptions()
@@ -228,6 +322,30 @@ const {
   setupScrollListener, 
   removeScrollListener 
 } = useScroll()
+const {
+  currentTrack: persistentAudioTrack,
+  isPlaying: persistentAudioPlaying,
+  currentTime: persistentAudioTime,
+  duration: persistentAudioDuration,
+  volume: persistentAudioVolume,
+  resumeGlobal,
+  pauseGlobal,
+  stopGlobal,
+  seekGlobal,
+  setGlobalVolume
+} = usePersistentAudioPlayer()
+const {
+  currentVideo: persistentVideoTrack,
+  isPlaying: persistentVideoPlaying,
+  currentTime: persistentVideoTime,
+  duration: persistentVideoDuration,
+  volume: persistentVideoVolume,
+  resumeGlobal: resumePersistentVideo,
+  pauseGlobal: pausePersistentVideo,
+  stopGlobal: stopPersistentVideo,
+  seekGlobal: seekPersistentVideo,
+  setGlobalVolume: setPersistentVideoVolume
+} = usePersistentVideoPlayer()
 
 // 計算屬性
 const subscriptionsCount = computed(() => subscriptions.value.length)
@@ -236,6 +354,12 @@ const isDevelopment = computed(() => false) // 設為 true 以啟用滾動調試
 const placeholderPages = {}
 const placeholderConfig = computed(() => placeholderPages[currentPage.value] || null)
 const SUPABASE_URL_WARNING_KEY = 'feng-supabase-url-warning'
+const formatAudioTime = (seconds) => {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0))
+  const mins = Math.floor(total / 60)
+  const secs = total % 60
+  return `${mins}:${String(secs).padStart(2, '0')}`
+}
 
 const getSupabaseUrlValidationMessage = (rawUrl) => {
   const value = String(rawUrl || '').trim()
@@ -244,16 +368,6 @@ const getSupabaseUrlValidationMessage = (rawUrl) => {
     return 'Supabase URL 拼字錯誤：目前是 supabse.co，正確應為 supabase.co。請到設定頁修正後再重新整理。'
   }
   return ''
-}
-
-const navigateToPage = async (pageId) => {
-  if (!pageId || pageId === currentPage.value) return
-
-  if (currentPage.value === 'video' && pageId !== 'video') {
-    await videoPageRef.value?.enterPictureInPictureIfPlaying?.()
-  }
-
-  setCurrentPage(pageId)
 }
 
 // 生命週期
@@ -424,9 +538,12 @@ onUnmounted(() => {
 
 .app-container {
   display: flex;
+  align-items: flex-start;
   min-height: 100vh;
-  gap: clamp(0.7rem, 0.55rem + 0.55vw, 1rem);
-  padding: clamp(0.7rem, 0.55rem + 0.55vw, 1rem);
+  width: min(1720px, 100%);
+  margin: 0 auto;
+  gap: clamp(0.75rem, 1vw, 1.25rem);
+  padding: clamp(0.65rem, 1vw, 1rem);
 }
 
 .main-content {
@@ -435,18 +552,20 @@ onUnmounted(() => {
   width: 100%;
   display: flex;
   flex-direction: column;
+  gap: 0.35rem;
   transition: margin-left var(--transition-normal);
+  min-height: 100vh;
 }
 
 .page-content {
   flex: 1;
   width: 100%;
-  padding: clamp(0.75rem, 0.6rem + 0.5vw, 1rem) clamp(0.85rem, 0.5rem + 1vw, 1.25rem) 1.5rem;
-  overflow-y: auto;
+  padding: 0.6rem 0.35rem 1.75rem;
+  overflow: visible;
   background: transparent;
   transition: all var(--transition-normal);
-  min-height: calc(100vh - 2rem);
-  max-height: calc(100vh - 2rem);
+  min-height: auto;
+  max-height: none;
 }
 
 /* 手機版遮罩層 */
@@ -461,43 +580,108 @@ onUnmounted(() => {
 /* 響應式設計 */
 @media (min-width: 1200px) {
   .main-content { margin-left: 0; }
-  .page-content { padding: 1rem 1.5rem 1.5rem; }
-}
-
-@media (max-width: 1500px) {
-  .page-content {
-    padding: 0.8rem 1rem 1.4rem;
-  }
+  .page-content { padding: 0.65rem 0.45rem 1.75rem; }
 }
 
 @media (min-width: 769px) and (max-width: 1199px) {
   .main-content { margin-left: 0; }
-  .page-content { padding: 1rem 1.25rem 1.5rem; }
+  .app-container {
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+  .page-content { padding: 0.4rem 0.2rem 8rem; }
+  .scroll-buttons { bottom: 9rem; }
+  .persistent-audio-bar,
+  .persistent-video-bar {
+    width: calc(100vw - 1.5rem);
+    border-radius: 22px;
+  }
+  .persistent-audio-bar {
+    grid-template-columns: 1fr;
+  }
+  .persistent-audio-controls,
+  .persistent-video-controls {
+    flex-wrap: wrap;
+  }
+  .persistent-video-bar {
+    grid-template-columns: 140px 1fr;
+    bottom: 8rem;
+  }
 }
 
 @media (max-width: 768px) {
   .mobile-overlay { display: block; }
-  .app-container { padding: 0.75rem; }
+  .app-container {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+  }
   .page-content {
-    padding: 0.75rem 0 1.25rem;
-    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    padding: 0.2rem 0 10rem;
+    padding-bottom: calc(10rem + env(safe-area-inset-bottom));
     min-height: auto;
     max-height: none;
-    overflow-y: visible;
+    overflow: visible;
   }
   .main-content {
-    overflow-y: auto;
-    height: 100vh;
-    height: 100dvh;
+    overflow: visible;
+    height: auto;
+    min-height: auto;
+  }
+  .scroll-buttons {
+    right: 0.85rem;
+    bottom: calc(9rem + env(safe-area-inset-bottom));
+  }
+  .persistent-audio-bar,
+  .persistent-video-bar {
+    left: 0.5rem;
+    right: 0.5rem;
+    transform: none;
+    width: auto;
+    border-radius: 20px;
+  }
+  .persistent-audio-bar {
+    bottom: calc(0.6rem + env(safe-area-inset-bottom));
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    padding: 0.85rem;
+  }
+  .persistent-audio-controls,
+  .persistent-video-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+  .persistent-audio-range,
+  .persistent-audio-volume {
+    grid-column: 1 / -1;
+  }
+  .persistent-video-bar {
+    bottom: calc(11.7rem + env(safe-area-inset-bottom));
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    padding: 0.85rem;
+  }
+  .persistent-video-preview {
+    max-height: 140px;
   }
 }
 
 @media (max-width: 480px) {
   .page-content {
-    padding: 0.5rem 0 1rem;
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    padding: 0.15rem 0 11rem;
+    padding-bottom: calc(11rem + env(safe-area-inset-bottom));
     min-height: auto;
     max-height: none;
+  }
+  .persistent-audio-copy strong,
+  .persistent-video-copy strong {
+    font-size: 0.95rem;
+  }
+  .persistent-audio-copy span,
+  .persistent-video-copy span {
+    font-size: 0.82rem;
   }
 }
 
@@ -510,11 +694,154 @@ onUnmounted(() => {
 .scroll-buttons {
   position: fixed;
   right: 2rem;
-  bottom: 2rem;
+  bottom: 7.5rem;
   z-index: var(--z-fixed);
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.persistent-audio-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  width: min(1120px, calc(100vw - 2rem));
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  background: color-mix(in oklab, var(--bg-secondary) 90%, transparent);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
+  z-index: calc(var(--z-fixed) + 1);
+}
+
+.persistent-audio-copy {
+  min-width: 0;
+}
+
+.persistent-audio-kicker {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+
+.persistent-audio-copy strong,
+.persistent-audio-copy span {
+  display: block;
+}
+
+.persistent-audio-copy strong {
+  margin-top: 0.18rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.persistent-audio-copy span {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.persistent-audio-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.persistent-audio-btn {
+  border: 1px solid var(--border-color);
+  background: color-mix(in oklab, var(--bg-secondary) 88%, transparent);
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 0.72rem 1rem;
+  cursor: pointer;
+}
+
+.persistent-audio-btn-close {
+  color: var(--danger);
+}
+
+.persistent-audio-range,
+.persistent-audio-volume {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.persistent-audio-range {
+  flex: 1;
+}
+
+.persistent-audio-range input,
+.persistent-audio-volume input {
+  width: 100%;
+  min-width: 0;
+}
+
+.persistent-video-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 7.25rem;
+  transform: translateX(-50%);
+  width: min(1120px, calc(100vw - 2rem));
+  display: grid;
+  grid-template-columns: 180px minmax(180px, 240px) 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  background: color-mix(in oklab, var(--bg-secondary) 90%, transparent);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
+  z-index: calc(var(--z-fixed) + 1);
+}
+
+.persistent-video-preview {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  object-fit: cover;
+  background: #000;
+}
+
+.persistent-video-copy {
+  min-width: 0;
+}
+
+.persistent-video-copy strong,
+.persistent-video-copy span {
+  display: block;
+}
+
+.persistent-video-copy strong {
+  margin-top: 0.18rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.persistent-video-copy span {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.persistent-video-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 .scroll-btn {
@@ -562,14 +889,16 @@ onUnmounted(() => {
 
 /* 響應式調整 */
 @media (max-width: 768px) {
-  .scroll-buttons { right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom)); }
   .scroll-btn { width: 45px; height: 45px; font-size: 1.1rem; }
   .mobile-overlay ~ .scroll-buttons { display: none; }
 }
 
 @media (max-width: 480px) {
-  .scroll-buttons { right: 0.5rem; bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
   .scroll-btn { width: 40px; height: 40px; font-size: 1rem; }
+  .persistent-audio-controls,
+  .persistent-video-controls {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
 

@@ -94,6 +94,13 @@ defineProps({
   .page-title {
     font-size: 1.5rem;
   }
+
+  .page-actions {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -102,8 +109,7 @@ defineProps({
   }
   
   .page-actions {
-    width: 100%;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 }
 </style>

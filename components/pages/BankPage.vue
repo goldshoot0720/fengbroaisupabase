@@ -1488,4 +1488,102 @@ useHead({
 .btn-batch-delete { padding: 0.5rem 1rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
 .btn-batch-delete:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4); }
 .btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 768px) {
+  .actions-bar {
+    margin-bottom: 1rem;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .total-assets-card {
+    width: 100%;
+    padding: 0.85rem 1rem;
+  }
+
+  .total-assets-card .amount {
+    font-size: 1.25rem;
+  }
+
+  .csv-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .btn-csv {
+    width: 100%;
+    min-height: 40px;
+    justify-content: center;
+  }
+
+  .summary-bar {
+    padding: 0.8rem 0.9rem;
+    margin-bottom: 1rem;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .summary-left,
+  .summary-right {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+  }
+
+  .summary-right {
+    justify-content: flex-start;
+  }
+
+  .btn-batch-mode,
+  .btn-transaction,
+  .btn-add-account,
+  .btn-cancel-batch,
+  .btn-batch-delete {
+    min-height: 40px;
+  }
+
+  .bank-card {
+    padding: 1rem;
+  }
+
+  .bank-header {
+    gap: 0.75rem;
+  }
+
+  .bank-name {
+    font-size: 1.15rem;
+  }
+
+  .info-row,
+  .info-details {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .csv-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-left,
+  .summary-right {
+    gap: 0.55rem;
+  }
+
+  .btn-batch-mode,
+  .btn-transaction,
+  .btn-add-account,
+  .btn-cancel-batch,
+  .btn-batch-delete {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .select-all-label {
+    width: 100%;
+  }
+}
 </style>

@@ -172,9 +172,9 @@
 
               <!-- 顯示模式 -->
               <tr v-else>
-                <td class="td-name">{{ routine.name }}</td>
-                <td class="td-note">{{ routine.note || '' }}</td>
-                <td class="td-photo">
+                <td class="td-name" data-label="名稱">{{ routine.name }}</td>
+                <td class="td-note" data-label="備註">{{ routine.note || '' }}</td>
+                <td class="td-photo" data-label="圖片">
                   <img
                     v-if="routine.photo"
                     :src="routine.photo"
@@ -183,15 +183,15 @@
                     @click="previewImage = routine.photo"
                   />
                 </td>
-                <td class="td-date">{{ formatDate(routine.lastdate1) }}</td>
-                <td class="td-date">{{ formatDate(routine.lastdate2) }}</td>
-                <td class="td-days">
+                <td class="td-date" data-label="最近例行之一">{{ formatDate(routine.lastdate1) }}</td>
+                <td class="td-date" data-label="最近例行之二">{{ formatDate(routine.lastdate2) }}</td>
+                <td class="td-days" data-label="相距天數">
                   <span v-if="getDaysBetween(routine.lastdate1, routine.lastdate2) !== null" class="days-badge">
                     {{ getDaysBetween(routine.lastdate1, routine.lastdate2) }} 天
                   </span>
                 </td>
-                <td class="td-date">{{ formatDate(routine.lastdate3) }}</td>
-                <td class="td-actions">
+                <td class="td-date" data-label="最近例行之三">{{ formatDate(routine.lastdate3) }}</td>
+                <td class="td-actions" data-label="操作">
                   <button @click="handleShiftDates(routine)" class="btn-shift" title="日期遞移">&rarr;</button>
                   <button @click="startInlineEdit(routine)" class="btn-edit">編輯</button>
                   <button @click="handleDelete(routine.id)" class="btn-delete">刪除</button>
@@ -1059,7 +1059,8 @@ onMounted(() => {
   background: white;
   border-radius: 12px;
   overflow: hidden;
-  min-width: 900px;
+  min-width: 760px;
+  table-layout: fixed;
 }
 
 .routine-table thead {
@@ -1097,18 +1098,21 @@ onMounted(() => {
 
 .td-name {
   font-weight: 600;
+  width: 12%;
   min-width: 100px;
 }
 
 .td-note {
-  max-width: 200px;
+  width: 22%;
+  max-width: 260px;
   white-space: pre-wrap;
   word-break: break-word;
   color: #666;
 }
 
 .td-photo {
-  width: 60px;
+  width: 9%;
+  min-width: 72px;
 }
 
 .table-photo {
@@ -1126,11 +1130,13 @@ onMounted(() => {
 }
 
 .td-date {
+  width: 11%;
   white-space: nowrap;
   font-size: 0.9rem;
 }
 
 .td-days {
+  width: 10%;
   text-align: center;
 }
 
@@ -1147,6 +1153,7 @@ onMounted(() => {
 
 .td-actions {
   white-space: nowrap;
+  width: 13%;
 }
 
 /* Lightbox */
@@ -1431,6 +1438,7 @@ onMounted(() => {
 
 .summary-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(46, 204, 113, 0.08) 100%); border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.95rem; color: #555; flex-wrap: wrap; gap: 0.5rem; }
 .summary-left, .summary-right { display: flex; align-items: center; gap: 1rem; }
+.summary-right { flex-wrap: wrap; justify-content: flex-end; }
 .select-all-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500; }
 .select-all-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
 .selected-count { background: #3498db; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
@@ -1443,5 +1451,102 @@ onMounted(() => {
 .btn-batch-delete { padding: 0.5rem 1rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
 .btn-batch-delete:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4); }
 .btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 1400px) {
+  .routine-table {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .routine-table thead {
+    display: none;
+  }
+
+  .routine-table,
+  .routine-table tbody,
+  .routine-table tr,
+  .routine-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .routine-table tbody tr {
+    margin-bottom: 1rem;
+    border: 1px solid #eceff5;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+  }
+
+  .routine-table td {
+    display: grid;
+    grid-template-columns: minmax(108px, 148px) minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .routine-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .routine-table td::before {
+    content: attr(data-label);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #64748b;
+  }
+
+  .td-name,
+  .td-note,
+  .td-photo,
+  .td-date,
+  .td-days,
+  .td-actions {
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .td-photo {
+    align-items: center;
+  }
+
+  .td-photo:empty::after {
+    content: '—';
+    color: #94a3b8;
+  }
+
+  .td-days {
+    text-align: left;
+  }
+
+  .td-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .td-actions::before {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .routine-table td {
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+
+  .summary-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
 
 </style>

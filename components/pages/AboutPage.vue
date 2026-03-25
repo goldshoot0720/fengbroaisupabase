@@ -345,6 +345,12 @@ useHead({
   background-clip: text;
 }
 .stat-label { font-size: 0.85rem; color: #718096; font-weight: 500; }
+.stats-note {
+  margin: -0.5rem 0 1.25rem;
+  color: #718096;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
 
 .tech-stack { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 .tech-badge {

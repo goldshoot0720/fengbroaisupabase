@@ -1178,22 +1178,216 @@ defineExpose({ foods, expiringFoods })
 
 /* Responsive */
 @media (max-width: 768px) {
+  .actions-bar {
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    align-items: stretch;
+  }
+
+  .search-input {
+    min-width: 0;
+    width: 100%;
+    padding: 0.8rem 0.9rem;
+    font-size: 0.95rem;
+  }
+
+  .csv-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .btn-export,
+  .btn-import {
+    width: 100%;
+    padding: 0.8rem 0.95rem;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+
+  .summary-bar {
+    padding: 0.8rem 0.9rem;
+    margin-bottom: 1rem;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .summary-left,
+  .summary-right {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+  }
+
+  .summary-right {
+    justify-content: flex-start;
+  }
+
+  .btn-batch-mode,
+  .btn-cancel-batch,
+  .btn-batch-delete {
+    min-height: 40px;
+  }
+
+  .btn-add-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.35rem;
+  }
+
+  .selected-count,
+  .expiry-warning {
+    font-size: 0.82rem;
+  }
+
   .food-table-container {
     font-size: 0.85rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
   }
 
-  .food-table th,
+  .food-table,
+  .food-table tbody,
+  .food-table tr,
   .food-table td {
-    padding: 0.625rem 0.5rem;
+    display: block;
   }
 
-  .col-name {
-    min-width: 120px;
-  }
-
-  .col-price,
-  .food-shop {
+  .food-table thead {
     display: none;
+  }
+
+  .food-table tbody {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .food-table tbody tr {
+    background: #fff;
+    border: 1px solid #e8edf3;
+    border-radius: 18px;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+    padding: 0.85rem 0.9rem;
+  }
+
+  .food-table tbody tr.add-row {
+    border-left: 1px solid #28a745;
+  }
+
+  .food-table td {
+    padding: 0;
+    border-bottom: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .food-table td + td {
+    margin-top: 0.75rem;
+  }
+
+  .food-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #7a8796;
+  }
+
+  .col-checkbox {
+    text-align: left;
+  }
+
+  .col-name,
+  .col-date,
+  .col-amount,
+  .col-price,
+  .col-photo,
+  .col-photo-edit,
+  .col-actions {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .name-cell {
+    gap: 0.2rem;
+  }
+
+  .food-name {
+    font-size: 1rem;
+  }
+
+  .col-date span,
+  .col-amount span,
+  .col-price span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.5rem;
+  }
+
+  .col-photo {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .table-photo,
+  .mini-photo {
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
+  }
+
+  .col-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .col-actions .btn-icon {
+    margin: 0;
+    width: 40px;
+    height: 40px;
+  }
+
+  .inline-number,
+  .inline-date {
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .csv-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-left,
+  .summary-right {
+    gap: 0.55rem;
+  }
+
+  .btn-batch-mode,
+  .btn-cancel-batch,
+  .btn-batch-delete {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .select-all-label {
+    width: 100%;
+  }
+
+  .food-table tbody tr {
+    padding: 0.8rem;
+    border-radius: 16px;
   }
 }
 </style>

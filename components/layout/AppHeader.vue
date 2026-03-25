@@ -374,41 +374,51 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .top-header {
+    position: relative;
     flex-direction: column;
     align-items: stretch;
-    top: 0.5rem;
-    padding: 0.95rem;
+    top: 0;
+    padding: 0.8rem 0.9rem;
+    margin-bottom: 0.65rem;
     border-radius: 24px;
   }
 
   .header-left {
     align-items: flex-start;
+    gap: 0.7rem;
   }
 
   .header-right {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.55rem;
   }
 
   .title-kicker {
-    font-size: 0.68rem;
+    display: none;
+  }
+
+  .top-header h1 {
+    font-size: clamp(1.7rem, 1.4rem + 3vw, 2.2rem);
   }
 
   .header-subtitle {
-    font-size: 0.88rem;
+    margin-top: 0.15rem;
+    font-size: 0.82rem;
+    line-height: 1.35;
     max-width: none;
   }
 
   .mobile-menu-btn,
   .dark-mode-toggle {
-    min-height: 46px;
+    min-height: 42px;
+    padding: 0.7rem 0.9rem;
   }
 
   .account-btn {
     width: 100%;
-    min-height: 46px;
+    min-height: 42px;
     justify-content: space-between;
   }
 
@@ -435,7 +445,7 @@ onUnmounted(() => {
 
 @media (max-width: 480px) {
   .top-header h1 {
-    font-size: clamp(1.5rem, 1.2rem + 2vw, 1.95rem);
+    font-size: clamp(1.45rem, 1.15rem + 2.2vw, 1.85rem);
   }
 
   .header-right {

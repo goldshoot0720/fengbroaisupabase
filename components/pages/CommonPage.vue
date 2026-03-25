@@ -1550,4 +1550,138 @@ useHead({
 .btn-batch-delete { padding: 0.5rem 1rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
 .btn-batch-delete:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4); }
 .btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 768px) {
+  .actions-bar {
+    margin-bottom: 1rem;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .search-box {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+
+  .search-input {
+    padding: 0.8rem 0.9rem;
+    font-size: 0.95rem;
+  }
+
+  .action-buttons,
+  .csv-actions {
+    width: 100%;
+  }
+
+  .csv-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .btn-export,
+  .btn-import {
+    width: 100%;
+    min-height: 40px;
+    justify-content: center;
+  }
+
+  .summary-bar {
+    padding: 0.8rem 0.9rem;
+    margin-bottom: 1rem;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .summary-left,
+  .summary-right {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+  }
+
+  .summary-right {
+    justify-content: flex-start;
+  }
+
+  .btn-batch-mode,
+  .btn-cancel-batch,
+  .btn-batch-delete {
+    min-height: 40px;
+  }
+
+  .btn-add-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.35rem;
+  }
+
+  .site-filter-bar {
+    margin-bottom: 0.85rem;
+    padding: 0.7rem;
+    gap: 0.45rem;
+  }
+
+  .site-tag {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .common-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .card-header,
+  .card-content {
+    padding: 1rem;
+  }
+
+  .card-title {
+    font-size: 1.1rem;
+  }
+
+  .preview-item {
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  .note-text {
+    max-width: 58%;
+  }
+}
+
+@media (max-width: 480px) {
+  .csv-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-left,
+  .summary-right {
+    gap: 0.55rem;
+  }
+
+  .btn-batch-mode,
+  .btn-cancel-batch,
+  .btn-batch-delete {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .select-all-label {
+    width: 100%;
+  }
+
+  .preview-item {
+    flex-direction: column;
+  }
+
+  .note-text {
+    max-width: none;
+    white-space: normal;
+  }
+}
 </style>

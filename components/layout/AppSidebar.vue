@@ -27,11 +27,7 @@
             class="nav-btn"
             type="button"
           >
-            <span class="nav-index">{{ page.icon }}</span>
-            <span class="nav-copy">
-              <span class="nav-name">{{ page.name }}</span>
-              <span class="nav-meta">{{ page.subtitle }}</span>
-            </span>
+            <span class="nav-name">{{ page.name }}</span>
           </button>
         </li>
       </ul>
@@ -57,17 +53,17 @@ defineEmits(['toggle', 'navigate'])
 
 <style scoped>
 .sidebar {
-  width: 320px;
+  width: 236px;
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
   position: fixed;
   top: 0;
-  left: -320px;
+  left: -236px;
   height: 100vh;
-  padding: 1.1rem;
+  padding: 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.9rem;
   transition: left var(--transition-slow), box-shadow var(--transition-normal);
   z-index: 1000;
   overflow-y: auto;
@@ -91,7 +87,7 @@ defineEmits(['toggle', 'navigate'])
 .sidebar-header,
 .sidebar-nav,
 .sidebar-footer {
-  padding: 1rem;
+  padding: 0.85rem;
 }
 
 .brand-lockup {
@@ -160,8 +156,8 @@ defineEmits(['toggle', 'navigate'])
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-top: 0.85rem;
+  gap: 0.3rem;
+  margin-top: 0.65rem;
 }
 
 .nav-btn {
@@ -169,12 +165,9 @@ defineEmits(['toggle', 'navigate'])
   border: 0;
   color: inherit;
   background: transparent;
-  border-radius: 22px;
-  padding: 0.8rem;
-  display: grid;
-  grid-template-columns: 42px 1fr;
-  gap: 0.9rem;
-  align-items: start;
+  border-radius: 18px;
+  padding: 0.72rem 0.8rem;
+  display: block;
   cursor: pointer;
   transition: background var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
 }
@@ -189,32 +182,12 @@ defineEmits(['toggle', 'navigate'])
   box-shadow: inset 0 0 0 1px rgba(174, 189, 255, 0.3);
 }
 
-.nav-index {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.07);
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  letter-spacing: 0.08em;
-}
-
-.nav-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.18rem;
-}
-
 .nav-name {
+  display: block;
   font-weight: 700;
-}
-
-.nav-meta {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.66);
-  line-height: 1.35;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  text-align: left;
 }
 
 .footer-title {
@@ -228,7 +201,7 @@ defineEmits(['toggle', 'navigate'])
     position: sticky;
     top: 1rem;
     left: 0;
-    width: 320px;
+    width: 236px;
     height: calc(100vh - 2rem);
     box-shadow: none;
     border-radius: 32px;
@@ -242,25 +215,20 @@ defineEmits(['toggle', 'navigate'])
 @media (min-width: 769px) and (max-width: 1199px) {
   .sidebar {
     top: 0.75rem;
-    left: calc(-1 * min(360px, 78vw));
-    width: min(360px, 78vw);
+    left: calc(-1 * min(260px, 72vw));
+    width: min(260px, 72vw);
     height: calc(100vh - 1.5rem);
     border-radius: 0 30px 30px 0;
-  }
-
-  .nav-btn {
-    grid-template-columns: 40px 1fr;
-    gap: 0.75rem;
   }
 }
 
 @media (max-width: 768px) {
   .sidebar {
-    width: min(88vw, 320px);
-    left: calc(-1 * min(88vw, 320px));
+    width: min(78vw, 260px);
+    left: calc(-1 * min(78vw, 260px));
     top: 0;
     height: 100vh;
-    padding: 0.9rem;
+    padding: 0.8rem;
     border-radius: 0 26px 26px 0;
   }
 
@@ -271,7 +239,7 @@ defineEmits(['toggle', 'navigate'])
   }
 
   .nav-btn {
-    padding: 0.72rem;
+    padding: 0.68rem 0.75rem;
   }
 }
 

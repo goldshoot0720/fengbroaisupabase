@@ -1452,7 +1452,7 @@ onMounted(() => {
 .btn-batch-delete:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4); }
 .btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 
-@media (max-width: 1400px) {
+@media (max-width: 768px) {
   .routine-table {
     min-width: 0;
     table-layout: auto;
@@ -1537,7 +1537,7 @@ onMounted(() => {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .routine-table td {
     grid-template-columns: 1fr;
     gap: 0.45rem;

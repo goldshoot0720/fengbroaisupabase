@@ -1452,6 +1452,65 @@ onMounted(() => {
 .btn-batch-delete:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4); }
 .btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 
+@media (max-width: 1440px) {
+  .routine-table thead th {
+    padding: 0.75rem 0.7rem;
+    font-size: 0.9rem;
+  }
+
+  .routine-table td {
+    padding: 0.7rem 0.7rem;
+    font-size: 0.9rem;
+  }
+
+  .td-name {
+    width: 11%;
+    min-width: 88px;
+  }
+
+  .td-note {
+    width: 20%;
+    max-width: 220px;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+
+  .td-photo {
+    width: 7%;
+    min-width: 60px;
+  }
+
+  .table-photo {
+    width: 44px;
+    height: 44px;
+  }
+
+  .td-date {
+    width: 10%;
+    font-size: 0.86rem;
+  }
+
+  .td-days {
+    width: 9%;
+  }
+
+  .days-badge {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .td-actions {
+    width: 16%;
+  }
+
+  .btn-shift,
+  .btn-edit,
+  .btn-delete {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+  }
+}
+
 @media (max-width: 768px) {
   .routine-table {
     min-width: 0;

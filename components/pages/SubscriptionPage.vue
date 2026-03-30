@@ -239,9 +239,10 @@
                 <span class="account-text" :title="sub.account">{{ sub.account || '-' }}</span>
               </td>
               <td class="col-date">
-                <span :class="getDateClass(sub.nextdate)">
-                  {{ formatDate(sub.nextdate) }}
-                </span>
+                <div class="date-cell" :class="getDateClass(sub.nextdate)">
+                  <span class="date-primary">{{ formatDate(sub.nextdate) }}</span>
+                  <span class="date-secondary">{{ formatDaysUntil(sub.nextdate) }}</span>
+                </div>
               </td>
               <td class="col-price">
                 <span class="price-value">
@@ -346,6 +347,24 @@ const {
 } = useSubscriptions()
 
 const { formatDate, getDateClass } = useFormatters()
+
+const formatDaysUntil = (dateString) => {
+  if (!dateString) return '-'
+
+  const today = new Date()
+  const targetDate = new Date(dateString)
+
+  if (Number.isNaN(targetDate.getTime())) return '-'
+
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const targetStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate())
+  const diffDays = Math.round((targetStart - todayStart) / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) return '今天'
+  if (diffDays === 1) return '明天'
+  if (diffDays < 0) return `已過期 ${Math.abs(diffDays)} 天`
+  return `${diffDays} 天後`
+}
 
 // 批量選擇
 const selectedIds = ref([])
@@ -1176,6 +1195,21 @@ defineExpose({ subscriptions, totalMonthlyCost })
   text-overflow: ellipsis;
   white-space: nowrap;
   display: block;
+}
+
+.date-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.date-primary {
+  font-weight: 600;
+}
+
+.date-secondary {
+  font-size: 0.78rem;
+  color: #6c757d;
 }
 
 .price-value {

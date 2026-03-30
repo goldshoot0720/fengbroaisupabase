@@ -8,6 +8,20 @@
         class="search-input"
         placeholder="搜尋訂閱..."
       />
+      <div class="date-filters">
+        <select v-model="selectedYear" class="date-filter-select">
+          <option value="">全部年份</option>
+          <option v-for="year in availableYears" :key="year" :value="String(year)">
+            {{ year }} 年
+          </option>
+        </select>
+        <select v-model="selectedMonth" class="date-filter-select">
+          <option value="">全部月份</option>
+          <option v-for="month in 12" :key="month" :value="String(month)">
+            {{ month }} 月
+          </option>
+        </select>
+      </div>
       <div class="filter-buttons">
         <button
           :class="['filter-btn', { active: renewFilter === 'all' }]"
@@ -330,6 +344,8 @@ import { useCommonAccounts } from '../../composables/useCommonAccounts'
 
 const searchQuery = ref('')
 const renewFilter = ref('all')
+const selectedYear = ref('')
+const selectedMonth = ref('')
 
 const {
   subscriptions,
@@ -556,8 +572,31 @@ const totalMonthlyCostTWD = computed(() => {
   }, 0)
 })
 
+const availableYears = computed(() => {
+  const years = subscriptions.value
+    .map(sub => sub.nextdate ? new Date(sub.nextdate) : null)
+    .filter(date => date && !Number.isNaN(date.getTime()))
+    .map(date => date.getFullYear())
+
+  return [...new Set(years)].sort((a, b) => a - b)
+})
+
 const filteredSubscriptions = computed(() => {
   let list = sortedSubscriptions.value
+
+  if (selectedYear.value || selectedMonth.value) {
+    list = list.filter(sub => {
+      if (!sub.nextdate) return false
+
+      const date = new Date(sub.nextdate)
+      if (Number.isNaN(date.getTime())) return false
+
+      const matchesYear = !selectedYear.value || date.getFullYear() === Number(selectedYear.value)
+      const matchesMonth = !selectedMonth.value || date.getMonth() + 1 === Number(selectedMonth.value)
+
+      return matchesYear && matchesMonth
+    })
+  }
 
   // 續訂篩選
   if (renewFilter.value === 'renew') {
@@ -725,6 +764,26 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .search-input:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.date-filters {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.date-filter-select {
+  min-width: 120px;
+  padding: 0.75rem 0.9rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.95rem;
+  color: #495057;
+}
+
+.date-filter-select:focus {
   outline: none;
   border-color: #3498db;
 }

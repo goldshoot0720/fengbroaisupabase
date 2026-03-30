@@ -345,7 +345,25 @@ const {
   batchDeleteSubscriptions
 } = useSubscriptions()
 
-const { formatDate, getDateClass } = useFormatters()
+const { getDateClass } = useFormatters()
+
+const formatDate = (dateString) => {
+  if (!dateString) return '-'
+
+  const today = new Date()
+  const targetDate = new Date(dateString)
+
+  if (Number.isNaN(targetDate.getTime())) return '-'
+
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const targetStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate())
+  const diffDays = Math.round((targetStart - todayStart) / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) return '今天'
+  if (diffDays === 1) return '明天'
+  if (diffDays < 0) return `已過期 ${Math.abs(diffDays)} 天`
+  return `${diffDays} 天後`
+}
 
 // 批量選擇
 const selectedIds = ref([])

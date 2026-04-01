@@ -72,6 +72,36 @@
       </div>
 
       <!-- 載入中 -->
+      <div v-if="batchMode" class="batch-category-bar">
+        <label class="select-all-label">
+          <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
+          <span>全選 ({{ selectedIds.size }}/{{ filteredArticles.length }})</span>
+        </label>
+        <input
+          v-model="batchCategoryInput"
+          type="text"
+          class="batch-category-input"
+          placeholder="輸入要套用的分類，使用逗號分隔"
+          @keydown.enter.prevent="applyCategoriesToSelected"
+        >
+        <button
+          type="button"
+          class="btn-batch-apply"
+          @click="applyCategoriesToSelected"
+          :disabled="loading || selectedIds.size === 0"
+        >
+          套用分類 ({{ selectedIds.size }})
+        </button>
+        <button
+          type="button"
+          class="btn-batch-clear"
+          @click="clearCategoriesFromSelected"
+          :disabled="loading || selectedIds.size === 0"
+        >
+          清除分類
+        </button>
+      </div>
+
       <div v-if="loading && articles.length === 0" class="loading-state">
         <div class="spinner"></div>
         <p>載入資料中...</p>
@@ -394,6 +424,7 @@ const uploadingSlot = ref(null)
 const previewUrl = ref(null)
 const batchMode = ref(false)
 const selectedIds = ref(new Set())
+const batchCategoryInput = ref('')
 const newAddCategory = ref('')
 const newEditCategory = ref('')
 
@@ -477,6 +508,59 @@ const appendCategory = (form, rawCategory, mode) => {
 
   if (mode === 'add') newAddCategory.value = ''
   if (mode === 'edit') newEditCategory.value = ''
+}
+
+const findArticleById = (id) => articles.value.find(article => article.id === id)
+
+const normalizeBatchCategories = (value) => splitCategories(value)
+
+const applyCategoriesToSelected = async () => {
+  const categoriesToApply = normalizeBatchCategories(batchCategoryInput.value)
+  if (selectedIds.value.size === 0 || categoriesToApply.length === 0) return
+
+  let successCount = 0
+  for (const id of selectedIds.value) {
+    const article = findArticleById(id)
+    if (!article) continue
+
+    const mergedCategories = [...new Set([
+      ...splitCategories(article.category),
+      ...categoriesToApply
+    ])]
+
+    const result = await updateArticle(id, {
+      ...article,
+      category: joinCategories(mergedCategories)
+    })
+
+    if (result.success) successCount++
+  }
+
+  if (successCount > 0) {
+    batchCategoryInput.value = ''
+  }
+}
+
+const clearCategoriesFromSelected = async () => {
+  if (selectedIds.value.size === 0) return
+  if (!confirm(`確定要清除 ${selectedIds.value.size} 篇筆記的分類嗎？`)) return
+
+  let successCount = 0
+  for (const id of selectedIds.value) {
+    const article = findArticleById(id)
+    if (!article) continue
+
+    const result = await updateArticle(id, {
+      ...article,
+      category: ''
+    })
+
+    if (result.success) successCount++
+  }
+
+  if (successCount > 0) {
+    batchCategoryInput.value = ''
+  }
 }
 
 const noteCardModeClass = (articleId) => {
@@ -569,6 +653,7 @@ const enterBatchMode = () => {
 const exitBatchMode = () => {
   batchMode.value = false
   selectedIds.value = new Set()
+  batchCategoryInput.value = ''
 }
 
 const isAllSelected = computed(() => {
@@ -1058,6 +1143,55 @@ useHead({
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.batch-category-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--bg-secondary) 94%, transparent);
+  flex-wrap: wrap;
+}
+
+.batch-category-input {
+  flex: 1;
+  min-width: 260px;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  font-size: 0.96rem;
+  background: white;
+}
+
+.btn-batch-apply,
+.btn-batch-clear {
+  border: none;
+  border-radius: 999px;
+  padding: 0.75rem 1.15rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-batch-apply {
+  background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+  color: white;
+}
+
+.btn-batch-clear {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.btn-batch-apply:disabled,
+.btn-batch-clear:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .view-switcher {

@@ -96,6 +96,7 @@
               <input v-model="addForm.title" type="text" class="inline-input" placeholder="標題 *" />
               <input v-model="addForm.newdate" type="date" class="inline-input inline-date" />
             </div>
+            <input v-model="addForm.category" type="text" class="inline-input" placeholder="分類" list="note-category-options" />
             <textarea v-model="addForm.content" class="inline-textarea" rows="4" placeholder="內容..."></textarea>
             <div class="inline-section">
               <h4 @click="addSection.urls = !addSection.urls" class="section-toggle">
@@ -165,6 +166,7 @@
                 <input v-model="editForm.title" type="text" class="inline-input" placeholder="標題 *" />
                 <input v-model="editForm.newdate" type="date" class="inline-input inline-date" />
               </div>
+              <input v-model="editForm.category" type="text" class="inline-input" placeholder="分類" list="note-category-options" />
               <textarea v-model="editForm.content" class="inline-textarea" rows="4" placeholder="內容..."></textarea>
               <div class="inline-section">
                 <h4 @click="editSection.urls = !editSection.urls" class="section-toggle">
@@ -229,6 +231,7 @@
             </div>
 
             <h3 class="note-title">{{ article.title || '無標題' }}</h3>
+            <div v-if="article.category" class="note-category">{{ article.category }}</div>
 
             <div class="note-content">
               <p>{{ article.content }}</p>
@@ -279,6 +282,9 @@
           <img :src="previewUrl" alt="預覽" class="lightbox-img" />
         </div>
       </div>
+      <datalist id="note-category-options">
+        <option v-for="category in categoryOptions" :key="category" :value="category" />
+      </datalist>
     </div>
   </PageContainer>
 </template>
@@ -303,7 +309,7 @@ const { uploading, uploadProgress, uploadFile } = useStorage()
 
 // 空表單模板
 const emptyForm = () => ({
-  title: '', content: '', newdate: '',
+  title: '', content: '', category: '', newdate: '',
   url1: '', url2: '', url3: '',
   file1: '', file1name: '', file1type: '',
   file2: '', file2name: '', file2type: '',
@@ -348,8 +354,17 @@ const filteredArticles = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return articles.value.filter(article => 
     (article.title && article.title.toLowerCase().includes(query)) ||
-    (article.content && article.content.toLowerCase().includes(query))
+    (article.content && article.content.toLowerCase().includes(query)) ||
+    (article.category && article.category.toLowerCase().includes(query))
   )
+})
+
+const categoryOptions = computed(() => {
+  return [...new Set(
+    articles.value
+      .map(article => (article.category || '').trim())
+      .filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b, 'zh-Hant'))
 })
 
 const noteCardModeClass = (articleId) => {
@@ -1265,6 +1280,20 @@ useHead({
   color: var(--text-primary);
   margin: 0 0 0.75rem 0;
   line-height: 1.4;
+}
+
+.note-category {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin: 0 0 0.85rem 0;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 16%, var(--bg-tertiary));
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .note-content {

@@ -96,7 +96,42 @@
               <input v-model="addForm.title" type="text" class="inline-input" placeholder="標題 *" />
               <input v-model="addForm.newdate" type="date" class="inline-input inline-date" />
             </div>
-            <input v-model="addForm.category" type="text" class="inline-input" placeholder="分類" list="note-category-options" />
+            <div class="category-picker">
+              <div class="category-picker-label">分類</div>
+              <div v-if="selectedCategories(addForm).length > 0" class="category-selected-list">
+                <button
+                  v-for="category in selectedCategories(addForm)"
+                  :key="'add-selected-' + category"
+                  type="button"
+                  class="category-chip selected"
+                  @click="toggleCategory(addForm, category)"
+                >
+                  {{ category }} ×
+                </button>
+              </div>
+              <div v-if="categoryOptions.length > 0" class="category-option-list">
+                <button
+                  v-for="category in categoryOptions"
+                  :key="'add-option-' + category"
+                  type="button"
+                  class="category-chip"
+                  :class="{ selected: hasCategory(addForm, category) }"
+                  @click="toggleCategory(addForm, category)"
+                >
+                  {{ category }}
+                </button>
+              </div>
+              <div class="category-input-row">
+                <input
+                  v-model="newAddCategory"
+                  type="text"
+                  class="inline-input"
+                  placeholder="新增分類"
+                  @keydown.enter.prevent="appendCategory(addForm, newAddCategory, 'add')"
+                />
+                <button type="button" class="btn-category-add" @click="appendCategory(addForm, newAddCategory, 'add')">加入</button>
+              </div>
+            </div>
             <textarea v-model="addForm.content" class="inline-textarea" rows="4" placeholder="內容..."></textarea>
             <div class="inline-section">
               <h4 @click="addSection.urls = !addSection.urls" class="section-toggle">
@@ -166,7 +201,42 @@
                 <input v-model="editForm.title" type="text" class="inline-input" placeholder="標題 *" />
                 <input v-model="editForm.newdate" type="date" class="inline-input inline-date" />
               </div>
-              <input v-model="editForm.category" type="text" class="inline-input" placeholder="分類" list="note-category-options" />
+              <div class="category-picker">
+                <div class="category-picker-label">分類</div>
+                <div v-if="selectedCategories(editForm).length > 0" class="category-selected-list">
+                  <button
+                    v-for="category in selectedCategories(editForm)"
+                    :key="'edit-selected-' + category"
+                    type="button"
+                    class="category-chip selected"
+                    @click="toggleCategory(editForm, category)"
+                  >
+                    {{ category }} ×
+                  </button>
+                </div>
+                <div v-if="categoryOptions.length > 0" class="category-option-list">
+                  <button
+                    v-for="category in categoryOptions"
+                    :key="'edit-option-' + category"
+                    type="button"
+                    class="category-chip"
+                    :class="{ selected: hasCategory(editForm, category) }"
+                    @click="toggleCategory(editForm, category)"
+                  >
+                    {{ category }}
+                  </button>
+                </div>
+                <div class="category-input-row">
+                  <input
+                    v-model="newEditCategory"
+                    type="text"
+                    class="inline-input"
+                    placeholder="新增分類"
+                    @keydown.enter.prevent="appendCategory(editForm, newEditCategory, 'edit')"
+                  />
+                  <button type="button" class="btn-category-add" @click="appendCategory(editForm, newEditCategory, 'edit')">加入</button>
+                </div>
+              </div>
               <textarea v-model="editForm.content" class="inline-textarea" rows="4" placeholder="內容..."></textarea>
               <div class="inline-section">
                 <h4 @click="editSection.urls = !editSection.urls" class="section-toggle">
@@ -231,7 +301,11 @@
             </div>
 
             <h3 class="note-title">{{ article.title || '無標題' }}</h3>
-            <div v-if="article.category" class="note-category">{{ article.category }}</div>
+            <div v-if="article.category" class="note-category-list">
+              <div v-for="category in splitCategories(article.category)" :key="article.id + '-' + category" class="note-category">
+                {{ category }}
+              </div>
+            </div>
 
             <div class="note-content">
               <p>{{ article.content }}</p>
@@ -282,9 +356,6 @@
           <img :src="previewUrl" alt="預覽" class="lightbox-img" />
         </div>
       </div>
-      <datalist id="note-category-options">
-        <option v-for="category in categoryOptions" :key="category" :value="category" />
-      </datalist>
     </div>
   </PageContainer>
 </template>
@@ -318,14 +389,15 @@ const emptyForm = () => ({
 
 // 狀態
 const searchQuery = ref('')
-const viewMode = ref('hybrid')
+const viewMode = ref('card')
 const uploadingSlot = ref(null)
 const previewUrl = ref(null)
 const batchMode = ref(false)
 const selectedIds = ref(new Set())
+const newAddCategory = ref('')
+const newEditCategory = ref('')
 
 const viewOptions = [
-  { value: 'hybrid', label: '混合' },
   { value: 'card', label: '卡片' },
   { value: 'list', label: '列表' }
 ]
@@ -362,17 +434,54 @@ const filteredArticles = computed(() => {
 const categoryOptions = computed(() => {
   return [...new Set(
     articles.value
-      .map(article => (article.category || '').trim())
+      .flatMap(article => splitCategories(article.category))
       .filter(Boolean)
   )].sort((a, b) => a.localeCompare(b, 'zh-Hant'))
 })
 
+const splitCategories = (value) => {
+  if (!value) return []
+  return [...new Set(
+    String(value)
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean)
+  )]
+}
+
+const joinCategories = (categories) => categories.join(', ')
+
+const selectedCategories = (form) => splitCategories(form.category)
+
+const hasCategory = (form, category) => selectedCategories(form).includes(category)
+
+const toggleCategory = (form, category) => {
+  const next = selectedCategories(form)
+
+  if (next.includes(category)) {
+    form.category = joinCategories(next.filter(item => item !== category))
+    return
+  }
+
+  form.category = joinCategories([...next, category])
+}
+
+const appendCategory = (form, rawCategory, mode) => {
+  const category = rawCategory.trim()
+  if (!category) return
+
+  const next = selectedCategories(form)
+  if (!next.includes(category)) {
+    form.category = joinCategories([...next, category])
+  }
+
+  if (mode === 'add') newAddCategory.value = ''
+  if (mode === 'edit') newEditCategory.value = ''
+}
+
 const noteCardModeClass = (articleId) => {
   if (viewMode.value === 'card') return 'note-card--card'
-  if (viewMode.value === 'list') return 'note-card--list'
-
-  const index = filteredArticles.value.findIndex((article) => article.id === articleId)
-  return index >= 0 && index < 2 ? 'note-card--card' : 'note-card--list'
+  return 'note-card--list'
 }
 
 // 格式化日期
@@ -391,6 +500,7 @@ const hasAttachments = (article) => {
 const startAddRow = () => {
   Object.assign(addForm, emptyForm())
   addForm.newdate = new Date().toISOString().split('T')[0]
+  newAddCategory.value = ''
   addSection.urls = false
   addSection.files = false
   showAddRow.value = true
@@ -419,6 +529,7 @@ const startInlineEdit = (article) => {
   const data = { ...article }
   if (data.newdate) data.newdate = data.newdate.split('T')[0]
   Object.assign(editForm, data)
+  newEditCategory.value = ''
   editSection.urls = !!(article.url1 || article.url2 || article.url3)
   editSection.files = !!(article.file1 || article.file2 || article.file3)
   editingRowId.value = article.id
@@ -1154,10 +1265,6 @@ useHead({
   grid-template-columns: 1fr;
 }
 
-.notes-container--hybrid {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-}
-
 .note-card--editor {
   grid-column: 1 / -1;
 }
@@ -1182,15 +1289,6 @@ useHead({
 
 .note-card--card {
   min-height: 340px;
-}
-
-.notes-container--hybrid .note-card--card:nth-of-type(2),
-.notes-container--hybrid .note-card--card:nth-of-type(3) {
-  grid-column: span 6;
-}
-
-.notes-container--hybrid .note-card--list {
-  grid-column: 1 / -1;
 }
 
 .note-card--list {
@@ -1282,11 +1380,17 @@ useHead({
   line-height: 1.4;
 }
 
+.note-category-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0 0.85rem 0;
+}
+
 .note-category {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  margin: 0 0 0.85rem 0;
   padding: 0.22rem 0.65rem;
   border-radius: 999px;
   background: color-mix(in oklab, var(--accent) 16%, var(--bg-tertiary));
@@ -1434,6 +1538,65 @@ useHead({
 .inline-row {
   display: flex;
   gap: 0.75rem;
+}
+
+.category-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.category-picker-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.category-selected-list,
+.category-option-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.category-chip {
+  border: 1px solid color-mix(in oklab, var(--border-color) 78%, transparent);
+  background: color-mix(in oklab, var(--bg-tertiary) 88%, transparent);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.34rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.category-chip:hover {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--border-color));
+  color: var(--text-primary);
+}
+
+.category-chip.selected {
+  background: color-mix(in oklab, var(--accent) 18%, var(--bg-tertiary));
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--border-color));
+  color: var(--text-primary);
+}
+
+.category-input-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.btn-category-add {
+  flex-shrink: 0;
+  border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--border-color));
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-secondary));
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .inline-input {
@@ -1782,14 +1945,6 @@ useHead({
 }
 
 @media (max-width: 960px) {
-  .notes-container--hybrid {
-    grid-template-columns: 1fr;
-  }
-
-  .notes-container--hybrid .note-card--card,
-  .notes-container--hybrid .note-card--list {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (max-width: 720px) {

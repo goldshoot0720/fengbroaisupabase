@@ -7,6 +7,12 @@
           <span class="icon">🔍</span>
           <input v-model="searchQuery" type="text" placeholder="搜尋筆記標題或內容..." class="search-input">
         </div>
+        <select v-model="selectedCategoryFilter" class="category-filter-select">
+          <option value="">全部分類</option>
+          <option v-for="category in categoryOptions" :key="'filter-' + category" :value="category">
+            {{ category }}
+          </option>
+        </select>
         <div class="action-buttons">
           <button v-if="articles.length > 0" @click="exportArticlesZip" class="btn-export" :disabled="zipExporting">
             <span class="icon">📦</span> {{ zipExporting ? '匯出中...' : '匯出 ZIP' }}
@@ -419,6 +425,7 @@ const emptyForm = () => ({
 
 // 狀態
 const searchQuery = ref('')
+const selectedCategoryFilter = ref('')
 const viewMode = ref('card')
 const uploadingSlot = ref(null)
 const previewUrl = ref(null)
@@ -452,10 +459,16 @@ onMounted(() => {
 
 // 搜尋過濾
 const filteredArticles = computed(() => {
-  if (!searchQuery.value) return articles.value
+  let list = articles.value
+
+  if (selectedCategoryFilter.value) {
+    list = list.filter(article => splitCategories(article.category).includes(selectedCategoryFilter.value))
+  }
+
+  if (!searchQuery.value) return list
   
   const query = searchQuery.value.toLowerCase()
-  return articles.value.filter(article => 
+  return list.filter(article => 
     (article.title && article.title.toLowerCase().includes(query)) ||
     (article.content && article.content.toLowerCase().includes(query)) ||
     (article.category && article.category.toLowerCase().includes(query))
@@ -668,9 +681,13 @@ const toggleSelect = (id) => {
 
 const toggleSelectAll = () => {
   if (isAllSelected.value) {
-    selectedIds.value = new Set()
+    const next = new Set(selectedIds.value)
+    filteredArticles.value.forEach(article => next.delete(article.id))
+    selectedIds.value = next
   } else {
-    selectedIds.value = new Set(filteredArticles.value.map(a => a.id))
+    const next = new Set(selectedIds.value)
+    filteredArticles.value.forEach(article => next.add(article.id))
+    selectedIds.value = next
   }
 }
 
@@ -1331,6 +1348,22 @@ useHead({
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.category-filter-select {
+  min-width: 150px;
+  padding: 0.72rem 0.95rem;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: white;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.category-filter-select:focus {
+  outline: none;
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.12);
 }
 
 .btn-export, .btn-import {
@@ -2091,6 +2124,10 @@ useHead({
 
   .summary-right,
   .action-buttons {
+    width: 100%;
+  }
+
+  .category-filter-select {
     width: 100%;
   }
 

@@ -249,7 +249,7 @@
       class="birthday-easter-egg"
       role="dialog"
       aria-modal="true"
-      aria-label="塗哥生日快樂彩蛋"
+      :aria-label="`${birthdayEasterEggContent.title}彩蛋`"
     >
       <div class="birthday-easter-egg__confetti" aria-hidden="true">
         <span
@@ -272,11 +272,11 @@
           ×
         </button>
 
-        <p class="birthday-easter-egg__eyebrow">APRIL 03 SPECIAL</p>
-        <h2>塗哥生日快樂</h2>
-        <p class="birthday-easter-egg__lead">今天全站開啟限定彩蛋，祝福直接拉滿。</p>
-        <p class="birthday-easter-egg__headline">今彩539頭獎得主鋒兄</p>
-        <p class="birthday-easter-egg__note">願今天手氣、福氣、靈感一起爆發。</p>
+        <p class="birthday-easter-egg__eyebrow">{{ birthdayEasterEggContent.eyebrow }}</p>
+        <h2>{{ birthdayEasterEggContent.title }}</h2>
+        <p class="birthday-easter-egg__lead">{{ birthdayEasterEggContent.lead }}</p>
+        <p class="birthday-easter-egg__headline">{{ birthdayEasterEggContent.headline }}</p>
+        <p class="birthday-easter-egg__note">{{ birthdayEasterEggContent.note }}</p>
       </section>
     </div>
 
@@ -390,8 +390,15 @@ const isDevelopment = computed(() => false) // 設為 true 以啟用滾動調試
 const placeholderPages = {}
 const placeholderConfig = computed(() => placeholderPages[currentPage.value] || null)
 const SUPABASE_URL_WARNING_KEY = 'feng-supabase-url-warning'
-const BIRTHDAY_EASTER_EGG_KEY = 'feng-birthday-easter-egg-0403'
+const BIRTHDAY_EASTER_EGG_KEY_PREFIX = 'feng-birthday-easter-egg'
 const showBirthdayEasterEgg = ref(false)
+const birthdayEasterEggContent = ref({
+  eyebrow: 'APRIL 03 SPECIAL',
+  title: '塗哥生日快樂',
+  lead: '今天全站開啟限定彩蛋，祝福直接拉滿。',
+  headline: '今彩539頭獎得主鋒兄',
+  note: '願今天手氣、福氣、靈感一起爆發。'
+})
 const birthdayConfetti = Array.from({ length: 22 }, (_, index) => ({
   id: index,
   style: {
@@ -413,16 +420,44 @@ const checkBirthdayEasterEgg = () => {
   if (!import.meta.client) return
 
   const today = new Date()
-  const isAprilThird = today.getMonth() === 3 && today.getDate() === 3
-  const alreadyDismissed = sessionStorage.getItem(BIRTHDAY_EASTER_EGG_KEY) === 'dismissed'
+  const month = today.getMonth() + 1
+  const day = today.getDate()
+  const eventKey = `${month}-${day}`
+  const easterEggConfigs = {
+    '4-3': {
+      eyebrow: 'APRIL 03 SPECIAL',
+      title: '塗哥生日快樂',
+      lead: '今天全站開啟限定彩蛋，祝福直接拉滿。',
+      headline: '今彩539頭獎得主鋒兄',
+      note: '願今天手氣、福氣、靈感一起爆發。'
+    },
+    '11-27': {
+      eyebrow: 'NOVEMBER 27 SPECIAL',
+      title: '鋒兄生日快樂',
+      lead: '今天網站切換成壽星模式，替鋒兄送上專屬歡呼。',
+      headline: '高考三級資訊處理榜首鋒兄',
+      note: '願今天一路高光，喜氣、霸氣、好運全部到位。'
+    }
+  }
+  const activeConfig = easterEggConfigs[eventKey]
+  const storageKey = `${BIRTHDAY_EASTER_EGG_KEY_PREFIX}-${eventKey}`
+  const alreadyDismissed = sessionStorage.getItem(storageKey) === 'dismissed'
 
-  showBirthdayEasterEgg.value = isAprilThird && !alreadyDismissed
+  if (!activeConfig) {
+    showBirthdayEasterEgg.value = false
+    return
+  }
+
+  birthdayEasterEggContent.value = activeConfig
+  showBirthdayEasterEgg.value = !alreadyDismissed
 }
 
 const dismissBirthdayEasterEgg = () => {
   showBirthdayEasterEgg.value = false
   if (import.meta.client) {
-    sessionStorage.setItem(BIRTHDAY_EASTER_EGG_KEY, 'dismissed')
+    const today = new Date()
+    const storageKey = `${BIRTHDAY_EASTER_EGG_KEY_PREFIX}-${today.getMonth() + 1}-${today.getDate()}`
+    sessionStorage.setItem(storageKey, 'dismissed')
   }
 }
 

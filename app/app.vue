@@ -244,6 +244,42 @@
       </div>
     </div>
 
+    <div
+      v-if="showBirthdayEasterEgg"
+      class="birthday-easter-egg"
+      role="dialog"
+      aria-modal="true"
+      aria-label="塗哥生日快樂彩蛋"
+    >
+      <div class="birthday-easter-egg__confetti" aria-hidden="true">
+        <span
+          v-for="piece in birthdayConfetti"
+          :key="piece.id"
+          class="birthday-easter-egg__piece"
+          :style="piece.style"
+        ></span>
+      </div>
+
+      <div class="birthday-easter-egg__backdrop" @click="dismissBirthdayEasterEgg"></div>
+
+      <section class="birthday-easter-egg__card">
+        <button
+          type="button"
+          class="birthday-easter-egg__close"
+          @click="dismissBirthdayEasterEgg"
+          aria-label="關閉彩蛋"
+        >
+          ×
+        </button>
+
+        <p class="birthday-easter-egg__eyebrow">APRIL 03 SPECIAL</p>
+        <h2>塗哥生日快樂</h2>
+        <p class="birthday-easter-egg__lead">今天全站開啟限定彩蛋，祝福直接拉滿。</p>
+        <p class="birthday-easter-egg__headline">今彩539頭獎得主鋒兄</p>
+        <p class="birthday-easter-egg__note">願今天手氣、福氣、靈感一起爆發。</p>
+      </section>
+    </div>
+
     <ToastContainer />
 
     <!-- 開發模式下的滾動狀態指示器 -->
@@ -354,11 +390,40 @@ const isDevelopment = computed(() => false) // 設為 true 以啟用滾動調試
 const placeholderPages = {}
 const placeholderConfig = computed(() => placeholderPages[currentPage.value] || null)
 const SUPABASE_URL_WARNING_KEY = 'feng-supabase-url-warning'
+const BIRTHDAY_EASTER_EGG_KEY = 'feng-birthday-easter-egg-0403'
+const showBirthdayEasterEgg = ref(false)
+const birthdayConfetti = Array.from({ length: 22 }, (_, index) => ({
+  id: index,
+  style: {
+    left: `${4 + index * 4.2}%`,
+    animationDelay: `${(index % 6) * 0.35}s`,
+    animationDuration: `${7 + (index % 5)}s`,
+    opacity: `${0.35 + (index % 4) * 0.14}`,
+    transform: `scale(${0.75 + (index % 3) * 0.2}) rotate(${index * 17}deg)`
+  }
+}))
 const formatAudioTime = (seconds) => {
   const total = Math.max(0, Math.floor(Number(seconds) || 0))
   const mins = Math.floor(total / 60)
   const secs = total % 60
   return `${mins}:${String(secs).padStart(2, '0')}`
+}
+
+const checkBirthdayEasterEgg = () => {
+  if (!import.meta.client) return
+
+  const today = new Date()
+  const isAprilThird = today.getMonth() === 3 && today.getDate() === 3
+  const alreadyDismissed = sessionStorage.getItem(BIRTHDAY_EASTER_EGG_KEY) === 'dismissed'
+
+  showBirthdayEasterEgg.value = isAprilThird && !alreadyDismissed
+}
+
+const dismissBirthdayEasterEgg = () => {
+  showBirthdayEasterEgg.value = false
+  if (import.meta.client) {
+    sessionStorage.setItem(BIRTHDAY_EASTER_EGG_KEY, 'dismissed')
+  }
 }
 
 const getSupabaseUrlValidationMessage = (rawUrl) => {
@@ -372,6 +437,8 @@ const getSupabaseUrlValidationMessage = (rawUrl) => {
 
 // 生命週期
 onMounted(async () => {
+  checkBirthdayEasterEgg()
+
   const config = useRuntimeConfig()
   const creds = getSupabaseCredentials()
   const supabaseUrl = creds?.url || config.public.supabaseUrl
@@ -844,6 +911,130 @@ onUnmounted(() => {
   min-width: 0;
 }
 
+.birthday-easter-egg {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal, 4000) + 12);
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  pointer-events: auto;
+}
+
+.birthday-easter-egg__backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top, rgba(255, 215, 120, 0.22), transparent 36%),
+    rgba(7, 12, 24, 0.64);
+  backdrop-filter: blur(12px);
+}
+
+.birthday-easter-egg__confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.birthday-easter-egg__piece {
+  position: absolute;
+  top: -12%;
+  width: 14px;
+  height: 24px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f97316 0%, #facc15 45%, #ec4899 100%);
+  box-shadow: 0 10px 30px rgba(249, 115, 22, 0.28);
+  animation: birthdayConfettiFall linear infinite;
+}
+
+.birthday-easter-egg__piece:nth-child(3n) {
+  background: linear-gradient(180deg, #38bdf8 0%, #818cf8 100%);
+}
+
+.birthday-easter-egg__piece:nth-child(4n) {
+  background: linear-gradient(180deg, #34d399 0%, #22c55e 100%);
+}
+
+.birthday-easter-egg__card {
+  position: relative;
+  width: min(560px, 100%);
+  padding: 2rem 1.6rem 1.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 32px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(255, 247, 237, 0.92)),
+    radial-gradient(circle at top right, rgba(251, 191, 36, 0.18), transparent 40%);
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
+  text-align: center;
+  animation: birthdayCardEntrance 0.55s ease;
+}
+
+.birthday-easter-egg__close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.birthday-easter-egg__eyebrow {
+  margin-bottom: 0.7rem;
+  color: #9a3412;
+  font-size: 0.78rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.birthday-easter-egg__card h2 {
+  margin: 0;
+  color: #7c2d12;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1.05;
+}
+
+.birthday-easter-egg__lead,
+.birthday-easter-egg__note {
+  margin: 0.85rem 0 0;
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.birthday-easter-egg__headline {
+  margin: 1.15rem 0 0;
+  color: #dc2626;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 3vw, 1.9rem);
+  font-weight: 700;
+}
+
+@keyframes birthdayConfettiFall {
+  0% {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate3d(3vw, 110vh, 0) rotate(480deg);
+  }
+}
+
+@keyframes birthdayCardEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .scroll-btn {
   width: 50px;
   height: 50px;
@@ -891,6 +1082,16 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .scroll-btn { width: 45px; height: 45px; font-size: 1.1rem; }
   .mobile-overlay ~ .scroll-buttons { display: none; }
+  .birthday-easter-egg {
+    padding: 1rem;
+  }
+  .birthday-easter-egg__card {
+    padding: 1.65rem 1.15rem 1.35rem;
+    border-radius: 26px;
+  }
+  .birthday-easter-egg__headline {
+    line-height: 1.2;
+  }
 }
 
 @media (max-width: 480px) {

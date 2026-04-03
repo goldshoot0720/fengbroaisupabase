@@ -379,9 +379,10 @@
                         type="button"
                         class="btn-download"
                         title="開啟/下載"
+                        :disabled="isAttachmentDownloading(article, n)"
                         @click="downloadAttachment(article, n)"
                       >
-                        ⬇️
+                        {{ isAttachmentDownloading(article, n) ? '下載中' : '⬇️' }}
                       </button>
                     </div>
                   </template>
@@ -444,6 +445,7 @@ const uploadingSlot = ref(null)
 const previewUrl = ref(null)
 const batchMode = ref(false)
 const selectedIds = ref(new Set())
+const downloadingAttachments = ref(new Set())
 const batchCategoryInput = ref('')
 const newAddCategory = ref('')
 const newEditCategory = ref('')
@@ -1108,10 +1110,22 @@ const resolveAttachmentBlob = async (fileUrl) => {
   }
 }
 
+const getAttachmentDownloadKey = (article, slot) => `${article?.id || 'new'}-${slot}`
+
+const isAttachmentDownloading = (article, slot) => {
+  return downloadingAttachments.value.has(getAttachmentDownloadKey(article, slot))
+}
+
 const downloadAttachment = async (article, slot) => {
   const fileUrl = article?.['file' + slot]
   const fileName = article?.['file' + slot + 'name'] || `attachment-${slot}`
   if (!fileUrl) return
+  const downloadKey = getAttachmentDownloadKey(article, slot)
+  if (downloadingAttachments.value.has(downloadKey)) return
+
+  const nextDownloading = new Set(downloadingAttachments.value)
+  nextDownloading.add(downloadKey)
+  downloadingAttachments.value = nextDownloading
 
   try {
     const { blob } = await resolveAttachmentBlob(fileUrl)
@@ -1119,6 +1133,10 @@ const downloadAttachment = async (article, slot) => {
   } catch (error) {
     console.error('下載附件失敗:', error)
     alert('下載附件失敗: ' + error.message)
+  } finally {
+    const next = new Set(downloadingAttachments.value)
+    next.delete(downloadKey)
+    downloadingAttachments.value = next
   }
 }
 
@@ -1768,6 +1786,11 @@ useHead({
 
 .btn-download:hover {
   opacity: 1;
+}
+
+.btn-download:disabled {
+  opacity: 0.4;
+  cursor: wait;
 }
 
 /* 行內編輯卡片 */

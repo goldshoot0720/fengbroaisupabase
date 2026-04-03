@@ -2,6 +2,16 @@
   <div class="home-page">
     <section class="hero-grid">
       <article class="hero-panel hero-primary">
+        <div class="hero-ascii-shell" aria-label="feng bro ascii art">
+          <div class="hero-ascii-head">
+            <span class="hero-ascii-dot"></span>
+            <span class="hero-ascii-dot"></span>
+            <span class="hero-ascii-dot"></span>
+            <p>feng bro / home signal</p>
+          </div>
+          <pre class="hero-ascii-art">{{ asciiArt }}</pre>
+        </div>
+
         <p class="eyebrow">2026 interface direction</p>
         <h1 class="hero-title">
           用科技編輯風，
@@ -18,16 +28,6 @@
           <button class="hero-btn hero-btn-secondary" type="button" @click="$emit('navigate', 'subscription')">
             前往訂閱管理
           </button>
-        </div>
-
-        <div class="hero-ascii-shell" aria-label="feng bro ascii art">
-          <div class="hero-ascii-head">
-            <span class="hero-ascii-dot"></span>
-            <span class="hero-ascii-dot"></span>
-            <span class="hero-ascii-dot"></span>
-            <p>feng bro / home signal</p>
-          </div>
-          <pre class="hero-ascii-art">{{ asciiArt }}</pre>
         </div>
 
         <div class="hero-metrics">

@@ -4,6 +4,8 @@ import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 
 const MULTIPART_VIDEO_THRESHOLD = 50 * 1024 * 1024
 const MULTIPART_VIDEO_CHUNK_SIZE = 45 * 1024 * 1024
+const MULTIPART_ARTICLE_THRESHOLD = 50 * 1024 * 1024
+const MULTIPART_ARTICLE_CHUNK_SIZE = 25 * 1024 * 1024
 const MULTIPART_MANIFEST_SUFFIX = '.manifest.json'
 const MULTIPART_REFERENCE_PREFIX = 'supabase-multipart://'
 
@@ -42,9 +44,25 @@ export const useStorage = () => {
     return `${folder}/${Date.now()}_${sanitizeFileName(file.name)}`
   }
 
-  const shouldUseMultipartUpload = (file, folder) => {
+  const getMultipartUploadConfig = (file, folder) => {
     const isVideoFile = file?.type?.startsWith('video/') || folder === 'video'
-    return isVideoFile && file.size > MULTIPART_VIDEO_THRESHOLD
+    const isArticleFile = folder === 'article'
+
+    if (isVideoFile && file.size > MULTIPART_VIDEO_THRESHOLD) {
+      return {
+        type: 'multipart-video',
+        chunkSize: MULTIPART_VIDEO_CHUNK_SIZE
+      }
+    }
+
+    if (isArticleFile && file.size > MULTIPART_ARTICLE_THRESHOLD) {
+      return {
+        type: 'multipart-file',
+        chunkSize: MULTIPART_ARTICLE_CHUNK_SIZE
+      }
+    }
+
+    return null
   }
 
   const getMultipartReference = (bucketName, filePath, meta = {}) => {
@@ -133,9 +151,11 @@ export const useStorage = () => {
             version: 2,
             bucket: parsed.bucket,
             originalName: parsed.originalName,
-            originalType: parsed.originalType || 'video/mp4',
+            originalType: parsed.originalType || 'application/octet-stream',
             originalSize: parsed.originalSize || 0,
-            chunkSize: MULTIPART_VIDEO_CHUNK_SIZE,
+            chunkSize: parsed.partCount > 0
+              ? Math.ceil((parsed.originalSize || 0) / parsed.partCount)
+              : MULTIPART_VIDEO_CHUNK_SIZE,
             partCount: totalParts,
             parts
           }
@@ -192,7 +212,7 @@ export const useStorage = () => {
     }
 
     return {
-      blob: new Blob(chunks, { type: manifest.originalType || 'video/mp4' }),
+      blob: new Blob(chunks, { type: manifest.originalType || 'application/octet-stream' }),
       manifest
     }
   }
@@ -228,13 +248,15 @@ export const useStorage = () => {
     return { blob, manifest }
   }
 
-  const uploadMultipartVideo = async (client, bucketName, file, filePath) => {
-    const totalParts = Math.ceil(file.size / MULTIPART_VIDEO_CHUNK_SIZE)
+  const uploadMultipartVideo = async (client, bucketName, file, filePath, options = {}) => {
+    const chunkSize = options.chunkSize || MULTIPART_VIDEO_CHUNK_SIZE
+    const fallbackType = options.fallbackType || 'application/octet-stream'
+    const totalParts = Math.ceil(file.size / chunkSize)
     const parts = []
 
     for (let index = 0; index < totalParts; index++) {
-      const start = index * MULTIPART_VIDEO_CHUNK_SIZE
-      const end = Math.min(file.size, start + MULTIPART_VIDEO_CHUNK_SIZE)
+      const start = index * chunkSize
+      const end = Math.min(file.size, start + chunkSize)
       const chunk = file.slice(start, end)
       const partPath = `${filePath}.part${String(index + 1).padStart(3, '0')}`
 
@@ -268,7 +290,7 @@ export const useStorage = () => {
       success: true,
       url: getMultipartReference(bucketName, filePath, {
         partCount: totalParts,
-        originalType: file.type || 'video/mp4',
+        originalType: file.type || fallbackType,
         originalSize: file.size,
         originalName: file.name
       }),
@@ -280,9 +302,9 @@ export const useStorage = () => {
         version: 2,
         bucket: bucketName,
         originalName: file.name,
-        originalType: file.type || 'video/mp4',
+        originalType: file.type || fallbackType,
         originalSize: file.size,
-        chunkSize: MULTIPART_VIDEO_CHUNK_SIZE,
+        chunkSize,
         partCount: totalParts,
         parts,
         uploadedAt: new Date().toISOString()
@@ -315,8 +337,12 @@ export const useStorage = () => {
         throw new Error(`Bucket "${bucketName}" not found`)
       }
 
-      if (shouldUseMultipartUpload(file, folder)) {
-        return await uploadMultipartVideo(client, bucketName, file, filePath)
+      const multipartConfig = getMultipartUploadConfig(file, folder)
+      if (multipartConfig) {
+        return await uploadMultipartVideo(client, bucketName, file, filePath, {
+          chunkSize: multipartConfig.chunkSize,
+          fallbackType: folder === 'article' ? 'application/octet-stream' : 'video/mp4'
+        })
       }
 
       // Upload file

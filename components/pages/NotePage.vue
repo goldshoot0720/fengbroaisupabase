@@ -364,7 +364,7 @@
                   <template v-for="n in 3" :key="'file' + n">
                     <div v-if="article['file' + n]" class="file-item-card">
                       <img
-                        v-if="isImageType(article['file' + n + 'type'])"
+                        v-if="isImageType(article['file' + n + 'type']) && !isMultipartAttachment(article['file' + n])"
                         :src="article['file' + n]"
                         :alt="article['file' + n + 'name'] || '附件'"
                         class="file-preview-img"
@@ -375,7 +375,14 @@
                         <span class="file-name">{{ article['file' + n + 'name'] || '附件 ' + n }}</span>
                         <span class="file-type">{{ article['file' + n + 'type'] || 'FILE' }}</span>
                       </div>
-                      <a :href="article['file' + n]" target="_blank" class="btn-download" title="開啟/下載">⬇️</a>
+                      <button
+                        type="button"
+                        class="btn-download"
+                        title="開啟/下載"
+                        @click="downloadAttachment(article, n)"
+                      >
+                        ⬇️
+                      </button>
                     </div>
                   </template>
                 </div>
@@ -386,9 +393,9 @@
       </div>
 
       <!-- 圖片預覽 Lightbox -->
-      <div v-if="previewUrl" class="lightbox-overlay" @click="previewUrl = null">
+      <div v-if="previewUrl" class="lightbox-overlay" @click="closePreview">
         <div class="lightbox-content" @click.stop>
-          <button class="lightbox-close" @click="previewUrl = null">✕</button>
+          <button class="lightbox-close" @click="closePreview">✕</button>
           <img :src="previewUrl" alt="預覽" class="lightbox-img" />
         </div>
       </div>
@@ -412,7 +419,13 @@ const {
   importArticles
 } = useArticles()
 
-const { uploading, uploadProgress, uploadFile } = useStorage()
+const {
+  uploading,
+  uploadProgress,
+  uploadFile,
+  isMultipartManifestUrl,
+  resolveMultipartFile
+} = useStorage()
 
 // 空表單模板
 const emptyForm = () => ({
@@ -831,16 +844,25 @@ const exportArticlesZip = async () => {
         if (!fileUrl) continue
 
         try {
-          const controller = new AbortController()
-          const timer = setTimeout(() => controller.abort(), 10000) // 10 秒逾時
-          const response = await fetch(fileUrl, { signal: controller.signal })
-          clearTimeout(timer)
-          if (response.ok) {
-            const blob = await response.blob()
-            const zipFileName = `${rowIdx}_${slot}_${fileName || 'file'}`
-            filesFolder.file(zipFileName, blob)
-            row['file' + slot] = `files/${zipFileName}`
-          }
+          const blob = isMultipartAttachment(fileUrl)
+            ? (await resolveMultipartFile(fileUrl)).blob
+            : await (async () => {
+                const controller = new AbortController()
+                const timer = setTimeout(() => controller.abort(), 10000)
+                try {
+                  const response = await fetch(fileUrl, { signal: controller.signal })
+                  if (!response.ok) {
+                    throw new Error(`附件下載失敗 (HTTP ${response.status})`)
+                  }
+                  return await response.blob()
+                } finally {
+                  clearTimeout(timer)
+                }
+              })()
+
+          const zipFileName = `${rowIdx}_${slot}_${fileName || 'file'}`
+          filesFolder.file(zipFileName, blob)
+          row['file' + slot] = `files/${zipFileName}`
         } catch (err) {
           if (err.name === 'AbortError') {
             console.warn(`下載附件逾時 (row ${rowIdx}, slot ${slot}): ${fileUrl}`)
@@ -1059,7 +1081,55 @@ const getFileExt = (filename) => {
   return filename.split('.').pop().toLowerCase()
 }
 
+const isMultipartAttachment = (url) => isMultipartManifestUrl(url)
+
+const triggerBlobDownload = (blob, fileName) => {
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = fileName || 'attachment'
+  link.click()
+  URL.revokeObjectURL(objectUrl)
+}
+
+const resolveAttachmentBlob = async (fileUrl) => {
+  if (isMultipartAttachment(fileUrl)) {
+    return await resolveMultipartFile(fileUrl)
+  }
+
+  const response = await fetch(fileUrl)
+  if (!response.ok) {
+    throw new Error(`附件下載失敗 (HTTP ${response.status})`)
+  }
+
+  return {
+    blob: await response.blob(),
+    manifest: null
+  }
+}
+
+const downloadAttachment = async (article, slot) => {
+  const fileUrl = article?.['file' + slot]
+  const fileName = article?.['file' + slot + 'name'] || `attachment-${slot}`
+  if (!fileUrl) return
+
+  try {
+    const { blob } = await resolveAttachmentBlob(fileUrl)
+    triggerBlobDownload(blob, fileName)
+  } catch (error) {
+    console.error('下載附件失敗:', error)
+    alert('下載附件失敗: ' + error.message)
+  }
+}
+
 // 觸發檔案選擇（mode: 'add' | 'edit'）
+const closePreview = () => {
+  if (typeof previewUrl.value === 'string' && previewUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(previewUrl.value)
+  }
+  previewUrl.value = null
+}
+
 const triggerFileInput = (slot, mode) => {
   if (mode === 'add') addFileInputRefs[slot]?.click()
   else editFileInputRefs[slot]?.click()
@@ -1101,8 +1171,23 @@ const handleFileDrop = async (e, slot, mode) => {
 }
 
 // 開啟大圖預覽
-const openPreview = (url) => {
-  previewUrl.value = url
+const openPreview = async (url) => {
+  if (!url) return
+
+  closePreview()
+
+  if (!isMultipartAttachment(url)) {
+    previewUrl.value = url
+    return
+  }
+
+  try {
+    const { blob } = await resolveAttachmentBlob(url)
+    previewUrl.value = URL.createObjectURL(blob)
+  } catch (error) {
+    console.error('預覽附件失敗:', error)
+    alert('預覽附件失敗: ' + error.message)
+  }
 }
 
 // SEO

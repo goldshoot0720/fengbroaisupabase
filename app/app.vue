@@ -23,6 +23,40 @@
         />
 
         <!-- 頁面內容 -->
+        <section
+          v-if="showBirthdayEasterEgg"
+          class="birthday-easter-egg"
+          :aria-label="`${birthdayEasterEggContent.title}彩蛋`"
+        >
+          <div class="birthday-easter-egg__confetti" aria-hidden="true">
+            <span
+              v-for="piece in birthdayConfetti"
+              :key="piece.id"
+              class="birthday-easter-egg__piece"
+              :style="piece.style"
+            ></span>
+          </div>
+
+          <div class="birthday-easter-egg__card">
+            <button
+              type="button"
+              class="birthday-easter-egg__close"
+              @click="dismissBirthdayEasterEgg"
+              aria-label="關閉彩蛋"
+            >
+              ×
+            </button>
+
+            <div class="birthday-easter-egg__copy">
+              <p class="birthday-easter-egg__eyebrow">{{ birthdayEasterEggContent.eyebrow }}</p>
+              <h2>{{ birthdayEasterEggContent.title }}</h2>
+              <p class="birthday-easter-egg__lead">{{ birthdayEasterEggContent.lead }}</p>
+              <p class="birthday-easter-egg__headline">{{ birthdayEasterEggContent.headline }}</p>
+              <p class="birthday-easter-egg__note">{{ birthdayEasterEggContent.note }}</p>
+            </div>
+          </div>
+        </section>
+
         <main class="page-content">
           <!-- 儀表板 -->
           <DashboardPage 
@@ -242,42 +276,6 @@
           Close
         </button>
       </div>
-    </div>
-
-    <div
-      v-if="showBirthdayEasterEgg"
-      class="birthday-easter-egg"
-      role="dialog"
-      aria-modal="true"
-      :aria-label="`${birthdayEasterEggContent.title}彩蛋`"
-    >
-      <div class="birthday-easter-egg__confetti" aria-hidden="true">
-        <span
-          v-for="piece in birthdayConfetti"
-          :key="piece.id"
-          class="birthday-easter-egg__piece"
-          :style="piece.style"
-        ></span>
-      </div>
-
-      <div class="birthday-easter-egg__backdrop" @click="dismissBirthdayEasterEgg"></div>
-
-      <section class="birthday-easter-egg__card">
-        <button
-          type="button"
-          class="birthday-easter-egg__close"
-          @click="dismissBirthdayEasterEgg"
-          aria-label="關閉彩蛋"
-        >
-          ×
-        </button>
-
-        <p class="birthday-easter-egg__eyebrow">{{ birthdayEasterEggContent.eyebrow }}</p>
-        <h2>{{ birthdayEasterEggContent.title }}</h2>
-        <p class="birthday-easter-egg__lead">{{ birthdayEasterEggContent.lead }}</p>
-        <p class="birthday-easter-egg__headline">{{ birthdayEasterEggContent.headline }}</p>
-        <p class="birthday-easter-egg__note">{{ birthdayEasterEggContent.note }}</p>
-      </section>
     </div>
 
     <ToastContainer />
@@ -947,22 +945,10 @@ onUnmounted(() => {
 }
 
 .birthday-easter-egg {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--z-modal, 4000) + 12);
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
-  pointer-events: auto;
-}
-
-.birthday-easter-egg__backdrop {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at top, rgba(255, 215, 120, 0.22), transparent 36%),
-    rgba(7, 12, 24, 0.64);
-  backdrop-filter: blur(12px);
+  position: relative;
+  margin: 0.35rem 0 0.75rem;
+  border-radius: 30px;
+  overflow: hidden;
 }
 
 .birthday-easter-egg__confetti {
@@ -993,16 +979,24 @@ onUnmounted(() => {
 
 .birthday-easter-egg__card {
   position: relative;
-  width: min(560px, 100%);
-  padding: 2rem 1.6rem 1.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 32px;
+  width: 100%;
+  padding: 1.45rem 1.6rem 1.35rem;
+  border: 1px solid color-mix(in oklab, var(--warning) 28%, var(--border-color));
+  border-radius: 30px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(255, 247, 237, 0.92)),
-    radial-gradient(circle at top right, rgba(251, 191, 36, 0.18), transparent 40%);
-  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
-  text-align: center;
+    linear-gradient(145deg, color-mix(in oklab, var(--bg-secondary) 92%, white), rgba(255, 247, 237, 0.94)),
+    radial-gradient(circle at top right, rgba(251, 191, 36, 0.24), transparent 42%);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
   animation: birthdayCardEntrance 0.55s ease;
+}
+
+.birthday-easter-egg__copy {
+  min-width: 0;
+  padding-right: 2.25rem;
 }
 
 .birthday-easter-egg__close {
@@ -1031,22 +1025,22 @@ onUnmounted(() => {
   margin: 0;
   color: #7c2d12;
   font-family: var(--font-display);
-  font-size: clamp(2rem, 4vw, 3.2rem);
-  line-height: 1.05;
+  font-size: clamp(1.55rem, 3vw, 2.4rem);
+  line-height: 1.08;
 }
 
 .birthday-easter-egg__lead,
 .birthday-easter-egg__note {
-  margin: 0.85rem 0 0;
+  margin: 0.55rem 0 0;
   color: #6b7280;
-  font-size: 1rem;
+  font-size: 0.96rem;
 }
 
 .birthday-easter-egg__headline {
-  margin: 1.15rem 0 0;
+  margin: 0.85rem 0 0;
   color: #dc2626;
   font-family: var(--font-display);
-  font-size: clamp(1.25rem, 3vw, 1.9rem);
+  font-size: clamp(1.05rem, 2vw, 1.45rem);
   font-weight: 700;
 }
 
@@ -1118,14 +1112,18 @@ onUnmounted(() => {
   .scroll-btn { width: 45px; height: 45px; font-size: 1.1rem; }
   .mobile-overlay ~ .scroll-buttons { display: none; }
   .birthday-easter-egg {
-    padding: 1rem;
+    margin-top: 0.2rem;
   }
   .birthday-easter-egg__card {
-    padding: 1.65rem 1.15rem 1.35rem;
+    padding: 1.45rem 1rem 1.15rem;
     border-radius: 26px;
+    gap: 0.85rem;
   }
   .birthday-easter-egg__headline {
     line-height: 1.2;
+  }
+  .birthday-easter-egg__copy {
+    padding-right: 1.8rem;
   }
 }
 

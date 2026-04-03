@@ -259,7 +259,7 @@ const channels = [
   display: flex;
   flex-wrap: wrap;
   gap: 0.85rem;
-  margin-top: 1.7rem;
+  margin-top: 1.15rem;
 }
 
 .hero-btn {
@@ -296,7 +296,7 @@ const channels = [
 }
 
 .hero-ascii-shell {
-  margin-top: 1.6rem;
+  margin-top: 0.7rem;
   border: 1px solid color-mix(in oklab, var(--border-color) 84%, transparent);
   border-radius: 24px;
   overflow: hidden;

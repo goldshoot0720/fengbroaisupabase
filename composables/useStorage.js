@@ -44,6 +44,12 @@ export const useStorage = () => {
     return `${folder}/${Date.now()}_${sanitizeFileName(file.name)}`
   }
 
+  const buildMultipartFilePath = (folder, file) => {
+    const shortId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+    const ext = sanitizeFileName(file?.name || '').split('.').pop()
+    return `${folder}/mp_${shortId}${ext && ext !== 'file' ? `.${ext}` : ''}`
+  }
+
   const getMultipartUploadConfig = (file, folder) => {
     const isVideoFile = file?.type?.startsWith('video/') || folder === 'video'
     const isArticleFile = folder === 'article'
@@ -68,9 +74,6 @@ export const useStorage = () => {
   const getMultipartReference = (bucketName, filePath, meta = {}) => {
     const params = new URLSearchParams()
     if (meta.partCount) params.set('parts', String(meta.partCount))
-    if (meta.originalType) params.set('type', meta.originalType)
-    if (meta.originalSize) params.set('size', String(meta.originalSize))
-    if (meta.originalName) params.set('name', meta.originalName)
     const query = params.toString()
     return `${MULTIPART_REFERENCE_PREFIX}${bucketName}/${filePath}${query ? `?${query}` : ''}`
   }
@@ -328,8 +331,6 @@ export const useStorage = () => {
       uploadProgress.value = 0
 
       // Generate unique file path: folder/timestamp_filename
-      const filePath = buildFilePath(file, folder, customPath)
-
       const bucketName = getBucket()
       console.log('[useStorage] bucket =', bucketName)
       const probe = await client.storage.from(bucketName).list('')
@@ -338,6 +339,9 @@ export const useStorage = () => {
       }
 
       const multipartConfig = getMultipartUploadConfig(file, folder)
+      const filePath = multipartConfig
+        ? (customPath || buildMultipartFilePath(folder, file))
+        : buildFilePath(file, folder, customPath)
       if (multipartConfig) {
         return await uploadMultipartVideo(client, bucketName, file, filePath, {
           chunkSize: multipartConfig.chunkSize,

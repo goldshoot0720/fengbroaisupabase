@@ -20,6 +20,16 @@
           </button>
         </div>
 
+        <div class="hero-ascii-shell" aria-label="feng bro ascii art">
+          <div class="hero-ascii-head">
+            <span class="hero-ascii-dot"></span>
+            <span class="hero-ascii-dot"></span>
+            <span class="hero-ascii-dot"></span>
+            <p>feng bro / home signal</p>
+          </div>
+          <pre class="hero-ascii-art">{{ asciiArt }}</pre>
+        </div>
+
         <div class="hero-metrics">
           <div v-for="metric in metrics" :key="metric.label" class="metric-card">
             <span class="metric-value">{{ metric.value }}</span>
@@ -111,6 +121,13 @@
 
 <script setup>
 defineEmits(['navigate'])
+
+const asciiArt = String.raw`███████╗███████╗███╗   ██╗ ██████╗     ██████╗ ██████╗  ██████╗
+██╔════╝██╔════╝████╗  ██║██╔════╝     ██╔══██╗██╔══██╗██╔═══██╗
+█████╗  █████╗  ██╔██╗ ██║██║  ███╗    ██████╔╝██████╔╝██║   ██║
+██╔══╝  ██╔══╝  ██║╚██╗██║██║   ██║    ██╔══██╗██╔══██╗██║   ██║
+██║     ███████╗██║ ╚████║╚██████╔╝    ██████╔╝██║  ██║╚██████╔╝
+╚═╝     ╚══════╝╚═╝  ╚═══╝ ╚═════╝     ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ `
 
 const metrics = [
   { value: '02', label: '核心任務模組' },
@@ -276,6 +293,59 @@ const channels = [
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.8rem;
   margin-top: 2rem;
+}
+
+.hero-ascii-shell {
+  margin-top: 1.6rem;
+  border: 1px solid color-mix(in oklab, var(--border-color) 84%, transparent);
+  border-radius: 24px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--surface-strong) 10%, var(--bg-secondary)), color-mix(in oklab, var(--bg-secondary) 94%, black 6%));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.hero-ascii-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--border-color) 82%, transparent);
+  background: color-mix(in oklab, var(--bg-secondary) 78%, transparent);
+}
+
+.hero-ascii-head p {
+  margin: 0 0 0 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-ascii-dot {
+  width: 0.58rem;
+  height: 0.58rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 62%, white);
+}
+
+.hero-ascii-dot:nth-child(2) {
+  background: color-mix(in oklab, var(--warning) 70%, white);
+}
+
+.hero-ascii-dot:nth-child(3) {
+  background: color-mix(in oklab, var(--success) 68%, white);
+}
+
+.hero-ascii-art {
+  margin: 0;
+  padding: 1rem 1rem 1.1rem;
+  overflow-x: auto;
+  color: color-mix(in oklab, var(--text-primary) 82%, var(--primary));
+  font-family: "Cascadia Code", "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: clamp(0.48rem, 0.36rem + 0.34vw, 0.78rem);
+  line-height: 1.18;
+  letter-spacing: 0.02em;
 }
 
 .metric-card {
@@ -475,6 +545,10 @@ const channels = [
     font-size: 0.98rem;
   }
 
+  .hero-ascii-art {
+    font-size: clamp(0.42rem, 0.34rem + 0.5vw, 0.66rem);
+  }
+
   .hero-metrics,
   .channel-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -505,6 +579,11 @@ const channels = [
 
   .hero-actions {
     flex-direction: column;
+  }
+
+  .hero-ascii-art {
+    font-size: 0.39rem;
+    line-height: 1.12;
   }
 
   .hero-btn {

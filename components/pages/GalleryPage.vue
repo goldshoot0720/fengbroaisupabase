@@ -1028,8 +1028,7 @@ useHead({
   object-fit: cover;
 }
 
-.images-container--hybrid .image-card--card:nth-of-type(2),
-.images-container--hybrid .image-card--card:nth-of-type(3) {
+.images-container--hybrid .image-card--card {
   grid-column: span 6;
 }
 

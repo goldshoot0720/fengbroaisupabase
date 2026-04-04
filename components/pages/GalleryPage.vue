@@ -1018,6 +1018,16 @@ useHead({
   min-height: 360px;
 }
 
+.image-card--card .card-image-wrapper {
+  aspect-ratio: 16 / 9;
+}
+
+.image-card--card .card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .images-container--hybrid .image-card--card:nth-of-type(2),
 .images-container--hybrid .image-card--card:nth-of-type(3) {
   grid-column: span 6;
@@ -1045,10 +1055,15 @@ useHead({
   grid-column: 1;
   grid-row: 1 / span 4;
   margin-top: 0;
+  width: 100%;
+  max-width: 240px;
 }
 
 .image-card--list .card-image {
   aspect-ratio: 4 / 3;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .image-header {
@@ -1141,7 +1156,7 @@ useHead({
   width: 100%;
   height: auto;
   max-height: none;
-  object-fit: contain;
+  object-fit: cover;
   display: block;
   border-radius: 8px;
   cursor: pointer;

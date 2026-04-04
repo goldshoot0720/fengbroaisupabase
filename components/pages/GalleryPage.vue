@@ -337,7 +337,7 @@ const {
 const showModal = ref(false)
 const isEditing = ref(false)
 const searchQuery = ref('')
-const viewMode = ref('hybrid')
+const viewMode = ref('card')
 const showSection = reactive({
   extra: false
 })
@@ -980,7 +980,7 @@ useHead({
 }
 
 .images-container--card {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .images-container--list {
@@ -1618,6 +1618,10 @@ useHead({
 </style>
 
 @media (max-width: 960px) {
+  .images-container--card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .images-container--hybrid {
     grid-template-columns: 1fr;
   }
@@ -1629,6 +1633,10 @@ useHead({
 }
 
 @media (max-width: 720px) {
+  .images-container--card {
+    grid-template-columns: 1fr;
+  }
+
   .summary-right,
   .csv-actions,
   .action-buttons {

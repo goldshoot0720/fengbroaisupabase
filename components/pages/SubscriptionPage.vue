@@ -17,6 +17,7 @@
         </select>
         <select v-model="selectedMonth" class="date-filter-select">
           <option value="">全部月份</option>
+          <option value="none">無月份</option>
           <option v-for="month in 12" :key="month" :value="String(month)">
             {{ month }} 月
           </option>
@@ -346,6 +347,7 @@ const searchQuery = ref('')
 const renewFilter = ref('all')
 const selectedYear = ref('')
 const selectedMonth = ref('')
+const EMPTY_MONTH_FILTER = 'none'
 
 const {
   subscriptions,
@@ -586,13 +588,21 @@ const filteredSubscriptions = computed(() => {
 
   if (selectedYear.value || selectedMonth.value) {
     list = list.filter(sub => {
+      if (selectedMonth.value === EMPTY_MONTH_FILTER) {
+        if (!sub.nextdate) return true
+        const invalidDate = new Date(sub.nextdate)
+        return Number.isNaN(invalidDate.getTime())
+      }
+
       if (!sub.nextdate) return false
 
       const date = new Date(sub.nextdate)
       if (Number.isNaN(date.getTime())) return false
 
       const matchesYear = !selectedYear.value || date.getFullYear() === Number(selectedYear.value)
-      const matchesMonth = !selectedMonth.value || date.getMonth() + 1 === Number(selectedMonth.value)
+      const matchesMonth =
+        !selectedMonth.value ||
+        (selectedMonth.value !== EMPTY_MONTH_FILTER && date.getMonth() + 1 === Number(selectedMonth.value))
 
       return matchesYear && matchesMonth
     })

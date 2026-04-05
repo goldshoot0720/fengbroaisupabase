@@ -36,6 +36,10 @@
           :class="['filter-btn filter-off', { active: renewFilter === 'notRenew' }]"
           @click="renewFilter = 'notRenew'"
         >非續訂</button>
+        <button
+          :class="['filter-btn filter-soon', { active: renewFilter === 'within7Days' }]"
+          @click="renewFilter = 'within7Days'"
+        >7天內</button>
       </div>
       <div class="csv-actions">
         <button
@@ -613,6 +617,20 @@ const filteredSubscriptions = computed(() => {
     list = list.filter(s => s.iscontinue !== false)
   } else if (renewFilter.value === 'notRenew') {
     list = list.filter(s => s.iscontinue === false)
+  } else if (renewFilter.value === 'within7Days') {
+    const today = new Date()
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const maxDate = new Date(todayStart)
+    maxDate.setDate(maxDate.getDate() + 7)
+
+    list = list.filter((sub) => {
+      if (!sub.nextdate) return false
+      const targetDate = new Date(sub.nextdate)
+      if (Number.isNaN(targetDate.getTime())) return false
+
+      const targetStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate())
+      return targetStart >= todayStart && targetStart <= maxDate
+    })
   }
 
   // 關鍵字搜尋
@@ -836,6 +854,11 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .filter-btn.filter-off.active {
   background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+  color: white;
+}
+
+.filter-btn.filter-soon.active {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
   color: white;
 }
 

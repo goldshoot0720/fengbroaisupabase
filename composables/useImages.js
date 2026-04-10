@@ -12,6 +12,63 @@ export const useImages = () => {
 
   const TABLE = 'image'
   const FIELDS = ['name', 'file', 'filetype', 'note', 'ref', 'category', 'hash', 'cover']
+  const FIELD_LIMITS = {
+    name: 100,
+    file: 150,
+    filetype: 20,
+    note: 100,
+    ref: 100,
+    category: 100,
+    hash: 300,
+    cover: 150
+  }
+
+  const extractStoragePath = (value) => {
+    if (typeof value !== 'string') return value
+    const trimmed = value.trim()
+    if (!trimmed) return ''
+
+    try {
+      const url = new URL(trimmed)
+      const marker = '/storage/v1/object/public/'
+      const markerIndex = url.pathname.indexOf(marker)
+      if (markerIndex === -1) return trimmed
+      const objectPath = decodeURIComponent(url.pathname.slice(markerIndex + marker.length))
+      const slashIndex = objectPath.indexOf('/')
+      if (slashIndex === -1) return trimmed
+      return objectPath.slice(slashIndex + 1)
+    } catch {
+      return trimmed
+    }
+  }
+
+  const normalizeField = (field, value) => {
+    if (value === undefined || value === null) return null
+
+    let normalized = typeof value === 'string' ? value.trim() : value
+    if (!normalized && normalized !== 0) return null
+
+    if (field === 'file' || field === 'cover') {
+      normalized = extractStoragePath(normalized)
+    }
+
+    const limit = FIELD_LIMITS[field]
+    if (typeof normalized === 'string' && limit && normalized.length > limit) {
+      normalized = normalized.slice(0, limit)
+    }
+
+    return normalized
+  }
+
+  const buildPayload = (item) => {
+    const payload = {}
+    FIELDS.forEach((field) => {
+      const normalized = normalizeField(field, item[field])
+      if (field === 'name') payload[field] = normalized || ''
+      else if (normalized !== null && normalized !== '') payload[field] = normalized
+    })
+    return payload
+  }
 
   const loadImages = async () => {
     const client = initSupabase()
@@ -36,9 +93,7 @@ export const useImages = () => {
     if (!client) return { success: false, error: 'No client' }
     try {
       loading.value = true
-      const payload = {}
-      FIELDS.forEach(f => { payload[f] = item[f] || null })
-      payload.name = item.name || ''
+      const payload = buildPayload(item)
       const { data, error: err } = await client.from(TABLE).insert([payload]).select()
       if (err) throw err
       if (data) images.value.unshift(data[0])
@@ -55,9 +110,7 @@ export const useImages = () => {
     if (!client) return { success: false, error: 'No client' }
     try {
       loading.value = true
-      const payload = {}
-      FIELDS.forEach(f => { payload[f] = item[f] || null })
-      payload.name = item.name || ''
+      const payload = buildPayload(item)
       const { data, error: err } = await client.from(TABLE).update(payload).eq('id', id).select()
       if (err) throw err
       if (data) {
@@ -93,14 +146,9 @@ export const useImages = () => {
     if (!client) return { success: false, error: '無法連接資料庫' }
     try {
       loading.value = true
-      const payload = rows.map(r => {
-        const row = {}
-        FIELDS.forEach(f => {
-          if (f === 'name') row[f] = r[f] || ''
-          else if (r[f] !== undefined && r[f] !== '') row[f] = r[f]
-        })
-        return row
-      }).filter(r => r.name)
+      const payload = rows
+        .map(buildPayload)
+        .filter(r => r.name)
       if (payload.length === 0) return { success: false, error: '無有效資料' }
       const { data, error: err } = await client.from(TABLE).insert(payload).select()
       if (err) throw err

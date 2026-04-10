@@ -20,13 +20,37 @@
               type="file"
               accept=".zip"
               style="display:none"
-              @change="handleImportZip"
+              @change="handleImportZipWithProgress"
             >
           </div>
         </div>
       </div>
 
       <!-- 摘要列 -->
+      <div
+        v-if="importProgress.active || importProgress.completed"
+        class="import-progress-card"
+        :class="{
+          'is-complete': importProgress.completed && !importProgress.error,
+          'is-error': importProgress.error
+        }"
+      >
+        <div class="import-progress-head">
+          <div>
+            <p class="import-progress-label">圖片匯入進度</p>
+            <p class="import-progress-stage">{{ importProgress.stage }}</p>
+          </div>
+          <span class="import-progress-percent">{{ importProgress.percent }}%</span>
+        </div>
+        <div class="import-progress-bar">
+          <div class="import-progress-fill" :style="{ width: `${importProgress.percent}%` }"></div>
+        </div>
+        <div class="import-progress-meta">
+          <span>{{ importProgress.message }}</span>
+          <span v-if="importProgress.total > 0">{{ importProgress.current }} / {{ importProgress.total }}</span>
+        </div>
+      </div>
+
       <div class="summary-bar">
         <div class="summary-left">
           <button v-if="!batchMode && filteredImages.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
@@ -85,7 +109,7 @@
               </span>
             </div>
             <div v-else-if="addForm.file" class="inline-img-preview-wrap">
-              <img :src="addForm.file" class="inline-img-preview" alt="預覽" />
+              <img :src="resolveMediaUrl(addForm.file)" class="inline-img-preview" alt="預覽" />
             </div>
             <div class="inline-field-row">
               <label>或輸入URL</label>
@@ -124,7 +148,7 @@
             <div class="inline-add-form">
               <!-- 圖片預覽 -->
               <div v-if="editForm.file" class="inline-img-preview-wrap">
-                <img :src="editForm.file" class="inline-img-preview" alt="預覽" />
+                <img :src="resolveMediaUrl(editForm.file)" class="inline-img-preview" alt="預覽" />
               </div>
               <!-- 上傳圖片 -->
               <div class="inline-field-row">
@@ -175,7 +199,7 @@
                 <p class="detail-value">{{ image.note }}</p>
               </div>
               <div v-if="image.file" class="card-image-wrapper">
-                <img :src="image.file" :alt="image.name || '圖片'" class="card-image" />
+                <img :src="resolveMediaUrl(image.file)" :alt="image.name || '圖片'" class="card-image" />
               </div>
               <div v-if="image.filetype" class="detail-row">
                 <span class="file-type-badge">{{ image.filetype }}</span>
@@ -237,7 +261,7 @@
                 <span v-if="imageUploadProgress > 0" class="upload-progress">{{ imageUploadProgress }}%</span>
               </div>
               <div v-if="formData.file" class="image-preview">
-                <img :src="formData.file" alt="預覽" class="preview-image" />
+                <img :src="resolveMediaUrl(formData.file)" alt="預覽" class="preview-image" />
                 <button type="button" @click="removeImage" class="btn-remove">移除</button>
               </div>
             </div>
@@ -295,7 +319,7 @@
                     </button>
                   </div>
                   <div v-if="formData.cover" class="image-preview">
-                    <img :src="formData.cover" alt="封面預覽" class="preview-image" />
+                    <img :src="resolveMediaUrl(formData.cover)" alt="封面預覽" class="preview-image" />
                     <button type="button" @click="removeCover" class="btn-remove">移除</button>
                   </div>
                   <input v-model="formData.cover" type="text" class="form-input" placeholder="或輸入封面 URL">
@@ -344,6 +368,49 @@ const showSection = reactive({
 
 const batchMode = ref(false)
 const selectedIds = ref(new Set())
+const createImportProgressState = () => ({
+  active: false,
+  completed: false,
+  error: false,
+  stage: '準備匯入',
+  message: '',
+  current: 0,
+  total: 0,
+  percent: 0
+})
+const importProgress = reactive(createImportProgressState())
+const resetImportProgress = () => Object.assign(importProgress, createImportProgressState())
+const startImportProgress = (stage, message = '', total = 0) => {
+  Object.assign(importProgress, {
+    active: true,
+    completed: false,
+    error: false,
+    stage,
+    message,
+    current: 0,
+    total,
+    percent: total > 0 ? 0 : 8
+  })
+}
+const updateImportProgress = ({ stage, message, current, total }) => {
+  if (stage !== undefined) importProgress.stage = stage
+  if (message !== undefined) importProgress.message = message
+  if (total !== undefined) importProgress.total = total
+  if (current !== undefined) importProgress.current = current
+
+  if (importProgress.total > 0) {
+    importProgress.percent = Math.min(100, Math.max(0, Math.round((importProgress.current / importProgress.total) * 100)))
+  }
+}
+const finishImportProgress = ({ message, error = false }) => {
+  Object.assign(importProgress, {
+    active: false,
+    completed: true,
+    error,
+    message,
+    percent: error ? importProgress.percent || 0 : 100
+  })
+}
 const enterBatchMode = () => { batchMode.value = true }
 const exitBatchMode = () => { batchMode.value = false; selectedIds.value = new Set() }
 const isAllSelected = computed(() => filteredImages.value.length > 0 && filteredImages.value.every(a => selectedIds.value.has(a.id)))
@@ -371,7 +438,12 @@ const deleteSelected = async () => {
 // 上傳狀態
 const imageFileInput = ref(null)
 const coverFileInput = ref(null)
-const { uploading: imageUploading, uploadProgress: imageUploadProgress, uploadFile: uploadImageFile } = useStorage()
+const {
+  uploading: imageUploading,
+  uploadProgress: imageUploadProgress,
+  uploadFile: uploadImageFile,
+  getPublicUrl
+} = useStorage()
 const coverUploading = ref(false)
 const coverUploadProgress = ref(0)
 
@@ -410,6 +482,12 @@ const imageCardModeClass = (imageId) => {
 
   const index = filteredImages.value.findIndex((image) => image.id === imageId)
   return index >= 0 && index < 2 ? 'image-card--card' : 'image-card--list'
+}
+
+const resolveMediaUrl = (value) => {
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value
+  return getPublicUrl(value) || value
 }
 
 // 檢查是否有額外資訊
@@ -824,6 +902,146 @@ const handleImportZip = async (e) => {
 }
 
 // 解析 image.csv（Appwrite 格式）
+const handleImportZipWithProgress = async (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  try {
+    resetImportProgress()
+    startImportProgress('讀取 ZIP', `正在讀取 ${file.name}`, 1)
+
+    const JSZip = (await import('jszip')).default
+    const zip = await JSZip.loadAsync(file)
+    updateImportProgress({ current: 1, message: `${file.name} 讀取完成` })
+
+    const csvFile = zip.file('image.csv')
+    const jsonFile = zip.file('images.json')
+    let records = []
+
+    if (csvFile) {
+      const csvText = await csvFile.async('text')
+      const cleanText = csvText.replace(/^\uFEFF/, '')
+      const parsed = parseImageCsv(cleanText)
+
+      if (parsed.length === 0) {
+        finishImportProgress({ message: 'CSV 檔案無有效資料', error: true })
+        alert('CSV 檔案無有效資料')
+        return
+      }
+
+      const confirmMsg = `偵測到 Appwrite image.zip 格式\n\n共 ${parsed.length} 筆圖片\n系統將自動上傳圖片至 Supabase Storage\n\n確定匯入？`
+      if (!confirm(confirmMsg)) {
+        resetImportProgress()
+        return
+      }
+
+      const { uploadFile: uploadToStorage } = useStorage()
+      let uploadOk = 0
+      let uploadFail = 0
+      startImportProgress('上傳圖片', '準備上傳 ZIP 內圖片', parsed.length)
+
+      for (let i = 0; i < parsed.length; i++) {
+        const row = parsed[i]
+        updateImportProgress({
+          current: i,
+          message: `處理中：${row.name || `第 ${i + 1} 筆`}`
+        })
+
+        const mapped = {}
+        for (const [key, value] of Object.entries(row)) {
+          if (key.startsWith('$')) continue
+          mapped[key] = value
+        }
+
+        const localPath = mapped.file
+        if (localPath && localPath.startsWith('images/')) {
+          const zipEntry = zip.file(localPath)
+          if (zipEntry) {
+            try {
+              const blob = await zipEntry.async('blob')
+              const fileName = localPath.split('/').pop() || `image_${i}.jpg`
+              const fileObj = new window.File([blob], fileName, {
+                type: blob.type || `image/${mapped.filetype || 'jpeg'}`
+              })
+              const uploadResult = await uploadToStorage(fileObj, 'gallery')
+              if (uploadResult.success) {
+                mapped.file = uploadResult.path || uploadResult.url
+                uploadOk++
+              } else {
+                console.warn(`圖片上傳失敗 (${mapped.name}):`, uploadResult.error)
+                mapped.file = ''
+                uploadFail++
+              }
+            } catch (err) {
+              console.warn(`圖片上傳失敗 (${mapped.name}):`, err)
+              mapped.file = ''
+              uploadFail++
+            }
+          } else {
+            console.warn(`ZIP 中找不到檔案: ${localPath}`)
+            mapped.file = ''
+            uploadFail++
+          }
+        }
+
+        records.push(mapped)
+        updateImportProgress({
+          current: i + 1,
+          message: `已整理 ${i + 1} / ${parsed.length} 筆圖片`
+        })
+      }
+
+      if (uploadFail > 0) {
+        console.warn(`圖片上傳結果: ${uploadOk} 成功, ${uploadFail} 失敗`)
+      }
+    } else if (jsonFile) {
+      const jsonText = await jsonFile.async('text')
+      const jsonData = JSON.parse(jsonText)
+
+      if (!Array.isArray(jsonData) || jsonData.length === 0) {
+        finishImportProgress({ message: 'JSON 檔案格式錯誤或無資料', error: true })
+        alert('JSON 檔案格式錯誤或無資料')
+        return
+      }
+
+      records = jsonData.map(record => {
+        const { id, created_at, updated_at, ...rest } = record
+        return rest
+      })
+
+      if (!confirm(`確定要匯入 ${records.length} 筆圖片資料嗎？`)) {
+        resetImportProgress()
+        return
+      }
+
+      startImportProgress('整理資料', `已讀取 ${records.length} 筆圖片資料`, records.length)
+      updateImportProgress({ current: records.length, message: `已讀取 ${records.length} 筆圖片資料` })
+    } else {
+      finishImportProgress({ message: 'ZIP 檔案中找不到 images.json 或 image.csv', error: true })
+      alert('ZIP 檔案中找不到 images.json 或 image.csv')
+      return
+    }
+
+    startImportProgress('寫入資料庫', `正在匯入 ${records.length} 筆圖片資料`, records.length)
+    const result = await importImages(records)
+
+    if (result.success) {
+      updateImportProgress({ current: records.length, message: `已匯入 ${result.count} 筆圖片資料` })
+      finishImportProgress({ message: `匯入完成，共 ${result.count} 筆圖片` })
+      alert(`圖片匯入成功，共 ${result.count} 筆`)
+    } else {
+      finishImportProgress({ message: '圖片資料匯入失敗', error: true })
+      alert('匯入失敗: ' + result.error)
+    }
+  } catch (error) {
+    console.error('Error importing ZIP:', error)
+    finishImportProgress({ message: error.message || '匯入失敗', error: true })
+    alert('匯入失敗：' + error.message)
+  }
+
+  e.target.value = ''
+}
+
 const parseImageCsv = (text) => {
   const parseRow = (line) => {
     const cells = []
@@ -1480,6 +1698,18 @@ useHead({
 }
 
 .summary-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(46, 204, 113, 0.08) 100%); border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.95rem; color: #555; flex-wrap: wrap; gap: 0.5rem; }
+.import-progress-card { margin-bottom: 1rem; padding: 1rem 1.1rem; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.18); background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(59, 130, 246, 0.06) 100%); box-shadow: 0 8px 24px rgba(102, 126, 234, 0.08); }
+.import-progress-card.is-complete { border-color: rgba(46, 204, 113, 0.25); background: linear-gradient(135deg, rgba(46, 204, 113, 0.10) 0%, rgba(39, 174, 96, 0.06) 100%); }
+.import-progress-card.is-error { border-color: rgba(231, 76, 60, 0.25); background: linear-gradient(135deg, rgba(231, 76, 60, 0.10) 0%, rgba(192, 57, 43, 0.06) 100%); }
+.import-progress-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
+.import-progress-label { margin: 0; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #667eea; }
+.import-progress-stage { margin: 0.2rem 0 0; font-size: 1rem; font-weight: 600; color: #2c3e50; }
+.import-progress-percent { font-size: 1.2rem; font-weight: 800; color: #2563eb; white-space: nowrap; }
+.import-progress-bar { height: 10px; border-radius: 999px; background: rgba(148, 163, 184, 0.22); overflow: hidden; }
+.import-progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #667eea 0%, #3b82f6 100%); transition: width 0.25s ease; }
+.import-progress-card.is-complete .import-progress-fill { background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%); }
+.import-progress-card.is-error .import-progress-fill { background: linear-gradient(90deg, #f97316 0%, #ef4444 100%); }
+.import-progress-meta { margin-top: 0.75rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: 0.9rem; color: #516074; }
 .summary-left, .summary-right { display: flex; align-items: center; gap: 1rem; }
 .select-all-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500; }
 .select-all-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }

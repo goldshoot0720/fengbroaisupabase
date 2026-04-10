@@ -622,12 +622,12 @@ const deleteSelected = async () => {
 
   const isFullDelete = count === musics.value.length
   const confirmText = isFullDelete
-    ? `確定要刪除全部 ${count} 個項目嗎？這將清空整個資料表！\n\n請輸入「DELETE musicdb」確認：`
+    ? `確定要刪除全部 ${count} 個項目嗎？這將清空整個資料表！\n\n請輸入「DELETE music」確認：`
     : `確定要刪除選中的 ${count} 個項目嗎？`
 
   if (isFullDelete) {
     const userInput = prompt(confirmText)
-    if (userInput !== 'DELETE musicdb') {
+    if (userInput !== 'DELETE music') {
       alert('確認文字不正確，已取消刪除')
       return
     }

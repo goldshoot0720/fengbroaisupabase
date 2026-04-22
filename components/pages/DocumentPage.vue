@@ -836,6 +836,93 @@ const parseDocCsv = (text) => {
 }
 
 // ZIP Import — 相容 supabase (documents.json) 及 appwrite (document.csv + files/ + covers/)
+const isRemoteImportUrl = (value) => /^https?:\/\//i.test(value || '')
+
+const getImportFileName = (path = '', fallback = 'file') => {
+  const cleanPath = String(path || '').replace(/\\/g, '/')
+  return cleanPath.split('/').pop() || fallback
+}
+
+const getImportMimeType = (fileName = '') => {
+  const ext = getImportFileName(fileName).split('.').pop()?.toLowerCase() || ''
+  const mimeMap = {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    txt: 'text/plain',
+    csv: 'text/csv',
+    json: 'application/json',
+    zip: 'application/zip',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    bmp: 'image/bmp',
+    mp3: 'audio/mpeg',
+    mp4: 'video/mp4'
+  }
+  return mimeMap[ext] || 'application/octet-stream'
+}
+
+const findZipEntry = (zip, allZipFiles, rawPath, preferredFolder = 'files') => {
+  if (!rawPath || isRemoteImportUrl(rawPath)) return null
+  const normalizedPath = String(rawPath).replace(/\\/g, '/').replace(/^\/+/, '')
+  const candidates = [
+    normalizedPath,
+    `${preferredFolder}/${normalizedPath}`,
+    `files/${normalizedPath}`,
+    `covers/${normalizedPath}`
+  ]
+
+  for (const candidate of candidates) {
+    const entry = zip.file(candidate)
+    if (entry) return entry
+  }
+
+  const baseName = getImportFileName(normalizedPath)
+  const matchedPath = allZipFiles.find((path) => {
+    const normalized = path.replace(/\\/g, '/')
+    return normalized === baseName || normalized.endsWith(`/${baseName}`)
+  })
+  return matchedPath ? zip.file(matchedPath) : null
+}
+
+const getFirstRowValue = (row, keys) => {
+  for (const key of keys) {
+    const value = row[key]
+    if (value !== undefined && value !== null && String(value).trim() !== '') return value
+  }
+  return ''
+}
+
+const mapImportedDocumentRow = (row, index) => {
+  const cleaned = {}
+  for (const [key, value] of Object.entries(row)) {
+    if (key.startsWith('$')) continue
+    cleaned[key] = value
+  }
+
+  const fileValue = getFirstRowValue(cleaned, ['file', 'file1', 'attachment', 'attachment1'])
+  const fileName = getFirstRowValue(cleaned, ['filename', 'fileName', 'file1name', 'file1Name'])
+  const title = getFirstRowValue(cleaned, ['name', 'title', 'subject', 'heading'])
+
+  return {
+    name: title || fileName || getImportFileName(fileValue, `Appwrite document ${index + 1}`),
+    file: fileValue,
+    note: getFirstRowValue(cleaned, ['note', 'content', 'description', 'body', 'summary']),
+    ref: getFirstRowValue(cleaned, ['ref', 'reference', 'source', 'url', 'url1']),
+    category: getFirstRowValue(cleaned, ['category', 'type', 'tag']),
+    hash: getFirstRowValue(cleaned, ['hash']),
+    cover: getFirstRowValue(cleaned, ['cover', 'thumbnail', 'image', 'cover1'])
+  }
+}
+
 const handleZipImport = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
@@ -846,14 +933,36 @@ const handleZipImport = async (event) => {
     const JSZip = (await import('jszip')).default
     const zip = await JSZip.loadAsync(file)
 
-    const csvFile = zip.file('document.csv')
+    const csvNames = [
+      'document.csv',
+      'documents.csv',
+      'appwrite-document.csv',
+      'appwrite-documents.csv',
+      'appwrite-article.csv',
+      'supabase-document.csv',
+      'supabase-documents.csv',
+      'supabase-article.csv'
+    ]
+    let csvFile = null
+    for (const csvName of csvNames) {
+      csvFile = zip.file(csvName)
+      if (csvFile) break
+    }
+    if (!csvFile) {
+      const csvFiles = zip.file(/\.csv$/i)
+      csvFile = csvFiles[0] || null
+    }
     const jsonFile = zip.file('documents.json')
+    const allZipFiles = []
+    zip.forEach((path, entry) => {
+      if (!entry.dir) allZipFiles.push(path)
+    })
 
     let records = []
 
     if (csvFile) {
       // ===== Appwrite 格式：document.csv + files/ + covers/ =====
-      updateImportProgress({ step: '解析 CSV...', itemName: 'document.csv' })
+      updateImportProgress({ step: '解析 CSV...', itemName: csvFile.name || 'document.csv' })
       const csvText = await csvFile.async('text')
       const cleanText = csvText.replace(/^\uFEFF/, '')
       const parsed = parseDocCsv(cleanText)
@@ -879,24 +988,22 @@ const handleZipImport = async (event) => {
 
       for (let i = 0; i < parsed.length; i++) {
         const row = parsed[i]
-        const mapped = {}
-        for (const [key, value] of Object.entries(row)) {
-          if (key.startsWith('$')) continue
-          mapped[key] = value
-        }
+        const mapped = mapImportedDocumentRow(row, i)
 
         const itemLabel = mapped.name || `第 ${i + 1} 筆`
         updateImportProgress({ current: i + 1, itemName: itemLabel })
 
         // 上傳檔案 (files/ 資料夾)
         const filePath = mapped.file
-        if (filePath && filePath.startsWith('files/')) {
+        const fileEntry = findZipEntry(zip, allZipFiles, filePath, 'files')
+        if (filePath && !fileEntry && !isRemoteImportUrl(filePath)) mapped.file = ''
+        if (filePath && fileEntry) {
           updateImportProgress({ step: `📄 上傳檔案 ${i + 1}/${parsed.length}` })
-          const zipEntry = zip.file(filePath)
+          const zipEntry = fileEntry
           if (zipEntry) {
             try {
               const blob = await zipEntry.async('blob')
-              const fileName = filePath.split('/').pop() || `file_${i}`
+              const fileName = getFirstRowValue(row, ['filename', 'fileName', 'file1name', 'file1Name']) || getImportFileName(filePath, `file_${i}`)
               const ext = fileName.split('.').pop()?.toLowerCase() || ''
               const mimeMap = { pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', txt: 'text/plain', zip: 'application/zip', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', mp3: 'audio/mpeg', mp4: 'video/mp4' }
               const fileObj = new window.File([blob], fileName, { type: mimeMap[ext] || 'application/octet-stream' })
@@ -921,13 +1028,15 @@ const handleZipImport = async (event) => {
 
         // 上傳封面 (covers/ 資料夾)
         const coverPath = mapped.cover
-        if (coverPath && coverPath.startsWith('covers/')) {
+        const coverEntry = findZipEntry(zip, allZipFiles, coverPath, 'covers')
+        if (coverPath && !coverEntry && !isRemoteImportUrl(coverPath)) mapped.cover = ''
+        if (coverPath && coverEntry) {
           updateImportProgress({ step: `🖼️ 上傳封面 ${i + 1}/${parsed.length}` })
-          const zipEntry = zip.file(coverPath)
+          const zipEntry = coverEntry
           if (zipEntry) {
             try {
               const blob = await zipEntry.async('blob')
-              const fileName = coverPath.split('/').pop() || `cover_${i}.jpg`
+              const fileName = getImportFileName(coverPath, `cover_${i}.jpg`)
               const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg'
               const fileObj = new window.File([blob], fileName, { type: `image/${ext === 'jpg' ? 'jpeg' : ext}` })
               const uploadResult = await uploadToStorage(fileObj, 'document-covers')

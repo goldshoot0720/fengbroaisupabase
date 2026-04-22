@@ -809,26 +809,40 @@ function resetImportProgress() {
 
 // CSV Parser
 const parseDocCsv = (text) => {
-  const parseRow = (line) => {
-    const cells = []
-    let current = ''
-    let inQuotes = false
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i]
-      if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') { current += '"'; i++ }
-        else inQuotes = !inQuotes
-      } else if (char === ',' && !inQuotes) { cells.push(current.trim()); current = '' }
-      else current += char
+  const rows = []
+  let row = []
+  let current = ''
+  let inQuotes = false
+  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+
+  for (let i = 0; i < normalized.length; i++) {
+    const char = normalized[i]
+    if (char === '"') {
+      if (inQuotes && normalized[i + 1] === '"') {
+        current += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if (char === ',' && !inQuotes) {
+      row.push(current.trim())
+      current = ''
+    } else if (char === '\n' && !inQuotes) {
+      row.push(current.trim())
+      if (row.some(cell => cell !== '')) rows.push(row)
+      row = []
+      current = ''
+    } else {
+      current += char
     }
-    cells.push(current.trim())
-    return cells
   }
-  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim())
-  if (lines.length < 2) return []
-  const headers = parseRow(lines[0])
-  return lines.slice(1).map(line => {
-    const cells = parseRow(line)
+
+  row.push(current.trim())
+  if (row.some(cell => cell !== '')) rows.push(row)
+  if (rows.length < 2) return []
+
+  const headers = rows[0]
+  return rows.slice(1).map(cells => {
     const obj = {}
     headers.forEach((h, i) => { obj[h] = cells[i] || '' })
     return obj

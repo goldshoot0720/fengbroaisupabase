@@ -7,6 +7,17 @@ const duration = ref(0)
 const volume = ref(1)
 
 let audio = null
+let activeElement = null
+
+const isUsableElement = (element) => {
+  return Boolean(element && element.isConnected && typeof element.play === 'function')
+}
+
+const getPlaybackElement = () => {
+  if (isUsableElement(activeElement)) return activeElement
+  activeElement = null
+  return ensureAudio()
+}
 
 const ensureAudio = () => {
   if (!import.meta.client) return null
@@ -45,6 +56,8 @@ const ensureAudio = () => {
 const snapshotFromElement = (element, track, options = {}) => {
   if (!element || !track) return
 
+  activeElement = element
+
   currentTrack.value = {
     id: track.id,
     name: track.name || '未命名音樂',
@@ -63,14 +76,17 @@ const snapshotFromElement = (element, track, options = {}) => {
 }
 
 const pauseGlobal = () => {
-  const instance = ensureAudio()
+  const instance = getPlaybackElement()
   if (!instance) return
   instance.pause()
 }
 
 const resumeGlobal = async () => {
-  const instance = ensureAudio()
+  const instance = getPlaybackElement()
   if (!instance || !currentTrack.value?.src) return
+  if (!instance.src && instance === audio) {
+    instance.src = currentTrack.value.src
+  }
   try {
     await instance.play()
   } catch (error) {
@@ -81,9 +97,14 @@ const resumeGlobal = async () => {
 const stopGlobal = () => {
   const instance = ensureAudio()
   if (!instance) return
+  if (isUsableElement(activeElement)) {
+    activeElement.pause()
+    activeElement.currentTime = 0
+  }
   instance.pause()
   instance.removeAttribute('src')
   instance.load()
+  activeElement = null
   currentTrack.value = null
   currentTime.value = 0
   duration.value = 0
@@ -91,17 +112,22 @@ const stopGlobal = () => {
 }
 
 const seekGlobal = (time) => {
-  const instance = ensureAudio()
+  const instance = getPlaybackElement()
   if (!instance) return
   instance.currentTime = Number(time) || 0
   currentTime.value = instance.currentTime
 }
 
 const setGlobalVolume = (nextVolume) => {
-  const instance = ensureAudio()
-  if (!instance) return
   const normalized = Math.min(1, Math.max(0, Number(nextVolume) || 0))
-  instance.volume = normalized
+  const instance = getPlaybackElement()
+  if (instance) {
+    instance.volume = normalized
+  }
+  const hiddenAudio = ensureAudio()
+  if (hiddenAudio && hiddenAudio !== instance) {
+    hiddenAudio.volume = normalized
+  }
   volume.value = normalized
 }
 
@@ -122,6 +148,7 @@ const takeoverFromElement = async (element, track) => {
 
   try {
     await instance.play()
+    activeElement = null
   } catch (error) {
     console.warn('Persistent audio takeover failed:', error)
   }
@@ -134,6 +161,7 @@ const restoreToElement = async (element, track) => {
   const instance = ensureAudio()
   if (!instance) return false
 
+  activeElement = element
   element.currentTime = currentTime.value || 0
   element.volume = volume.value
 

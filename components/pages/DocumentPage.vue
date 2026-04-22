@@ -45,15 +45,16 @@
         </div>
 
         <div class="csv-actions">
-          <button @click="exportToZip" class="btn btn-export">
+          <button @click="exportToZip" class="btn btn-export" :disabled="importProgress.active">
             匯出 ZIP
           </button>
-          <label class="btn btn-import">
+          <label class="btn btn-import" :class="{ disabled: importProgress.active }">
             匯入 ZIP
             <input
               type="file"
               accept=".zip"
               @change="handleZipImport"
+              :disabled="importProgress.active"
               style="display: none"
             />
           </label>
@@ -763,19 +764,41 @@ const exportToZip = async () => {
   }
 
   try {
+    updateImportProgress({
+      active: true,
+      title: '📦 匯出 ZIP 中...',
+      step: '準備文件資料',
+      current: 0,
+      total: 100,
+      percent: 0,
+      stats: null,
+      itemName: 'documents.json'
+    })
+
     // Dynamically import JSZip
+    updateImportProgress({ step: '載入壓縮工具', current: 5 })
     const JSZip = (await import('jszip')).default
 
     const zip = new JSZip()
 
     // Create JSON data
+    updateImportProgress({ step: '整理文件資料', current: 20, itemName: `${documents.value.length} 筆文件` })
     const jsonData = JSON.stringify(documents.value, null, 2)
     zip.file('documents.json', jsonData)
 
     // Generate ZIP file
-    const blob = await zip.generateAsync({ type: 'blob' })
+    updateImportProgress({ step: '壓縮 ZIP', current: 30, itemName: 'supabase-documents.zip' })
+    const blob = await zip.generateAsync({ type: 'blob' }, (metadata) => {
+      const zipPercent = Math.round(metadata.percent || 0)
+      updateImportProgress({
+        step: '壓縮 ZIP',
+        current: Math.min(95, 30 + Math.round(zipPercent * 0.65)),
+        itemName: metadata.currentFile || 'supabase-documents.zip'
+      })
+    })
 
     // Download
+    updateImportProgress({ step: '準備下載', current: 98, itemName: 'supabase-documents.zip' })
     const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
     link.setAttribute('href', url)
@@ -786,8 +809,12 @@ const exportToZip = async () => {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
+    updateImportProgress({ step: '匯出完成', current: 100, itemName: 'supabase-documents.zip' })
+    await new Promise(resolve => setTimeout(resolve, 350))
+    resetImportProgress()
     alert('匯出成功！')
   } catch (error) {
+    resetImportProgress()
     console.error('Error exporting ZIP:', error)
     alert('匯出失敗：' + error.message)
   }
@@ -1394,6 +1421,14 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
   white-space: nowrap;
+}
+
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .btn-primary {

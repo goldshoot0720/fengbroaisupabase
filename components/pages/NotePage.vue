@@ -225,7 +225,8 @@
           :class="[
             {
               'note-selected': selectedIds.has(article.id),
-              'note-card-editing': editingRowId === article.id
+              'note-card-editing': editingRowId === article.id,
+              'note-pinned': isPinnedArticle(article)
             },
             noteCardModeClass(article.id)
           ]"
@@ -332,6 +333,15 @@
                 <span class="note-date">{{ formatDate(article.newdate) }}</span>
               </div>
               <div class="note-actions">
+                <button
+                  class="btn-icon pin"
+                  :class="{ active: isPinnedArticle(article) }"
+                  @click="togglePinnedArticle(article)"
+                  :title="isPinnedArticle(article) ? '取消置頂' : '置頂'"
+                  :disabled="loading"
+                >
+                  📌
+                </button>
                 <button class="btn-icon" @click="startInlineEdit(article)" title="編輯">✏️</button>
                 <button class="btn-icon delete" @click="confirmDelete(article)" title="刪除">🗑️</button>
               </div>
@@ -339,7 +349,12 @@
 
             <h3 class="note-title">{{ article.title || '無標題' }}</h3>
             <div v-if="article.category" class="note-category-list">
-              <div v-for="category in splitCategories(article.category)" :key="article.id + '-' + category" class="note-category">
+              <div
+                v-for="category in splitCategories(article.category)"
+                :key="article.id + '-' + category"
+                class="note-category"
+                :class="{ pinned: category === PINNED_CATEGORY }"
+              >
                 {{ category }}
               </div>
             </div>
@@ -442,6 +457,7 @@ const emptyForm = () => ({
 const searchQuery = ref('')
 const selectedCategoryFilter = ref('')
 const ATTACHMENT_FILTER_VALUE = '__with_attachments__'
+const PINNED_CATEGORY = '置頂'
 const viewMode = ref('card')
 const uploadingSlot = ref(null)
 const previewUrl = ref(null)
@@ -479,6 +495,18 @@ const hasFileAttachments = (article) => {
   return !!(article.file1 || article.file2 || article.file3)
 }
 
+const isPinnedArticle = (article) => {
+  return splitCategories(article.category).includes(PINNED_CATEGORY)
+}
+
+const sortPinnedArticles = (list) => {
+  return [...list].sort((a, b) => {
+    const pinRank = Number(isPinnedArticle(b)) - Number(isPinnedArticle(a))
+    if (pinRank !== 0) return pinRank
+    return new Date(b.newdate || 0) - new Date(a.newdate || 0)
+  })
+}
+
 const filteredArticles = computed(() => {
   let list = articles.value
 
@@ -488,14 +516,14 @@ const filteredArticles = computed(() => {
       : list.filter(article => splitCategories(article.category).includes(selectedCategoryFilter.value))
   }
 
-  if (!searchQuery.value) return list
+  if (!searchQuery.value) return sortPinnedArticles(list)
   
   const query = searchQuery.value.toLowerCase()
-  return list.filter(article => 
+  return sortPinnedArticles(list.filter(article => 
     (article.title && article.title.toLowerCase().includes(query)) ||
     (article.content && article.content.toLowerCase().includes(query)) ||
     (article.category && article.category.toLowerCase().includes(query))
-  )
+  ))
 })
 
 const categoryOptions = computed(() => {
@@ -544,6 +572,22 @@ const appendCategory = (form, rawCategory, mode) => {
 
   if (mode === 'add') newAddCategory.value = ''
   if (mode === 'edit') newEditCategory.value = ''
+}
+
+const togglePinnedArticle = async (article) => {
+  const categories = splitCategories(article.category)
+  const nextCategories = isPinnedArticle(article)
+    ? categories.filter(category => category !== PINNED_CATEGORY)
+    : [PINNED_CATEGORY, ...categories]
+
+  const result = await updateArticle(article.id, {
+    ...article,
+    category: joinCategories(nextCategories)
+  })
+
+  if (!result.success) {
+    alert('置頂更新失敗: ' + result.error)
+  }
 }
 
 const findArticleById = (id) => articles.value.find(article => article.id === id)
@@ -1565,6 +1609,11 @@ useHead({
   border-color: var(--border-strong);
 }
 
+.note-pinned {
+  border-color: color-mix(in oklab, #f59e0b 55%, var(--border-color));
+  box-shadow: 0 12px 28px rgba(245, 158, 11, 0.14);
+}
+
 .note-card--card {
   min-height: 340px;
 }
@@ -1650,6 +1699,15 @@ useHead({
   background: #fee2e2;
 }
 
+.btn-icon.pin.active {
+  opacity: 1;
+  background: color-mix(in oklab, #f59e0b 18%, var(--bg-tertiary));
+}
+
+.btn-icon.pin:hover {
+  background: color-mix(in oklab, #f59e0b 14%, var(--bg-tertiary));
+}
+
 .note-title {
   font-size: 1.28rem;
   font-weight: 700;
@@ -1676,6 +1734,11 @@ useHead({
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.note-category.pinned {
+  background: color-mix(in oklab, #f59e0b 24%, var(--bg-tertiary));
+  color: #92400e;
 }
 
 .note-content {

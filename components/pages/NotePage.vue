@@ -9,6 +9,7 @@
         </div>
         <select v-model="selectedCategoryFilter" class="category-filter-select">
           <option value="">全部分類</option>
+          <option :value="ATTACHMENT_FILTER_VALUE">有附件</option>
           <option v-for="category in categoryOptions" :key="'filter-' + category" :value="category">
             {{ category }}
           </option>
@@ -440,6 +441,7 @@ const emptyForm = () => ({
 // 狀態
 const searchQuery = ref('')
 const selectedCategoryFilter = ref('')
+const ATTACHMENT_FILTER_VALUE = '__with_attachments__'
 const viewMode = ref('card')
 const uploadingSlot = ref(null)
 const previewUrl = ref(null)
@@ -473,11 +475,17 @@ onMounted(() => {
 })
 
 // 搜尋過濾
+const hasFileAttachments = (article) => {
+  return !!(article.file1 || article.file2 || article.file3)
+}
+
 const filteredArticles = computed(() => {
   let list = articles.value
 
   if (selectedCategoryFilter.value) {
-    list = list.filter(article => splitCategories(article.category).includes(selectedCategoryFilter.value))
+    list = selectedCategoryFilter.value === ATTACHMENT_FILTER_VALUE
+      ? list.filter(article => hasFileAttachments(article))
+      : list.filter(article => splitCategories(article.category).includes(selectedCategoryFilter.value))
   }
 
   if (!searchQuery.value) return list
@@ -605,7 +613,7 @@ const formatDate = (dateStr) => {
 // 檢查是否有附件
 const hasAttachments = (article) => {
   return article.url1 || article.url2 || article.url3 ||
-         article.file1 || article.file2 || article.file3
+         hasFileAttachments(article)
 }
 
 // 行內新增

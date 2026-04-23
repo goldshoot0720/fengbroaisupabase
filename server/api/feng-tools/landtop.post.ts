@@ -279,7 +279,12 @@ const parseJyesCandidates = (html: string, baseUrl: string): JyesCandidate[] => 
     const name = lines[0]
     if (!name) continue
 
-    const priceLine = lines.find(line => /^\$[\d,]+$/.test(line) || line.includes('最低價') || line.includes('門市'))
+    const priceIndex = lines.findIndex(line => line.includes('門市破盤價'))
+    const nextLine = priceIndex >= 0 ? lines[priceIndex + 1] || '' : ''
+    const priceLine = /^\$[\d,]+$/.test(nextLine) || nextLine.includes('最低價') || nextLine.includes('門市')
+      ? nextLine
+      : ''
+    if (!priceLine) continue
     const priceLabel = normalizePriceLabel(priceLine || '')
 
     results.push({
@@ -378,12 +383,21 @@ export default defineEventHandler(async (event) => {
       }
 
       current.displayName = current.displayName || variant.displayName
-      current.sources.push({
+      const nextSource = {
         source: store.source,
         priceLabel: variant.priceLabel,
         numericPrice: variant.numericPrice,
         url: variant.url
-      })
+      }
+      const existingSourceIndex = current.sources.findIndex(source => source.source === store.source)
+      if (existingSourceIndex === -1) {
+        current.sources.push(nextSource)
+      } else {
+        const existingSource = current.sources[existingSourceIndex]
+        const shouldReplace = !Number.isFinite(existingSource.numericPrice) ||
+          (Number.isFinite(nextSource.numericPrice) && Number(nextSource.numericPrice) < Number(existingSource.numericPrice))
+        if (shouldReplace) current.sources[existingSourceIndex] = nextSource
+      }
       variantMap.set(key, current)
     }
   }

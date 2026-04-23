@@ -134,7 +134,7 @@
               v-model.trim="phoneCompareForm.keyword"
               type="text"
               class="tool-input"
-              placeholder="Apple iPhone 17、Samsung S26、A37"
+              :placeholder="phoneComparePlaceholder"
               @keydown.enter.prevent="runPhoneCompare"
             />
           </label>
@@ -243,13 +243,17 @@ const toolTabs = [
 
 const activeTool = ref('biggo')
 
+const currentYearSuffix = String(new Date().getFullYear()).slice(-2)
+const defaultPhoneKeyword = `Samsung S${currentYearSuffix}`
+const phoneComparePlaceholder = `${defaultPhoneKeyword}、Apple iPhone ${currentYearSuffix}、A${currentYearSuffix}`
+
 const biggoForm = ref({ url: '' })
 const biggoLoading = ref(false)
 const biggoError = ref('')
 const biggoResult = ref(null)
 const biggoHistory = ref([])
 
-const phoneCompareForm = ref({ keyword: '' })
+const phoneCompareForm = ref({ keyword: defaultPhoneKeyword })
 const phoneCompareLoading = ref(false)
 const phoneCompareError = ref('')
 const phoneCompareResult = ref(null)

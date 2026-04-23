@@ -9,7 +9,6 @@ const pages = [
   { id: 'subscription', name: '訂閱管理', icon: '03', title: '訂閱管理', subtitle: '整理站點、價格、帳號與續訂日期。' },
   { id: 'food', name: '食品管理', icon: '04', title: '食品管理', subtitle: '記錄品項、價格、商店與日期資訊。' },
   { id: 'note', name: '筆記', icon: '05', title: '鋒兄筆記', subtitle: '整理靈感、會議紀錄、讀書筆記與附件。' },
-  { id: 'tools', name: '鋒兄工具', icon: '06', title: '鋒兄工具', subtitle: '整合 BigGo 與手機通路比價工具。' },
   { id: 'common', name: '常用帳號', icon: '07', title: '常用帳號', subtitle: '集中整理常用帳號、備註與附加資訊。' },
   { id: 'gallery', name: '圖庫', icon: '08', title: '圖片庫', subtitle: '管理圖片素材與封面檔案。' },
   { id: 'video', name: '影片資料', icon: '09', title: '影片資料庫', subtitle: '管理影片檔、封面、分類與參考資料。' },
@@ -18,6 +17,7 @@ const pages = [
   { id: 'podcast', name: 'Podcast', icon: '12', title: 'Podcast 管理', subtitle: '整理播客音檔、封面與備註。' },
   { id: 'bank', name: '銀行資訊', icon: '13', title: '銀行資訊', subtitle: '整理存款、提款、轉帳與卡片資訊。' },
   { id: 'routine', name: '例行流程', icon: '14', title: '例行流程', subtitle: '記錄固定流程、連結與最近執行日期。' },
+  { id: 'tools', name: '鋒兄工具', icon: '06', title: '鋒兄工具', subtitle: '整合 BigGo 與手機通路比價工具。' },
   { id: 'settings', name: '設定', icon: '15', title: '系統設定', subtitle: '管理來源、匯入匯出與儲存設定。' },
   { id: 'about', name: '關於', icon: '16', title: '關於系統', subtitle: '查看系統說明與目前工作區資訊。' }
 ]

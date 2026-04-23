@@ -126,8 +126,11 @@ const unique = <T>(items: T[]) => [...new Set(items)]
 const normalizeVariantLabel = (value: string) => value.trim().replace(/\s+/g, '').replace(/GB/gi, 'G')
 
 const parseVariantFromName = (name: string) => {
-  const match = name.replace(/\s+/g, ' ').match(/(\d+G\/\d+G(?:B)?|\d+G(?:B)?)/i)
-  return match ? normalizeVariantLabel(match[1]) : ''
+  const normalizedName = name.replace(/\s+/g, ' ')
+  const pairMatch = normalizedName.match(/(\d+G\/\d+G(?:B)?)/i)
+  if (pairMatch) return normalizeVariantLabel(pairMatch[1])
+
+  return ''
 }
 
 const createVariantDisplayName = (name: string, variantLabel: string) => {
@@ -160,8 +163,15 @@ const toNumericPrice = (priceLabel: string) => {
 }
 
 const parseLandtopStorageOptions = (text: string) => {
+  const pairMatches = unique(
+    Array.from(text.matchAll(/(\d+G\/\d+G(?:B)?)/gi))
+      .map(match => normalizeVariantLabel(match[1]))
+  )
+
+  if (pairMatches.length > 0) return pairMatches
+
   return unique(
-    Array.from(text.matchAll(/(\d+G\/\d+G(?:B)?|\d+G(?:B)?)/gi))
+    Array.from(text.matchAll(/(\d+G(?:B)?)/gi))
       .map(match => normalizeVariantLabel(match[1]))
   )
 }
@@ -242,7 +252,7 @@ const JYES_CATEGORY_MAP: Record<BrandTarget['brand'], { url: string, brandLabel:
 const parseJyesCandidates = (html: string, baseUrl: string): JyesCandidate[] => {
   const results: JyesCandidate[] = []
 
-  const blockRegex = /商品名稱\s*[:：][\s\S]{0,260}?<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]{0,420}?(?:空機破盤價|網購優惠價)\s*[:：][\s\S]{0,80}?((?:\$[\d,]+)|挑戰手機最低價|特價請洽門市)/gi
+  const blockRegex = /商品名稱\s*[:：][\s\S]{0,260}?<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]{0,420}?門市破盤價\s*[:：][\s\S]{0,80}?((?:\$[\d,]+)|挑戰手機最低價|特價請洽門市)/gi
 
   for (const match of html.matchAll(blockRegex)) {
     const href = match[1]

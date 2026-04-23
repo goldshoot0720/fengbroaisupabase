@@ -19,6 +19,18 @@ type StoreResult = {
   variants: StoreVariant[]
 }
 
+type BrandTarget = {
+  brand: 'apple' | 'samsung'
+  brandLabel: string
+}
+
+type JyesCandidate = {
+  name: string
+  url: string
+  priceLabel: string
+  numericPrice: number | null
+}
+
 const decodeEntities = (value: string) => value
   .replace(/&nbsp;/g, ' ')
   .replace(/&amp;/g, '&')
@@ -40,28 +52,42 @@ const stripTags = (html: string) => decodeEntities(
 const fetchText = async (url: string) => {
   const response = await fetch(url, { headers: DEFAULT_HEADERS })
   if (!response.ok) {
-    throw createError({ statusCode: response.status, statusMessage: `無法讀取來源頁面：${response.status}` })
+    throw createError({
+      statusCode: response.status,
+      statusMessage: `抓取頁面失敗：${response.status}`
+    })
   }
+
   return await response.text()
 }
 
 const normalizeText = (value: string) => value
   .toLowerCase()
+  .replace(/三星/gi, 'samsung')
+  .replace(/蘋果/gi, 'apple')
   .replace(/galaxy/gi, '')
   .replace(/iphone/gi, 'iphone')
   .replace(/apple/gi, 'apple')
   .replace(/samsung/gi, 'samsung')
-  .replace(/[()]/g, ' ')
+  .replace(/[()（）【】\[\]{}]/g, ' ')
   .replace(/[\s\-_/]+/g, '')
 
-const inferBrands = (keyword: string) => {
+const inferBrands = (keyword: string): BrandTarget[] => {
   const normalized = keyword.toLowerCase()
   if (normalized.includes('iphone') || normalized.includes('apple')) {
     return [{ brand: 'apple', brandLabel: 'Apple' }]
   }
-  if (normalized.includes('samsung') || normalized.includes('galaxy') || /\b[as]\d{2}\b/i.test(normalized)) {
+
+  if (
+    normalized.includes('samsung') ||
+    normalized.includes('galaxy') ||
+    normalized.includes('三星') ||
+    /\b[as]\d{2}\b/i.test(normalized) ||
+    /^\d{2}$/i.test(normalized)
+  ) {
     return [{ brand: 'samsung', brandLabel: 'Samsung' }]
   }
+
   return [
     { brand: 'samsung', brandLabel: 'Samsung' },
     { brand: 'apple', brandLabel: 'Apple' }
@@ -71,12 +97,15 @@ const inferBrands = (keyword: string) => {
 const scoreCandidate = (name: string, keyword: string) => {
   const normalizedName = normalizeText(name)
   const normalizedKeyword = normalizeText(keyword)
+
   if (normalizedName === normalizedKeyword) return 100
-  if (normalizedName.includes(normalizedKeyword)) return 82
-  if (normalizedKeyword.includes(normalizedName)) return 70
+  if (normalizedName.includes(normalizedKeyword)) return 84
+  if (normalizedKeyword.includes(normalizedName)) return 72
 
   const tokens = keyword.toLowerCase().split(/\s+/).filter(Boolean)
-  let score = tokens.reduce((total, token) => total + (normalizedName.includes(normalizeText(token)) ? 12 : 0), 0)
+  let score = tokens.reduce((total, token) => {
+    return total + (normalizedName.includes(normalizeText(token)) ? 12 : 0)
+  }, 0)
 
   const compactKeyword = normalizeText(keyword)
   const numericTokens = compactKeyword.match(/\d+[a-z]?/gi) || []
@@ -84,66 +113,66 @@ const scoreCandidate = (name: string, keyword: string) => {
     if (normalizedName.includes(token)) score += 24
   }
 
-  if (/^a\d{2}$/i.test(compactKeyword) && normalizedName.includes(compactKeyword)) score += 36
-  if (/^s\d{2}$/i.test(compactKeyword) && normalizedName.includes(compactKeyword)) score += 36
-  if (/^\d{2}$/i.test(compactKeyword) && /samsung|galaxy/i.test(name) && normalizedName.includes(`a${compactKeyword}`)) score += 40
-  if (/^\d{2}$/i.test(compactKeyword) && /iphone/i.test(name) && normalizedName.includes(`iphone${compactKeyword}`)) score += 20
+  if (/^a\d{2}$/i.test(compactKeyword) && normalizedName.includes(compactKeyword)) score += 40
+  if (/^s\d{2}$/i.test(compactKeyword) && normalizedName.includes(compactKeyword)) score += 40
+  if (/^\d{2}$/i.test(compactKeyword) && /samsung|galaxy|三星/i.test(name) && normalizedName.includes(`a${compactKeyword}`)) score += 44
+  if (/^\d{2}$/i.test(compactKeyword) && /iphone|apple|蘋果/i.test(name) && normalizedName.includes(`iphone${compactKeyword}`)) score += 24
 
   return score
 }
 
-const normalizeVariantLabel = (value: string) => value.trim().replace(/\s+/g, '')
+const unique = <T>(items: T[]) => [...new Set(items)]
+
+const normalizeVariantLabel = (value: string) => value.trim().replace(/\s+/g, '').replace(/GB/gi, 'G')
 
 const parseVariantFromName = (name: string) => {
-  const normalized = name.replace(/\s+/g, ' ')
-  const match = normalized.match(/(\d+G\/\d+G(?:B)?|\d+G(?:B)?)/i)
-  return match ? normalizeVariantLabel(match[1].replace(/GB/gi, 'G')) : ''
+  const match = name.replace(/\s+/g, ' ').match(/(\d+G\/\d+G(?:B)?|\d+G(?:B)?)/i)
+  return match ? normalizeVariantLabel(match[1]) : ''
 }
 
 const createVariantDisplayName = (name: string, variantLabel: string) => {
-  const baseName = name
+  const cleaned = name
     .replace(/\s+/g, ' ')
     .replace(/\(\s*([^)]+)\s*\)/g, ' $1')
     .trim()
-    .replace(new RegExp(`${variantLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'), '')
-    .trim()
 
-  const prettyVariant = variantLabel.replace(/GB/gi, 'G')
-  return `${baseName} ${prettyVariant}`.trim()
+  if (!variantLabel) return cleaned
+
+  const escaped = variantLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return cleaned.replace(new RegExp(`${escaped}$`, 'i'), '').trim() + ` ${variantLabel}`
+}
+
+const normalizePriceLabel = (value: string) => {
+  const cleaned = decodeEntities(value).replace(/\s+/g, '')
+  if (!cleaned) return '查無公開價格'
+  if (/^\$?[\d,]+$/.test(cleaned)) {
+    const numeric = Number(cleaned.replace(/[^\d]/g, ''))
+    return `$${numeric.toLocaleString('en-US')}`
+  }
+  if (cleaned.includes('最低價')) return '挑戰手機最低價'
+  if (cleaned.includes('門市')) return '特價請洽門市'
+  return cleaned
+}
+
+const toNumericPrice = (priceLabel: string) => {
+  if (!/^\$[\d,]+$/.test(priceLabel)) return null
+  return Number(priceLabel.replace(/[^\d]/g, ''))
 }
 
 const parseLandtopStorageOptions = (text: string) => {
-  const lines = text.split('\n').map(line => line.trim()).filter(Boolean)
-  const storageIndex = lines.indexOf('儲存空間')
-  if (storageIndex === -1) return []
-
-  const endLabels = ['顏色', '建議售價', '地標最低價', '產品資訊']
-  const endIndexCandidates = endLabels
-    .map(label => lines.indexOf(label, storageIndex + 1))
-    .filter(index => index !== -1)
-
-  const endIndex = endIndexCandidates.length > 0 ? Math.min(...endIndexCandidates) : Math.min(storageIndex + 10, lines.length)
-  return lines
-    .slice(storageIndex + 1, endIndex)
-    .filter(line => /(\d+G\/\d+G(?:B)?|\d+G(?:B)?)/i.test(line))
-    .map(normalizeVariantLabel)
+  return unique(
+    Array.from(text.matchAll(/(\d+G\/\d+G(?:B)?|\d+G(?:B)?)/gi))
+      .map(match => normalizeVariantLabel(match[1]))
+  )
 }
 
-const parseLandtopSelectedPrice = (text: string, productName: string) => {
-  const productPattern = productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const directMatch = text.match(new RegExp(`${productPattern}\\s+([^|\\n]+?)\\s*\\|[\\s\\S]{0,120}?地標最低價[\\s\\S]{0,80}?(挑戰手機最低價|\\$[\\d,]+)`, 'i'))
-  if (directMatch) {
-    return {
-      variantLabel: normalizeVariantLabel(directMatch[1]),
-      priceLabel: directMatch[2]
-    }
-  }
+const parseLandtopPriceForVariant = (text: string, variantLabel: string) => {
+  const escaped = variantLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const exact = text.match(new RegExp(`${escaped}[\\s\\S]{0,120}?(\\$[\\d,]+|挑戰手機最低價|特價請洽門市)`, 'i'))?.[1]
+  if (exact) return normalizePriceLabel(exact)
 
-  const fallbackPrice = text.match(/地標最低價[\s\S]{0,80}?(挑戰手機最低價|\$[\d,]+)/i)?.[1]
-  return {
-    variantLabel: '',
-    priceLabel: fallbackPrice || '查無公開價格'
-  }
+  const fallback = text.match(/(\$[\d,]+|挑戰手機最低價|特價請洽門市)/i)?.[1]
+  return normalizePriceLabel(fallback || '')
 }
 
 const fetchLandtopResult = async (keyword: string): Promise<StoreResult> => {
@@ -152,16 +181,13 @@ const fetchLandtopResult = async (keyword: string): Promise<StoreResult> => {
 
   for (const brandItem of brands) {
     const brandHtml = await fetchText(`https://www.landtop.com.tw/brands?brand=${brandItem.brand}`)
-    for (const match of brandHtml.matchAll(/href="(\/products\/[^"]+)"[\s\S]{0,260}?>[\s\S]{0,140}?<\/a>/gi)) {
-      const chunk = match[0]
-      const names = (chunk.match(/>([^<>]+)</g) || [])
-        .map(part => part.replace(/[<>]/g, '').trim())
-        .filter(Boolean)
-      const name = names.find(value => /iphone|samsung|galaxy|apple/i.test(value))
+    for (const match of brandHtml.matchAll(/href="(\/products\/[^"]+)"[\s\S]{0,320}?>([\s\S]{0,180}?)<\/a>/gi)) {
+      const rawText = stripTags(match[2]).split('\n').map(line => line.trim()).filter(Boolean)
+      const name = rawText.find(value => /iphone|apple|samsung|galaxy|三星|蘋果/i.test(value))
       if (!name) continue
 
       candidates.push({
-        name: decodeEntities(name),
+        name,
         url: `https://www.landtop.com.tw${match[1]}`,
         brandLabel: brandItem.brandLabel,
         score: scoreCandidate(name, keyword)
@@ -170,31 +196,28 @@ const fetchLandtopResult = async (keyword: string): Promise<StoreResult> => {
   }
 
   candidates.sort((a, b) => b.score - a.score)
-  const bestMatch = candidates.find(candidate => candidate.score > 0)
+  const bestMatch = candidates.find(item => item.score > 0)
   if (!bestMatch) {
     throw createError({ statusCode: 404, statusMessage: '地標網通找不到相符型號。' })
   }
 
   const detailHtml = await fetchText(bestMatch.url)
   const detailText = stripTags(detailHtml)
-  const storageOptions = parseLandtopStorageOptions(detailText)
-  const selected = parseLandtopSelectedPrice(detailText, bestMatch.name)
-  const variantLabels = storageOptions.length > 0 ? storageOptions : (selected.variantLabel ? [selected.variantLabel] : [])
+  const variantLabels = parseLandtopStorageOptions(detailText)
+  const variants = (variantLabels.length > 0 ? variantLabels : [''])
+    .map((variantLabel) => {
+      const priceLabel = variantLabel
+        ? parseLandtopPriceForVariant(detailText, variantLabel)
+        : normalizePriceLabel(detailText.match(/(\$[\d,]+|挑戰手機最低價|特價請洽門市)/i)?.[1] || '')
 
-  const variants = variantLabels.map((variantLabel) => {
-    const variantPattern = variantLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const exactPrice = detailText.match(new RegExp(`${variantPattern}[\\s\\S]{0,120}?(挑戰手機最低價|\\$[\\d,]+)`, 'i'))?.[1]
-    const priceLabel = exactPrice || selected.priceLabel || '查無公開價格'
-    const numericPrice = /^\$[\d,]+$/.test(priceLabel) ? Number(priceLabel.replace(/[^\d]/g, '')) : null
-
-    return {
-      variantLabel,
-      displayName: createVariantDisplayName(bestMatch.name, variantLabel),
-      priceLabel,
-      numericPrice,
-      url: bestMatch.url
-    }
-  })
+      return {
+        variantLabel: variantLabel || '單一版本',
+        displayName: variantLabel ? createVariantDisplayName(bestMatch.name, variantLabel) : bestMatch.name,
+        priceLabel,
+        numericPrice: toNumericPrice(priceLabel),
+        url: bestMatch.url
+      }
+    })
 
   return {
     source: '地標網通',
@@ -205,27 +228,77 @@ const fetchLandtopResult = async (keyword: string): Promise<StoreResult> => {
   }
 }
 
-const fetchJyesResult = async (keyword: string): Promise<StoreResult> => {
-  const searchHtml = await fetchText(`https://www.jyes.com.tw/product.php?keywords=${encodeURIComponent(keyword)}`)
-  const text = stripTags(searchHtml)
-  const candidates: Array<{ name: string, url: string, score: number, priceLabel: string, numericPrice: number | null }> = []
+const JYES_CATEGORY_MAP: Record<BrandTarget['brand'], { url: string, brandLabel: string }> = {
+  apple: {
+    url: 'https://www.jyes.com.tw/product.php?act=list&cid=1',
+    brandLabel: 'Apple'
+  },
+  samsung: {
+    url: 'https://www.jyes.com.tw/product.php?act=list&cid=2',
+    brandLabel: 'Samsung'
+  }
+}
 
-  for (const match of text.matchAll(/商品名稱\s*:\s*([^\n|]+?)[\s\S]{0,160}?空機破盤價\s*:\s*\$([\d,]+)/g)) {
-    const name = decodeEntities(match[1]).trim()
-    const numericPrice = Number(match[2].replace(/,/g, ''))
-    const urlSlug = name
-      .replace(/[()]/g, ' ')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim()
+const parseJyesCandidates = (html: string, baseUrl: string): JyesCandidate[] => {
+  const results: JyesCandidate[] = []
 
-    candidates.push({
+  const blockRegex = /商品名稱\s*[:：][\s\S]{0,260}?<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]{0,420}?(?:空機破盤價|網購優惠價)\s*[:：][\s\S]{0,80}?((?:\$[\d,]+)|挑戰手機最低價|特價請洽門市)/gi
+
+  for (const match of html.matchAll(blockRegex)) {
+    const href = match[1]
+    const name = stripTags(match[2]).replace(/\s+/g, ' ').trim()
+    if (!name) continue
+
+    const priceLabel = normalizePriceLabel(match[3])
+    const url = href.startsWith('http') ? href : new URL(href, baseUrl).toString()
+
+    results.push({
       name,
-      score: scoreCandidate(name, keyword),
-      url: `https://www.jyes.com.tw/product/${urlSlug}`,
-      priceLabel: `$${numericPrice.toLocaleString('en-US')}`,
-      numericPrice
+      url,
+      priceLabel,
+      numericPrice: toNumericPrice(priceLabel)
     })
+  }
+
+  if (results.length > 0) return results
+
+  const text = stripTags(html)
+  const segments = text.split('商品名稱 :').slice(1)
+  for (const segment of segments) {
+    const lines = segment.split('\n').map(line => line.trim()).filter(Boolean)
+    const name = lines[0]
+    if (!name) continue
+
+    const priceLine = lines.find(line => /^\$[\d,]+$/.test(line) || line.includes('最低價') || line.includes('門市'))
+    const priceLabel = normalizePriceLabel(priceLine || '')
+
+    results.push({
+      name,
+      url: baseUrl,
+      priceLabel,
+      numericPrice: toNumericPrice(priceLabel)
+    })
+  }
+
+  return results
+}
+
+const fetchJyesResult = async (keyword: string): Promise<StoreResult> => {
+  const brands = inferBrands(keyword)
+  const candidates: Array<JyesCandidate & { score: number, brandLabel: string }> = []
+
+  for (const brandItem of brands) {
+    const category = JYES_CATEGORY_MAP[brandItem.brand]
+    const html = await fetchText(category.url)
+    const parsed = parseJyesCandidates(html, category.url)
+
+    for (const item of parsed) {
+      candidates.push({
+        ...item,
+        brandLabel: category.brandLabel,
+        score: scoreCandidate(item.name, keyword)
+      })
+    }
   }
 
   candidates.sort((a, b) => b.score - a.score)
@@ -234,34 +307,34 @@ const fetchJyesResult = async (keyword: string): Promise<StoreResult> => {
     throw createError({ statusCode: 404, statusMessage: '傑昇通信找不到相符型號。' })
   }
 
-  const topCandidates = candidates.filter(candidate => candidate.score >= topScore - 8)
-  const primaryCandidate = topCandidates[0]
-  const familyName = primaryCandidate.name
+  const matched = candidates.filter(item => item.score >= topScore - 8)
+  const primary = matched[0]
+  const familyName = primary.name
     .replace(/\(\s*[^)]+\s*\)\s*$/g, '')
     .replace(/\s+\d+G\/\d+G(?:B)?$/i, '')
     .replace(/\s+\d+G(?:B)?$/i, '')
     .trim()
 
-  const variants = topCandidates
-    .map(candidate => {
-      const variantLabel = parseVariantFromName(candidate.name)
+  const variants = matched
+    .map((item) => {
+      const variantLabel = parseVariantFromName(item.name)
       if (!variantLabel) return null
 
       return {
         variantLabel,
-        displayName: createVariantDisplayName(candidate.name, variantLabel),
-        priceLabel: candidate.priceLabel,
-        numericPrice: candidate.numericPrice,
-        url: candidate.url
+        displayName: createVariantDisplayName(item.name, variantLabel),
+        priceLabel: item.priceLabel,
+        numericPrice: item.numericPrice,
+        url: item.url
       }
     })
-    .filter((value): value is StoreVariant => Boolean(value))
+    .filter((item): item is StoreVariant => Boolean(item))
 
   return {
     source: '傑昇通信',
-    brandLabel: /iphone|apple/i.test(primaryCandidate.name) ? 'Apple' : 'Samsung',
-    productName: familyName,
-    productUrl: primaryCandidate.url,
+    brandLabel: primary.brandLabel,
+    productName: familyName || primary.name,
+    productUrl: primary.url,
     variants
   }
 }
@@ -271,7 +344,7 @@ export default defineEventHandler(async (event) => {
   const keyword = String(body?.keyword || '').trim()
 
   if (!keyword) {
-    throw createError({ statusCode: 400, statusMessage: '請先輸入查詢型號。' })
+    throw createError({ statusCode: 400, statusMessage: '請輸入要查詢的型號。' })
   }
 
   const [landtop, jyes] = await Promise.all([
@@ -285,32 +358,31 @@ export default defineEventHandler(async (event) => {
     sources: Array<{ source: string, priceLabel: string, numericPrice: number | null, url: string }>
   }>()
 
-  for (const sourceResult of [landtop, jyes]) {
-    for (const variant of sourceResult.variants) {
-      const existing = variantMap.get(variant.variantLabel) || {
-        label: variant.variantLabel,
+  for (const store of [landtop, jyes]) {
+    for (const variant of store.variants) {
+      const key = variant.variantLabel
+      const current = variantMap.get(key) || {
+        label: key,
         displayName: variant.displayName,
         sources: []
       }
 
-      existing.displayName = existing.displayName || variant.displayName
-      existing.sources.push({
-        source: sourceResult.source,
+      current.displayName = current.displayName || variant.displayName
+      current.sources.push({
+        source: store.source,
         priceLabel: variant.priceLabel,
         numericPrice: variant.numericPrice,
         url: variant.url
       })
-      variantMap.set(variant.variantLabel, existing)
+      variantMap.set(key, current)
     }
   }
-
-  const comparison = Array.from(variantMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'en'))
 
   return {
     keyword,
     brandLabel: landtop.brandLabel || jyes.brandLabel,
     productName: landtop.productName || jyes.productName,
     stores: [landtop, jyes],
-    comparison
+    comparison: Array.from(variantMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'en'))
   }
 })

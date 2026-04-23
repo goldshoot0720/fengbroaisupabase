@@ -6,11 +6,11 @@
           <p class="tools-kicker">FENGBRO TOOLKIT</p>
           <h2>鋒兄工具</h2>
           <p class="tools-lead">
-            集中處理 BigGo 網址比價與手機通路比價。手機比價會同步對照地標網通、傑昇通信，並保留每 7 天一次的價格快照。
+            集中處理網路比價與手機通路價格快照。先看現在，再用每 7 天一次的紀錄回頭看價格走勢。
           </p>
         </div>
 
-        <div class="tools-segments" role="tablist" aria-label="鋒兄工具子選單">
+        <div class="tools-segments" role="tablist" aria-label="鋒兄工具分頁">
           <button
             v-for="tab in toolTabs"
             :key="tab.value"
@@ -45,7 +45,7 @@
             />
           </label>
           <button type="button" class="tool-primary-btn" :disabled="biggoLoading" @click="runBiggoLookup">
-            {{ biggoLoading ? '查詢中...' : '開始比價' }}
+            {{ biggoLoading ? '查詢中...' : '查詢價格' }}
           </button>
         </div>
 
@@ -84,9 +84,9 @@
             <div class="chart-shell__header">
               <div>
                 <p class="panel-kicker">價格統計圖</p>
-                <h4>BigGo 查詢紀錄</h4>
+                <h4>BigGo 歷史快照</h4>
               </div>
-              <p class="chart-caption">每 7 天更新一次目前價格快照</p>
+              <p class="chart-caption">每 7 天更新一次目前價格</p>
             </div>
 
             <svg
@@ -94,7 +94,7 @@
               class="price-chart"
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
-              aria-label="BigGo 價格走勢圖"
+              aria-label="BigGo 價格走勢"
             >
               <polyline class="chart-area" :points="biggoChart.areaPoints" />
               <polyline class="chart-line" :points="biggoChart.points" />
@@ -107,7 +107,7 @@
                 r="1.8"
               />
             </svg>
-            <div v-else class="chart-empty">至少累積兩筆 7 天快照後，這裡會出現走勢。</div>
+            <div v-else class="chart-empty">至少累積兩筆 7 天快照後，這裡會出現價格走勢。</div>
 
             <div v-if="biggoHistory.length > 0" class="chart-legend chart-legend--row">
               <div v-for="entry in biggoHistory" :key="entry.date" class="history-chip">
@@ -123,7 +123,7 @@
         <div class="tool-panel__header">
           <div>
             <p class="panel-kicker">手機比價</p>
-            <h3>同時比對地標網通與傑昇通信</h3>
+            <h3>比對地標網通與傑昇通信</h3>
           </div>
         </div>
 
@@ -161,7 +161,7 @@
             <article v-for="store in phoneCompareResult.stores" :key="store.source" class="store-card">
               <p class="store-card__name">{{ store.source }}</p>
               <strong>{{ store.productName }}</strong>
-              <a :href="store.productUrl" target="_blank" rel="noreferrer" class="store-card__link">開啟來源</a>
+              <a :href="store.productUrl" target="_blank" rel="noreferrer" class="store-card__link">查看來源</a>
             </article>
           </div>
 
@@ -187,7 +187,7 @@
                     <span class="comparison-source__label">{{ source.source }}</span>
                     <strong>{{ source.priceLabel }}</strong>
                   </div>
-                  <a :href="source.url" target="_blank" rel="noreferrer" class="comparison-source__link">來源</a>
+                  <a :href="source.url" target="_blank" rel="noreferrer" class="comparison-source__link">連到頁面</a>
                 </div>
               </div>
             </article>
@@ -197,9 +197,9 @@
             <div class="chart-shell__header">
               <div>
                 <p class="panel-kicker">價格統計圖</p>
-                <h4>{{ phoneCompareResult.productName }} 歷史記錄</h4>
+                <h4>{{ phoneCompareResult.productName }} 歷史紀錄</h4>
               </div>
-              <p class="chart-caption">每 7 天記錄一次各通路與容量目前價格</p>
+              <p class="chart-caption">每 7 天記錄一次各容量目前價格</p>
             </div>
 
             <svg
@@ -207,7 +207,7 @@
               class="price-chart"
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
-              aria-label="手機比價走勢圖"
+              aria-label="手機比價走勢"
             >
               <polyline
                 v-for="path in phoneCompareChart.paths"
@@ -217,7 +217,7 @@
                 :points="path.points"
               />
             </svg>
-            <div v-else class="chart-empty">至少累積兩筆 7 天快照後，這裡會出現比價走勢。</div>
+            <div v-else class="chart-empty">至少累積兩筆 7 天快照後，這裡會出現容量價格走勢。</div>
 
             <div v-if="phoneCompareLegend.length > 0" class="chart-legend">
               <div v-for="legend in phoneCompareLegend" :key="legend.key" class="legend-item">
@@ -238,7 +238,7 @@ import PageContainer from '../layout/PageContainer.vue'
 
 const toolTabs = [
   { value: 'biggo', label: '鋒兄比價', description: '網址貼上後抓 BigGo 價格區間' },
-  { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信同步比價' }
+  { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信價格比較' }
 ]
 
 const activeTool = ref('biggo')
@@ -268,11 +268,15 @@ const safeJsonParse = (value, fallback) => {
 }
 
 const formatCurrency = (value) => {
-  if (value === null || value === undefined || value === '') return '—'
-  if (typeof value === 'string' && !/^\d/.test(value)) return value
-  const amount = Number(value)
+  if (value === null || value === undefined || value === '') return '--'
+  if (typeof value === 'string' && !/^\d/.test(value) && !/^\$/.test(value)) return value
+  const amount = Number(String(value).replace(/[^\d.-]/g, ''))
   if (Number.isNaN(amount)) return String(value)
-  return new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(amount)
+  return new Intl.NumberFormat('zh-TW', {
+    style: 'currency',
+    currency: 'TWD',
+    maximumFractionDigits: 0
+  }).format(amount)
 }
 
 const formatHistoryDate = (value) => {
@@ -341,8 +345,11 @@ const buildSingleSeriesChart = (entries, field) => {
     .filter(Boolean)
 
   const points = circles.map(point => `${point.x},${point.y}`).join(' ')
-  const areaPoints = `4,96 ${points} 96,96`
-  return { points, areaPoints, circles }
+  return {
+    points,
+    areaPoints: `4,96 ${points} 96,96`,
+    circles
+  }
 }
 
 const seriesPalette = ['chart-series-a', 'chart-series-b', 'chart-series-c', 'chart-series-d', 'chart-series-e', 'chart-series-f']
@@ -385,14 +392,17 @@ const buildMultiSeriesChart = (entries, seriesKeys) => {
     })
     .filter(Boolean)
 
-  return { paths, hasAtLeastTwoSnapshots: entries.length > 1 }
+  return {
+    paths,
+    hasAtLeastTwoSnapshots: entries.length > 1
+  }
 }
 
 const biggoChart = computed(() => buildSingleSeriesChart(biggoHistory.value, 'currentPrice'))
 const biggoSourceNotice = computed(() => {
   const status = Number(biggoResult.value?.sourceStatus)
   if (!Number.isFinite(status) || status < 400) return ''
-  return `來源網站回應 ${status}，本次結果已改用網址關鍵字轉查 BigGo。`
+  return `原始商品頁回應 ${status}，目前改用網址與頁面關鍵字轉查 BigGo。`
 })
 
 const phoneCompareSeriesKeys = computed(() => {
@@ -406,14 +416,11 @@ const phoneCompareChart = computed(() => buildMultiSeriesChart(phoneCompareHisto
 const phoneCompareLegend = computed(() => {
   if (!phoneCompareResult.value) return []
   return phoneCompareResult.value.comparison.flatMap(item =>
-    item.sources.map(source => {
-      const key = `${item.label}__${source.source}`
-      return {
-        key,
-        label: `${item.label} · ${source.source}`,
-        className: seriesClassName(key)
-      }
-    })
+    item.sources.map(source => ({
+      key: `${item.label}__${source.source}`,
+      label: `${item.label} / ${source.source}`,
+      className: seriesClassName(`${item.label}__${source.source}`)
+    }))
   )
 })
 
@@ -431,7 +438,7 @@ const isBestPrice = (sources, source) => {
 
 const runBiggoLookup = async () => {
   if (!biggoForm.value.url) {
-    biggoError.value = '請先貼上商品網址。'
+    biggoError.value = '請先輸入商品網址。'
     return
   }
 

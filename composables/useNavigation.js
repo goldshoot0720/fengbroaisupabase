@@ -9,7 +9,7 @@ const pages = [
   { id: 'subscription', name: '訂閱管理', icon: '03', title: '訂閱管理', subtitle: '整理站點、付款週期與續訂提醒。' },
   { id: 'food', name: '食品管理', icon: '04', title: '食品管理', subtitle: '記錄價格、份量與日常採買資訊。' },
   { id: 'note', name: '筆記', icon: '05', title: '鋒兄筆記', subtitle: '整理想法、分類、附件與匯入匯出。' },
-  { id: 'tools', name: '鋒兄工具', icon: '06', title: '鋒兄工具', subtitle: '整合比價、通路查價與歷史價格快照。' },
+  { id: 'tools', name: '鋒兄工具', icon: '06', title: '鋒兄工具', subtitle: '整合 BigGo 與手機通路比價工具。' },
   { id: 'common', name: '常用帳號', icon: '07', title: '常用帳號', subtitle: '集中查看常用登入與備註資訊。' },
   { id: 'gallery', name: '圖庫', icon: '08', title: '圖片庫', subtitle: '整理圖片素材與封面資源。' },
   { id: 'video', name: '影片資料', icon: '09', title: '影片資料庫', subtitle: '管理影片檔案、封面與播放內容。' },

@@ -6,7 +6,7 @@
           <p class="tools-kicker">FENGBRO TOOLKIT</p>
           <h2>鋒兄工具</h2>
           <p class="tools-lead">
-            集中處理比價、通路查價與每 7 天一次的歷史價格快照。先查現在，再留下一條能回頭看的價格軌跡。
+            集中處理 BigGo 網址比價與手機通路比價。手機比價會同步對照地標網通、傑昇通信，並保留每 7 天一次的價格快照。
           </p>
         </div>
 
@@ -29,7 +29,7 @@
         <div class="tool-panel__header">
           <div>
             <p class="panel-kicker">鋒兄比價</p>
-            <h3>貼上商品網址，抓 BigGo 比價與價格區間</h3>
+            <h3>貼上商品網址，抓 BigGo 價格區間</h3>
           </div>
         </div>
 
@@ -86,7 +86,7 @@
                 <p class="panel-kicker">價格統計圖</p>
                 <h4>BigGo 查詢紀錄</h4>
               </div>
-              <p class="chart-caption">每 7 天自動更新一次目前查詢結果</p>
+              <p class="chart-caption">每 7 天更新一次目前價格快照</p>
             </div>
 
             <svg
@@ -122,8 +122,8 @@
       <section v-else class="tool-panel">
         <div class="tool-panel__header">
           <div>
-            <p class="panel-kicker">地標網通</p>
-            <h3>輸入型號，抓容量版本與目前價格</h3>
+            <p class="panel-kicker">手機比價</p>
+            <h3>同時比對地標網通與傑昇通信</h3>
           </div>
         </div>
 
@@ -131,37 +131,65 @@
           <label class="tool-field tool-field--wide">
             <span>型號名稱</span>
             <input
-              v-model.trim="landtopForm.keyword"
+              v-model.trim="phoneCompareForm.keyword"
               type="text"
               class="tool-input"
-              placeholder="Apple iPhone 17 或 Samsung S26"
-              @keydown.enter.prevent="runLandtopLookup"
+              placeholder="Apple iPhone 17、Samsung S26、A37"
+              @keydown.enter.prevent="runPhoneCompare"
             />
           </label>
-          <button type="button" class="tool-primary-btn" :disabled="landtopLoading" @click="runLandtopLookup">
-            {{ landtopLoading ? '查詢中...' : '查詢價格' }}
+          <button type="button" class="tool-primary-btn" :disabled="phoneCompareLoading" @click="runPhoneCompare">
+            {{ phoneCompareLoading ? '查詢中...' : '查詢比價' }}
           </button>
         </div>
 
-        <p v-if="landtopError" class="tool-error">{{ landtopError }}</p>
+        <p v-if="phoneCompareError" class="tool-error">{{ phoneCompareError }}</p>
 
-        <template v-if="landtopResult">
+        <template v-if="phoneCompareResult">
           <div class="tool-meta">
             <div>
               <span class="tool-meta__label">匹配商品</span>
-              <strong>{{ landtopResult.productName }}</strong>
+              <strong>{{ phoneCompareResult.productName }}</strong>
             </div>
             <div>
-              <span class="tool-meta__label">來源</span>
-              <strong>{{ landtopResult.brandLabel }}</strong>
+              <span class="tool-meta__label">品牌</span>
+              <strong>{{ phoneCompareResult.brandLabel }}</strong>
             </div>
           </div>
 
-          <div class="variant-grid">
-            <article v-for="variant in landtopResult.variants" :key="variant.label" class="variant-card">
-              <p class="variant-card__name">{{ variant.displayName }}</p>
-              <strong>{{ variant.priceLabel }}</strong>
-              <span class="variant-card__hint">{{ variant.statusText }}</span>
+          <div class="store-grid">
+            <article v-for="store in phoneCompareResult.stores" :key="store.source" class="store-card">
+              <p class="store-card__name">{{ store.source }}</p>
+              <strong>{{ store.productName }}</strong>
+              <a :href="store.productUrl" target="_blank" rel="noreferrer" class="store-card__link">開啟來源</a>
+            </article>
+          </div>
+
+          <div class="comparison-grid">
+            <article
+              v-for="item in phoneCompareResult.comparison"
+              :key="item.label"
+              class="comparison-card"
+            >
+              <div class="comparison-card__header">
+                <h4>{{ item.displayName }}</h4>
+                <span class="comparison-card__chip">{{ item.label }}</span>
+              </div>
+
+              <div class="comparison-source-list">
+                <div
+                  v-for="source in sortSources(item.sources)"
+                  :key="`${item.label}-${source.source}`"
+                  class="comparison-source"
+                  :class="{ best: isBestPrice(item.sources, source) }"
+                >
+                  <div>
+                    <span class="comparison-source__label">{{ source.source }}</span>
+                    <strong>{{ source.priceLabel }}</strong>
+                  </div>
+                  <a :href="source.url" target="_blank" rel="noreferrer" class="comparison-source__link">來源</a>
+                </div>
+              </div>
             </article>
           </div>
 
@@ -169,36 +197,32 @@
             <div class="chart-shell__header">
               <div>
                 <p class="panel-kicker">價格統計圖</p>
-                <h4>{{ landtopResult.productName }} 歷史記錄</h4>
+                <h4>{{ phoneCompareResult.productName }} 歷史記錄</h4>
               </div>
-              <p class="chart-caption">每 7 天記錄一次各容量目前價格</p>
+              <p class="chart-caption">每 7 天記錄一次各通路與容量目前價格</p>
             </div>
 
             <svg
-              v-if="landtopChart.paths.length > 0 && landtopChart.hasAtLeastTwoSnapshots"
+              v-if="phoneCompareChart.paths.length > 0 && phoneCompareChart.hasAtLeastTwoSnapshots"
               class="price-chart"
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
-              aria-label="地標網通價格走勢圖"
+              aria-label="手機比價走勢圖"
             >
               <polyline
-                v-for="path in landtopChart.paths"
+                v-for="path in phoneCompareChart.paths"
                 :key="path.key"
                 class="chart-line chart-line--multi"
                 :class="path.className"
                 :points="path.points"
               />
             </svg>
-            <div v-else class="chart-empty">至少累積兩筆 7 天快照後，這裡會出現容量價格走勢。</div>
+            <div v-else class="chart-empty">至少累積兩筆 7 天快照後，這裡會出現比價走勢。</div>
 
-            <div v-if="landtopResult.variants.length > 0" class="chart-legend">
-              <div
-                v-for="variant in landtopResult.variants"
-                :key="variant.label"
-                class="legend-item"
-              >
-                <span class="legend-swatch" :class="seriesClassName(variant.label)"></span>
-                <span>{{ variant.displayName }}</span>
+            <div v-if="phoneCompareLegend.length > 0" class="chart-legend">
+              <div v-for="legend in phoneCompareLegend" :key="legend.key" class="legend-item">
+                <span class="legend-swatch" :class="legend.className"></span>
+                <span>{{ legend.label }}</span>
               </div>
             </div>
           </div>
@@ -214,7 +238,7 @@ import PageContainer from '../layout/PageContainer.vue'
 
 const toolTabs = [
   { value: 'biggo', label: '鋒兄比價', description: '網址貼上後抓 BigGo 價格區間' },
-  { value: 'landtop', label: '地標網通', description: '型號查詢容量與通路價格' }
+  { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信同步比價' }
 ]
 
 const activeTool = ref('biggo')
@@ -225,15 +249,15 @@ const biggoError = ref('')
 const biggoResult = ref(null)
 const biggoHistory = ref([])
 
-const landtopForm = ref({ keyword: '' })
-const landtopLoading = ref(false)
-const landtopError = ref('')
-const landtopResult = ref(null)
-const landtopHistory = ref([])
+const phoneCompareForm = ref({ keyword: '' })
+const phoneCompareLoading = ref(false)
+const phoneCompareError = ref('')
+const phoneCompareResult = ref(null)
+const phoneCompareHistory = ref([])
 
 const HISTORY_INTERVAL_DAYS = 7
 const BIGGO_HISTORY_KEY = 'fengbro-tools-biggo-history'
-const LANDTOP_HISTORY_KEY = 'fengbro-tools-landtop-history'
+const PHONE_COMPARE_HISTORY_KEY = 'fengbro-tools-phone-compare-history'
 
 const safeJsonParse = (value, fallback) => {
   try {
@@ -299,13 +323,8 @@ const loadHistoryEntries = (storageKey, queryKey) => {
 }
 
 const buildSingleSeriesChart = (entries, field) => {
-  const values = entries
-    .map(entry => Number(entry[field]))
-    .filter(value => Number.isFinite(value))
-
-  if (values.length < 2) {
-    return { points: '', areaPoints: '', circles: [] }
-  }
+  const values = entries.map(entry => Number(entry[field])).filter(value => Number.isFinite(value))
+  if (values.length < 2) return { points: '', areaPoints: '', circles: [] }
 
   const min = Math.min(...values)
   const max = Math.max(...values)
@@ -317,49 +336,42 @@ const buildSingleSeriesChart = (entries, field) => {
       if (!Number.isFinite(value)) return null
       const x = entries.length === 1 ? 50 : (index / (entries.length - 1)) * 92 + 4
       const y = 96 - ((value - min) / range) * 72 - 6
-      return {
-        key: `${entry.date}-${index}`,
-        x: Number(x.toFixed(2)),
-        y: Number(y.toFixed(2))
-      }
+      return { key: `${entry.date}-${index}`, x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) }
     })
     .filter(Boolean)
 
   const points = circles.map(point => `${point.x},${point.y}`).join(' ')
   const areaPoints = `4,96 ${points} 96,96`
-
   return { points, areaPoints, circles }
 }
 
-const seriesPalette = ['chart-series-a', 'chart-series-b', 'chart-series-c', 'chart-series-d']
+const seriesPalette = ['chart-series-a', 'chart-series-b', 'chart-series-c', 'chart-series-d', 'chart-series-e', 'chart-series-f']
 
 const seriesClassName = (label) => {
   const seed = Array.from(label).reduce((sum, char) => sum + char.charCodeAt(0), 0)
   return seriesPalette[seed % seriesPalette.length]
 }
 
-const buildMultiSeriesChart = (entries, labels) => {
+const buildMultiSeriesChart = (entries, seriesKeys) => {
   const numericValues = []
   for (const entry of entries) {
-    for (const label of labels) {
-      const value = Number(entry.variants?.[label])
+    for (const key of seriesKeys) {
+      const value = Number(entry.series?.[key])
       if (Number.isFinite(value)) numericValues.push(value)
     }
   }
 
-  if (numericValues.length === 0) {
-    return { paths: [], hasAtLeastTwoSnapshots: false }
-  }
+  if (numericValues.length === 0) return { paths: [], hasAtLeastTwoSnapshots: false }
 
   const min = Math.min(...numericValues)
   const max = Math.max(...numericValues)
   const range = max - min || 1
 
-  const paths = labels
-    .map((label) => {
+  const paths = seriesKeys
+    .map((key) => {
       const points = entries
         .map((entry, index) => {
-          const value = Number(entry.variants?.[label])
+          const value = Number(entry.series?.[key])
           if (!Number.isFinite(value)) return null
           const x = entries.length === 1 ? 50 : (index / (entries.length - 1)) * 92 + 4
           const y = 96 - ((value - min) / range) * 72 - 6
@@ -369,7 +381,7 @@ const buildMultiSeriesChart = (entries, labels) => {
         .join(' ')
 
       if (!points) return null
-      return { key: label, points, className: seriesClassName(label) }
+      return { key, points, className: seriesClassName(key) }
     })
     .filter(Boolean)
 
@@ -377,15 +389,45 @@ const buildMultiSeriesChart = (entries, labels) => {
 }
 
 const biggoChart = computed(() => buildSingleSeriesChart(biggoHistory.value, 'currentPrice'))
-const landtopChart = computed(() => buildMultiSeriesChart(
-  landtopHistory.value,
-  landtopResult.value?.variants?.map(variant => variant.label) || []
-))
 const biggoSourceNotice = computed(() => {
   const status = Number(biggoResult.value?.sourceStatus)
   if (!Number.isFinite(status) || status < 400) return ''
   return `來源網站回應 ${status}，本次結果已改用網址關鍵字轉查 BigGo。`
 })
+
+const phoneCompareSeriesKeys = computed(() => {
+  if (!phoneCompareResult.value) return []
+  return phoneCompareResult.value.comparison.flatMap(item =>
+    item.sources.map(source => `${item.label}__${source.source}`)
+  )
+})
+
+const phoneCompareChart = computed(() => buildMultiSeriesChart(phoneCompareHistory.value, phoneCompareSeriesKeys.value))
+const phoneCompareLegend = computed(() => {
+  if (!phoneCompareResult.value) return []
+  return phoneCompareResult.value.comparison.flatMap(item =>
+    item.sources.map(source => {
+      const key = `${item.label}__${source.source}`
+      return {
+        key,
+        label: `${item.label} · ${source.source}`,
+        className: seriesClassName(key)
+      }
+    })
+  )
+})
+
+const sortSources = (sources) => [...sources].sort((a, b) => {
+  const left = Number.isFinite(a.numericPrice) ? a.numericPrice : Number.MAX_SAFE_INTEGER
+  const right = Number.isFinite(b.numericPrice) ? b.numericPrice : Number.MAX_SAFE_INTEGER
+  return left - right
+})
+
+const isBestPrice = (sources, source) => {
+  const values = sources.map(item => item.numericPrice).filter(value => Number.isFinite(value))
+  if (values.length === 0 || !Number.isFinite(source.numericPrice)) return false
+  return source.numericPrice === Math.min(...values)
+}
 
 const runBiggoLookup = async () => {
   if (!biggoForm.value.url) {
@@ -405,13 +447,12 @@ const runBiggoLookup = async () => {
 
     biggoResult.value = response
     const queryKey = normalizeLookupKey(biggoForm.value.url)
-    const nextHistory = updateHistoryEntries(BIGGO_HISTORY_KEY, queryKey, {
+    biggoHistory.value = updateHistoryEntries(BIGGO_HISTORY_KEY, queryKey, {
       date: new Date().toISOString(),
       currentPrice: response.currentPrice,
       historicalHigh: response.historicalHigh,
       historicalLow: response.historicalLow
     })
-    biggoHistory.value = nextHistory
   } catch (error) {
     biggoResult.value = null
     biggoError.value = error?.data?.statusMessage || error?.message || 'BigGo 查詢失敗。'
@@ -420,62 +461,57 @@ const runBiggoLookup = async () => {
   }
 }
 
-const runLandtopLookup = async () => {
-  if (!landtopForm.value.keyword) {
-    landtopError.value = '請先輸入型號名稱。'
-    landtopResult.value = null
-    landtopHistory.value = []
+const runPhoneCompare = async () => {
+  if (!phoneCompareForm.value.keyword) {
+    phoneCompareError.value = '請先輸入型號名稱。'
+    phoneCompareResult.value = null
+    phoneCompareHistory.value = []
     return
   }
 
-  landtopLoading.value = true
-  landtopError.value = ''
-  landtopResult.value = null
+  phoneCompareLoading.value = true
+  phoneCompareError.value = ''
+  phoneCompareResult.value = null
 
   try {
     const response = await $fetch('/api/feng-tools/landtop', {
       method: 'POST',
-      body: { keyword: landtopForm.value.keyword }
+      body: { keyword: phoneCompareForm.value.keyword }
     })
 
-    landtopResult.value = response
-    const queryKey = normalizeLookupKey(landtopForm.value.keyword)
-    const nextHistory = updateHistoryEntries(LANDTOP_HISTORY_KEY, queryKey, {
-      date: new Date().toISOString(),
-      variants: Object.fromEntries(
-        response.variants.map(variant => [variant.label, variant.numericPrice ?? null])
+    phoneCompareResult.value = response
+    const queryKey = normalizeLookupKey(phoneCompareForm.value.keyword)
+    const snapshotSeries = Object.fromEntries(
+      response.comparison.flatMap(item =>
+        item.sources.map(source => [`${item.label}__${source.source}`, source.numericPrice ?? null])
       )
+    )
+
+    phoneCompareHistory.value = updateHistoryEntries(PHONE_COMPARE_HISTORY_KEY, queryKey, {
+      date: new Date().toISOString(),
+      series: snapshotSeries
     })
-    landtopHistory.value = nextHistory
   } catch (error) {
-    landtopResult.value = null
-    landtopHistory.value = []
-    landtopError.value = error?.data?.statusMessage || error?.message || '地標網通查詢失敗。'
+    phoneCompareResult.value = null
+    phoneCompareHistory.value = []
+    phoneCompareError.value = error?.data?.statusMessage || error?.message || '手機比價查詢失敗。'
   } finally {
-    landtopLoading.value = false
+    phoneCompareLoading.value = false
   }
 }
 
 watch(
   () => biggoForm.value.url,
   (value) => {
-    if (!value) {
-      biggoHistory.value = []
-      return
-    }
-    biggoHistory.value = loadHistoryEntries(BIGGO_HISTORY_KEY, normalizeLookupKey(value))
+    biggoHistory.value = value ? loadHistoryEntries(BIGGO_HISTORY_KEY, normalizeLookupKey(value)) : []
   },
   { immediate: true }
 )
 
 watch(
-  () => landtopForm.value.keyword,
+  () => phoneCompareForm.value.keyword,
   (value) => {
-    if (!value) {
-      landtopHistory.value = []
-      return
-    }
-    landtopHistory.value = loadHistoryEntries(LANDTOP_HISTORY_KEY, normalizeLookupKey(value))
+    phoneCompareHistory.value = value ? loadHistoryEntries(PHONE_COMPARE_HISTORY_KEY, normalizeLookupKey(value)) : []
   },
   { immediate: true }
 )
@@ -514,6 +550,7 @@ watch(
 
 .tools-hero h2,
 .tool-panel h3,
+.comparison-card h4,
 .chart-shell h4 {
   margin: 0.3rem 0 0;
   font-family: var(--font-display);
@@ -644,58 +681,107 @@ watch(
   line-height: 1.6;
 }
 
-.tool-meta {
+.tool-meta,
+.stats-grid,
+.store-grid,
+.comparison-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.8rem;
+}
+
+.tool-meta,
+.store-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.comparison-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
 .tool-meta > div,
 .stat-tile,
-.variant-card {
+.store-card,
+.comparison-card {
   border-radius: 22px;
   border: 1px solid var(--border-color);
   background: var(--bg-primary);
   padding: 1rem;
 }
 
-.tool-meta__label {
+.tool-meta__label,
+.comparison-source__label {
   display: block;
   color: var(--text-secondary);
   font-size: 0.82rem;
   margin-bottom: 0.35rem;
 }
 
-.stats-grid,
-.variant-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.85rem;
-}
-
-.stat-tile span,
-.variant-card__hint {
+.stat-tile span {
   color: var(--text-secondary);
   font-size: 0.84rem;
 }
 
 .stat-tile strong,
-.variant-card strong {
+.store-card strong,
+.comparison-source strong {
   display: block;
   margin-top: 0.45rem;
   font-size: 1.35rem;
   color: var(--text-primary);
 }
 
-.variant-card__name {
+.store-card__name {
   margin: 0;
-  font-weight: 700;
-  color: var(--text-primary);
+  color: var(--text-secondary);
+  font-size: 0.84rem;
 }
 
-.variant-card__hint {
-  display: block;
-  margin-top: 0.55rem;
+.store-card__link,
+.comparison-source__link {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.comparison-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: center;
+  margin-bottom: 0.9rem;
+}
+
+.comparison-card__chip {
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 15%, var(--bg-secondary));
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.comparison-source-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.comparison-source {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  padding: 0.85rem 0.95rem;
+}
+
+.comparison-source.best {
+  border-color: color-mix(in oklab, #10b981 45%, var(--border-color));
+  background: color-mix(in oklab, #10b981 8%, var(--bg-primary));
 }
 
 .chart-shell {
@@ -732,7 +818,6 @@ watch(
 
 .chart-area {
   fill: color-mix(in oklab, var(--primary) 18%, transparent);
-  stroke: none;
 }
 
 .chart-line {
@@ -747,6 +832,8 @@ watch(
 .chart-line--multi.chart-series-b { stroke: #db2777; }
 .chart-line--multi.chart-series-c { stroke: #059669; }
 .chart-line--multi.chart-series-d { stroke: #d97706; }
+.chart-line--multi.chart-series-e { stroke: #7c3aed; }
+.chart-line--multi.chart-series-f { stroke: #0f766e; }
 
 .chart-dot {
   fill: color-mix(in oklab, var(--primary) 90%, black);
@@ -762,15 +849,12 @@ watch(
   text-align: center;
 }
 
-.chart-legend {
+.chart-legend,
+.chart-legend--row {
   margin-top: 1rem;
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
-}
-
-.chart-legend--row {
-  gap: 0.55rem;
 }
 
 .history-chip,
@@ -800,6 +884,8 @@ watch(
 .legend-swatch.chart-series-b { background: #db2777; }
 .legend-swatch.chart-series-c { background: #059669; }
 .legend-swatch.chart-series-d { background: #d97706; }
+.legend-swatch.chart-series-e { background: #7c3aed; }
+.legend-swatch.chart-series-f { background: #0f766e; }
 
 @media (max-width: 960px) {
   .tools-hero,
@@ -826,6 +912,11 @@ watch(
 
   .price-chart {
     height: 220px;
+  }
+
+  .comparison-source {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 </style>

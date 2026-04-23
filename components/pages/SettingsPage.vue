@@ -213,6 +213,28 @@
           </div>
         </section>
 
+        <section class="settings-section version-section">
+          <div class="section-header">
+            <h2 class="section-title">系統版本資訊</h2>
+          </div>
+          <div class="section-body">
+            <div class="storage-summary version-summary">
+              <div class="storage-stat">
+                <span class="storage-stat-label">系統版本號</span>
+                <strong>{{ systemVersion }}</strong>
+              </div>
+              <div class="storage-stat">
+                <span class="storage-stat-label">Nuxt 版本號</span>
+                <strong>{{ nuxtVersion }}</strong>
+              </div>
+              <div class="storage-stat">
+                <span class="storage-stat-label">Vue 版本號</span>
+                <strong>{{ vueVersion }}</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- SQL Modal -->
         <div v-if="showSqlModal" class="modal-overlay" @click.self="showSqlModal = false">
           <div class="modal-content">
@@ -282,6 +304,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import { useSettings } from '../../composables/useSettings'
 import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
+import packageJson from '../../package.json'
 
 const {
   accounts,
@@ -349,6 +372,9 @@ const bucketExists = ref(false)
 const bucketChecking = ref(false)
 const showBucketHelp = ref(false)
 const currentBucketName = computed(() => bucketName.value || useRuntimeConfig().public.supabaseBucket || 'uploads')
+const systemVersion = computed(() => `v${packageJson.version || '未設定'}`)
+const nuxtVersion = computed(() => packageJson.dependencies?.nuxt || '未設定')
+const vueVersion = computed(() => packageJson.dependencies?.vue || '未設定')
 
 const getSupabaseUrlValidationMessage = (rawUrl) => {
   const value = String(rawUrl || '').trim()

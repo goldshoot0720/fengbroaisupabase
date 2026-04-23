@@ -8,6 +8,21 @@
         class="search-input"
         placeholder="搜尋食品..."
       />
+      <div class="date-filters" aria-label="食品年月篩選">
+        <select v-model="selectedYear" class="date-filter-select">
+          <option value="">全部年份</option>
+          <option value="__empty">無日期</option>
+          <option v-for="year in availableYears" :key="year" :value="String(year)">
+            {{ year }} 年
+          </option>
+        </select>
+        <select v-model="selectedMonth" class="date-filter-select" :disabled="selectedYear === '__empty'">
+          <option value="">全部月份</option>
+          <option v-for="month in monthOptions" :key="month.value" :value="month.value">
+            {{ month.label }}
+          </option>
+        </select>
+      </div>
       <div class="csv-actions">
         <button v-if="foods.length > 0" @click="exportFoodsCsv" class="btn-export">匯出 CSV</button>
         <label class="btn-import">
@@ -45,7 +60,7 @@
           <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
         </template>
 
-        <span>共 {{ foods.length }} 個項目</span>
+        <span>共 {{ filteredFoods.length }} / {{ foods.length }} 個項目</span>
         <span v-if="selectedIds.length > 0" class="selected-count">
           已選 {{ selectedIds.length }} 項
         </span>
@@ -257,6 +272,8 @@ import { useFormatters } from '../../composables/useFormatters'
 import { useStorage } from '../../composables/useStorage'
 
 const searchQuery = ref('')
+const selectedYear = ref('')
+const selectedMonth = ref('')
 const previewImage = ref(null)
 
 const {
@@ -274,6 +291,31 @@ const {
 } = useFoods()
 
 const { formatDate, getExpiryClass } = useFormatters()
+
+const EMPTY_DATE_FILTER = '__empty'
+
+const monthOptions = Array.from({ length: 12 }, (_, index) => {
+  const month = index + 1
+  return {
+    value: String(month),
+    label: `${month} 月`
+  }
+})
+
+const parseFoodDate = (dateString) => {
+  if (!dateString) return null
+  const date = new Date(dateString)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const availableYears = computed(() => {
+  const years = new Set()
+  foods.value.forEach((food) => {
+    const date = parseFoodDate(food.todate)
+    if (date) years.add(date.getFullYear())
+  })
+  return [...years].sort((a, b) => b - a)
+})
 
 // 圖片上傳
 const { uploadFile: uploadImageFile } = useStorage()
@@ -445,11 +487,24 @@ const confirmBatchDelete = async () => {
 
 const filteredFoods = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return sortedFoods.value
-  return sortedFoods.value.filter(f =>
-    (f.name || '').toLowerCase().includes(q) ||
-    (f.shop || '').toLowerCase().includes(q)
-  )
+  const year = selectedYear.value
+  const month = selectedMonth.value
+
+  return sortedFoods.value.filter((food) => {
+    const matchesSearch = !q ||
+      (food.name || '').toLowerCase().includes(q) ||
+      (food.shop || '').toLowerCase().includes(q)
+
+    if (!matchesSearch) return false
+    if (!year && !month) return true
+
+    const date = parseFoodDate(food.todate)
+    if (year === EMPTY_DATE_FILTER) return !date
+    if (!date) return false
+    if (year && date.getFullYear() !== Number(year)) return false
+    if (month && date.getMonth() + 1 !== Number(month)) return false
+    return true
+  })
 })
 
 onMounted(() => {
@@ -558,6 +613,35 @@ defineExpose({ foods, expiringFoods })
 .search-input:focus {
   outline: none;
   border-color: #27ae60;
+}
+
+.date-filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.date-filter-select {
+  min-width: 130px;
+  padding: 0.75rem 0.95rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  font-size: 0.95rem;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.date-filter-select:focus {
+  outline: none;
+  border-color: #27ae60;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.12);
+}
+
+.date-filter-select:disabled {
+  color: #999;
+  background: #f4f6f8;
+  cursor: not-allowed;
 }
 
 .csv-actions { display: flex; gap: 0.5rem; }
@@ -1189,6 +1273,11 @@ defineExpose({ foods, expiringFoods })
     width: 100%;
     padding: 0.8rem 0.9rem;
     font-size: 0.95rem;
+  }
+
+  .date-filters,
+  .date-filter-select {
+    width: 100%;
   }
 
   .csv-actions {

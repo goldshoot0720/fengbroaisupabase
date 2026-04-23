@@ -157,6 +157,62 @@
           </div>
         </section>
 
+        <section class="settings-section storage-management-section">
+          <div class="section-header">
+            <h2 class="section-title">Supabase Storage 管理</h2>
+          </div>
+          <div class="section-body">
+            <p class="storage-description">
+              系統會掃描 Supabase Storage 中的所有檔案，找出資料庫中未引用的多餘檔案（圖片、影片、音樂、文件、播客）。分段影片會連同 manifest 與所有 PART 一起納入引用判斷。
+            </p>
+
+            <div class="storage-actions">
+              <button class="btn-primary" @click="scanStorageFiles" :disabled="storageScan.scanning || storageScan.deleting">
+                {{ storageScan.scanning ? '掃描中...' : '掃描 Storage' }}
+              </button>
+              <button
+                class="btn-danger"
+                @click="deleteUnusedStorageFiles"
+                :disabled="storageScan.scanning || storageScan.deleting || storageScan.unusedFiles.length === 0"
+              >
+                {{ storageScan.deleting ? '刪除中...' : `刪除未引用檔案 (${storageScan.unusedFiles.length})` }}
+              </button>
+            </div>
+
+            <div class="storage-summary">
+              <div class="storage-stat">
+                <span class="storage-stat-label">Bucket</span>
+                <strong>{{ currentBucketName }}</strong>
+              </div>
+              <div class="storage-stat">
+                <span class="storage-stat-label">Storage 檔案</span>
+                <strong>{{ storageScan.totalFiles }}</strong>
+              </div>
+              <div class="storage-stat">
+                <span class="storage-stat-label">已引用</span>
+                <strong>{{ storageScan.referencedCount }}</strong>
+              </div>
+              <div class="storage-stat danger">
+                <span class="storage-stat-label">未引用</span>
+                <strong>{{ storageScan.unusedFiles.length }}</strong>
+              </div>
+            </div>
+
+            <p v-if="storageScan.status" class="storage-status">{{ storageScan.status }}</p>
+            <p v-if="storageScan.error" class="storage-error">{{ storageScan.error }}</p>
+
+            <div v-if="storageScan.unusedFiles.length > 0" class="unused-file-list">
+              <div v-for="file in storageScan.unusedFiles.slice(0, 120)" :key="file.path" class="unused-file-item">
+                <span class="unused-file-path">{{ file.path }}</span>
+                <span class="unused-file-size">{{ formatStorageSize(file.size) }}</span>
+              </div>
+              <p v-if="storageScan.unusedFiles.length > 120" class="storage-hint">
+                尚有 {{ storageScan.unusedFiles.length - 120 }} 個未引用檔案未列出。
+              </p>
+            </div>
+          </div>
+        </section>
+
         <!-- SQL Modal -->
         <div v-if="showSqlModal" class="modal-overlay" @click.self="showSqlModal = false">
           <div class="modal-content">
@@ -225,6 +281,7 @@ CREATE POLICY "Allow public delete" ON storage.objects
 import { ref, reactive, computed, onMounted } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import { useSettings } from '../../composables/useSettings'
+import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
 
 const {
   accounts,
@@ -735,6 +792,217 @@ CREATE POLICY "Allow public delete" ON storage.objects
   }
 }
 
+const STORAGE_REFERENCE_TABLES = [
+  { name: 'image', fields: ['file', 'cover'] },
+  { name: 'video', fields: ['file', 'cover'] },
+  { name: 'music', fields: ['file', 'cover'] },
+  { name: 'commondocument', fields: ['file', 'cover'] },
+  { name: 'podcast', fields: ['file', 'cover'] }
+]
+
+const MULTIPART_REFERENCE_PREFIX = 'supabase-multipart://'
+
+const storageScan = reactive({
+  scanning: false,
+  deleting: false,
+  status: '',
+  error: '',
+  totalFiles: 0,
+  referencedCount: 0,
+  unusedFiles: []
+})
+
+const normalizeStoragePath = (path = '') => String(path || '').replace(/\\/g, '/').replace(/^\/+/, '')
+
+const extractStoragePath = (value = '', bucket = currentBucketName.value) => {
+  if (!value || typeof value !== 'string') return ''
+  const raw = value.trim()
+  if (!raw) return ''
+  if (raw.startsWith(MULTIPART_REFERENCE_PREFIX)) {
+    const pathPart = raw.slice(MULTIPART_REFERENCE_PREFIX.length).split('?')[0]
+    const slashIndex = pathPart.indexOf('/')
+    return slashIndex === -1 ? '' : normalizeStoragePath(pathPart.slice(slashIndex + 1))
+  }
+  try {
+    const url = new URL(raw)
+    const marker = '/storage/v1/object/public/'
+    const markerIndex = url.pathname.indexOf(marker)
+    if (markerIndex === -1) return ''
+    const objectPath = decodeURIComponent(url.pathname.slice(markerIndex + marker.length))
+    const bucketPrefix = `${bucket}/`
+    return objectPath.startsWith(bucketPrefix)
+      ? normalizeStoragePath(objectPath.slice(bucketPrefix.length))
+      : normalizeStoragePath(objectPath.split('/').slice(1).join('/'))
+  } catch {
+    return raw.includes('/') ? normalizeStoragePath(raw) : ''
+  }
+}
+
+const addMultipartParts = (referencedPaths, basePath, partCount) => {
+  const totalParts = Number(partCount || 0)
+  if (!basePath || totalParts <= 0) return
+  for (let index = 0; index < totalParts; index++) {
+    referencedPaths.add(`${basePath}.part${String(index + 1).padStart(3, '0')}`)
+  }
+}
+
+const addManifestReferences = async (client, bucket, referencedPaths, manifestPath) => {
+  if (!manifestPath?.endsWith('.manifest.json')) return
+  try {
+    const { data, error } = await client.storage.from(bucket).download(manifestPath)
+    if (error || !data) return
+    const manifest = JSON.parse(await data.text())
+    if (!Array.isArray(manifest.parts)) return
+    for (const part of manifest.parts) {
+      const partPath = part.path || extractStoragePath(part.publicUrl, bucket)
+      if (partPath) referencedPaths.add(normalizeStoragePath(partPath))
+    }
+  } catch (error) {
+    console.warn('Unable to read multipart manifest:', manifestPath, error)
+  }
+}
+
+const addStorageReference = async (client, bucket, referencedPaths, value) => {
+  if (!value || typeof value !== 'string') return
+  const raw = value.trim()
+  if (!raw) return
+  const path = extractStoragePath(raw, bucket)
+  if (!path) return
+  referencedPaths.add(path)
+
+  if (raw.startsWith(MULTIPART_REFERENCE_PREFIX)) {
+    const queryString = raw.split('?')[1] || ''
+    const params = new URLSearchParams(queryString)
+    addMultipartParts(referencedPaths, path, params.get('parts'))
+  }
+
+  await addManifestReferences(client, bucket, referencedPaths, path)
+}
+
+const loadStorageReferences = async (client, bucket) => {
+  const referencedPaths = new Set()
+  for (const table of STORAGE_REFERENCE_TABLES) {
+    storageScan.status = `讀取 ${table.name} 引用...`
+    const { data, error } = await client.from(table.name).select(table.fields.join(','))
+    if (error) {
+      console.warn(`Unable to read ${table.name} storage references:`, error)
+      continue
+    }
+    for (const row of data || []) {
+      for (const field of table.fields) {
+        await addStorageReference(client, bucket, referencedPaths, row[field])
+      }
+    }
+  }
+  return referencedPaths
+}
+
+const listStorageFilesRecursive = async (client, bucket, prefix = '') => {
+  const collected = []
+  const pageSize = 1000
+  let offset = 0
+  let entries = []
+
+  do {
+    const { data, error } = await client.storage.from(bucket).list(prefix, {
+      limit: pageSize,
+      offset,
+      sortBy: { column: 'name', order: 'asc' }
+    })
+    if (error) throw error
+    entries = data || []
+
+    for (const item of entries) {
+      const path = prefix ? `${prefix}/${item.name}` : item.name
+      const isFolder = !item.id && !item.metadata
+      if (isFolder) {
+        collected.push(...await listStorageFilesRecursive(client, bucket, path))
+      } else {
+        collected.push({
+          path,
+          size: item.metadata?.size || 0,
+          updatedAt: item.updated_at || item.created_at || ''
+        })
+      }
+    }
+
+    offset += pageSize
+  } while (entries.length === pageSize)
+
+  return collected
+}
+
+const formatStorageSize = (bytes = 0) => {
+  const value = Number(bytes || 0)
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} KB`
+  return `${value} B`
+}
+
+const scanStorageFiles = async () => {
+  const client = getSupabaseBrowserClient()
+  if (!client) {
+    storageScan.error = '尚未設定 Supabase 連線'
+    return
+  }
+
+  storageScan.scanning = true
+  storageScan.error = ''
+  storageScan.status = '準備掃描 Storage...'
+  storageScan.totalFiles = 0
+  storageScan.referencedCount = 0
+  storageScan.unusedFiles = []
+
+  try {
+    const bucket = currentBucketName.value
+    const referencedPaths = await loadStorageReferences(client, bucket)
+    storageScan.status = '遞迴掃描 Storage 檔案...'
+    const files = await listStorageFilesRecursive(client, bucket)
+    const unusedFiles = files.filter(file => !referencedPaths.has(normalizeStoragePath(file.path)))
+
+    storageScan.totalFiles = files.length
+    storageScan.referencedCount = files.length - unusedFiles.length
+    storageScan.unusedFiles = unusedFiles
+    storageScan.status = unusedFiles.length
+      ? `掃描完成，找到 ${unusedFiles.length} 個未引用檔案。`
+      : '掃描完成，沒有找到未引用檔案。'
+  } catch (error) {
+    console.error('Storage scan failed:', error)
+    storageScan.error = `掃描失敗：${error.message}`
+    storageScan.status = ''
+  } finally {
+    storageScan.scanning = false
+  }
+}
+
+const deleteUnusedStorageFiles = async () => {
+  if (storageScan.unusedFiles.length === 0) return
+  if (!confirm(`確定要刪除 ${storageScan.unusedFiles.length} 個未引用 Storage 檔案嗎？此動作無法復原。`)) return
+
+  const client = getSupabaseBrowserClient()
+  if (!client) return
+
+  storageScan.deleting = true
+  storageScan.error = ''
+  try {
+    const bucket = currentBucketName.value
+    const paths = storageScan.unusedFiles.map(file => file.path)
+    for (let i = 0; i < paths.length; i += 100) {
+      const chunk = paths.slice(i, i + 100)
+      storageScan.status = `刪除中 ${Math.min(i + chunk.length, paths.length)} / ${paths.length}...`
+      const { error } = await client.storage.from(bucket).remove(chunk)
+      if (error) throw error
+    }
+    storageScan.status = '未引用檔案已刪除，重新掃描中...'
+    await scanStorageFiles()
+  } catch (error) {
+    console.error('Delete unused storage files failed:', error)
+    storageScan.error = `刪除失敗：${error.message}`
+  } finally {
+    storageScan.deleting = false
+  }
+}
+
 onMounted(() => {
   loadSettings()
   checkAllTables()
@@ -941,6 +1209,115 @@ useHead({
 
 .btn-delete:hover {
   background: rgba(239, 68, 68, 0.2);
+}
+
+.storage-description {
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin: 0 0 1rem;
+}
+
+.storage-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.btn-danger {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.storage-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.storage-stat {
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+
+.storage-stat.danger {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.storage-stat-label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.storage-stat strong {
+  color: var(--text-primary);
+  font-size: 1.25rem;
+}
+
+.storage-status,
+.storage-error,
+.storage-hint {
+  margin: 0.75rem 0 0;
+  color: var(--text-secondary);
+}
+
+.storage-error {
+  color: #dc2626;
+}
+
+.unused-file-list {
+  margin-top: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.unused-file-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.unused-file-item:last-child {
+  border-bottom: none;
+}
+
+.unused-file-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-family: monospace;
+}
+
+.unused-file-size {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
 }
 
 /* 表單：電腦版 label 與 input 左右排列 */

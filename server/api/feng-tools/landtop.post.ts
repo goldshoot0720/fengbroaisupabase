@@ -75,18 +75,51 @@ const scoreCandidate = (name: string, keyword: string) => {
   return tokens.reduce((score, token) => score + (normalizedName.includes(normalizeText(token)) ? 12 : 0), 0)
 }
 
-const parseVariantsFromDetail = (productName: string, detailHtml: string, keyword: string) => {
+const normalizeVariantLabel = (value: string) => value.trim().replace(/\s+/g, '')
+
+const parseStorageOptions = (text: string) => {
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean)
+  const storageIndex = lines.indexOf('儲存空間')
+  if (storageIndex === -1) return []
+
+  const endIndexCandidates = ['顏色', '建議售價', '地標最低價', '產品資訊']
+    .map(label => lines.indexOf(label, storageIndex + 1))
+    .filter(index => index !== -1)
+
+  const endIndex = endIndexCandidates.length > 0 ? Math.min(...endIndexCandidates) : Math.min(storageIndex + 10, lines.length)
+  return lines
+    .slice(storageIndex + 1, endIndex)
+    .filter(line => /(\d+G\/\d+G(B)?|\d+GB)/i.test(line))
+    .map(normalizeVariantLabel)
+}
+
+const parseSelectedVariantPrice = (text: string, productName: string) => {
+  const directMatch = text.match(new RegExp(`${productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+([^|\\n]+?)\\s*\\|[\\s\\S]{0,120}?地標最低價[\\s\\S]{0,80}?(挑戰手機最低價|\\$[\\d,]+)`, 'i'))
+  if (directMatch) {
+    return {
+      variantLabel: normalizeVariantLabel(directMatch[1]),
+      priceLabel: directMatch[2]
+    }
+  }
+
+  const fallbackPrice = text.match(/地標最低價[\s\S]{0,80}?(挑戰手機最低價|\$[\d,]+)/i)?.[1]
+  return {
+    variantLabel: '',
+    priceLabel: fallbackPrice || ''
+  }
+}
+
+const parseVariantsFromDetail = (productName: string, detailHtml: string) => {
   const text = stripTags(detailHtml)
-  const preferredVariants = /iphone/i.test(keyword)
-    ? ['256GB', '512GB']
-    : ['12G/256G', '12G/512G']
+  const storageOptions = parseStorageOptions(text)
+  const selected = parseSelectedVariantPrice(text, productName)
+  const basePriceLabel = selected.priceLabel || '查無公開價格'
+  const variantLabels = storageOptions.length > 0 ? storageOptions : (selected.variantLabel ? [selected.variantLabel] : [])
 
-  return preferredVariants.map((variantLabel) => {
-    const variantsRegex = new RegExp(`${productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*${variantLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]{0,220}?(挑戰手機最低價|\\$[\\d,]+)`, 'i')
-    const directMatch = text.match(variantsRegex)
-    const nearbyMatch = directMatch?.[1] || text.match(new RegExp(`${variantLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]{0,220}?(挑戰手機最低價|\\$[\\d,]+)`, 'i'))?.[1]
-
-    const priceLabel = nearbyMatch || '查無公開價格'
+  return variantLabels.map((variantLabel, index) => {
+    const exactPrice = text.match(new RegExp(`${productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+${variantLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\|[\\s\\S]{0,120}?(挑戰手機最低價|\\$[\\d,]+)`, 'i'))?.[1]
+    const nearbyPrice = text.match(new RegExp(`${variantLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]{0,120}?(挑戰手機最低價|\\$[\\d,]+)`, 'i'))?.[1]
+    const priceLabel = exactPrice || nearbyPrice || (index === 0 || !selected.variantLabel || selected.variantLabel === variantLabel ? basePriceLabel : basePriceLabel)
     const numericPrice = priceLabel.startsWith('$') ? Number(priceLabel.replace(/[^\d]/g, '')) : null
 
     return {
@@ -120,7 +153,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const detailHtml = await fetchText(bestMatch.url)
-  const variants = parseVariantsFromDetail(bestMatch.name, detailHtml, keyword)
+  const variants = parseVariantsFromDetail(bestMatch.name, detailHtml)
 
   return {
     keyword,

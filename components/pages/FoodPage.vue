@@ -314,7 +314,11 @@ const availableYears = computed(() => {
     const date = parseFoodDate(food.todate)
     if (date) years.add(date.getFullYear())
   })
-  return [...years].sort((a, b) => b - a)
+  const currentYear = new Date().getFullYear()
+  return [...years].sort((a, b) => {
+    const distance = Math.abs(a - currentYear) - Math.abs(b - currentYear)
+    return distance || a - b
+  })
 })
 
 // 圖片上傳

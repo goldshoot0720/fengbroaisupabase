@@ -7,7 +7,10 @@
 
       <div class="title-block">
         <p class="title-kicker">Tech Editorial Workspace</p>
-        <h1>{{ title }}</h1>
+        <div class="header-title-row">
+          <h1>{{ title }}</h1>
+          <span v-if="titleHint" class="title-hint">{{ titleHint }}</span>
+        </div>
         <p class="header-subtitle">{{ subtitle }}</p>
       </div>
     </div>
@@ -83,6 +86,7 @@ import { useRouter } from 'vue-router'
 
 defineProps({
   title: { type: String, default: '控制首頁' },
+  titleHint: { type: String, default: '' },
   subtitle: { type: String, default: '科技編輯式管理平台' },
   isDarkMode: { type: Boolean, default: false }
 })
@@ -175,11 +179,27 @@ onUnmounted(() => {
   margin-bottom: 0.15rem;
 }
 
+.header-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .top-header h1 {
   font-size: clamp(1.7rem, 1.4rem + 1vw, 2.8rem);
   line-height: 1.02;
   margin: 0;
   color: var(--text-primary);
+}
+
+.title-hint {
+  color: var(--text-secondary);
+  font-size: clamp(0.95rem, 0.86rem + 0.25vw, 1.15rem);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .header-subtitle {
@@ -403,6 +423,10 @@ onUnmounted(() => {
     font-size: clamp(1.7rem, 1.4rem + 3vw, 2.2rem);
   }
 
+  .title-hint {
+    font-size: 0.95rem;
+  }
+
   .header-subtitle {
     margin-top: 0.15rem;
     font-size: 0.82rem;
@@ -446,6 +470,10 @@ onUnmounted(() => {
 @media (max-width: 480px) {
   .top-header h1 {
     font-size: clamp(1.45rem, 1.15rem + 2.2vw, 1.85rem);
+  }
+
+  .title-hint {
+    font-size: 0.88rem;
   }
 
   .header-right {

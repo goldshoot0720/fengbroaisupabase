@@ -16,6 +16,7 @@
         <!-- 頂部標題 -->
         <AppHeader
           :title="pageTitle"
+          :title-hint="pageTitleHint"
           :subtitle="pageSubtitle"
           :is-dark-mode="isDarkMode"
           @toggle-sidebar="toggleSidebar"
@@ -344,6 +345,7 @@ const {
   sidebarOpen,
   pages,
   pageTitle,
+  pageTitleHint,
   pageSubtitle,
   setCurrentPage, 
   toggleSidebar, 

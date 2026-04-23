@@ -138,7 +138,7 @@ const metrics = [
 const primaryRoutes = [
   { index: '01', title: '總覽', description: '快速掌握近期續訂、食品期限與整體管理壓力。', page: 'dashboard' },
   { index: '02', title: '訂閱管理', description: '整理平台費用、付款時間與續訂節奏。', page: 'subscription' },
-  { index: '03', title: '食品管理', description: '追蹤數量、期限與補貨優先順序。', page: 'food' }
+  { index: '03', title: '鋒兄食品', description: '追蹤數量、期限與補貨優先順序。', page: 'food' }
 ]
 
 const features = [

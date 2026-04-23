@@ -125,6 +125,10 @@
             v-if="currentPage === 'note'"
           />
 
+          <FengToolsPage
+            v-if="currentPage === 'tools'"
+          />
+
           <CommonPage
             v-if="currentPage === 'common'"
           />
@@ -305,6 +309,7 @@ import PodcastPage from '../components/pages/PodcastPage.vue'
 import RoutinePage from '../components/pages/RoutinePage.vue'
 import AboutPage from '../components/pages/AboutPage.vue'
 import NotePage from '../components/pages/NotePage.vue'
+import FengToolsPage from '../components/pages/FengToolsPage.vue'
 import CommonPage from '../components/pages/CommonPage.vue'
 import BankPage from '../components/pages/BankPage.vue'
 import SettingsPage from '../components/pages/SettingsPage.vue'

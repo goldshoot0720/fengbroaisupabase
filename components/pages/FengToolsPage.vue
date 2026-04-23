@@ -52,6 +52,8 @@
         <p v-if="biggoError" class="tool-error">{{ biggoError }}</p>
 
         <template v-if="biggoResult">
+          <p v-if="biggoSourceNotice" class="tool-notice">{{ biggoSourceNotice }}</p>
+
           <div class="tool-meta">
             <div>
               <span class="tool-meta__label">商品</span>
@@ -379,6 +381,11 @@ const landtopChart = computed(() => buildMultiSeriesChart(
   landtopHistory.value,
   landtopResult.value?.variants?.map(variant => variant.label) || []
 ))
+const biggoSourceNotice = computed(() => {
+  const status = Number(biggoResult.value?.sourceStatus)
+  if (!Number.isFinite(status) || status < 400) return ''
+  return `來源網站回應 ${status}，本次結果已改用網址關鍵字轉查 BigGo。`
+})
 
 const runBiggoLookup = async () => {
   if (!biggoForm.value.url) {
@@ -388,6 +395,7 @@ const runBiggoLookup = async () => {
 
   biggoLoading.value = true
   biggoError.value = ''
+  biggoResult.value = null
 
   try {
     const response = await $fetch('/api/feng-tools/biggo', {
@@ -405,6 +413,7 @@ const runBiggoLookup = async () => {
     })
     biggoHistory.value = nextHistory
   } catch (error) {
+    biggoResult.value = null
     biggoError.value = error?.data?.statusMessage || error?.message || 'BigGo 查詢失敗。'
   } finally {
     biggoLoading.value = false
@@ -414,11 +423,14 @@ const runBiggoLookup = async () => {
 const runLandtopLookup = async () => {
   if (!landtopForm.value.keyword) {
     landtopError.value = '請先輸入型號名稱。'
+    landtopResult.value = null
+    landtopHistory.value = []
     return
   }
 
   landtopLoading.value = true
   landtopError.value = ''
+  landtopResult.value = null
 
   try {
     const response = await $fetch('/api/feng-tools/landtop', {
@@ -436,6 +448,8 @@ const runLandtopLookup = async () => {
     })
     landtopHistory.value = nextHistory
   } catch (error) {
+    landtopResult.value = null
+    landtopHistory.value = []
     landtopError.value = error?.data?.statusMessage || error?.message || '地標網通查詢失敗。'
   } finally {
     landtopLoading.value = false
@@ -618,6 +632,16 @@ watch(
 .tool-error {
   margin: 0;
   color: var(--danger);
+}
+
+.tool-notice {
+  margin: 0;
+  padding: 0.8rem 0.95rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in oklab, var(--primary) 22%, var(--border-color));
+  background: color-mix(in oklab, var(--primary) 8%, var(--bg-primary));
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
 
 .tool-meta {

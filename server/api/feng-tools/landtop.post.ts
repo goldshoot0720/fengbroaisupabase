@@ -37,15 +37,18 @@ const normalizeText = (value: string) => value
   .replace(/samsung/gi, 'samsung')
   .replace(/[\s\-_/]+/g, '')
 
-const inferBrand = (keyword: string) => {
+const inferBrands = (keyword: string) => {
   const normalized = keyword.toLowerCase()
   if (normalized.includes('iphone') || normalized.includes('apple')) {
-    return { brand: 'apple', brandLabel: 'Apple' }
+    return [{ brand: 'apple', brandLabel: 'Apple' }]
   }
-  if (normalized.includes('samsung') || /\bs\d{2}\b/i.test(normalized)) {
-    return { brand: 'samsung', brandLabel: 'Samsung' }
+  if (normalized.includes('samsung') || normalized.includes('galaxy') || /\b[as]\d{2}\b/i.test(normalized)) {
+    return [{ brand: 'samsung', brandLabel: 'Samsung' }]
   }
-  return { brand: 'apple', brandLabel: 'Apple' }
+  return [
+    { brand: 'samsung', brandLabel: 'Samsung' },
+    { brand: 'apple', brandLabel: 'Apple' }
+  ]
 }
 
 const extractProductCandidates = (html: string) => {
@@ -72,7 +75,20 @@ const scoreCandidate = (name: string, keyword: string) => {
   if (normalizedKeyword.includes(normalizedName)) return 70
 
   const tokens = keyword.toLowerCase().split(/\s+/).filter(Boolean)
-  return tokens.reduce((score, token) => score + (normalizedName.includes(normalizeText(token)) ? 12 : 0), 0)
+  let score = tokens.reduce((total, token) => total + (normalizedName.includes(normalizeText(token)) ? 12 : 0), 0)
+
+  const compactKeyword = normalizeText(keyword)
+  const numericTokens = compactKeyword.match(/\d+[a-z]?/gi) || []
+  for (const token of numericTokens) {
+    if (normalizedName.includes(token)) score += 24
+  }
+
+  if (/^a\d{2}$/i.test(compactKeyword) && normalizedName.includes(compactKeyword)) score += 30
+  if (/^s\d{2}$/i.test(compactKeyword) && normalizedName.includes(compactKeyword)) score += 30
+  if (/^\d{2}$/i.test(compactKeyword) && /samsung|galaxy/.test(name.toLowerCase()) && normalizedName.includes(`a${compactKeyword}`)) score += 35
+  if (/^\d{2}$/i.test(compactKeyword) && /iphone/.test(name.toLowerCase()) && normalizedName.includes(`iphone${compactKeyword}`)) score += 20
+
+  return score
 }
 
 const normalizeVariantLabel = (value: string) => value.trim().replace(/\s+/g, '')
@@ -140,12 +156,24 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: '請先輸入查詢型號。' })
   }
 
-  const { brand, brandLabel } = inferBrand(keyword)
-  const brandHtml = await fetchText(`https://www.landtop.com.tw/brands?brand=${brand}`)
-  const candidates = extractProductCandidates(brandHtml)
-    .map(candidate => ({ ...candidate, score: scoreCandidate(candidate.name, keyword) }))
-    .filter(candidate => candidate.score > 0)
-    .sort((a, b) => b.score - a.score)
+  const brands = inferBrands(keyword)
+  const candidates: Array<{ name: string, url: string, score: number, brand: string, brandLabel: string }> = []
+
+  for (const brandItem of brands) {
+    const brandHtml = await fetchText(`https://www.landtop.com.tw/brands?brand=${brandItem.brand}`)
+    candidates.push(
+      ...extractProductCandidates(brandHtml)
+        .map(candidate => ({
+          ...candidate,
+          brand: brandItem.brand,
+          brandLabel: brandItem.brandLabel,
+          score: scoreCandidate(candidate.name, keyword)
+        }))
+        .filter(candidate => candidate.score > 0)
+    )
+  }
+
+  candidates.sort((a, b) => b.score - a.score)
 
   const bestMatch = candidates[0]
   if (!bestMatch) {
@@ -157,8 +185,8 @@ export default defineEventHandler(async (event) => {
 
   return {
     keyword,
-    brand,
-    brandLabel,
+    brand: bestMatch.brand,
+    brandLabel: bestMatch.brandLabel,
     productName: bestMatch.name,
     productUrl: bestMatch.url,
     variants

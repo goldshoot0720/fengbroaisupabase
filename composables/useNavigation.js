@@ -7,7 +7,7 @@ const pages = [
   { id: 'home', name: '首頁', icon: '01', title: '鋒兄首頁', subtitle: '整理所有資料入口與目前工作區焦點。' },
   { id: 'dashboard', name: '總覽', icon: '02', title: '總覽儀表板', subtitle: '快速查看各資料區塊的目前狀態與重點摘要。' },
   { id: 'subscription', name: '訂閱管理', icon: '03', title: '訂閱管理', subtitle: '整理站點、價格、帳號與續訂日期。' },
-  { id: 'food', name: '食品管理', icon: '04', title: '食品管理', subtitle: '記錄品項、價格、商店與日期資訊。' },
+  { id: 'food', name: '食品管理', menuHint: '＋商品庫存', icon: '04', title: '食品管理', subtitle: '記錄品項、價格、商店與日期資訊。' },
   { id: 'note', name: '筆記', icon: '05', title: '鋒兄筆記', subtitle: '整理靈感、會議紀錄、讀書筆記與附件。' },
   { id: 'common', name: '常用帳號', icon: '07', title: '常用帳號', subtitle: '集中整理常用帳號、備註與附加資訊。' },
   { id: 'gallery', name: '圖庫', icon: '08', title: '圖片庫', subtitle: '管理圖片素材與封面檔案。' },

@@ -28,6 +28,7 @@
             type="button"
           >
             <span class="nav-name">{{ page.name }}</span>
+            <span v-if="page.menuHint" class="nav-hint">{{ page.menuHint }}</span>
           </button>
         </li>
       </ul>
@@ -186,6 +187,15 @@ defineEmits(['toggle', 'navigate'])
   display: block;
   font-weight: 700;
   font-size: 0.95rem;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.nav-hint {
+  display: block;
+  margin-top: 0.2rem;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.72rem;
   line-height: 1.25;
   text-align: left;
 }

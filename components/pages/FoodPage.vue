@@ -94,7 +94,6 @@
             <th class="col-name">名稱</th>
             <th class="col-date">有效期限</th>
             <th class="col-amount">數量</th>
-            <th class="col-price">價格</th>
             <th class="col-photo">圖片</th>
             <th class="col-actions">操作</th>
           </tr>
@@ -106,15 +105,13 @@
             <td class="col-name">
               <input v-model="addForm.name" type="text" class="inline-input" placeholder="食物名稱 *" />
               <input v-model="addForm.shop" type="text" class="inline-input inline-small" placeholder="購買商店" />
+              <input v-model="addForm.price" type="number" class="inline-input inline-small inline-price" placeholder="價格" min="0" />
             </td>
             <td class="col-date">
               <input v-model="addForm.todate" type="date" class="inline-input inline-date" />
             </td>
             <td class="col-amount">
               <input v-model="addForm.amount" type="number" class="inline-input inline-number" placeholder="0" min="1" />
-            </td>
-            <td class="col-price">
-              <input v-model="addForm.price" type="number" class="inline-input inline-number" placeholder="0" min="0" />
             </td>
             <td class="col-photo col-photo-edit">
               <div v-if="addForm.photo" class="inline-photo-preview">
@@ -152,15 +149,13 @@
               <td class="col-name">
                 <input v-model="editForm.name" type="text" class="inline-input" placeholder="食物名稱" />
                 <input v-model="editForm.shop" type="text" class="inline-input inline-small" placeholder="購買商店" />
+                <input v-model="editForm.price" type="number" class="inline-input inline-small inline-price" placeholder="價格" min="0" />
               </td>
               <td class="col-date">
                 <input v-model="editForm.todate" type="date" class="inline-input inline-date" />
               </td>
               <td class="col-amount">
                 <input v-model="editForm.amount" type="number" class="inline-input inline-number" placeholder="0" min="1" />
-              </td>
-              <td class="col-price">
-                <input v-model="editForm.price" type="number" class="inline-input inline-number" placeholder="0" min="0" />
               </td>
               <td class="col-photo col-photo-edit">
                 <div v-if="editForm.photo" class="inline-photo-preview">
@@ -184,7 +179,10 @@
               <td class="col-name">
                 <div class="name-cell">
                   <span class="food-name">{{ food.name }}</span>
-                  <span v-if="food.shop" class="food-shop">{{ food.shop }}</span>
+                  <div v-if="food.shop || food.price" class="food-meta">
+                    <span v-if="food.shop" class="food-shop">{{ food.shop }}</span>
+                    <span v-if="food.price" class="price-value">NT$ {{ food.price }}</span>
+                  </div>
                 </div>
               </td>
               <td class="col-date">
@@ -192,9 +190,6 @@
               </td>
               <td class="col-amount">
                 <span>{{ food.amount || '' }}</span>
-              </td>
-              <td class="col-price">
-                <span v-if="food.price" class="price-value">NT$ {{ food.price }}</span>
               </td>
               <td class="col-photo">
                 <img
@@ -894,6 +889,10 @@ defineExpose({ foods, expiringFoods })
   border-width: 1px;
 }
 
+.inline-price {
+  max-width: 110px;
+}
+
 .inline-date {
   min-width: 130px;
 }
@@ -928,8 +927,8 @@ defineExpose({ foods, expiringFoods })
 }
 
 .col-name {
-  min-width: 150px;
-  max-width: 220px;
+  min-width: 220px;
+  max-width: 320px;
 }
 
 .col-date {
@@ -940,10 +939,6 @@ defineExpose({ foods, expiringFoods })
 .col-amount {
   width: 70px;
   text-align: center;
-}
-
-.col-price {
-  width: 90px;
 }
 
 .col-photo {
@@ -1001,6 +996,13 @@ defineExpose({ foods, expiringFoods })
   gap: 0.25rem;
 }
 
+.food-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
 .food-name {
   font-weight: 600;
   color: #2c3e50;
@@ -1014,6 +1016,7 @@ defineExpose({ foods, expiringFoods })
 .price-value {
   font-weight: 600;
   color: #e67e22;
+  white-space: nowrap;
 }
 
 .table-photo {
@@ -1399,7 +1402,6 @@ defineExpose({ foods, expiringFoods })
   .col-name,
   .col-date,
   .col-amount,
-  .col-price,
   .col-photo,
   .col-photo-edit,
   .col-actions {
@@ -1418,8 +1420,7 @@ defineExpose({ foods, expiringFoods })
   }
 
   .col-date span,
-  .col-amount span,
-  .col-price span {
+  .col-amount span {
     display: inline-flex;
     align-items: center;
     min-height: 1.5rem;
@@ -1450,6 +1451,7 @@ defineExpose({ foods, expiringFoods })
   }
 
   .inline-number,
+  .inline-price,
   .inline-date {
     width: 100%;
     min-width: 0;

@@ -31,6 +31,8 @@ type JyesCandidate = {
   numericPrice: number | null
 }
 
+type JsonLdValue = Record<string, any> | Record<string, any>[]
+
 const decodeEntities = (value: string) => value
   .replace(/&nbsp;/g, ' ')
   .replace(/&amp;/g, '&')
@@ -114,7 +116,11 @@ const scoreCandidate = (name: string, keyword: string) => {
   }
 
   if (/^a\d{2}$/i.test(compactKeyword) && normalizedName.includes(compactKeyword)) score += 40
-  if (/^s\d{2}$/i.test(compactKeyword) && normalizedName.includes(compactKeyword)) score += 40
+  if (/^s\d{2}$/i.test(compactKeyword) && normalizedName.includes(compactKeyword)) {
+    score += 40
+    if (!/(fe|plus|ultra|edge|\+)/i.test(normalizedName)) score += 20
+    if (/(fe|plus|ultra|edge|\+)/i.test(normalizedName)) score -= 12
+  }
   if (/^\d{2}$/i.test(compactKeyword) && /samsung|galaxy|三星/i.test(name) && normalizedName.includes(`a${compactKeyword}`)) score += 44
   if (/^\d{2}$/i.test(compactKeyword) && /iphone|apple|蘋果/i.test(name) && normalizedName.includes(`iphone${compactKeyword}`)) score += 24
 
@@ -249,10 +255,56 @@ const JYES_CATEGORY_MAP: Record<BrandTarget['brand'], { url: string, brandLabel:
   }
 }
 
+const parseJsonLdCandidates = (html: string): JyesCandidate[] => {
+  const candidates: JyesCandidate[] = []
+
+  const collectProduct = (product: Record<string, any>) => {
+    const name = String(product?.name || product?.sku || '').trim()
+    const url = String(product?.url || '').trim()
+    const offer = Array.isArray(product?.offers) ? product.offers[0] : product?.offers
+    const price = offer?.price
+    if (!name || !url || price === undefined || price === null) return
+
+    const priceLabel = normalizePriceLabel(String(price))
+    candidates.push({
+      name,
+      url,
+      priceLabel,
+      numericPrice: toNumericPrice(priceLabel)
+    })
+  }
+
+  const visit = (value: any) => {
+    if (!value) return
+    if (Array.isArray(value)) {
+      value.forEach(visit)
+      return
+    }
+    if (typeof value !== 'object') return
+
+    if (value['@type'] === 'Product') collectProduct(value)
+    if (value.item && value.item['@type'] === 'Product') collectProduct(value.item)
+    if (value.itemListElement) visit(value.itemListElement)
+    if (value['@graph']) visit(value['@graph'])
+  }
+
+  for (const match of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      visit(JSON.parse(match[1]) as JsonLdValue)
+    } catch {
+      continue
+    }
+  }
+
+  return candidates
+}
+
 const parseJyesCandidates = (html: string, baseUrl: string): JyesCandidate[] => {
   const results: JyesCandidate[] = []
+  const structuredCandidates = parseJsonLdCandidates(html)
+  if (structuredCandidates.length > 0) return structuredCandidates
 
-  const blockRegex = /商品名稱\s*[:：][\s\S]{0,260}?<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]{0,420}?門市破盤價\s*[:：][\s\S]{0,80}?((?:\$[\d,]+)|挑戰手機最低價|特價請洽門市)/gi
+  const blockRegex = /商品名稱\s*[:：][\s\S]{0,260}?<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]{0,420}?(?:空機破盤價|門市破盤價)\s*[:：][\s\S]{0,80}?((?:\$[\d,]+)|挑戰手機最低價|特價請洽門市)/gi
 
   for (const match of html.matchAll(blockRegex)) {
     const href = match[1]
@@ -279,7 +331,7 @@ const parseJyesCandidates = (html: string, baseUrl: string): JyesCandidate[] => 
     const name = lines[0]
     if (!name) continue
 
-    const priceIndex = lines.findIndex(line => line.includes('門市破盤價'))
+    const priceIndex = lines.findIndex(line => line.includes('空機破盤價') || line.includes('門市破盤價'))
     const nextLine = priceIndex >= 0 ? lines[priceIndex + 1] || '' : ''
     const priceLine = /^\$[\d,]+$/.test(nextLine) || nextLine.includes('最低價') || nextLine.includes('門市')
       ? nextLine
@@ -301,18 +353,27 @@ const parseJyesCandidates = (html: string, baseUrl: string): JyesCandidate[] => 
 const fetchJyesResult = async (keyword: string): Promise<StoreResult> => {
   const brands = inferBrands(keyword)
   const candidates: Array<JyesCandidate & { score: number, brandLabel: string }> = []
+  const fetchedUrls = new Set<string>()
 
   for (const brandItem of brands) {
     const category = JYES_CATEGORY_MAP[brandItem.brand]
-    const html = await fetchText(category.url)
-    const parsed = parseJyesCandidates(html, category.url)
+    const searchUrl = `https://www.jyes.com.tw/product.php?keywords=${encodeURIComponent(keyword)}`
+    const urls = unique([searchUrl, category.url])
 
-    for (const item of parsed) {
-      candidates.push({
-        ...item,
-        brandLabel: category.brandLabel,
-        score: scoreCandidate(item.name, keyword)
-      })
+    for (const url of urls) {
+      if (fetchedUrls.has(url)) continue
+      fetchedUrls.add(url)
+
+      const html = await fetchText(url)
+      const parsed = parseJyesCandidates(html, url)
+
+      for (const item of parsed) {
+        candidates.push({
+          ...item,
+          brandLabel: category.brandLabel,
+          score: scoreCandidate(item.name, keyword)
+        })
+      }
     }
   }
 
@@ -362,10 +423,25 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: '請輸入要查詢的型號。' })
   }
 
-  const [landtop, jyes] = await Promise.all([
+  const [landtopResult, jyesResult] = await Promise.allSettled([
     fetchLandtopResult(keyword),
     fetchJyesResult(keyword)
   ])
+  const stores = [landtopResult, jyesResult]
+    .filter((result): result is PromiseFulfilledResult<StoreResult> => result.status === 'fulfilled')
+    .map(result => result.value)
+
+  if (stores.length === 0) {
+    const errors = [landtopResult, jyesResult]
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .map(result => result.reason?.statusMessage || result.reason?.message)
+      .filter(Boolean)
+
+    throw createError({
+      statusCode: 404,
+      statusMessage: errors.join('；') || '手機比價找不到相符型號。'
+    })
+  }
 
   const variantMap = new Map<string, {
     label: string
@@ -373,7 +449,7 @@ export default defineEventHandler(async (event) => {
     sources: Array<{ source: string, priceLabel: string, numericPrice: number | null, url: string }>
   }>()
 
-  for (const store of [landtop, jyes]) {
+  for (const store of stores) {
     for (const variant of store.variants) {
       const key = variant.variantLabel
       const current = variantMap.get(key) || {
@@ -402,11 +478,13 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  const primaryStore = stores[0]
+
   return {
     keyword,
-    brandLabel: landtop.brandLabel || jyes.brandLabel,
-    productName: landtop.productName || jyes.productName,
-    stores: [landtop, jyes],
+    brandLabel: primaryStore.brandLabel,
+    productName: primaryStore.productName,
+    stores,
     comparison: Array.from(variantMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'en'))
   }
 })

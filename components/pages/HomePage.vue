@@ -1,5 +1,16 @@
 <template>
   <div class="home-page">
+    <section
+      v-if="sleepWarning"
+      class="sleep-warning"
+      :class="`sleep-warning--${sleepWarning.level}`"
+      role="alert"
+      aria-live="polite"
+    >
+      <strong>{{ sleepWarning.title }}</strong>
+      <span>{{ sleepWarning.message }}</span>
+    </section>
+
     <section class="hero-grid">
       <article class="hero-panel hero-primary">
         <div class="hero-ascii-shell" aria-label="feng bro ascii art">
@@ -120,7 +131,49 @@
 </template>
 
 <script setup>
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+
 defineEmits(['navigate'])
+
+const currentHour = ref(null)
+let sleepWarningTimer = null
+
+const updateCurrentHour = () => {
+  currentHour.value = new Date().getHours()
+}
+
+const sleepWarning = computed(() => {
+  if (currentHour.value === null) return null
+
+  if (currentHour.value >= 0 && currentHour.value <= 2) {
+    return {
+      level: 'yellow',
+      title: '黃色警告',
+      message: '請入睡'
+    }
+  }
+
+  if (currentHour.value >= 3 && currentHour.value <= 6) {
+    return {
+      level: 'red',
+      title: '紅色警告',
+      message: '請入睡'
+    }
+  }
+
+  return null
+})
+
+onMounted(() => {
+  updateCurrentHour()
+  sleepWarningTimer = window.setInterval(updateCurrentHour, 60 * 1000)
+})
+
+onUnmounted(() => {
+  if (sleepWarningTimer) {
+    window.clearInterval(sleepWarningTimer)
+  }
+})
 
 const asciiArt = String.raw`███████╗███████╗███╗   ██╗ ██████╗     ██████╗ ██████╗  ██████╗
 ██╔════╝██╔════╝████╗  ██║██╔════╝     ██╔══██╗██╔══██╗██╔═══██╗
@@ -171,6 +224,39 @@ const channels = [
   display: grid;
   gap: clamp(1.4rem, 1rem + 1vw, 2.4rem);
   padding-bottom: 0.4rem;
+}
+
+.sleep-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  min-height: 54px;
+  padding: 0.9rem 1.2rem;
+  border: 1px solid transparent;
+  border-radius: 24px;
+  box-shadow: var(--shadow-soft);
+  text-align: center;
+}
+
+.sleep-warning strong {
+  font-family: var(--font-display);
+}
+
+.sleep-warning span {
+  font-weight: 700;
+}
+
+.sleep-warning--yellow {
+  border-color: #f59e0b;
+  background: #fef3c7;
+  color: #78350f;
+}
+
+.sleep-warning--red {
+  border-color: #ef4444;
+  background: #fee2e2;
+  color: #7f1d1d;
 }
 
 .hero-grid,
@@ -573,6 +659,12 @@ const channels = [
 }
 
 @media (max-width: 640px) {
+  .sleep-warning {
+    flex-direction: column;
+    gap: 0.2rem;
+    border-radius: 20px;
+  }
+
   .hero-title {
     max-width: none;
   }

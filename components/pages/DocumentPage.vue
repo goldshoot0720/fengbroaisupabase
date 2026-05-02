@@ -233,6 +233,53 @@
             </div>
 
             <div v-if="document.file" class="file-info">
+              <div class="file-preview-frame">
+                <img
+                  v-if="getFilePreviewType(document.file) === 'image'"
+                  :src="document.file"
+                  :alt="document.name"
+                  class="file-img-preview"
+                />
+                <iframe
+                  v-else-if="getFilePreviewType(document.file) === 'pdf'"
+                  :src="document.file"
+                  class="file-embed-preview"
+                  :title="document.name || getFileName(document.file)"
+                  loading="lazy"
+                ></iframe>
+                <iframe
+                  v-else-if="getFilePreviewType(document.file) === 'text'"
+                  :src="document.file"
+                  class="file-embed-preview file-text-preview"
+                  :title="document.name || getFileName(document.file)"
+                  loading="lazy"
+                ></iframe>
+                <video
+                  v-else-if="getFilePreviewType(document.file) === 'video'"
+                  :src="document.file"
+                  class="file-media-preview"
+                  controls
+                  preload="metadata"
+                ></video>
+                <audio
+                  v-else-if="getFilePreviewType(document.file) === 'audio'"
+                  :src="document.file"
+                  class="file-audio-preview"
+                  controls
+                  preload="metadata"
+                ></audio>
+                <div v-else class="file-generic-preview">
+                  <span class="file-generic-icon">{{ getFilePreviewIcon(document.file) }}</span>
+                  <span>{{ getFilePreviewLabel(document.file) }}</span>
+                  <a
+                    v-if="getOfficePreviewUrl(document.file)"
+                    :href="getOfficePreviewUrl(document.file)"
+                    target="_blank"
+                    rel="noopener"
+                    class="btn-office-preview"
+                  >線上預覽</a>
+                </div>
+              </div>
               <template v-if="isImageUrl(document.file)">
                 <img :src="document.file" :alt="document.name" class="file-img-preview" />
                 <div class="file-img-actions">
@@ -1300,6 +1347,43 @@ const isImageUrl = (url) => {
   return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'].includes(ext)
 }
 
+const getFileExtension = (url) => {
+  if (!url) return ''
+  const cleanUrl = String(url).split('?')[0].split('#')[0]
+  return cleanUrl.split('.').pop()?.toLowerCase() || ''
+}
+
+const getFilePreviewType = (url) => {
+  const ext = getFileExtension(url)
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'].includes(ext)) return 'image'
+  if (ext === 'pdf') return 'pdf'
+  if (['txt', 'csv', 'json', 'md', 'log', 'xml', 'html', 'css', 'js', 'ts'].includes(ext)) return 'text'
+  if (['mp4', 'webm', 'ogg', 'mov', 'm4v'].includes(ext)) return 'video'
+  if (['mp3', 'wav', 'm4a', 'aac', 'flac', 'oga'].includes(ext)) return 'audio'
+  if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) return 'office'
+  return 'file'
+}
+
+const getOfficePreviewUrl = (url) => {
+  if (getFilePreviewType(url) !== 'office' || !/^https?:\/\//i.test(url || '')) return ''
+  return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`
+}
+
+const getFilePreviewIcon = (url) => {
+  const type = getFilePreviewType(url)
+  if (type === 'office') return '📄'
+  if (type === 'audio') return '🎧'
+  if (type === 'video') return '🎬'
+  return '📎'
+}
+
+const getFilePreviewLabel = (url) => {
+  const type = getFilePreviewType(url)
+  if (type === 'office') return 'Office 文件可線上預覽'
+  if (type === 'file') return '此檔案可開啟或下載'
+  return '檔案預覽'
+}
+
 const formatDate = (dateString) => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -1791,12 +1875,78 @@ onMounted(() => {
 
 .file-info {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  gap: 0.65rem;
+  padding: 0.65rem;
   background: #f1f5f9;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 0.9rem;
+}
+
+.file-preview-frame {
+  width: 100%;
+  min-height: 92px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+}
+
+.file-embed-preview {
+  display: block;
+  width: 100%;
+  height: 240px;
+  border: 0;
+  background: #fff;
+}
+
+.file-text-preview {
+  background: #f8fafc;
+}
+
+.file-media-preview {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  background: #0f172a;
+}
+
+.file-audio-preview {
+  display: block;
+  width: 100%;
+  padding: 1rem;
+  background: #fff;
+}
+
+.file-generic-preview {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  min-height: 92px;
+  justify-content: center;
+  color: #475569;
+  font-weight: 600;
+  text-align: center;
+  padding: 1rem;
+  flex-wrap: wrap;
+}
+
+.file-generic-icon {
+  font-size: 1.7rem;
+}
+
+.btn-office-preview {
+  color: #2563eb;
+  font-size: 0.85rem;
+  text-decoration: none;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
 }
 
 .file-icon {

@@ -233,64 +233,18 @@
             </div>
 
             <div v-if="document.file" class="file-info">
-              <div class="file-preview-frame">
-                <img
-                  v-if="getFilePreviewType(document.file) === 'image'"
-                  :src="document.file"
-                  :alt="document.name"
-                  class="file-img-preview"
-                />
-                <iframe
-                  v-else-if="getFilePreviewType(document.file) === 'pdf'"
-                  :src="document.file"
-                  class="file-embed-preview"
-                  :title="document.name || getFileName(document.file)"
-                  loading="lazy"
-                ></iframe>
-                <iframe
-                  v-else-if="getFilePreviewType(document.file) === 'text'"
-                  :src="document.file"
-                  class="file-embed-preview file-text-preview"
-                  :title="document.name || getFileName(document.file)"
-                  loading="lazy"
-                ></iframe>
-                <video
-                  v-else-if="getFilePreviewType(document.file) === 'video'"
-                  :src="document.file"
-                  class="file-media-preview"
-                  controls
-                  preload="metadata"
-                ></video>
-                <audio
-                  v-else-if="getFilePreviewType(document.file) === 'audio'"
-                  :src="document.file"
-                  class="file-audio-preview"
-                  controls
-                  preload="metadata"
-                ></audio>
-                <div v-else class="file-generic-preview">
-                  <span class="file-generic-icon">{{ getFilePreviewIcon(document.file) }}</span>
-                  <span>{{ getFilePreviewLabel(document.file) }}</span>
-                  <a
-                    v-if="getOfficePreviewUrl(document.file)"
-                    :href="getOfficePreviewUrl(document.file)"
-                    target="_blank"
-                    rel="noopener"
-                    class="btn-office-preview"
-                  >線上預覽</a>
-                </div>
-              </div>
               <template v-if="isImageUrl(document.file)">
-                <img :src="document.file" :alt="document.name" class="file-img-preview" />
                 <div class="file-img-actions">
                   <span class="file-name">{{ getFileName(document.file) }}</span>
-                  <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載">⬇️</a>
+                  <button type="button" class="btn-download btn-preview" @click="openFilePreview(document)">預覽</button>
+                  <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載">下載</a>
                 </div>
               </template>
               <template v-else>
                 <span class="file-icon">📎</span>
                 <span class="file-name">{{ getFileName(document.file) }}</span>
-                <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載">⬇️</a>
+                <button type="button" class="btn-download btn-preview" @click="openFilePreview(document)">預覽</button>
+                <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載">下載</a>
               </template>
             </div>
 
@@ -331,6 +285,59 @@
             <span v-if="importProgress.stats.fileOk > 0" class="stat-tag stat-ok">📄 {{ importProgress.stats.fileOk }}</span>
             <span v-if="importProgress.stats.coverOk > 0" class="stat-tag stat-ok">🖼️ {{ importProgress.stats.coverOk }}</span>
             <span v-if="importProgress.stats.fail > 0" class="stat-tag stat-fail">❌ {{ importProgress.stats.fail }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- File Preview Modal -->
+      <div v-if="previewDocument" class="modal-overlay file-preview-overlay" @click.self="closeFilePreview">
+        <div class="modal-content file-preview-modal">
+          <div class="modal-header">
+            <h2 class="modal-title">{{ previewDocument.name || getFileName(previewDocument.file) }}</h2>
+            <button @click="closeFilePreview" class="btn-close">×</button>
+          </div>
+          <div class="file-preview-modal-body">
+            <img
+              v-if="getFilePreviewType(previewDocument.file) === 'image'"
+              :src="previewDocument.file"
+              :alt="previewDocument.name"
+              class="file-preview-large-img"
+            />
+            <iframe
+              v-else-if="['pdf', 'text'].includes(getFilePreviewType(previewDocument.file))"
+              :src="previewDocument.file"
+              class="file-preview-large-frame"
+              :title="previewDocument.name || getFileName(previewDocument.file)"
+            ></iframe>
+            <video
+              v-else-if="getFilePreviewType(previewDocument.file) === 'video'"
+              :src="previewDocument.file"
+              class="file-preview-large-media"
+              controls
+              autoplay
+            ></video>
+            <audio
+              v-else-if="getFilePreviewType(previewDocument.file) === 'audio'"
+              :src="previewDocument.file"
+              class="file-preview-large-audio"
+              controls
+              autoplay
+            ></audio>
+            <iframe
+              v-else-if="getOfficePreviewUrl(previewDocument.file)"
+              :src="getOfficePreviewUrl(previewDocument.file)"
+              class="file-preview-large-frame"
+              :title="previewDocument.name || getFileName(previewDocument.file)"
+            ></iframe>
+            <div v-else class="file-preview-fallback">
+              <span class="file-generic-icon">{{ getFilePreviewIcon(previewDocument.file) }}</span>
+              <p>{{ getFilePreviewLabel(previewDocument.file) }}</p>
+              <a :href="previewDocument.file" target="_blank" rel="noopener" class="btn btn-primary">開啟檔案</a>
+            </div>
+          </div>
+          <div class="file-preview-modal-actions">
+            <a :href="previewDocument.file" target="_blank" rel="noopener" class="btn btn-secondary">開新分頁</a>
+            <a :href="previewDocument.file" :download="getFileName(previewDocument.file)" class="btn btn-primary">下載</a>
           </div>
         </div>
       </div>
@@ -503,6 +510,7 @@ const searchQuery = ref('')
 const filterCategory = ref('')
 const DOCUMENT_VIEW_MODE_KEY = 'feng-document-view-mode'
 const documentViewMode = ref('card')
+const previewDocument = ref(null)
 
 const availableCategories = computed(() => {
   const cats = new Set()
@@ -516,6 +524,14 @@ const setDocumentViewMode = (mode) => {
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem(DOCUMENT_VIEW_MODE_KEY, mode)
   }
+}
+
+const openFilePreview = (documentItem) => {
+  previewDocument.value = documentItem
+}
+
+const closeFilePreview = () => {
+  previewDocument.value = null
 }
 
 // Batch mode
@@ -1875,12 +1891,11 @@ onMounted(() => {
 
 .file-info {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  gap: 0.65rem;
+  gap: 0.5rem;
   padding: 0.65rem;
   background: #f1f5f9;
   border-radius: 8px;
@@ -1960,11 +1975,19 @@ onMounted(() => {
 }
 
 .btn-download {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: #2563eb;
   font-size: 1rem;
   text-decoration: none;
   opacity: 0.7;
   transition: all 0.2s ease;
   flex-shrink: 0;
+}
+
+.btn-preview {
+  font-weight: 700;
 }
 
 .btn-download:hover {
@@ -2040,6 +2063,67 @@ onMounted(() => {
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease-out;
+}
+
+.file-preview-modal {
+  max-width: min(1040px, 94vw);
+  max-height: 92vh;
+}
+
+.file-preview-modal-body {
+  padding: 1rem;
+  background: #f8fafc;
+}
+
+.file-preview-large-img {
+  display: block;
+  width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+  border-radius: 10px;
+  background: white;
+}
+
+.file-preview-large-frame {
+  display: block;
+  width: 100%;
+  height: min(72vh, 720px);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: white;
+}
+
+.file-preview-large-media {
+  display: block;
+  width: 100%;
+  max-height: 72vh;
+  border-radius: 10px;
+  background: #0f172a;
+}
+
+.file-preview-large-audio {
+  display: block;
+  width: 100%;
+  margin: 2rem 0;
+}
+
+.file-preview-fallback {
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: #475569;
+  text-align: center;
+}
+
+.file-preview-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-top: 1px solid #e2e8f0;
 }
 
 @keyframes slideUp {

@@ -136,7 +136,7 @@
                 <div class="inline-upload-area">
                   <label class="btn-inline-upload" :class="{ disabled: addFileUploading }">
                     {{ addFileUploading ? '上傳中...' : '選擇檔案' }}
-                    <input type="file" style="display:none" :disabled="addFileUploading" @change="handleAddFileUpload" />
+                    <input type="file" multiple style="display:none" :disabled="addFileUploading" @change="handleAddFileUpload" />
                   </label>
                   <span v-if="addForm.file" class="inline-file-name">📎 {{ getFileName(addForm.file) }}
                     <button type="button" class="btn-inline-remove" @click="addForm.file = ''">✕</button>
@@ -316,6 +316,7 @@
                 <input
                   ref="fileInput"
                   type="file"
+                  :multiple="!isEditing"
                   @change="handleFileUpload"
                   style="display: none"
                 />
@@ -519,15 +520,87 @@ const cancelInlineAdd = () => {
 
 const triggerAddFileInput = () => { addFileInput.value?.click() }
 
+const getNameFromLocalFile = (file) => {
+  const name = file?.name || 'document'
+  const dotIndex = name.lastIndexOf('.')
+  return dotIndex > 0 ? name.slice(0, dotIndex) : name
+}
+
+const createDocumentFromUploadedFile = async (file, fileUrl, baseData = {}) => {
+  const name = baseData.name || getNameFromLocalFile(file)
+  return await addDocument({
+    ...baseData,
+    name,
+    file: fileUrl
+  })
+}
+
 const handleAddFileUpload = async (event) => {
-  const file = event.target.files?.[0]
-  if (!file) return
+  const files = Array.from(event.target.files || [])
+  if (files.length === 0) return
   addFileUploading.value = true
   try {
+    if (files.length > 1) {
+      updateImportProgress({
+        active: true,
+        title: '多檔上傳中',
+        step: '上傳文件檔案',
+        current: 0,
+        total: files.length,
+        stats: { fileOk: 0, coverOk: 0, fail: 0 },
+        itemName: ''
+      })
+
+      const stats = { fileOk: 0, coverOk: 0, fail: 0 }
+      const baseData = {
+        note: addForm.note,
+        ref: addForm.ref,
+        category: addForm.category,
+        hash: addForm.hash,
+        cover: addForm.cover
+      }
+
+      for (let index = 0; index < files.length; index++) {
+        const batchFile = files[index]
+        updateImportProgress({
+          step: `上傳文件 ${index + 1}/${files.length}`,
+          current: index,
+          itemName: batchFile.name,
+          stats: { ...stats }
+        })
+
+        const uploadResult = await uploadFile(batchFile, 'documents')
+        if (uploadResult.success) {
+          const created = await createDocumentFromUploadedFile(batchFile, uploadResult.url, baseData)
+          if (created.success) stats.fileOk++
+          else stats.fail++
+        } else {
+          stats.fail++
+        }
+
+        updateImportProgress({
+          current: index + 1,
+          itemName: batchFile.name,
+          stats: { ...stats }
+        })
+      }
+
+      resetImportProgress()
+      isAddingInline.value = false
+      await loadDocuments()
+      alert(`已完成多檔上傳：成功 ${stats.fileOk} 筆，失敗 ${stats.fail} 筆`)
+      return
+    }
+
+    const file = files[0]
     const result = await uploadFile(file, 'documents')
-    if (result.success) { addForm.file = result.url }
+    if (result.success) {
+      addForm.file = result.url
+      if (!addForm.name) addForm.name = getNameFromLocalFile(file)
+    }
     else { alert('上傳失敗: ' + result.error) }
   } catch (error) {
+    resetImportProgress()
     alert('上傳失敗: ' + error.message)
   } finally {
     addFileUploading.value = false
@@ -659,23 +732,79 @@ const closeModal = () => {
 
 // File upload handler
 const handleFileUpload = async (event) => {
-  const file = event.target.files?.[0]
-  if (!file) return
+  const files = Array.from(event.target.files || [])
+  if (files.length === 0) return
 
   fileUploading.value = true
   try {
+    if (!isEditing.value && files.length > 1) {
+      updateImportProgress({
+        active: true,
+        title: '多檔上傳中',
+        step: '上傳文件檔案',
+        current: 0,
+        total: files.length,
+        stats: { fileOk: 0, coverOk: 0, fail: 0 },
+        itemName: ''
+      })
+
+      const stats = { fileOk: 0, coverOk: 0, fail: 0 }
+      const baseData = {
+        note: formData.value.note,
+        ref: formData.value.ref,
+        category: formData.value.category,
+        hash: formData.value.hash,
+        cover: formData.value.cover
+      }
+
+      for (let index = 0; index < files.length; index++) {
+        const batchFile = files[index]
+        updateImportProgress({
+          step: `上傳文件 ${index + 1}/${files.length}`,
+          current: index,
+          itemName: batchFile.name,
+          stats: { ...stats }
+        })
+
+        const uploadResult = await uploadFile(batchFile, 'documents')
+        if (uploadResult.success) {
+          const created = await createDocumentFromUploadedFile(batchFile, uploadResult.url, baseData)
+          if (created.success) stats.fileOk++
+          else stats.fail++
+        } else {
+          stats.fail++
+        }
+
+        updateImportProgress({
+          current: index + 1,
+          itemName: batchFile.name,
+          stats: { ...stats }
+        })
+      }
+
+      resetImportProgress()
+      closeModal()
+      await loadDocuments()
+      alert(`已完成多檔上傳：成功 ${stats.fileOk} 筆，失敗 ${stats.fail} 筆`)
+      return
+    }
+
+    const file = files[0]
     const result = await uploadFile(file, 'documents')
     if (result.success) {
       formData.value.file = result.url
+      if (!formData.value.name) formData.value.name = getNameFromLocalFile(file)
       alert('檔案上傳成功！')
     } else {
       alert('上傳失敗: ' + result.error)
     }
   } catch (error) {
     console.error('Upload error:', error)
+    resetImportProgress()
     alert('上傳失敗: ' + error.message)
   } finally {
     fileUploading.value = false
+    if (fileInput.value) fileInput.value.value = ''
   }
 }
 

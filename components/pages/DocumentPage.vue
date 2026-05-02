@@ -304,11 +304,24 @@
               class="file-preview-large-img"
             />
             <iframe
-              v-else-if="['pdf', 'text'].includes(getFilePreviewType(previewDocument.file))"
+              v-else-if="getFilePreviewType(previewDocument.file) === 'pdf'"
               :src="previewDocument.file"
               class="file-preview-large-frame"
               :title="previewDocument.name || getFileName(previewDocument.file)"
             ></iframe>
+            <div
+              v-else-if="getFilePreviewType(previewDocument.file) === 'text'"
+              class="file-preview-text-panel"
+            >
+              <div v-if="previewTextLoading" class="file-preview-fallback">
+                <p>文字讀取中...</p>
+              </div>
+              <div v-else-if="previewTextError" class="file-preview-fallback">
+                <p>{{ previewTextError }}</p>
+                <a :href="previewDocument.file" target="_blank" rel="noopener" class="btn btn-primary">開啟檔案</a>
+              </div>
+              <pre v-else class="file-preview-text-content">{{ previewText }}</pre>
+            </div>
             <video
               v-else-if="getFilePreviewType(previewDocument.file) === 'video'"
               :src="previewDocument.file"
@@ -511,6 +524,9 @@ const filterCategory = ref('')
 const DOCUMENT_VIEW_MODE_KEY = 'feng-document-view-mode'
 const documentViewMode = ref('card')
 const previewDocument = ref(null)
+const previewText = ref('')
+const previewTextLoading = ref(false)
+const previewTextError = ref('')
 
 const availableCategories = computed(() => {
   const cats = new Set()
@@ -526,12 +542,19 @@ const setDocumentViewMode = (mode) => {
   }
 }
 
-const openFilePreview = (documentItem) => {
+const openFilePreview = async (documentItem) => {
   previewDocument.value = documentItem
+  previewText.value = ''
+  previewTextError.value = ''
+  if (getFilePreviewType(documentItem?.file) === 'text') {
+    await loadPreviewText(documentItem.file)
+  }
 }
 
 const closeFilePreview = () => {
   previewDocument.value = null
+  previewText.value = ''
+  previewTextError.value = ''
 }
 
 // Batch mode
@@ -1400,6 +1423,37 @@ const getFilePreviewLabel = (url) => {
   return '檔案預覽'
 }
 
+const scoreDecodedText = (text = '') => {
+  const replacementCount = (text.match(/\uFFFD/g) || []).length
+  const controlCount = (text.match(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g) || []).length
+  return replacementCount * 8 + controlCount * 4
+}
+
+const decodePreviewText = (buffer) => {
+  const candidates = [
+    new TextDecoder('utf-8').decode(buffer),
+    new TextDecoder('big5').decode(buffer)
+  ]
+
+  return candidates.sort((a, b) => scoreDecodedText(a) - scoreDecodedText(b))[0]
+}
+
+const loadPreviewText = async (url) => {
+  previewTextLoading.value = true
+  previewTextError.value = ''
+  try {
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const buffer = await response.arrayBuffer()
+    previewText.value = decodePreviewText(buffer)
+  } catch (error) {
+    console.error('Text preview error:', error)
+    previewTextError.value = '文字預覽失敗，請改用開啟檔案或下載。'
+  } finally {
+    previewTextLoading.value = false
+  }
+}
+
 const formatDate = (dateString) => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -2091,6 +2145,26 @@ onMounted(() => {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: white;
+}
+
+.file-preview-text-panel {
+  width: 100%;
+  max-height: 72vh;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: white;
+}
+
+.file-preview-text-content {
+  margin: 0;
+  padding: 1rem;
+  color: #0f172a;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .file-preview-large-media {

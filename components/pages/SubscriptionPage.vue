@@ -144,6 +144,9 @@
                 rows="2"
                 placeholder="備註"
               />
+              <div v-if="addDuplicateSubscriptions.length > 0" class="duplicate-warning">
+                可能重複：{{ formatDuplicateNames(addDuplicateSubscriptions) }}
+              </div>
             </td>
             <td class="col-account">
               <input v-model="addForm.account" type="text" class="inline-input" placeholder="帳號/Email" list="account-options" />
@@ -203,6 +206,9 @@
                   rows="2"
                   placeholder="備註"
                 />
+                <div v-if="editDuplicateSubscriptions.length > 0" class="duplicate-warning">
+                  可能重複：{{ formatDuplicateNames(editDuplicateSubscriptions) }}
+                </div>
               </td>
               <td class="col-account">
                 <input v-model="editForm.account" type="text" class="inline-input" placeholder="帳號/Email" list="account-options" />
@@ -427,6 +433,65 @@ const addForm = ref({
   iscontinue: true
 })
 
+const normalizeDuplicateValue = (value) => String(value || '').trim().toLowerCase()
+
+const normalizeDuplicateSite = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+
+  try {
+    const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+    const url = new URL(candidate)
+    const host = url.hostname.replace(/^www\./i, '').toLowerCase()
+    const path = url.pathname.replace(/\/+$/, '')
+    return `${host}${path}`
+  } catch {
+    return raw
+      .replace(/^https?:\/\//i, '')
+      .replace(/^www\./i, '')
+      .replace(/\/+$/, '')
+      .toLowerCase()
+  }
+}
+
+const findDuplicateSubscriptions = (form, excludeId = null) => {
+  const name = normalizeDuplicateValue(form?.name)
+  const site = normalizeDuplicateSite(form?.site)
+  const account = normalizeDuplicateValue(form?.account)
+
+  if (!name && !site && !account) return []
+
+  return subscriptions.value.filter((sub) => {
+    if (excludeId && sub.id === excludeId) return false
+
+    const subName = normalizeDuplicateValue(sub.name)
+    const subSite = normalizeDuplicateSite(sub.site)
+    const subAccount = normalizeDuplicateValue(sub.account)
+    const sameName = name && subName === name
+    const sameSite = site && subSite === site
+    const sameAccount = account && subAccount === account
+
+    return sameName || (sameSite && (!account || sameAccount)) || (sameName && sameAccount)
+  })
+}
+
+const formatDuplicateNames = (items) => {
+  return items
+    .slice(0, 3)
+    .map((item) => item.name || '未命名訂閱')
+    .join('、')
+}
+
+const confirmDuplicateSubscription = (items) => {
+  if (items.length === 0) return true
+
+  const names = formatDuplicateNames(items)
+  return confirm(`偵測到可能重複訂閱：${names}\n\n仍要儲存嗎？`)
+}
+
+const addDuplicateSubscriptions = computed(() => findDuplicateSubscriptions(addForm.value))
+const editDuplicateSubscriptions = computed(() => findDuplicateSubscriptions(editForm.value, editingRowId.value))
+
 const startAddRow = () => {
   showAddRow.value = true
   addForm.value = {
@@ -460,6 +525,9 @@ const saveAddRow = async () => {
     alert('請輸入服務名稱')
     return
   }
+  const duplicates = findDuplicateSubscriptions(addForm.value)
+  if (!confirmDuplicateSubscription(duplicates)) return
+
   const result = await addSubscriptionInline(addForm.value)
   if (result.success) {
     showAddRow.value = false
@@ -487,6 +555,9 @@ const cancelInlineEdit = () => {
 }
 
 const saveInlineEdit = async (id) => {
+  const duplicates = findDuplicateSubscriptions(editForm.value, id)
+  if (!confirmDuplicateSubscription(duplicates)) return
+
   const result = await updateSubscriptionInline(id, editForm.value)
   if (result.success) {
     editingRowId.value = null
@@ -1113,6 +1184,18 @@ defineExpose({ subscriptions, totalMonthlyCost })
   resize: vertical;
   min-height: 3.25rem;
   line-height: 1.35;
+}
+
+.duplicate-warning {
+  margin-top: 0.4rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .inline-small {

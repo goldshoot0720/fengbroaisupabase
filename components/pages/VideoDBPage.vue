@@ -1087,7 +1087,9 @@ async function saveInlineEdit() {
     return
   }
   try {
-    await updateVideo(inlineEditId.value, inlineEditData.value)
+    const result = await updateVideo(inlineEditId.value, inlineEditData.value)
+    if (!result.success) throw new Error(result.error || '更新失敗')
+
     await loadVideos()
     setPreviewSrc(inlineVideoPreviewSrc, '')
     inlineEditId.value = null
@@ -1313,7 +1315,9 @@ const saveInlineAdd = async () => {
 
   if (!addNewForm.value.name) { alert('請輸入影片名稱'); return }
   try {
-    await addVideo(addNewForm.value)
+    const result = await addVideo(addNewForm.value)
+    if (!result.success) throw new Error(result.error || '新增失敗')
+
     resetInlineAddForm()
     setPreviewSrc(addVideoPreviewSrc, '')
     isAddingInline.value = false
@@ -1449,12 +1453,19 @@ function removeCover() {
 }
 
 async function handleSubmit() {
+  if (!formData.value.name) {
+    alert('請輸入影片名稱')
+    return
+  }
+
   try {
     if (isEditing.value) {
-      await updateVideo(editingId.value, formData.value)
+      const result = await updateVideo(editingId.value, formData.value)
+      if (!result.success) throw new Error(result.error || '更新失敗')
       alert('影片已更新')
     } else {
-      await addVideo(formData.value)
+      const result = await addVideo(formData.value)
+      if (!result.success) throw new Error(result.error || '新增失敗')
       alert('影片已新增')
     }
     closeModal()
@@ -1686,7 +1697,9 @@ async function handleImport(event) {
 
     // 匯入記錄到資料庫
     if (records.length > 0) {
-      await importVideos(records)
+      const result = await importVideos(records)
+      if (!result.success) throw new Error(result.error || '匯入失敗')
+
       alert(`成功匯入 ${records.length} 筆影片資料`)
       await loadVideos()
     }

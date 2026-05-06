@@ -119,7 +119,7 @@
         </template>
       </section>
 
-      <section v-else class="tool-panel">
+      <section v-else-if="activeTool === 'phone'" class="tool-panel">
         <div class="tool-panel__header">
           <div>
             <p class="panel-kicker">手機比價</p>
@@ -228,20 +228,82 @@
           </div>
         </template>
       </section>
+
+      <section v-else-if="activeTool === 'tube'" class="tool-panel">
+        <div class="tool-panel__header">
+          <div>
+            <p class="panel-kicker">鋒兄tube</p>
+            <h3>各頻道最新影片各 10 部</h3>
+          </div>
+          <button type="button" class="tool-primary-btn tool-primary-btn--compact" :disabled="tubeLoading" @click="runTubeLookup">
+            {{ tubeLoading ? '更新中...' : '重新整理' }}
+          </button>
+        </div>
+
+        <p v-if="tubeError" class="tool-error">{{ tubeError }}</p>
+        <p v-else-if="tubeLoading && !tubeResult" class="tool-notice">正在整理鋒兄tube 最新影片。</p>
+        <p v-else-if="tubeNewVideos.length > 0" class="tool-notice">
+          3 天內共有 {{ tubeNewVideos.length }} 部新影片，首頁會同步提醒使用者。
+        </p>
+        <p v-else-if="tubeResult" class="tool-notice">目前 3 天內沒有新影片，仍可查看各頻道最新 10 部。</p>
+
+        <div class="tube-channel-grid">
+          <article v-for="channel in tubeChannels" :key="channel.id" class="tube-channel-card">
+            <div class="tube-channel-card__header">
+              <div>
+                <p class="store-card__name">{{ channel.handle }}</p>
+                <h4>{{ channel.label }}</h4>
+              </div>
+              <a :href="channel.url" target="_blank" rel="noreferrer" class="store-card__link">前往頻道</a>
+            </div>
+
+            <p v-if="channel.error" class="tool-error">{{ channel.error }}</p>
+            <div v-else-if="channel.videos.length === 0" class="chart-empty chart-empty--small">暫無影片資料</div>
+            <div v-else class="tube-video-list">
+              <a
+                v-for="video in channel.videos"
+                :key="video.id"
+                :href="video.url"
+                target="_blank"
+                rel="noreferrer"
+                class="tube-video-row"
+              >
+                <img v-if="video.thumbnail" :src="video.thumbnail" :alt="video.title" loading="lazy" />
+                <span v-else class="tube-video-row__placeholder">YT</span>
+                <span class="tube-video-row__copy">
+                  <strong>{{ video.title }}</strong>
+                  <span>
+                    {{ formatTubeDate(video.published) }}
+                    <em v-if="video.isNew">3 天內新片</em>
+                  </span>
+                </span>
+              </a>
+            </div>
+          </article>
+        </div>
+      </section>
     </div>
   </PageContainer>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
+import { FENG_TUBE_ACTIVE_TOOL_KEY } from '../../utils/fengTubeChannels'
 
 const toolTabs = [
   { value: 'biggo', label: '鋒兄比價', description: '網址貼上後抓 BigGo 價格區間' },
-  { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信價格比較' }
+  { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信價格比較' },
+  { value: 'tube', label: '鋒兄tube', description: '追蹤指定 YouTube 頻道最新影片' }
 ]
 
-const activeTool = ref('biggo')
+const readInitialTool = () => {
+  if (!import.meta.client) return 'biggo'
+  const savedTool = localStorage.getItem(FENG_TUBE_ACTIVE_TOOL_KEY)
+  return toolTabs.some(tab => tab.value === savedTool) ? savedTool : 'biggo'
+}
+
+const activeTool = ref(readInitialTool())
 
 const currentYearSuffix = String(new Date().getFullYear()).slice(-2)
 const defaultPhoneKeyword = `Samsung S${currentYearSuffix}`
@@ -258,6 +320,10 @@ const phoneCompareLoading = ref(false)
 const phoneCompareError = ref('')
 const phoneCompareResult = ref(null)
 const phoneCompareHistory = ref([])
+
+const tubeLoading = ref(false)
+const tubeError = ref('')
+const tubeResult = ref(null)
 
 const HISTORY_INTERVAL_DAYS = 7
 const BIGGO_HISTORY_KEY = 'fengbro-tools-biggo-history'
@@ -288,6 +354,19 @@ const formatHistoryDate = (value) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+const formatTubeDate = (value) => {
+  if (!value) return '未知日期'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
 }
 
 const normalizeLookupKey = (value) => String(value || '').trim().toLowerCase()
@@ -428,6 +507,9 @@ const phoneCompareLegend = computed(() => {
   )
 })
 
+const tubeChannels = computed(() => tubeResult.value?.channels || [])
+const tubeNewVideos = computed(() => tubeResult.value?.newVideos || [])
+
 const sortSources = (sources) => [...sources].sort((a, b) => {
   const left = Number.isFinite(a.numericPrice) ? a.numericPrice : Number.MAX_SAFE_INTEGER
   const right = Number.isFinite(b.numericPrice) ? b.numericPrice : Number.MAX_SAFE_INTEGER
@@ -510,6 +592,33 @@ const runPhoneCompare = async () => {
     phoneCompareLoading.value = false
   }
 }
+
+const runTubeLookup = async () => {
+  tubeLoading.value = true
+  tubeError.value = ''
+
+  try {
+    tubeResult.value = await $fetch('/api/feng-tools/youtube')
+  } catch (error) {
+    tubeError.value = error?.data?.statusMessage || error?.message || '鋒兄tube 更新失敗'
+  } finally {
+    tubeLoading.value = false
+  }
+}
+
+onMounted(() => {
+  if (activeTool.value === 'tube') runTubeLookup()
+})
+
+watch(activeTool, (value) => {
+  if (import.meta.client) {
+    localStorage.setItem(FENG_TUBE_ACTIVE_TOOL_KEY, value)
+  }
+
+  if (value === 'tube' && !tubeResult.value && !tubeLoading.value) {
+    runTubeLookup()
+  }
+})
 
 watch(
   () => biggoForm.value.url,
@@ -677,6 +786,11 @@ watch(
   cursor: progress;
 }
 
+.tool-primary-btn--compact {
+  min-height: 44px;
+  padding-inline: 1rem;
+}
+
 .tool-error {
   margin: 0;
   color: var(--danger);
@@ -711,6 +825,105 @@ watch(
 
 .comparison-grid {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.tube-channel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.tube-channel-card {
+  display: grid;
+  gap: 0.9rem;
+  border-radius: 22px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  padding: 1rem;
+}
+
+.tube-channel-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.tube-channel-card h4 {
+  margin: 0.25rem 0 0;
+  font-size: 1.15rem;
+}
+
+.tube-video-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tube-video-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+  min-height: 72px;
+  padding: 0.55rem;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.tube-video-row:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--primary) 38%, var(--border-color));
+  box-shadow: var(--shadow-soft);
+}
+
+.tube-video-row img,
+.tube-video-row__placeholder {
+  width: 112px;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  object-fit: cover;
+  background: color-mix(in oklab, var(--surface-strong) 12%, var(--bg-secondary));
+}
+
+.tube-video-row__placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  font-weight: 800;
+}
+
+.tube-video-row__copy {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.tube-video-row__copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.94rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.tube-video-row__copy span {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.tube-video-row__copy em {
+  display: inline-flex;
+  margin-left: 0.45rem;
+  padding: 0.14rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, #f59e0b 16%, var(--bg-secondary));
+  color: #92400e;
+  font-style: normal;
+  font-weight: 700;
 }
 
 .tool-meta > div,
@@ -860,6 +1073,10 @@ watch(
   text-align: center;
 }
 
+.chart-empty--small {
+  min-height: 86px;
+}
+
 .chart-legend,
 .chart-legend--row {
   margin-top: 1rem;
@@ -928,6 +1145,19 @@ watch(
   .comparison-source {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .tube-channel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tube-video-row {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .tube-video-row img,
+  .tube-video-row__placeholder {
+    width: 88px;
   }
 }
 </style>

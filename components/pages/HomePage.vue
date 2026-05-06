@@ -11,6 +11,18 @@
       <span>{{ sleepWarning.message }}</span>
     </section>
 
+    <section v-if="tubeAlert" class="tube-home-alert" role="alert" aria-live="polite">
+      <div class="tube-home-alert__copy">
+        <span class="tube-home-alert__label">鋒兄tube</span>
+        <strong>3 天內有 {{ tubeAlert.count }} 部新影片</strong>
+        <p>{{ tubeAlert.summary }}</p>
+      </div>
+      <div class="tube-home-alert__actions">
+        <button class="hero-btn hero-btn-primary" type="button" @click="openTubeTools">查看鋒兄tube</button>
+        <button class="hero-btn hero-btn-secondary" type="button" @click="dismissTubeAlert">稍後提醒</button>
+      </div>
+    </section>
+
     <section class="hero-grid">
       <article class="hero-panel hero-primary">
         <div class="hero-ascii-shell" aria-label="feng bro ascii art">
@@ -132,11 +144,16 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { FENG_TUBE_ACTIVE_TOOL_KEY } from '../../utils/fengTubeChannels'
 
-defineEmits(['navigate'])
+const emit = defineEmits(['navigate'])
 
 const currentHour = ref(null)
+const tubeAlertVideos = ref([])
+const tubeAlertDismissed = ref(false)
 let sleepWarningTimer = null
+
+const TUBE_ALERT_DISMISS_KEY = 'feng-tube-alert-dismissed-date'
 
 const updateCurrentHour = () => {
   currentHour.value = new Date().getHours()
@@ -164,9 +181,52 @@ const sleepWarning = computed(() => {
   return null
 })
 
+const tubeAlert = computed(() => {
+  if (tubeAlertDismissed.value || tubeAlertVideos.value.length === 0) return null
+  const channelNames = [...new Set(tubeAlertVideos.value.map(video => video.channelLabel).filter(Boolean))]
+  const summary = channelNames.length > 0
+    ? `新片來自 ${channelNames.slice(0, 4).join('、')}${channelNames.length > 4 ? ' 等頻道' : ''}。`
+    : '指定頻道有新的 YouTube 影片。'
+
+  return {
+    count: tubeAlertVideos.value.length,
+    summary
+  }
+})
+
+const todayKey = () => new Date().toISOString().slice(0, 10)
+
+const loadTubeAlert = async () => {
+  try {
+    const response = await $fetch('/api/feng-tools/youtube')
+    tubeAlertVideos.value = Array.isArray(response?.newVideos) ? response.newVideos : []
+  } catch (error) {
+    console.warn('[HomePage] 鋒兄tube 通知載入失敗', error)
+  }
+}
+
+const dismissTubeAlert = () => {
+  tubeAlertDismissed.value = true
+  if (import.meta.client) {
+    localStorage.setItem(TUBE_ALERT_DISMISS_KEY, todayKey())
+  }
+}
+
+const openTubeTools = () => {
+  if (import.meta.client) {
+    localStorage.setItem(FENG_TUBE_ACTIVE_TOOL_KEY, 'tube')
+  }
+  emit('navigate', 'tools')
+}
+
 onMounted(() => {
   updateCurrentHour()
   sleepWarningTimer = window.setInterval(updateCurrentHour, 60 * 1000)
+
+  if (import.meta.client) {
+    tubeAlertDismissed.value = localStorage.getItem(TUBE_ALERT_DISMISS_KEY) === todayKey()
+  }
+  loadTubeAlert()
 })
 
 onUnmounted(() => {
@@ -257,6 +317,48 @@ const channels = [
   border-color: #ef4444;
   background: #fee2e2;
   color: #7f1d1d;
+}
+
+.tube-home-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid color-mix(in oklab, #f59e0b 44%, var(--border-color));
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, color-mix(in oklab, #fef3c7 84%, var(--bg-secondary)), color-mix(in oklab, var(--bg-secondary) 92%, white));
+  box-shadow: var(--shadow-soft);
+  color: #78350f;
+}
+
+.tube-home-alert__copy {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.tube-home-alert__label {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tube-home-alert strong {
+  font-size: 1.15rem;
+}
+
+.tube-home-alert p {
+  margin: 0;
+  color: #92400e;
+}
+
+.tube-home-alert__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-end;
 }
 
 .hero-grid,
@@ -663,6 +765,16 @@ const channels = [
     flex-direction: column;
     gap: 0.2rem;
     border-radius: 20px;
+  }
+
+  .tube-home-alert {
+    flex-direction: column;
+    align-items: stretch;
+    border-radius: 20px;
+  }
+
+  .tube-home-alert__actions {
+    justify-content: stretch;
   }
 
   .hero-title {

@@ -107,10 +107,14 @@ const createDownfallIndexUpdate = (channelId: string, videos: TubeVideo[]) => {
     }
   }
 
-  const matchedVideo = videos.find(video => /倒台指[數数][^\d０-９]{0,12}[\d０-９]+/i.test(video.title))
-  const rawValue = matchedVideo?.title.match(/倒台指[數数][^\d０-９]{0,12}([\d０-９]+)/i)?.[1] || ''
+  const indexValuePattern = '[\\d０-９]+(?:[\\.．][\\d０-９]+)?'
+  const indexTitlePattern = new RegExp(`倒台指[數数][^\\d０-９]{0,12}(${indexValuePattern})`, 'i')
+  const matchedVideo = videos.find(video => indexTitlePattern.test(video.title))
+  const rawValue = matchedVideo?.title.match(indexTitlePattern)?.[1] || ''
   const value = rawValue
-    ? Number(rawValue.replace(/[０-９]/g, char => String(char.charCodeAt(0) - 0xFF10)))
+    ? Number(rawValue
+      .replace(/[０-９]/g, char => String(char.charCodeAt(0) - 0xFF10))
+      .replace(/．/g, '.'))
     : null
 
   return {

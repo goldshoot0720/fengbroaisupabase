@@ -297,6 +297,66 @@
           </article>
         </div>
       </section>
+
+      <section v-else-if="activeTool === 'finance'" class="tool-panel">
+        <div class="tool-panel__header">
+          <div>
+            <p class="panel-kicker">鋒兄金融</p>
+            <h3>CNBC 金融市場觀察</h3>
+          </div>
+          <button type="button" class="tool-primary-btn tool-primary-btn--compact" :disabled="financeLoading" @click="runFinanceLookup">
+            {{ financeLoading ? '更新中...' : '重新整理' }}
+          </button>
+        </div>
+
+        <p v-if="financeError" class="tool-error">{{ financeError }}</p>
+        <p v-else-if="financeLoading && !financeResult" class="tool-notice">正在整理 CNBC 指數、商品、利率與加密貨幣。</p>
+        <p v-else-if="financeResult" class="tool-notice">
+          資料來源：{{ financeResult.source }}，更新時間 {{ formatTubeDate(financeResult.fetchedAt) }}。
+        </p>
+
+        <div class="finance-grid">
+          <article
+            v-for="item in financeItems"
+            :key="item.id"
+            class="finance-card"
+            :class="{
+              'finance-card--high': item.status === 'new-high',
+              'finance-card--low': item.status === 'new-low'
+            }"
+          >
+            <div class="finance-card__header">
+              <div>
+                <p class="store-card__name">{{ item.group }} / {{ item.symbol }}</p>
+                <h4>{{ item.name }}</h4>
+              </div>
+              <span v-if="item.status === 'new-high'" class="finance-status finance-status--high">創新高</span>
+              <span v-else-if="item.status === 'new-low'" class="finance-status finance-status--low">創新低</span>
+            </div>
+
+            <strong class="finance-price">{{ item.lastLabel }}</strong>
+            <p v-if="item.error" class="tool-error">{{ item.error }}</p>
+            <div v-else class="finance-meta-row">
+              <span>
+                漲跌
+                <strong :class="financeChangeClass(item.change)">
+                  {{ formatFinanceChange(item.change, item.changePercent) }}
+                </strong>
+              </span>
+              <span>
+                52週高
+                <strong>{{ formatFinanceNumber(item.week52High) }}</strong>
+              </span>
+              <span>
+                52週低
+                <strong>{{ formatFinanceNumber(item.week52Low) }}</strong>
+              </span>
+            </div>
+
+            <a :href="item.url" target="_blank" rel="noreferrer" class="store-card__link">查看 CNBC</a>
+          </article>
+        </div>
+      </section>
     </div>
   </PageContainer>
 </template>
@@ -309,7 +369,8 @@ import { FENG_TUBE_ACTIVE_TOOL_KEY } from '../../utils/fengTubeChannels'
 const toolTabs = [
   { value: 'biggo', label: '鋒兄比價', description: '網址貼上後抓 BigGo 價格區間' },
   { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信價格比較' },
-  { value: 'tube', label: '鋒兄tube', description: '追蹤指定 YouTube 頻道最新影片' }
+  { value: 'tube', label: '鋒兄tube', description: '追蹤指定 YouTube 頻道最新影片' },
+  { value: 'finance', label: '鋒兄金融', description: '追蹤 CNBC 市場價格與高低標記' }
 ]
 
 const readInitialTool = () => {
@@ -339,6 +400,10 @@ const phoneCompareHistory = ref([])
 const tubeLoading = ref(false)
 const tubeError = ref('')
 const tubeResult = ref(null)
+
+const financeLoading = ref(false)
+const financeError = ref('')
+const financeResult = ref(null)
 
 const HISTORY_INTERVAL_DAYS = 7
 const BIGGO_HISTORY_KEY = 'fengbro-tools-biggo-history'
@@ -382,6 +447,27 @@ const formatTubeDate = (value) => {
     hour: '2-digit',
     minute: '2-digit'
   }).format(date)
+}
+
+const formatFinanceNumber = (value) => {
+  if (value === null || value === undefined || value === '') return '--'
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return String(value)
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: amount >= 100 ? 2 : 4
+  }).format(amount)
+}
+
+const formatFinanceChange = (change, percent) => {
+  const changeLabel = change === null || change === undefined ? '--' : formatFinanceNumber(change)
+  const percentLabel = percent === null || percent === undefined ? '' : ` (${formatFinanceNumber(percent)}%)`
+  return `${changeLabel}${percentLabel}`
+}
+
+const financeChangeClass = (change) => {
+  if (Number(change) > 0) return 'finance-change--up'
+  if (Number(change) < 0) return 'finance-change--down'
+  return ''
 }
 
 const normalizeLookupKey = (value) => String(value || '').trim().toLowerCase()
@@ -524,6 +610,7 @@ const phoneCompareLegend = computed(() => {
 
 const tubeChannels = computed(() => tubeResult.value?.channels || [])
 const tubeNewVideos = computed(() => tubeResult.value?.newVideos || [])
+const financeItems = computed(() => financeResult.value?.items || [])
 
 const sortSources = (sources) => [...sources].sort((a, b) => {
   const left = Number.isFinite(a.numericPrice) ? a.numericPrice : Number.MAX_SAFE_INTEGER
@@ -621,8 +708,22 @@ const runTubeLookup = async () => {
   }
 }
 
+const runFinanceLookup = async () => {
+  financeLoading.value = true
+  financeError.value = ''
+
+  try {
+    financeResult.value = await $fetch('/api/feng-tools/finance')
+  } catch (error) {
+    financeError.value = error?.data?.statusMessage || error?.message || '鋒兄金融更新失敗'
+  } finally {
+    financeLoading.value = false
+  }
+}
+
 onMounted(() => {
   if (activeTool.value === 'tube') runTubeLookup()
+  if (activeTool.value === 'finance') runFinanceLookup()
 })
 
 watch(activeTool, (value) => {
@@ -632,6 +733,10 @@ watch(activeTool, (value) => {
 
   if (value === 'tube' && !tubeResult.value && !tubeLoading.value) {
     runTubeLookup()
+  }
+
+  if (value === 'finance' && !financeResult.value && !financeLoading.value) {
+    runFinanceLookup()
   }
 })
 
@@ -840,6 +945,93 @@ watch(
 
 .comparison-grid {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.finance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.finance-card {
+  display: grid;
+  gap: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  background: var(--bg-primary);
+  padding: 1rem;
+}
+
+.finance-card--high {
+  border-color: color-mix(in oklab, #ef4444 48%, var(--border-color));
+  background: linear-gradient(180deg, color-mix(in oklab, #fee2e2 48%, var(--bg-primary)), var(--bg-primary));
+}
+
+.finance-card--low {
+  border-color: color-mix(in oklab, #2563eb 48%, var(--border-color));
+  background: linear-gradient(180deg, color-mix(in oklab, #dbeafe 48%, var(--bg-primary)), var(--bg-primary));
+}
+
+.finance-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.finance-card h4 {
+  margin: 0.28rem 0 0;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.finance-price {
+  font-family: var(--font-display);
+  font-size: clamp(1.55rem, 1.2rem + 1vw, 2.2rem);
+}
+
+.finance-status {
+  flex: 0 0 auto;
+  padding: 0.24rem 0.58rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.finance-status--high {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.finance-status--low {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.finance-meta-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.finance-meta-row span {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.finance-meta-row strong {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+}
+
+.finance-change--up {
+  color: #16a34a !important;
+}
+
+.finance-change--down {
+  color: #dc2626 !important;
 }
 
 .tube-channel-grid {
@@ -1188,6 +1380,10 @@ watch(
   }
 
   .tube-channel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-meta-row {
     grid-template-columns: 1fr;
   }
 

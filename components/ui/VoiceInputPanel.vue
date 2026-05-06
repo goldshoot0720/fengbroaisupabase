@@ -63,6 +63,23 @@
           {{ hint }}
         </span>
       </div>
+
+      <details class="voice-guide">
+        <summary>可說指令</summary>
+        <div class="guide-grid">
+          <div v-for="group in commandGuide" :key="group.title" class="guide-group">
+            <strong>{{ group.title }}</strong>
+            <button
+              v-for="example in group.examples"
+              :key="example"
+              type="button"
+              @click="useHint(example)"
+            >
+              {{ example }}
+            </button>
+          </div>
+        </div>
+      </details>
     </div>
   </section>
 </template>
@@ -124,9 +141,170 @@ const pageHints = {
   about: ['切換到鋒兄首頁', '切換到鋒兄設定', '往上', '搜尋 版本']
 }
 
+const fieldAliases = [
+  { key: 'name', aliases: ['名稱', '標題', '服務名稱', '影片名稱', '音樂名稱', '文件名稱', '播客名稱', '銀行名稱', '食品名稱', '品名'] },
+  { key: 'category', aliases: ['分類', '類別'] },
+  { key: 'note', aliases: ['備註', '說明', '內容', '筆記內容', '活動'] },
+  { key: 'account', aliases: ['帳號', 'email', 'Email', '信箱'] },
+  { key: 'price', aliases: ['價格', '金額', '月費', '費用'] },
+  { key: 'date', aliases: ['日期', '到期日', '有效期限', '續訂日', '下次日期'] },
+  { key: 'shop', aliases: ['商店', '店家', '來源', '分行', '網站'] },
+  { key: 'url', aliases: ['網址', '連結', 'URL', '檔案', '影片URL', '音檔URL', '圖片URL'] },
+  { key: 'cover', aliases: ['封面', '封面URL'] },
+  { key: 'filetype', aliases: ['格式', '檔案類型', '副檔名'] },
+  { key: 'lyrics', aliases: ['歌詞'] },
+  { key: 'ref', aliases: ['參考', '參考連結'] },
+  { key: 'hash', aliases: ['hash', 'Hash', '雜湊'] },
+  { key: 'quantity', aliases: ['數量', '庫存'] },
+  { key: 'deposit', aliases: ['存款'] },
+  { key: 'card', aliases: ['卡號'] },
+  { key: 'address', aliases: ['地址'] }
+]
+
+const pageFieldSelectors = {
+  subscription: {
+    name: 'input[placeholder*="服務"], input[placeholder*="名稱"], .col-name input:first-child',
+    category: 'input[placeholder*="分類"]',
+    note: 'textarea[placeholder*="備註"], textarea',
+    account: 'input[placeholder*="帳號"], input[list="account-options"]',
+    price: 'input[type="number"], input[placeholder="0"]',
+    date: 'input[type="date"]',
+    shop: 'input[type="url"], input[placeholder*="網址"]',
+    url: 'input[type="url"], input[placeholder*="網址"]'
+  },
+  food: {
+    name: 'input[placeholder*="食品"], input[placeholder*="名稱"], .inline-name',
+    category: 'input[placeholder*="分類"]',
+    note: 'textarea[placeholder*="備註"], input[placeholder*="備註"]',
+    price: 'input[placeholder*="價格"], input[type="number"]',
+    date: 'input[type="date"]',
+    shop: 'input[placeholder*="商店"], input[placeholder*="店"], input[placeholder*="shop"]',
+    quantity: 'input[placeholder*="數量"], input[placeholder*="0"], input[type="number"]',
+    url: 'input[placeholder*="照片"], input[placeholder*="URL"]'
+  },
+  note: {
+    name: 'input[placeholder*="標題"], input[placeholder*="快速標題"]',
+    category: 'input[placeholder*="分類"]',
+    note: 'textarea[placeholder*="內容"], textarea',
+    date: 'input[type="date"]',
+    url: 'input[placeholder*="連結"], input[type="url"]'
+  },
+  common: {
+    name: 'input[placeholder*="example"], .inline-name',
+    note: 'input[placeholder*="備註"], .inline-note',
+    shop: 'input[placeholder*="網站"], .inline-site',
+    url: 'input[placeholder*="網站"], .inline-site'
+  },
+  gallery: {
+    name: 'input[placeholder*="圖片"], input[placeholder*="名稱"], .inline-name',
+    category: 'input[placeholder*="分類"]',
+    note: 'input[placeholder*="備註"], textarea',
+    url: 'input[placeholder*="URL"], input[placeholder*="https"]',
+    cover: 'input[placeholder*="封面"]',
+    filetype: 'input[placeholder*="jpg"], input[placeholder*="png"]'
+  },
+  video: {
+    name: 'input[placeholder*="影片名稱"], input[placeholder*="名稱"]',
+    category: 'input[placeholder*="分類"]',
+    note: 'textarea[placeholder*="備註"], textarea',
+    url: 'input[placeholder*="影片 URL"], input[placeholder*="URL"], input[id="file"]',
+    cover: 'input[placeholder*="封面"], input[id="cover"]',
+    filetype: 'input[placeholder*="mp4"], input[id="filetype"]',
+    ref: 'input[placeholder*="參考"], input[id="ref"]',
+    hash: 'input[placeholder*="Hash"]'
+  },
+  music: {
+    name: 'input[placeholder*="歌曲"], input[placeholder*="音樂"], .inline-name',
+    category: 'input[placeholder*="分類"]',
+    note: 'input[placeholder*="備註"], textarea[placeholder*="備註"]',
+    lyrics: 'textarea[placeholder*="歌詞"], textarea',
+    url: 'input[placeholder*="音檔"], input[placeholder*="URL"]',
+    cover: 'input[placeholder*="封面"]',
+    filetype: 'input[placeholder*="mp3"], input[placeholder*="flac"]',
+    ref: 'input[placeholder*="參考"]',
+    hash: 'input[placeholder*="Hash"]'
+  },
+  document: {
+    name: 'input[placeholder*="文件名稱"], input[placeholder*="名稱"], .inline-name',
+    category: 'input[placeholder*="分類"]',
+    note: 'textarea[placeholder*="備註"], textarea',
+    url: 'input[placeholder*="檔案 URL"], input[placeholder*="URL"]',
+    cover: 'input[placeholder*="封面"]',
+    ref: 'input[placeholder*="參考"]',
+    hash: 'input[placeholder*="Hash"]'
+  },
+  podcast: {
+    name: 'input[placeholder*="播客名稱"], input[placeholder*="名稱"], .inline-title-input',
+    category: 'input[placeholder*="分類"]',
+    note: 'textarea[placeholder*="備註"], textarea',
+    url: 'input[placeholder*="音檔"], input[placeholder*="URL"]',
+    cover: 'input[placeholder*="封面"]',
+    filetype: 'input[placeholder*="mp3"]',
+    ref: 'input[placeholder*="參考"]'
+  },
+  bank: {
+    name: 'input[placeholder*="銀行名稱"], .inline-name',
+    account: 'input[placeholder*="帳號"]',
+    card: 'input[placeholder*="卡號"]',
+    deposit: 'input[placeholder*="存款"], input[type="number"]',
+    shop: 'input[placeholder*="分行"], input[placeholder*="網點"]',
+    address: 'input[placeholder*="地址"]',
+    note: 'textarea[placeholder*="活動"], textarea'
+  },
+  routine: {
+    name: 'input[placeholder*="名稱"]',
+    note: 'textarea[placeholder*="備註"], textarea',
+    date: 'input[type="date"]',
+    url: 'input[placeholder*="https"], input[placeholder*="連結"]'
+  },
+  tools: {
+    name: 'input[placeholder*="型號"], input[placeholder*="網址"], input[type="text"]',
+    url: 'input[placeholder*="網址"], input[type="url"]'
+  },
+  settings: {
+    name: 'input[type="text"], input[type="url"], input[type="password"]',
+    url: 'input[type="url"], input[placeholder*="URL"]',
+    note: 'textarea, input[type="text"]'
+  },
+  home: {
+    name: '.search-input, input[type="text"]',
+    note: 'textarea, input[type="text"]'
+  },
+  dashboard: {
+    name: '.search-input, input[type="text"]',
+    note: 'textarea, input[type="text"]'
+  },
+  about: {
+    name: '.search-input, input[type="text"]',
+    note: 'textarea, input[type="text"]'
+  }
+}
+
 const currentPageConfig = computed(() => props.pages.find((page) => page.id === props.currentPage))
 const currentPageName = computed(() => currentPageConfig.value?.name || '鋒兄系統')
 const activeHints = computed(() => pageHints[props.currentPage] || ['新增', '搜尋', '輸入', '儲存'])
+const commandGuide = computed(() => [
+  {
+    title: '頁面導航',
+    examples: ['切換到鋒兄首頁', '切換到鋒兄訂閱', '切換到鋒兄食品', '切換到鋒兄設定']
+  },
+  {
+    title: '欄位輸入',
+    examples: ['名稱 Netflix', '分類 Suno', '備註 今天整理完成', '價格 390', '日期 明天', '網址 https://example.com']
+  },
+  {
+    title: '資料操作',
+    examples: ['新增', '儲存', '取消', '匯入 ZIP', '匯出 CSV', '批量選擇']
+  },
+  {
+    title: '顯示與篩選',
+    examples: ['搜尋 鋒兄', '卡片式', '列表式', '今年', '全部月份', '深色模式']
+  },
+  {
+    title: '媒體工具',
+    examples: ['播放', '暫停', '快取', '切換 Bilibili', '切換 YouTube']
+  }
+])
 
 const setStatus = (message, type = 'idle') => {
   statusMessage.value = message
@@ -266,11 +444,101 @@ const fillFocusedField = (value) => {
   return true
 }
 
+const findFieldKey = (text) => {
+  const lower = text.toLowerCase()
+  return fieldAliases.find((field) => field.aliases.some((alias) => lower.includes(alias.toLowerCase())))?.key || ''
+}
+
+const getFieldSelector = (fieldKey) => {
+  return pageFieldSelectors[props.currentPage]?.[fieldKey] || pageFieldSelectors[props.currentPage]?.note || ''
+}
+
+const fillNamedField = (fieldKey, value) => {
+  const selector = getFieldSelector(fieldKey)
+  const target = selector ? findFirstVisible(selector) : null
+  if (!target) return false
+  setNativeValue(target, normalizeFieldValue(fieldKey, value))
+  return true
+}
+
+const normalizeFieldValue = (fieldKey, value) => {
+  const raw = String(value || '').trim()
+  if (fieldKey === 'date') return normalizeSpokenDate(raw)
+  if (['price', 'quantity', 'deposit'].includes(fieldKey)) {
+    return raw.replace(/[^\d.-]/g, '')
+  }
+  return raw
+}
+
+const normalizeSpokenDate = (raw) => {
+  const today = new Date()
+  const build = (date) => {
+    const yyyy = date.getFullYear()
+    const mm = String(date.getMonth() + 1).padStart(2, '0')
+    const dd = String(date.getDate()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
+  }
+
+  if (!raw || /今天|今日/.test(raw)) return build(today)
+  if (/明天|明日/.test(raw)) {
+    const date = new Date(today)
+    date.setDate(date.getDate() + 1)
+    return build(date)
+  }
+  if (/後天/.test(raw)) {
+    const date = new Date(today)
+    date.setDate(date.getDate() + 2)
+    return build(date)
+  }
+
+  const daysMatch = raw.match(/(\d+)\s*(天|日)後/)
+  if (daysMatch) {
+    const date = new Date(today)
+    date.setDate(date.getDate() + Number(daysMatch[1]))
+    return build(date)
+  }
+
+  const dateMatch = raw.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})|(\d{1,2})\s*月\s*(\d{1,2})\s*(日|號)?/)
+  if (dateMatch?.[1]) {
+    return `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`
+  }
+  if (dateMatch?.[4]) {
+    return `${today.getFullYear()}-${dateMatch[4].padStart(2, '0')}-${dateMatch[5].padStart(2, '0')}`
+  }
+  return raw
+}
+
 const fillSearch = (value) => {
   const target = findFirstVisible('.search-input, input[type="search"], input[placeholder*="搜尋"]')
   if (!target) return false
   setNativeValue(target, value)
   return true
+}
+
+const selectByText = (selectors, labels) => {
+  const select = findFirstVisible(selectors)
+  if (!select || select.tagName !== 'SELECT') return false
+  const wanted = labels.map((item) => String(item).toLowerCase())
+  const option = Array.from(select.options).find((opt) => {
+    const text = `${opt.textContent || ''} ${opt.value || ''}`.toLowerCase()
+    return wanted.some((label) => text.includes(label))
+  })
+  if (!option) return false
+  select.value = option.value
+  select.dispatchEvent(new Event('change', { bubbles: true }))
+  return true
+}
+
+const extractFieldPayload = (text, fieldKey) => {
+  const allAliases = fieldAliases.find((field) => field.key === fieldKey)?.aliases || []
+  let value = text
+  value = value.replace(/^(請)?(把|將)?\s*/, '')
+  value = value.replace(/(輸入|填入|寫入|記錄|打字|貼上|設定|改成|設為|填)\s*/g, '')
+  allAliases.forEach((alias) => {
+    value = value.replace(new RegExp(alias, 'gi'), '')
+  })
+  value = value.replace(/^(為|成|到|是|:|：)\s*/, '').trim()
+  return value || text
 }
 
 const scrollPage = (direction) => {
@@ -329,6 +597,18 @@ const prepareCommand = () => {
   }
 
   if (/^(請)?(輸入|填入|寫入|記錄|打字|貼上)/.test(text)) {
+    const fieldKey = findFieldKey(text)
+    if (fieldKey) {
+      const payload = extractFieldPayload(text, fieldKey)
+      pendingAction.value = {
+        label: `填入${fieldAliases.find((field) => field.key === fieldKey)?.aliases[0] || '欄位'}「${payload}」`,
+        detail: `確認後會寫入目前頁面的${fieldAliases.find((field) => field.key === fieldKey)?.aliases[0] || '指定'}欄位。`,
+        run: () => fillNamedField(fieldKey, payload)
+      }
+      setStatus('已準備指定欄位輸入，請確認。')
+      return
+    }
+
     const payload = getInputPayload(text)
     pendingAction.value = {
       label: `填入「${payload || text}」`,
@@ -336,6 +616,18 @@ const prepareCommand = () => {
       run: () => fillFocusedField(payload || text)
     }
     setStatus('已準備文字輸入，請確認。')
+    return
+  }
+
+  const fieldKey = findFieldKey(text)
+  if (fieldKey && /(名稱|標題|分類|備註|內容|帳號|價格|金額|月費|日期|商店|店家|網址|連結|封面|格式|歌詞|參考|hash|數量|存款|卡號|地址)/i.test(text)) {
+    const payload = extractFieldPayload(text, fieldKey)
+    pendingAction.value = {
+      label: `填入${fieldAliases.find((field) => field.key === fieldKey)?.aliases[0] || '欄位'}「${payload}」`,
+      detail: '確認後會依目前頁面找到對應欄位並填入。',
+      run: () => fillNamedField(fieldKey, payload)
+    }
+    setStatus('已辨識到頁面欄位，請確認。')
     return
   }
 
@@ -355,6 +647,59 @@ const prepareCommand = () => {
 }
 
 const buildQuickCommand = (text) => {
+  if (/(卡片式|卡片模式|卡片)/.test(text)) {
+    return { label: '切換卡片式', detail: '確認後會按下卡片式顯示。', run: () => clickButtonByText('卡片式') || clickButtonByText('卡片') }
+  }
+  if (/(列表式|清單式|列表|清單)/.test(text)) {
+    return { label: '切換列表式', detail: '確認後會按下列表式顯示。', run: () => clickButtonByText('列表式') || clickButtonByText('列表') || clickButtonByText('清單') }
+  }
+  if (/(深色|黑暗|dark)/i.test(text)) {
+    return { label: '切換深色模式', detail: '確認後會切換目前深淺色模式。', run: () => clickFirstVisible('.dark-mode-toggle') }
+  }
+  if (/(淺色|亮色|light)/i.test(text)) {
+    return { label: '切換淺色模式', detail: '確認後會切換目前深淺色模式。', run: () => clickFirstVisible('.dark-mode-toggle') }
+  }
+  if (/(今天|今日|明天|明日|後天|\d+\s*(天|日)後).*(日期|有效期限|到期|續訂)/.test(text)) {
+    const fieldKey = 'date'
+    const payload = text.match(/今天|今日|明天|明日|後天|\d+\s*(天|日)後/)?.[0] || text
+    return { label: `設定日期「${payload}」`, detail: '確認後會把日期欄位填成對應日期。', run: () => fillNamedField(fieldKey, payload) }
+  }
+  if (/(今年|明年|\d{4}\s*年|全部年份|無日期)/.test(text)) {
+    const labels = []
+    if (/全部年份/.test(text)) labels.push('全部年份', '')
+    else if (/無日期/.test(text)) labels.push('無日期', 'none')
+    else labels.push(text.match(/\d{4}/)?.[0] || (text.includes('明年') ? String(new Date().getFullYear() + 1) : String(new Date().getFullYear())))
+    return { label: '設定年份篩選', detail: '確認後會調整目前頁面的年份篩選。', run: () => selectByText('.date-filter-select, select', labels) }
+  }
+  if (/(全部月份|\d{1,2}\s*月)/.test(text)) {
+    const label = /全部月份/.test(text) ? '全部月份' : text.match(/\d{1,2}/)?.[0]
+    return { label: '設定月份篩選', detail: '確認後會調整目前頁面的月份篩選。', run: () => selectByText('.date-filter-select, select', [label]) }
+  }
+  if (/(續訂|自動續訂|不續訂|七天|7天|即將到期)/.test(text)) {
+    const label = /不續訂/.test(text) ? '不續訂' : /七天|7天|即將到期/.test(text) ? '7' : '續訂'
+    return { label: '設定訂閱篩選', detail: '確認後會按下符合的訂閱篩選按鈕。', run: () => clickButtonByText(label) }
+  }
+  if (/(播放|開始播放)/.test(text)) {
+    return { label: '播放媒體', detail: '確認後會按下目前可見的播放按鈕或播放控制。', run: () => clickFirstVisible('.play-overlay, .play-btn, .persistent-audio-btn, button[title*="播放"]') || clickButtonByText('Play') }
+  }
+  if (/(暫停|停止播放|pause)/i.test(text)) {
+    return { label: '暫停媒體', detail: '確認後會按下目前可見的暫停控制。', run: () => clickButtonByText('Pause') || clickFirstVisible('.persistent-audio-btn') }
+  }
+  if (/(快取|預載|下載影片|下載音樂)/.test(text)) {
+    return { label: '媒體快取或下載', detail: '確認後會按下目前可見的快取、預載或下載按鈕。', run: () => clickFirstVisible('.cache-btn, .btn-cache-all, .download-btn, button[title*="快取"], button[title*="下載"]') }
+  }
+  if (/csv/i.test(text) && /(匯入|導入)/.test(text)) {
+    return { label: '匯入 CSV', detail: '確認後會開啟目前頁面的 CSV 匯入。', run: () => clickFirstVisible('.btn-import') }
+  }
+  if (/csv/i.test(text) && /(匯出|導出)/.test(text)) {
+    return { label: '匯出 CSV', detail: '確認後會按下目前頁面的 CSV 匯出。', run: () => clickFirstVisible('.btn-export') }
+  }
+  if (/zip/i.test(text) && /(匯入|導入)/.test(text)) {
+    return { label: '匯入 ZIP', detail: '確認後會開啟目前頁面的 ZIP 匯入。', run: () => clickFirstVisible('.btn-import') }
+  }
+  if (/zip/i.test(text) && /(匯出|導出)/.test(text)) {
+    return { label: '匯出 ZIP', detail: '確認後會按下目前頁面的 ZIP 匯出。', run: () => clickFirstVisible('.btn-export') }
+  }
   if (/(新增|新增一筆|加一筆|建立)/.test(text)) {
     return { label: '新增一筆資料', detail: '確認後會按下目前頁面的新增按鈕。', run: () => clickFirstVisible('.btn-add-icon, .btn-primary, button[title*="新增"]') }
   }
@@ -615,6 +960,54 @@ onBeforeUnmount(() => {
   color: var(--text-secondary);
   font-size: 0.8rem;
   cursor: pointer;
+}
+
+.voice-guide {
+  margin-top: 0.85rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.75rem;
+}
+
+.voice-guide summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.guide-grid {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.75rem;
+}
+
+.guide-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+}
+
+.guide-group strong {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.guide-group button {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--bg-secondary) 86%, transparent);
+  color: var(--text-secondary);
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.guide-group button:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
 }
 
 @keyframes voicePulse {

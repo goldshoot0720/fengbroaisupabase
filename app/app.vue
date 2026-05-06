@@ -161,6 +161,12 @@
     </div>
 
     <!-- 手機版遮罩層 -->
+    <VoiceInputPanel
+      :current-page="currentPage"
+      :pages="pages"
+      @navigate="setCurrentPage"
+    />
+
     <div 
       v-if="sidebarOpen" 
       class="mobile-overlay"
@@ -318,6 +324,7 @@ import HomePage from '../components/pages/HomePage.vue'
 import AppSidebar from '../components/layout/AppSidebar.vue'
 import AppHeader from '../components/layout/AppHeader.vue'
 import ToastContainer from '../components/ui/ToastContainer.vue'
+import VoiceInputPanel from '../components/ui/VoiceInputPanel.vue'
 
 // 使用 composables
 import { useSubscriptions } from '../composables/useSubscriptions'

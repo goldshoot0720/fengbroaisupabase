@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { getSupabaseBucket } from './useSettings'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { STORAGE_UPLOAD_LIMIT_BYTES, formatBytes, useStorageUsage } from './useStorageUsage'
 
 const MULTIPART_VIDEO_THRESHOLD = 50 * 1024 * 1024
 const MULTIPART_VIDEO_CHUNK_SIZE = 45 * 1024 * 1024
@@ -30,6 +31,7 @@ const initSupabase = () => {
 export const useStorage = () => {
   const uploading = ref(false)
   const uploadProgress = ref(0)
+  const { getStorageUsageSnapshot } = useStorageUsage()
 
   const sanitizeFileName = (name = '') => {
     return name
@@ -76,6 +78,23 @@ export const useStorage = () => {
     if (meta.partCount) params.set('parts', String(meta.partCount))
     const query = params.toString()
     return `${MULTIPART_REFERENCE_PREFIX}${bucketName}/${filePath}${query ? `?${query}` : ''}`
+  }
+
+  const assertStorageUploadAllowed = async (client, bucketName, file) => {
+    const usage = await getStorageUsageSnapshot(client, bucketName)
+    const currentBytes = usage.bytes || 0
+    const incomingBytes = Number(file?.size || 0)
+    const nextBytes = currentBytes + incomingBytes
+
+    if (nextBytes <= STORAGE_UPLOAD_LIMIT_BYTES) return
+
+    const fileSizeText = formatBytes(incomingBytes)
+    const currentText = formatBytes(currentBytes)
+    const nextText = formatBytes(nextBytes)
+    const limitText = formatBytes(STORAGE_UPLOAD_LIMIT_BYTES)
+    throw new Error(
+      `File Storage 已達 ${currentText}，本次檔案 ${fileSizeText} 上傳後會變成 ${nextText}，超過 ${limitText} 上傳上限。請先到系統設定的 Supabase Storage 管理區手動刪除檔案，直到容量低於 900MB 以下再上傳。`
+    )
   }
 
   const isMultipartManifestUrl = (value = '') => {
@@ -337,6 +356,7 @@ export const useStorage = () => {
       if (probe.error) {
         throw new Error(`Bucket "${bucketName}" not found`)
       }
+      await assertStorageUploadAllowed(client, bucketName, file)
 
       const multipartConfig = getMultipartUploadConfig(file, folder)
       const filePath = multipartConfig

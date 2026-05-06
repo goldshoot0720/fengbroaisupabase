@@ -51,6 +51,24 @@
           variant="warning"
           prefix="NT$ "
         />
+
+        <StatCard
+          title="File Storage"
+          :value="storageUsageDisplay"
+          :label="storageUsageLabel"
+          icon="💾"
+          trend-icon="📦"
+          :variant="storageUsageVariant"
+        >
+          <template #alert>
+            <AlertBadge v-if="storageUsageError" variant="critical" size="sm">
+              {{ storageUsageError }}
+            </AlertBadge>
+            <AlertBadge v-else variant="warning" size="sm">
+              {{ storageUsagePercent }}%
+            </AlertBadge>
+          </template>
+        </StatCard>
       </div>
 
       <!-- 11 個資料表統計 -->
@@ -211,7 +229,7 @@
           </div>
           <div class="info-item">
             <h4>💾 存儲使用</h4>
-            <p>已使用 65% 存儲空間</p>
+            <p>{{ storageUsageInfo }}</p>
           </div>
         </div>
       </BaseCard>
@@ -257,6 +275,7 @@ import { useImages } from '../../composables/useImages'
 import { useMusicRecords } from '../../composables/useMusicRecords'
 import { usePodcasts } from '../../composables/usePodcasts'
 import { useRoutines } from '../../composables/useRoutines'
+import { useStorageUsage } from '../../composables/useStorageUsage'
 import { useSubscriptions } from '../../composables/useSubscriptions'
 import { useVideoRecords } from '../../composables/useVideoRecords'
 import PageContainer from '../layout/PageContainer.vue'
@@ -292,6 +311,15 @@ const { podcasts, loadPodcasts } = usePodcasts()
 const { routines, loadRoutines } = useRoutines()
 const { subscriptions, loadSubscriptions } = useSubscriptions()
 const { videos, loadVideos } = useVideoRecords()
+const {
+  loading: storageUsageLoading,
+  error: storageUsageError,
+  bucket: storageUsageBucket,
+  displayLabel: storageUsageDisplay,
+  usagePercent: storageUsagePercent,
+  fileCount: storageUsageFileCount,
+  refreshStorageUsage
+} = useStorageUsage()
 
 const tableStats = computed(() => [
   { name: 'subscription', label: '訂閱管理', icon: '💳', count: subscriptions.value.length, page: 'subscription' },
@@ -308,6 +336,22 @@ const tableStats = computed(() => [
 ])
 
 const totalRecords = computed(() => tableStats.value.reduce((sum, t) => sum + t.count, 0))
+const storageUsageVariant = computed(() => {
+  if (storageUsageError.value) return 'danger'
+  if (storageUsagePercent.value >= 90) return 'danger'
+  if (storageUsagePercent.value >= 70) return 'warning'
+  return 'success'
+})
+const storageUsageLabel = computed(() => {
+  if (storageUsageLoading.value) return '掃描中'
+  if (storageUsageError.value) return '讀取失敗'
+  return `1 GB file storage，${storageUsageFileCount.value} 個檔案`
+})
+const storageUsageInfo = computed(() => {
+  if (storageUsageLoading.value) return '正在掃描 file storage 實際容量...'
+  if (storageUsageError.value) return storageUsageError.value
+  return `${storageUsageBucket.value}: ${storageUsageDisplay.value}，已使用 ${storageUsagePercent.value}%`
+})
 
 onMounted(() => {
   loadArticles()
@@ -321,6 +365,7 @@ onMounted(() => {
   loadRoutines()
   loadSubscriptions()
   loadVideos()
+  refreshStorageUsage()
 })
 </script>
 

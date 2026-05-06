@@ -7,7 +7,7 @@ export const FENG_TUBE_CHANNELS = [
   },
   {
     id: 'henren778',
-    label: 'henren778',
+    label: '一个狠人',
     handle: '@henren778',
     url: 'https://www.youtube.com/@henren778/videos'
   },

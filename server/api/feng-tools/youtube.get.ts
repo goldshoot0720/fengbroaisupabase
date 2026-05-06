@@ -26,6 +26,12 @@ type TubeChannelResult = {
   url: string
   channelId: string | null
   videos: TubeVideo[]
+  downfallIndexUpdate: {
+    hasUpdate: boolean
+    value: number | null
+    title: string
+    videoUrl: string
+  }
   error: string
 }
 
@@ -91,6 +97,30 @@ const parseFeed = (xml: string): TubeVideo[] => {
     .slice(0, MAX_VIDEOS_PER_CHANNEL)
 }
 
+const createDownfallIndexUpdate = (channelId: string, videos: TubeVideo[]) => {
+  if (channelId !== 'henren778') {
+    return {
+      hasUpdate: false,
+      value: null,
+      title: '',
+      videoUrl: ''
+    }
+  }
+
+  const matchedVideo = videos.find(video => /倒台指[數数][^\d０-９]{0,12}[\d０-９]+/i.test(video.title))
+  const rawValue = matchedVideo?.title.match(/倒台指[數数][^\d０-９]{0,12}([\d０-９]+)/i)?.[1] || ''
+  const value = rawValue
+    ? Number(rawValue.replace(/[０-９]/g, char => String(char.charCodeAt(0) - 0xFF10)))
+    : null
+
+  return {
+    hasUpdate: Boolean(matchedVideo),
+    value: Number.isFinite(value) ? value : null,
+    title: matchedVideo?.title || '',
+    videoUrl: matchedVideo?.url || ''
+  }
+}
+
 const extractChannelId = (html: string) => {
   return html.match(/<meta itemprop="channelId" content="([^"]+)"/i)?.[1] ||
     html.match(/"browseId":"(UC[^"]+)"/i)?.[1] ||
@@ -109,10 +139,13 @@ const fetchChannelVideos = async (channel: typeof FENG_TUBE_CHANNELS[number]): P
 
     const feedXml = await fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`)
 
+    const videos = parseFeed(feedXml)
+
     return {
       ...channel,
       channelId,
-      videos: parseFeed(feedXml),
+      videos,
+      downfallIndexUpdate: createDownfallIndexUpdate(channel.id, videos),
       error: ''
     }
   } catch (error: any) {
@@ -120,6 +153,7 @@ const fetchChannelVideos = async (channel: typeof FENG_TUBE_CHANNELS[number]): P
       ...channel,
       channelId: null,
       videos: [],
+      downfallIndexUpdate: createDownfallIndexUpdate(channel.id, []),
       error: error?.message || '抓取頻道失敗'
     }
   }

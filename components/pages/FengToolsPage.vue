@@ -252,7 +252,22 @@
             <div class="tube-channel-card__header">
               <div>
                 <p class="store-card__name">{{ channel.handle }}</p>
-                <h4>{{ channel.label }}</h4>
+                <h4 class="tube-channel-title">
+                  <span>{{ channel.label }}</span>
+                  <a
+                    v-if="channel.downfallIndexUpdate?.hasUpdate"
+                    :href="channel.downfallIndexUpdate.videoUrl || channel.url"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="tube-update-badge"
+                    :title="channel.downfallIndexUpdate.title"
+                  >
+                    更新
+                    <span v-if="channel.downfallIndexUpdate.value !== null">
+                      {{ channel.downfallIndexUpdate.value }}
+                    </span>
+                  </a>
+                </h4>
               </div>
               <a :href="channel.url" target="_blank" rel="noreferrer" class="store-card__link">前往頻道</a>
             </div>
@@ -852,6 +867,31 @@ watch(
 .tube-channel-card h4 {
   margin: 0.25rem 0 0;
   font-size: 1.15rem;
+}
+
+.tube-channel-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.tube-update-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, #ef4444 14%, var(--bg-secondary));
+  color: #b91c1c;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.tube-update-badge span {
+  color: #7f1d1d;
 }
 
 .tube-video-list {

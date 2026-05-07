@@ -303,6 +303,10 @@ const commandGuide = computed(() => [
     examples: ['名稱 Netflix', '分類 Suno', '備註 今天整理完成', '價格 390', '數量 12', '日期 下週五', '網址 https://example.com']
   },
   {
+    title: '一句話新增',
+    examples: ['新增食品 牛奶 數量三 明天到期', '新增訂閱 Netflix 月費 390 下週五', '新增銀行 富邦 存款 5000', '新增筆記 會議紀錄 備註 今天整理完成']
+  },
+  {
     title: '資料操作',
     examples: ['新增', '儲存', '取消', '編輯第一筆', '刪除第一筆', '全選', '匯入 ZIP', '匯出 CSV', '批量選擇']
   },
@@ -453,6 +457,18 @@ const clickFirstVisible = (selectors) => {
   return true
 }
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const waitForVisible = async (selectors, timeout = 1800) => {
+  const started = Date.now()
+  while (Date.now() - started < timeout) {
+    const target = findFirstVisible(selectors)
+    if (target) return target
+    await wait(80)
+  }
+  return null
+}
+
 const clickVisibleByText = (selectors, labels) => {
   const wanted = labels.map((label) => String(label).toLowerCase())
   const items = Array.from(document.querySelectorAll(selectors))
@@ -500,6 +516,14 @@ const getFieldSelector = (fieldKey) => {
 const fillNamedField = (fieldKey, value) => {
   const selector = getFieldSelector(fieldKey)
   const target = selector ? findFirstVisible(selector) : null
+  if (!target) return false
+  setNativeValue(target, normalizeFieldValue(fieldKey, value))
+  return true
+}
+
+const fillNamedFieldOnPage = async (pageId, fieldKey, value) => {
+  const selector = pageFieldSelectors[pageId]?.[fieldKey] || pageFieldSelectors[pageId]?.note || ''
+  const target = selector ? await waitForVisible(selector) : null
   if (!target) return false
   setNativeValue(target, normalizeFieldValue(fieldKey, value))
   return true
@@ -581,14 +605,14 @@ const normalizeSpokenDate = (raw) => {
     date.setDate(date.getDate() + 1)
     return build(date)
   }
-  if (/後天/.test(raw)) {
-    const date = new Date(today)
-    date.setDate(date.getDate() + 2)
-    return build(date)
-  }
   if (/大後天/.test(raw)) {
     const date = new Date(today)
     date.setDate(date.getDate() + 3)
+    return build(date)
+  }
+  if (/後天/.test(raw)) {
+    const date = new Date(today)
+    date.setDate(date.getDate() + 2)
     return build(date)
   }
   if (/下個月|下月/.test(raw)) {
@@ -687,6 +711,95 @@ const getSearchPayload = (text) => {
     .trim()
 }
 
+const getPageScopedText = (text, pageId) => {
+  let scoped = normalizeCommandText(text)
+  const aliases = [pageId, ...(pageAliases[pageId] || [])]
+  aliases.forEach((alias) => {
+    scoped = scoped.replace(new RegExp(String(alias).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), ' ')
+  })
+  return scoped
+    .replace(/^(請)?(新增|建立|加一筆|記錄|新增一筆|我要)\s*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const extractTokenValue = (text, patterns) => {
+  for (const pattern of patterns) {
+    const match = text.match(pattern)
+    if (match?.[1]) return match[1].trim()
+  }
+  return ''
+}
+
+const stripKnownFieldPhrases = (text) => {
+  return text
+    .replace(/(月費|價格|金額|費用)\s*[零〇一二兩三四五六七八九十\d.,-]+/g, ' ')
+    .replace(/(數量|庫存|份數|瓶數|包數|個數)\s*[零〇一二兩三四五六七八九十\d.,-]+/g, ' ')
+    .replace(/(存款|餘額)\s*[零〇一二兩三四五六七八九十\d.,-]+/g, ' ')
+    .replace(/(帳號|信箱|email)\s*[^\s]+/gi, ' ')
+    .replace(/(商店|店家|來源|分行|網站)\s*[^\s]+/g, ' ')
+    .replace(/(日期|到期|有效期限|續訂|下次付款|下次日期)?\s*(昨天|昨日|今天|今日|明天|明日|大後天|後天|下週[一二三四五六日天]?|這週[一二三四五六日天]?|本週[一二三四五六日天]?|星期[一二三四五六日天]|禮拜[一二三四五六日天]|下個月|下月|\d+\s*(天|日)後|\d{1,2}\s*月\s*\d{1,2}\s*(日|號)?|\d{4}[/-]\d{1,2}[/-]\d{1,2})/g, ' ')
+    .replace(/(備註|說明|內容)\s*.+$/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const extractSmartDatePhrase = (text) => {
+  return text.match(/昨天|昨日|今天|今日|明天|明日|大後天|後天|下週[一二三四五六日天]?|這週[一二三四五六日天]?|本週[一二三四五六日天]?|星期[一二三四五六日天]|禮拜[一二三四五六日天]|下個月|下月|\d+\s*(天|日)後|\d{1,2}\s*月\s*\d{1,2}\s*(日|號)?|\d{4}[/-]\d{1,2}[/-]\d{1,2}/)?.[0] || ''
+}
+
+const parseSmartCreatePayload = (text, pageId) => {
+  const scoped = getPageScopedText(text, pageId)
+  const fields = {}
+  const price = extractTokenValue(scoped, [/(?:月費|價格|金額|費用)\s*([零〇一二兩三四五六七八九十\d.,-]+)/])
+  const quantity = extractTokenValue(scoped, [/(?:數量|庫存|份數|瓶數|包數|個數)\s*([零〇一二兩三四五六七八九十\d.,-]+)/])
+  const deposit = extractTokenValue(scoped, [/(?:存款|餘額)\s*([零〇一二兩三四五六七八九十\d.,-]+)/])
+  const account = extractTokenValue(scoped, [/(?:帳號|信箱|email)\s*([^\s]+)/i])
+  const shop = extractTokenValue(scoped, [/(?:商店|店家|來源|分行|網站)\s*([^\s]+)/])
+  const note = extractTokenValue(scoped, [/(?:備註|說明|內容)\s*(.+)$/])
+  const date = extractSmartDatePhrase(scoped)
+
+  if (price) fields.price = price
+  if (quantity) fields.quantity = quantity
+  if (deposit) fields.deposit = deposit
+  if (account) fields.account = account
+  if (shop) fields.shop = shop
+  if (note) fields.note = note
+  if (date) fields.date = date
+
+  const name = stripKnownFieldPhrases(scoped)
+  if (name) fields.name = name
+
+  return fields
+}
+
+const buildSmartCreateCommand = (text) => {
+  if (!/(新增|建立|加一筆|記錄|新增一筆)/.test(text)) return null
+  const page = findPageFromText(text) || currentPageConfig.value
+  if (!page) return null
+  const fields = parseSmartCreatePayload(text, page.id)
+  if (!Object.keys(fields).length) return null
+
+  return {
+    label: `新增${page.name}：${fields.name || '新資料'}`,
+    detail: Object.entries(fields).map(([key, value]) => `${key}: ${value}`).join('，'),
+    run: async () => {
+      if (props.currentPage !== page.id) {
+        emit('navigate', page.id)
+        await wait(260)
+      }
+      const added = clickFirstVisible('.btn-add-icon, button[title*="新增"], .btn-primary')
+      if (!added) return false
+      await wait(220)
+      for (const [fieldKey, value] of Object.entries(fields)) {
+        const ok = await fillNamedFieldOnPage(page.id, fieldKey, value)
+        if (!ok && fieldKey === 'name') return false
+      }
+      return true
+    }
+  }
+}
+
 const prepareCommand = () => {
   const text = normalizeText(transcript.value)
   if (!text) {
@@ -703,6 +816,13 @@ const prepareCommand = () => {
   if (commands.length > 1) {
     pendingAction.value = buildMultiCommand(commands)
     setStatus('已準備連續語音指令，請確認。')
+    return
+  }
+
+  const smartCreateCommand = buildSmartCreateCommand(text)
+  if (smartCreateCommand) {
+    pendingAction.value = smartCreateCommand
+    setStatus('已準備一句話新增，請確認。')
     return
   }
 
@@ -818,6 +938,9 @@ const buildMultiCommand = (commands) => {
 }
 
 const resolveCommand = (text) => {
+  const smartCreateCommand = buildSmartCreateCommand(text)
+  if (smartCreateCommand) return smartCreateCommand
+
   const page = findPageFromText(text)
   if (page && (/(切換|前往|到|開啟|打開|進入|去|我要|顯示|查看|跳到)/.test(text) || pageAliases[page.id]?.includes(text))) {
     return { run: () => emit('navigate', page.id) }
@@ -844,6 +967,15 @@ const resolveCommand = (text) => {
 }
 
 const buildQuickCommand = (text) => {
+  if (/(確認|確定|執行|送出)$/.test(text) && pendingAction.value) {
+    return { label: '確認目前待執行指令', detail: '確認後會執行目前語音面板裡的待確認動作。', run: () => executePendingAction() }
+  }
+  if (/(關閉語音|收起語音|隱藏語音面板|關掉語音)/.test(text)) {
+    return { label: '關閉語音面板', detail: '確認後會收起語音輸入面板。', run: () => closePanel() }
+  }
+  if (/(清空語音|清除語音|重講|重新輸入)/.test(text)) {
+    return { label: '清空語音內容', detail: '確認後會清空目前辨識文字。', run: () => clearTranscript() }
+  }
   if (/(打開選單|開啟選單|收合選單|關閉選單|側邊欄|導覽列)/.test(text)) {
     return { label: '切換側邊選單', detail: '確認後會切換側邊導覽列。', run: () => clickFirstVisible('.sidebar-toggle, .mobile-menu-toggle, button[aria-label*="選單"], button[aria-label*="menu"]') }
   }
@@ -862,9 +994,9 @@ const buildQuickCommand = (text) => {
   if (/(淺色|亮色|light)/i.test(text)) {
     return { label: '切換淺色模式', detail: '確認後會切換目前深淺色模式。', run: () => clickFirstVisible('.dark-mode-toggle') || clickButtonByText('Light') || clickButtonByText('Dark') }
   }
-  if (/(昨天|昨日|今天|今日|明天|明日|後天|大後天|下週|這週|本週|星期|禮拜|下個月|下月|\d+\s*(天|日)後).*(日期|有效期限|到期|續訂)/.test(text)) {
+  if (/(昨天|昨日|今天|今日|明天|明日|大後天|後天|下週|這週|本週|星期|禮拜|下個月|下月|\d+\s*(天|日)後).*(日期|有效期限|到期|續訂)/.test(text)) {
     const fieldKey = 'date'
-    const payload = text.match(/昨天|昨日|今天|今日|明天|明日|後天|大後天|下週[一二三四五六日天]?|這週[一二三四五六日天]?|本週[一二三四五六日天]?|星期[一二三四五六日天]|禮拜[一二三四五六日天]|下個月|下月|\d+\s*(天|日)後/)?.[0] || text
+    const payload = text.match(/昨天|昨日|今天|今日|明天|明日|大後天|後天|下週[一二三四五六日天]?|這週[一二三四五六日天]?|本週[一二三四五六日天]?|星期[一二三四五六日天]|禮拜[一二三四五六日天]|下個月|下月|\d+\s*(天|日)後/)?.[0] || text
     return { label: `設定日期「${payload}」`, detail: '確認後會把日期欄位填成對應日期。', run: () => fillNamedField(fieldKey, payload) }
   }
   if (/(今年|明年|去年|\d{4}\s*年|全部年份|無日期)/.test(text)) {
@@ -886,6 +1018,9 @@ const buildQuickCommand = (text) => {
   }
   if (/(播放|開始播放)/.test(text)) {
     return { label: '播放媒體', detail: '確認後會按下目前可見的播放按鈕或播放控制。', run: () => clickFirstVisible('.play-overlay, .play-btn, .persistent-audio-btn, button[title*="播放"]') || clickButtonByText('Play') }
+  }
+  if (/(預覽|查看檔案|看檔案|打開檔案)/.test(text)) {
+    return { label: '預覽或開啟檔案', detail: '確認後會按下目前可見的預覽或開啟檔案按鈕。', run: () => clickVisibleByText('button, a', ['預覽', '開啟檔案', '開新分頁']) }
   }
   if (/(暫停|停止播放|pause)/i.test(text)) {
     return { label: '暫停媒體', detail: '確認後會按下目前可見的暫停控制。', run: () => clickButtonByText('Pause') || clickFirstVisible('.persistent-audio-btn') }
@@ -916,6 +1051,9 @@ const buildQuickCommand = (text) => {
   }
   if (/(編輯第一筆|修改第一筆|第一筆編輯|編輯目前|修改目前)/.test(text)) {
     return { label: '編輯第一筆資料', detail: '確認後會按下第一個可見的編輯按鈕。', run: () => clickFirstVisible('.btn-edit-icon, button[title*="編輯"], button[aria-label*="編輯"]') }
+  }
+  if (/(查看第一筆|檢視第一筆|展開第一筆|看第一筆)/.test(text)) {
+    return { label: '查看第一筆資料', detail: '確認後會按下第一個可見的查看、展開或預覽按鈕。', run: () => clickVisibleByText('button, a', ['查看', '檢視', '展開', '預覽']) }
   }
   if (/(刪除第一筆|刪第一筆|第一筆刪除|刪除目前|刪掉目前)/.test(text)) {
     return { label: '刪除第一筆資料', detail: '確認後會按下第一個可見的刪除按鈕；頁面若有安全確認仍會再詢問。', run: () => clickFirstVisible('.btn-delete-icon, button[title*="刪除"], button[aria-label*="刪除"]') }

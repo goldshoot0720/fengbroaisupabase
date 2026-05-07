@@ -93,6 +93,7 @@
             </th>
             <th class="col-name">名稱</th>
             <th class="col-date">有效期限</th>
+            <th class="col-remaining">剩餘日期</th>
             <th class="col-amount">數量</th>
             <th class="col-photo">圖片</th>
             <th class="col-actions">操作</th>
@@ -102,18 +103,21 @@
           <!-- 新增行 -->
           <tr v-if="showAddRow" class="add-row">
             <td v-if="batchMode" class="col-checkbox"></td>
-            <td class="col-name">
+            <td class="col-name" data-label="名稱">
               <input v-model="addForm.name" type="text" class="inline-input" placeholder="食物名稱 *" />
               <input v-model="addForm.shop" type="text" class="inline-input inline-small" placeholder="購買商店" />
               <input v-model="addForm.price" type="number" class="inline-input inline-small inline-price" placeholder="價格" min="0" />
             </td>
-            <td class="col-date">
+            <td class="col-date" data-label="有效期限">
               <input v-model="addForm.todate" type="date" class="inline-input inline-date" />
             </td>
-            <td class="col-amount">
+            <td class="col-remaining" data-label="剩餘日期">
+              <span class="remaining-empty">-</span>
+            </td>
+            <td class="col-amount" data-label="數量">
               <input v-model="addForm.amount" type="number" class="inline-input inline-number" placeholder="0" min="1" />
             </td>
-            <td class="col-photo col-photo-edit">
+            <td class="col-photo col-photo-edit" data-label="圖片">
               <div v-if="addForm.photo" class="inline-photo-preview">
                 <img :src="addForm.photo" alt="預覽" class="mini-photo" />
                 <button type="button" class="btn-remove-photo" @click="addForm.photo = ''">✕</button>
@@ -124,7 +128,7 @@
               </label>
               <input v-model="addForm.photo" type="text" class="inline-input inline-small" placeholder="照片URL" />
             </td>
-            <td class="col-actions">
+            <td class="col-actions" data-label="操作">
               <button @click="saveAddRow" class="btn-icon btn-save-icon" title="新增">✓</button>
               <button @click="cancelAddRow" class="btn-icon btn-cancel-icon" title="取消">✕</button>
             </td>
@@ -146,18 +150,21 @@
 
             <!-- 編輯模式：行内編輯 -->
             <template v-if="editingRowId === food.id">
-              <td class="col-name">
+              <td class="col-name" data-label="名稱">
                 <input v-model="editForm.name" type="text" class="inline-input" placeholder="食物名稱" />
                 <input v-model="editForm.shop" type="text" class="inline-input inline-small" placeholder="購買商店" />
                 <input v-model="editForm.price" type="number" class="inline-input inline-small inline-price" placeholder="價格" min="0" />
               </td>
-              <td class="col-date">
+              <td class="col-date" data-label="有效期限">
                 <input v-model="editForm.todate" type="date" class="inline-input inline-date" />
               </td>
-              <td class="col-amount">
+              <td class="col-remaining" data-label="剩餘日期">
+                <span :class="getRemainingClass(editForm.todate)">{{ formatRemainingDate(editForm.todate) }}</span>
+              </td>
+              <td class="col-amount" data-label="數量">
                 <input v-model="editForm.amount" type="number" class="inline-input inline-number" placeholder="0" min="1" />
               </td>
-              <td class="col-photo col-photo-edit">
+              <td class="col-photo col-photo-edit" data-label="圖片">
                 <div v-if="editForm.photo" class="inline-photo-preview">
                   <img :src="editForm.photo" alt="預覽" class="mini-photo" @click="previewImage = editForm.photo" />
                   <button type="button" class="btn-remove-photo" @click="editForm.photo = ''">✕</button>
@@ -168,7 +175,7 @@
                 </label>
                 <input v-model="editForm.photo" type="text" class="inline-input inline-small" placeholder="照片URL" />
               </td>
-              <td class="col-actions">
+              <td class="col-actions" data-label="操作">
                 <button @click="saveInlineEdit(food.id)" class="btn-icon btn-save-icon" title="儲存">✓</button>
                 <button @click="cancelInlineEdit" class="btn-icon btn-cancel-icon" title="取消">✕</button>
               </td>
@@ -176,7 +183,7 @@
 
             <!-- 正常顯示模式 -->
             <template v-else>
-              <td class="col-name">
+              <td class="col-name" data-label="名稱">
                 <div class="name-cell">
                   <span class="food-name">{{ food.name }}</span>
                   <div v-if="food.shop || food.price" class="food-meta">
@@ -185,13 +192,16 @@
                   </div>
                 </div>
               </td>
-              <td class="col-date">
+              <td class="col-date" data-label="有效期限">
                 <span :class="getExpiryClass(food.todate)">{{ formatDate(food.todate) }}</span>
               </td>
-              <td class="col-amount">
+              <td class="col-remaining" data-label="剩餘日期">
+                <span :class="getRemainingClass(food.todate)">{{ formatRemainingDate(food.todate) }}</span>
+              </td>
+              <td class="col-amount" data-label="數量">
                 <span>{{ food.amount || '' }}</span>
               </td>
-              <td class="col-photo">
+              <td class="col-photo" data-label="圖片">
                 <img
                   v-if="food.photo"
                   :src="food.photo"
@@ -200,7 +210,7 @@
                   @click="previewImage = food.photo"
                 />
               </td>
-              <td class="col-actions">
+              <td class="col-actions" data-label="操作">
                 <button @click="startInlineEdit(food)" class="btn-icon btn-edit-icon" title="編輯">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -301,6 +311,39 @@ const parseFoodDate = (dateString) => {
   if (!dateString) return null
   const date = new Date(dateString)
   return Number.isNaN(date.getTime()) ? null : date
+}
+
+const getStartOfDay = (date) => {
+  const normalized = new Date(date)
+  normalized.setHours(0, 0, 0, 0)
+  return normalized
+}
+
+const calculateDaysRemaining = (dateString) => {
+  const targetDate = parseFoodDate(dateString)
+  if (!targetDate) return null
+
+  const today = getStartOfDay(new Date())
+  const target = getStartOfDay(targetDate)
+  return Math.round((target - today) / (1000 * 60 * 60 * 24))
+}
+
+const formatRemainingDate = (dateString) => {
+  const days = calculateDaysRemaining(dateString)
+  if (days === null) return '-'
+  if (days === 0) return '今天到期'
+  if (days === 1) return '明天到期'
+  if (days < 0) return `已過期 ${Math.abs(days)} 天`
+  return `剩 ${days} 天`
+}
+
+const getRemainingClass = (dateString) => {
+  const days = calculateDaysRemaining(dateString)
+  if (days === null) return 'remaining-empty'
+  if (days < 0) return 'remaining-badge remaining-expired'
+  if (days <= 7) return 'remaining-badge remaining-critical'
+  if (days <= 30) return 'remaining-badge remaining-warning'
+  return 'remaining-badge remaining-normal'
 }
 
 const availableYears = computed(() => {
@@ -936,6 +979,11 @@ defineExpose({ foods, expiringFoods })
   white-space: nowrap;
 }
 
+.col-remaining {
+  width: 110px;
+  white-space: nowrap;
+}
+
 .col-amount {
   width: 70px;
   text-align: center;
@@ -1035,6 +1083,43 @@ defineExpose({ foods, expiringFoods })
 .date-soon { color: #f39c12; font-weight: bold; }
 .date-overdue { color: #e74c3c; font-weight: bold; }
 .date-critical { color: #e74c3c; font-weight: bold; }
+
+.remaining-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 74px;
+  min-height: 28px;
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.remaining-normal {
+  color: #1f7a4d;
+  background: #eaf7ef;
+}
+
+.remaining-warning {
+  color: #9a5b00;
+  background: #fff3d8;
+}
+
+.remaining-critical {
+  color: #b54708;
+  background: #ffe7d6;
+}
+
+.remaining-expired {
+  color: #b42318;
+  background: #ffe4e0;
+}
+
+.remaining-empty {
+  color: #adb5bd;
+}
 
 /* Icon action buttons */
 .btn-icon {
@@ -1401,6 +1486,7 @@ defineExpose({ foods, expiringFoods })
 
   .col-name,
   .col-date,
+  .col-remaining,
   .col-amount,
   .col-photo,
   .col-photo-edit,
@@ -1420,6 +1506,7 @@ defineExpose({ foods, expiringFoods })
   }
 
   .col-date span,
+  .col-remaining span,
   .col-amount span {
     display: inline-flex;
     align-items: center;

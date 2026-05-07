@@ -43,7 +43,7 @@
         <textarea
           v-model="transcript"
           rows="3"
-          placeholder="例如：新增、搜尋 Netflix、輸入 會議紀錄、切換到鋒兄食品、匯出 ZIP"
+          placeholder="例如：鋒兄食品、新增食品、搜尋 Netflix、日期 明天、輸入 月費 390、先新增再輸入名稱牛奶"
           @input="prepareCommand"
         ></textarea>
       </div>
@@ -104,22 +104,22 @@ const pendingAction = ref(null)
 let recognition = null
 
 const pageAliases = {
-  home: ['首頁', '鋒兄首頁', '主頁'],
-  dashboard: ['儀表', '儀表板', '鋒兄儀表'],
-  subscription: ['訂閱', '鋒兄訂閱'],
-  food: ['食品', '食物', '商品庫存', '鋒兄食品'],
-  note: ['筆記', '鋒兄筆記'],
-  common: ['常用', '常用帳號', '鋒兄常用'],
-  gallery: ['圖片', '圖庫', '鋒兄圖片'],
-  video: ['影片', '鋒兄影片'],
-  music: ['音樂', '鋒兄音樂'],
-  document: ['文件', '檔案', '鋒兄文件'],
-  podcast: ['播客', 'podcast', '鋒兄播客'],
-  bank: ['銀行', '鋒兄銀行'],
-  routine: ['例行', '流程', '鋒兄例行'],
-  tools: ['工具', '比價', '鋒兄工具'],
-  settings: ['設定', '系統設定', '鋒兄設定'],
-  about: ['關於', '說明', '鋒兄關於']
+  home: ['首頁', '鋒兄首頁', '主頁', '開始', 'home'],
+  dashboard: ['儀表', '儀表板', '總覽', '鋒兄儀表', 'dashboard'],
+  subscription: ['訂閱', '續訂', '月費', '扣款', '鋒兄訂閱', 'subscription'],
+  food: ['食品', '食物', '商品庫存', '庫存', '到期食品', '鋒兄食品', 'food'],
+  note: ['筆記', '記事', '紀錄', '會議紀錄', '鋒兄筆記', 'note'],
+  common: ['常用', '常用帳號', '帳號', '網站帳號', '鋒兄常用', 'common'],
+  gallery: ['圖片', '圖庫', '照片', '相簿', '鋒兄圖片', 'gallery'],
+  video: ['影片', '視頻', '影像', '鋒兄影片', 'video'],
+  music: ['音樂', '歌曲', '歌', '鋒兄音樂', 'music'],
+  document: ['文件', '檔案', '文檔', '資料夾', '鋒兄文件', 'document'],
+  podcast: ['播客', 'podcast', '節目', '訪談', '鋒兄播客'],
+  bank: ['銀行', '帳戶', '存款', '金融', '鋒兄銀行', 'bank'],
+  routine: ['例行', '流程', '任務', '固定流程', '鋒兄例行', 'routine'],
+  tools: ['工具', '比價', '手機比價', '鋒兄工具', 'tools'],
+  settings: ['設定', '系統設定', '來源設定', '偏好設定', '鋒兄設定', 'settings'],
+  about: ['關於', '說明', '幫助', '版本', '鋒兄關於', 'about']
 }
 
 const pageHints = {
@@ -155,7 +155,9 @@ const fieldAliases = [
   { key: 'lyrics', aliases: ['歌詞'] },
   { key: 'ref', aliases: ['參考', '參考連結'] },
   { key: 'hash', aliases: ['hash', 'Hash', '雜湊'] },
-  { key: 'quantity', aliases: ['數量', '庫存'] },
+  { key: 'quantity', aliases: ['數量', '庫存', '份數', '瓶數', '包數', '個數'] },
+  { key: 'status', aliases: ['狀態', '續訂狀態', '是否續訂'] },
+  { key: 'phone', aliases: ['電話', '手機', '聯絡電話'] },
   { key: 'deposit', aliases: ['存款'] },
   { key: 'card', aliases: ['卡號'] },
   { key: 'address', aliases: ['地址'] }
@@ -282,27 +284,35 @@ const pageFieldSelectors = {
 
 const currentPageConfig = computed(() => props.pages.find((page) => page.id === props.currentPage))
 const currentPageName = computed(() => currentPageConfig.value?.name || '鋒兄系統')
-const activeHints = computed(() => pageHints[props.currentPage] || ['新增', '搜尋', '輸入', '儲存'])
+const currentPageIndex = computed(() => props.pages.findIndex((page) => page.id === props.currentPage))
+const nextPage = computed(() => props.pages[(currentPageIndex.value + 1) % props.pages.length])
+const previousPage = computed(() => props.pages[(currentPageIndex.value - 1 + props.pages.length) % props.pages.length])
+const navigationExamples = computed(() => props.pages.map((page) => `切換到${page.name}`))
+const activeHints = computed(() => {
+  const base = pageHints[props.currentPage] || ['新增', '搜尋', '輸入', '儲存']
+  const next = nextPage.value ? [`下一個選單：${nextPage.value.name}`] : []
+  return [...base, ...next, '全選', '編輯第一筆', '刪除第一筆']
+})
 const commandGuide = computed(() => [
   {
-    title: '頁面導航',
-    examples: ['切換到鋒兄首頁', '切換到鋒兄訂閱', '切換到鋒兄食品', '切換到鋒兄設定']
+    title: '全部選單',
+    examples: navigationExamples.value
   },
   {
     title: '欄位輸入',
-    examples: ['名稱 Netflix', '分類 Suno', '備註 今天整理完成', '價格 390', '日期 明天', '網址 https://example.com']
+    examples: ['名稱 Netflix', '分類 Suno', '備註 今天整理完成', '價格 390', '數量 12', '日期 下週五', '網址 https://example.com']
   },
   {
     title: '資料操作',
-    examples: ['新增', '儲存', '取消', '匯入 ZIP', '匯出 CSV', '批量選擇']
+    examples: ['新增', '儲存', '取消', '編輯第一筆', '刪除第一筆', '全選', '匯入 ZIP', '匯出 CSV', '批量選擇']
   },
   {
     title: '顯示與篩選',
-    examples: ['搜尋 鋒兄', '卡片式', '列表式', '今年', '全部月份', '深色模式']
+    examples: ['搜尋 鋒兄', '清空搜尋', '卡片式', '列表式', '今年', '五月', '全部月份', '深色模式']
   },
   {
     title: '媒體工具',
-    examples: ['播放', '暫停', '快取', '切換 Bilibili', '切換 YouTube']
+    examples: ['播放', '暫停', '下一首', '上一首', '快取', '下載', '切換 Bilibili', '切換 YouTube']
   }
 ])
 
@@ -312,6 +322,15 @@ const setStatus = (message, type = 'idle') => {
 }
 
 const normalizeText = (value) => String(value || '').trim()
+
+const normalizeCommandText = (value) => normalizeText(value)
+  .replace(/[，。；;、]/g, ' ')
+  .replace(/\s+/g, ' ')
+
+const splitCommands = (value) => normalizeCommandText(value)
+  .split(/\s*(?:然後|接著|再來|再|並且|以及|and then|then)\s*/i)
+  .map((item) => item.trim())
+  .filter(Boolean)
 
 const toggleExpanded = () => {
   isExpanded.value = !isExpanded.value
@@ -401,10 +420,21 @@ const stopListening = () => {
 
 const findPageFromText = (text) => {
   const lower = text.toLowerCase()
-  return props.pages.find((page) => {
+  const exact = props.pages.find((page) => {
     const aliases = [page.name, page.title, ...(pageAliases[page.id] || [])]
+    return aliases.some((alias) => alias && lower === String(alias).toLowerCase())
+  })
+  if (exact) return exact
+  return props.pages.find((page) => {
+    const aliases = [page.name, page.title, page.id, ...(pageAliases[page.id] || [])]
     return aliases.some((alias) => alias && lower.includes(String(alias).toLowerCase()))
   })
+}
+
+const findPageByOffset = (offset) => {
+  if (!props.pages.length) return null
+  const currentIndex = currentPageIndex.value >= 0 ? currentPageIndex.value : 0
+  return props.pages[(currentIndex + offset + props.pages.length) % props.pages.length]
 }
 
 const findFirstVisible = (selectors) => {
@@ -418,6 +448,20 @@ const findFirstVisible = (selectors) => {
 
 const clickFirstVisible = (selectors) => {
   const target = findFirstVisible(selectors)
+  if (!target) return false
+  target.click()
+  return true
+}
+
+const clickVisibleByText = (selectors, labels) => {
+  const wanted = labels.map((label) => String(label).toLowerCase())
+  const items = Array.from(document.querySelectorAll(selectors))
+  const target = items.find((item) => {
+    const rect = item.getBoundingClientRect()
+    const style = window.getComputedStyle(item)
+    const text = `${item.textContent || ''} ${item.getAttribute('aria-label') || ''} ${item.getAttribute('title') || ''}`.toLowerCase()
+    return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none' && !item.disabled && wanted.some((label) => text.includes(label))
+  })
   if (!target) return false
   target.click()
   return true
@@ -465,9 +509,56 @@ const normalizeFieldValue = (fieldKey, value) => {
   const raw = String(value || '').trim()
   if (fieldKey === 'date') return normalizeSpokenDate(raw)
   if (['price', 'quantity', 'deposit'].includes(fieldKey)) {
-    return raw.replace(/[^\d.-]/g, '')
+    return spokenNumberToDigits(raw).replace(/[^\d.-]/g, '')
   }
   return raw
+}
+
+const chineseDigitMap = {
+  零: 0,
+  〇: 0,
+  一: 1,
+  二: 2,
+  兩: 2,
+  三: 3,
+  四: 4,
+  五: 5,
+  六: 6,
+  七: 7,
+  八: 8,
+  九: 9
+}
+
+const parseSmallChineseNumber = (value) => {
+  if (!value) return null
+  if (/^\d+$/.test(value)) return Number(value)
+  if (value === '十') return 10
+  const tenMatch = value.match(/^([零〇一二兩三四五六七八九])?十([零〇一二兩三四五六七八九])?$/)
+  if (tenMatch) {
+    const tens = tenMatch[1] ? chineseDigitMap[tenMatch[1]] : 1
+    const ones = tenMatch[2] ? chineseDigitMap[tenMatch[2]] : 0
+    return tens * 10 + ones
+  }
+  if (value.length === 1 && value in chineseDigitMap) return chineseDigitMap[value]
+  return null
+}
+
+const spokenNumberToDigits = (value) => String(value || '').replace(/[零〇一二兩三四五六七八九]?十[零〇一二兩三四五六七八九]?|[零〇一二兩三四五六七八九]/g, (match) => {
+  const parsed = parseSmallChineseNumber(match)
+  return parsed === null ? match : String(parsed)
+})
+
+const parseWeekdayOffset = (raw, today) => {
+  const weekMatch = raw.match(/(下下週|下週|這週|本週|週|星期|禮拜)([一二三四五六日天])/)
+  if (!weekMatch) return null
+  const weekdayMap = { 日: 0, 天: 0, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6 }
+  const targetDay = weekdayMap[weekMatch[2]]
+  const currentDay = today.getDay()
+  let offset = targetDay - currentDay
+  if (/下下週/.test(weekMatch[1])) offset += 14
+  else if (/下週/.test(weekMatch[1])) offset += 7
+  else if (offset < 0) offset += 7
+  return offset
 }
 
 const normalizeSpokenDate = (raw) => {
@@ -480,6 +571,11 @@ const normalizeSpokenDate = (raw) => {
   }
 
   if (!raw || /今天|今日/.test(raw)) return build(today)
+  if (/昨天|昨日/.test(raw)) {
+    const date = new Date(today)
+    date.setDate(date.getDate() - 1)
+    return build(date)
+  }
   if (/明天|明日/.test(raw)) {
     const date = new Date(today)
     date.setDate(date.getDate() + 1)
@@ -490,20 +586,49 @@ const normalizeSpokenDate = (raw) => {
     date.setDate(date.getDate() + 2)
     return build(date)
   }
+  if (/大後天/.test(raw)) {
+    const date = new Date(today)
+    date.setDate(date.getDate() + 3)
+    return build(date)
+  }
+  if (/下個月|下月/.test(raw)) {
+    const date = new Date(today)
+    date.setMonth(date.getMonth() + 1)
+    return build(date)
+  }
+  if (/上個月|上月/.test(raw)) {
+    const date = new Date(today)
+    date.setMonth(date.getMonth() - 1)
+    return build(date)
+  }
 
-  const daysMatch = raw.match(/(\d+)\s*(天|日)後/)
+  const weekdayOffset = parseWeekdayOffset(raw, today)
+  if (weekdayOffset !== null) {
+    const date = new Date(today)
+    date.setDate(date.getDate() + weekdayOffset)
+    return build(date)
+  }
+
+  const normalizedNumberRaw = spokenNumberToDigits(raw)
+  const daysMatch = normalizedNumberRaw.match(/(\d+)\s*(天|日)後/)
   if (daysMatch) {
     const date = new Date(today)
     date.setDate(date.getDate() + Number(daysMatch[1]))
     return build(date)
   }
 
-  const dateMatch = raw.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})|(\d{1,2})\s*月\s*(\d{1,2})\s*(日|號)?/)
+  const dateMatch = normalizedNumberRaw.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})|(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*(日|號)?|(\d{1,2})[/-](\d{1,2})|(\d{1,2})\s*月\s*(\d{1,2})\s*(日|號)?/)
   if (dateMatch?.[1]) {
     return `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`
   }
   if (dateMatch?.[4]) {
-    return `${today.getFullYear()}-${dateMatch[4].padStart(2, '0')}-${dateMatch[5].padStart(2, '0')}`
+    return `${dateMatch[4]}-${dateMatch[5].padStart(2, '0')}-${dateMatch[6].padStart(2, '0')}`
+  }
+  if (dateMatch?.[8]) {
+    return `${today.getFullYear()}-${dateMatch[8].padStart(2, '0')}-${dateMatch[9].padStart(2, '0')}`
+  }
+  if (dateMatch?.[10]) {
+    return `${today.getFullYear()}-${dateMatch[10].padStart(2, '0')}-${dateMatch[11].padStart(2, '0')}`
   }
   return raw
 }
@@ -558,7 +683,7 @@ const getInputPayload = (text) => {
 
 const getSearchPayload = (text) => {
   return text
-    .replace(/^(請)?(搜尋|查詢|尋找|找)\s*/i, '')
+    .replace(/^(請)?(搜尋|查詢|尋找|找|過濾)\s*/i, '')
     .trim()
 }
 
@@ -574,8 +699,37 @@ const prepareCommand = () => {
     return
   }
 
+  const commands = splitCommands(text)
+  if (commands.length > 1) {
+    pendingAction.value = buildMultiCommand(commands)
+    setStatus('已準備連續語音指令，請確認。')
+    return
+  }
+
+  if (/(下一個選單|下一頁|下一個頁面|下一項)/.test(text)) {
+    const page = findPageByOffset(1)
+    pendingAction.value = {
+      label: `切換到 ${page?.name || '下一個選單'}`,
+      detail: '確認後會切到目前選單的下一項。',
+      run: () => page && emit('navigate', page.id)
+    }
+    setStatus('已準備切換下一個選單，請確認。')
+    return
+  }
+
+  if (/(上一個選單|上一頁|上一個頁面|前一項)/.test(text)) {
+    const page = findPageByOffset(-1)
+    pendingAction.value = {
+      label: `切換到 ${page?.name || '上一個選單'}`,
+      detail: '確認後會切到目前選單的上一項。',
+      run: () => page && emit('navigate', page.id)
+    }
+    setStatus('已準備切換上一個選單，請確認。')
+    return
+  }
+
   const page = findPageFromText(text)
-  if (page && /(切換|前往|到|開啟|打開|進入|去)/.test(text)) {
+  if (page && (/(切換|前往|到|開啟|打開|進入|去|我要|顯示|查看|跳到)/.test(text) || pageAliases[page.id]?.includes(text))) {
     pendingAction.value = {
       label: `切換到 ${page.name}`,
       detail: '確認後會切換目前工作頁。',
@@ -585,7 +739,7 @@ const prepareCommand = () => {
     return
   }
 
-  if (/^(請)?(搜尋|查詢|尋找|找)/.test(text)) {
+  if (/^(請)?(搜尋|查詢|尋找|找|過濾)/.test(text)) {
     const keyword = getSearchPayload(text)
     pendingAction.value = {
       label: `搜尋「${keyword || text}」`,
@@ -646,7 +800,56 @@ const prepareCommand = () => {
   setStatus('已轉成一般文字輸入，請確認。')
 }
 
+const buildMultiCommand = (commands) => {
+  return {
+    label: `連續執行 ${commands.length} 個指令`,
+    detail: commands.join(' → '),
+    run: async () => {
+      for (const command of commands) {
+        const action = resolveCommand(command)
+        if (!action) return false
+        const result = action.run()
+        if (result === false) return false
+        await new Promise((resolve) => setTimeout(resolve, 180))
+      }
+      return true
+    }
+  }
+}
+
+const resolveCommand = (text) => {
+  const page = findPageFromText(text)
+  if (page && (/(切換|前往|到|開啟|打開|進入|去|我要|顯示|查看|跳到)/.test(text) || pageAliases[page.id]?.includes(text))) {
+    return { run: () => emit('navigate', page.id) }
+  }
+  if (/^(請)?(搜尋|查詢|尋找|找|過濾)/.test(text)) {
+    const keyword = getSearchPayload(text)
+    return { run: () => fillSearch(keyword || text) }
+  }
+  if (/^(請)?(輸入|填入|寫入|記錄|打字|貼上)/.test(text)) {
+    const fieldKey = findFieldKey(text)
+    if (fieldKey) {
+      const payload = extractFieldPayload(text, fieldKey)
+      return { run: () => fillNamedField(fieldKey, payload) }
+    }
+    const payload = getInputPayload(text)
+    return { run: () => fillFocusedField(payload || text) }
+  }
+  const fieldKey = findFieldKey(text)
+  if (fieldKey) {
+    const payload = extractFieldPayload(text, fieldKey)
+    return { run: () => fillNamedField(fieldKey, payload) }
+  }
+  return buildQuickCommand(text)
+}
+
 const buildQuickCommand = (text) => {
+  if (/(打開選單|開啟選單|收合選單|關閉選單|側邊欄|導覽列)/.test(text)) {
+    return { label: '切換側邊選單', detail: '確認後會切換側邊導覽列。', run: () => clickFirstVisible('.sidebar-toggle, .mobile-menu-toggle, button[aria-label*="選單"], button[aria-label*="menu"]') }
+  }
+  if (/(說明|幫助|可用指令|語音指令)/.test(text)) {
+    return { label: '展開語音指令說明', detail: '確認後會展開語音面板裡的可說指令。', run: () => clickFirstVisible('.voice-guide summary') }
+  }
   if (/(卡片式|卡片模式|卡片)/.test(text)) {
     return { label: '切換卡片式', detail: '確認後會按下卡片式顯示。', run: () => clickButtonByText('卡片式') || clickButtonByText('卡片') }
   }
@@ -654,25 +857,27 @@ const buildQuickCommand = (text) => {
     return { label: '切換列表式', detail: '確認後會按下列表式顯示。', run: () => clickButtonByText('列表式') || clickButtonByText('列表') || clickButtonByText('清單') }
   }
   if (/(深色|黑暗|dark)/i.test(text)) {
-    return { label: '切換深色模式', detail: '確認後會切換目前深淺色模式。', run: () => clickFirstVisible('.dark-mode-toggle') }
+    return { label: '切換深色模式', detail: '確認後會切換目前深淺色模式。', run: () => clickFirstVisible('.dark-mode-toggle') || clickButtonByText('Dark') }
   }
   if (/(淺色|亮色|light)/i.test(text)) {
-    return { label: '切換淺色模式', detail: '確認後會切換目前深淺色模式。', run: () => clickFirstVisible('.dark-mode-toggle') }
+    return { label: '切換淺色模式', detail: '確認後會切換目前深淺色模式。', run: () => clickFirstVisible('.dark-mode-toggle') || clickButtonByText('Light') || clickButtonByText('Dark') }
   }
-  if (/(今天|今日|明天|明日|後天|\d+\s*(天|日)後).*(日期|有效期限|到期|續訂)/.test(text)) {
+  if (/(昨天|昨日|今天|今日|明天|明日|後天|大後天|下週|這週|本週|星期|禮拜|下個月|下月|\d+\s*(天|日)後).*(日期|有效期限|到期|續訂)/.test(text)) {
     const fieldKey = 'date'
-    const payload = text.match(/今天|今日|明天|明日|後天|\d+\s*(天|日)後/)?.[0] || text
+    const payload = text.match(/昨天|昨日|今天|今日|明天|明日|後天|大後天|下週[一二三四五六日天]?|這週[一二三四五六日天]?|本週[一二三四五六日天]?|星期[一二三四五六日天]|禮拜[一二三四五六日天]|下個月|下月|\d+\s*(天|日)後/)?.[0] || text
     return { label: `設定日期「${payload}」`, detail: '確認後會把日期欄位填成對應日期。', run: () => fillNamedField(fieldKey, payload) }
   }
-  if (/(今年|明年|\d{4}\s*年|全部年份|無日期)/.test(text)) {
+  if (/(今年|明年|去年|\d{4}\s*年|全部年份|無日期)/.test(text)) {
     const labels = []
     if (/全部年份/.test(text)) labels.push('全部年份', '')
     else if (/無日期/.test(text)) labels.push('無日期', 'none')
-    else labels.push(text.match(/\d{4}/)?.[0] || (text.includes('明年') ? String(new Date().getFullYear() + 1) : String(new Date().getFullYear())))
+    else labels.push(text.match(/\d{4}/)?.[0] || (text.includes('明年') ? String(new Date().getFullYear() + 1) : text.includes('去年') ? String(new Date().getFullYear() - 1) : String(new Date().getFullYear())))
     return { label: '設定年份篩選', detail: '確認後會調整目前頁面的年份篩選。', run: () => selectByText('.date-filter-select, select', labels) }
   }
-  if (/(全部月份|\d{1,2}\s*月)/.test(text)) {
-    const label = /全部月份/.test(text) ? '全部月份' : text.match(/\d{1,2}/)?.[0]
+  if (/(全部月份|\d{1,2}\s*月|一月|二月|三月|四月|五月|六月|七月|八月|九月|十月|十一月|十二月)/.test(text)) {
+    const monthNames = { 一月: '1', 二月: '2', 三月: '3', 四月: '4', 五月: '5', 六月: '6', 七月: '7', 八月: '8', 九月: '9', 十月: '10', 十一月: '11', 十二月: '12' }
+    const monthName = Object.keys(monthNames).find((name) => text.includes(name))
+    const label = /全部月份/.test(text) ? '全部月份' : monthName ? monthNames[monthName] : text.match(/\d{1,2}/)?.[0]
     return { label: '設定月份篩選', detail: '確認後會調整目前頁面的月份篩選。', run: () => selectByText('.date-filter-select, select', [label]) }
   }
   if (/(續訂|自動續訂|不續訂|七天|7天|即將到期)/.test(text)) {
@@ -687,6 +892,12 @@ const buildQuickCommand = (text) => {
   }
   if (/(快取|預載|下載影片|下載音樂)/.test(text)) {
     return { label: '媒體快取或下載', detail: '確認後會按下目前可見的快取、預載或下載按鈕。', run: () => clickFirstVisible('.cache-btn, .btn-cache-all, .download-btn, button[title*="快取"], button[title*="下載"]') }
+  }
+  if (/(下一首|下一部|下一個|下一張)/.test(text)) {
+    return { label: '下一個媒體', detail: '確認後會按下下一首、下一部或下一張。', run: () => clickVisibleByText('button', ['下一', 'next']) || clickFirstVisible('button[title*="下一"], button[aria-label*="下一"]') }
+  }
+  if (/(上一首|上一部|上一個|前一個|上一張)/.test(text)) {
+    return { label: '上一個媒體', detail: '確認後會按下上一首、上一部或上一張。', run: () => clickVisibleByText('button', ['上一', '前一', 'previous']) || clickFirstVisible('button[title*="上一"], button[aria-label*="上一"]') }
   }
   if (/csv/i.test(text) && /(匯入|導入)/.test(text)) {
     return { label: '匯入 CSV', detail: '確認後會開啟目前頁面的 CSV 匯入。', run: () => clickFirstVisible('.btn-import') }
@@ -703,6 +914,15 @@ const buildQuickCommand = (text) => {
   if (/(新增|新增一筆|加一筆|建立)/.test(text)) {
     return { label: '新增一筆資料', detail: '確認後會按下目前頁面的新增按鈕。', run: () => clickFirstVisible('.btn-add-icon, .btn-primary, button[title*="新增"]') }
   }
+  if (/(編輯第一筆|修改第一筆|第一筆編輯|編輯目前|修改目前)/.test(text)) {
+    return { label: '編輯第一筆資料', detail: '確認後會按下第一個可見的編輯按鈕。', run: () => clickFirstVisible('.btn-edit-icon, button[title*="編輯"], button[aria-label*="編輯"]') }
+  }
+  if (/(刪除第一筆|刪第一筆|第一筆刪除|刪除目前|刪掉目前)/.test(text)) {
+    return { label: '刪除第一筆資料', detail: '確認後會按下第一個可見的刪除按鈕；頁面若有安全確認仍會再詢問。', run: () => clickFirstVisible('.btn-delete-icon, button[title*="刪除"], button[aria-label*="刪除"]') }
+  }
+  if (/(上傳|選擇檔案|加入圖片|加入影片|加入音檔|加入文件)/.test(text)) {
+    return { label: '開啟檔案選擇', detail: '確認後會按下目前可見的上傳或檔案選擇按鈕。', run: () => clickFirstVisible('.btn-upload-photo, .upload-btn, button[title*="上傳"], label[class*="upload"], input[type="file"]') }
+  }
   if (/(儲存|保存|送出|新增完成)/.test(text)) {
     return { label: '儲存目前表單', detail: '確認後會按下目前頁面的儲存或送出按鈕。', run: () => clickFirstVisible('.btn-save, .btn-submit, .btn-save-icon, button[title*="儲存"]') }
   }
@@ -715,8 +935,15 @@ const buildQuickCommand = (text) => {
   if (/(匯出|導出|下載資料)/.test(text)) {
     return { label: '匯出資料', detail: '確認後會按下目前頁面的匯出按鈕。', run: () => clickFirstVisible('.btn-export') }
   }
+  if (/(取消全選|清除選取|取消選取)/.test(text)) {
+    return { label: '取消選取', detail: '確認後會取消批量選取或離開批量模式。', run: () => clickFirstVisible('.btn-cancel-batch, .select-all-label input') }
+  }
   if (/(批量|多選|全選)/.test(text)) {
-    return { label: '切換批量選擇', detail: '確認後會按下批量選擇或全選控制。', run: () => clickFirstVisible('.btn-batch-mode, .select-all-label input') }
+    const all = /(全選|全部選取)/.test(text)
+    return { label: all ? '全選目前列表' : '切換批量選擇', detail: '確認後會按下批量選擇或全選控制。', run: () => clickFirstVisible(all ? '.select-all-label input, input[type="checkbox"]' : '.btn-batch-mode, .select-all-label input') }
+  }
+  if (/(清空搜尋|清除搜尋|取消搜尋)/.test(text)) {
+    return { label: '清空搜尋', detail: '確認後會清空目前頁面的搜尋欄。', run: () => fillSearch('') }
   }
   if (/(重新整理|刷新|重整)/.test(text)) {
     return { label: '重新整理頁面資料', detail: '確認後會重新載入目前頁面。', run: () => window.location.reload() }
@@ -732,6 +959,10 @@ const buildQuickCommand = (text) => {
   }
   if (/youtube/i.test(text)) {
     return { label: '切換 YouTube 顯示', detail: '確認後會按下 YouTube 顯示模式。', run: () => clickButtonByText('YouTube') }
+  }
+  if (/(開啟|打開|按下|點擊|點選).+/.test(text)) {
+    const label = text.replace(/^(請)?(開啟|打開|按下|點擊|點選)\s*/, '').trim()
+    return { label: `按下「${label}」`, detail: '確認後會尋找目前頁面符合文字的按鈕或連結。', run: () => clickVisibleByText('button, a, label, summary', [label]) }
   }
   return null
 }
@@ -749,7 +980,7 @@ const executePendingAction = async () => {
   const action = pendingAction.value
   pendingAction.value = null
   await nextTick()
-  const result = action.run()
+  const result = await action.run()
   if (result === false) {
     setStatus('找不到可執行的目標，請先切到正確頁面或點選欄位。', 'error')
   } else {

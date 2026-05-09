@@ -4,8 +4,16 @@
       <!-- 操作區 -->
       <div class="actions-bar">
         <div class="total-assets-card">
-          <div class="label">總資產</div>
+          <div class="label">所有資產</div>
           <div class="amount">NT$ {{ formatNumber(totalAssets) }}</div>
+        </div>
+        <div class="total-assets-card bank-assets-card">
+          <div class="label">銀行總資產</div>
+          <div class="amount">NT$ {{ formatNumber(bankTotalAssets) }}</div>
+        </div>
+        <div class="total-assets-card ticket-assets-card">
+          <div class="label">電子票證總資產</div>
+          <div class="amount">NT$ {{ formatNumber(electronicTicketTotalAssets) }}</div>
         </div>
         <div class="csv-actions">
           <button v-if="banks.length > 0" @click="exportBanksCsv" class="btn-csv export">
@@ -399,7 +407,9 @@ const {
   initDefaultBanks,
   totalAssets,
   bankAccountCount,
-  electronicTicketCount
+  electronicTicketCount,
+  bankTotalAssets,
+  electronicTicketTotalAssets
 } = useBanks()
 
 // 狀態
@@ -1067,6 +1077,14 @@ useHead({
   border-radius: 12px;
   padding: 0.75rem 1.5rem;
   color: white;
+}
+
+.bank-assets-card {
+  background: linear-gradient(135deg, #2563eb 0%, #14b8a6 100%);
+}
+
+.ticket-assets-card {
+  background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%);
 }
 
 .total-assets-card .label {

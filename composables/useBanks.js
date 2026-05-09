@@ -242,6 +242,12 @@ export const useBanks = () => {
 
   const bankAccountCount = computed(() => bankAccounts.value.length)
   const electronicTicketCount = computed(() => electronicTickets.value.length)
+  const bankTotalAssets = computed(() => {
+    return bankAccounts.value.reduce((sum, bank) => sum + (Number(bank.deposit) || 0), 0)
+  })
+  const electronicTicketTotalAssets = computed(() => {
+    return electronicTickets.value.reduce((sum, item) => sum + (Number(item.deposit) || 0), 0)
+  })
 
   // 批次匯入銀行
   const importBanks = async (rows) => {
@@ -293,6 +299,8 @@ export const useBanks = () => {
     electronicTickets,
     bankAccountCount,
     electronicTicketCount,
+    bankTotalAssets,
+    electronicTicketTotalAssets,
     isTaiwanBankAccount
   }
 }

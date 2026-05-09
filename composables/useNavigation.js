@@ -15,7 +15,7 @@ const pages = [
   { id: 'music', name: '鋒兄音樂', icon: '10', title: '鋒兄音樂', subtitle: '整理音樂作品、封面、歌詞與音檔。' },
   { id: 'document', name: '鋒兄文件', icon: '11', title: '鋒兄文件', subtitle: '管理結構化文件與工作紀錄。' },
   { id: 'podcast', name: '鋒兄播客', icon: '12', title: '鋒兄播客', subtitle: '整理播客音檔、封面與備註。' },
-  { id: 'bank', name: '鋒兄銀行', icon: '13', title: '鋒兄銀行', subtitle: '整理存款、提款、轉帳與卡片資訊。' },
+  { id: 'bank', name: '鋒兄銀行', menuHint: '( +電子票證)', icon: '13', title: '鋒兄銀行 (+電子票證)', subtitle: '整理存款、提款、轉帳與卡片資訊。' },
   { id: 'routine', name: '鋒兄例行', icon: '14', title: '鋒兄例行', subtitle: '記錄固定流程、連結與最近執行日期。' },
   { id: 'tools', name: '鋒兄工具', menuHint: '（＋比價）', icon: '06', title: '鋒兄工具', subtitle: '整合 BigGo 與手機通路比價工具。' },
   { id: 'settings', name: '鋒兄設定', icon: '15', title: '鋒兄設定', subtitle: '管理來源、匯入匯出與儲存設定。' },

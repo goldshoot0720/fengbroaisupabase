@@ -6,6 +6,24 @@ const initSupabase = () => {
   return getSupabaseBrowserClient()
 }
 
+const taiwanBankKeywords = [
+  '台北富邦', '富邦', '國泰世華', '國泰', '兆豐', '王道', '新光', '中華郵政',
+  '郵局', '玉山', '中國信託', '中信', '台新', '臺新', '永豐', '第一銀行',
+  '一銀', '華南', '彰化銀行', '彰銀', '土地銀行', '土銀', '合作金庫',
+  '合庫', '臺灣銀行', '台灣銀行', '台銀', '上海商銀', '上海銀行', '聯邦',
+  '遠東商銀', '遠銀', '元大', '凱基', '星展', '渣打', '滙豐', '匯豐',
+  '陽信', '三信', '高雄銀行', '臺灣企銀', '台灣企銀', '企銀', '農會',
+  '漁會', '信用合作社', '信合社', '銀行', '信託'
+]
+
+const normalizeBankName = (name = '') => String(name).trim().toLowerCase()
+
+const isTaiwanBankAccount = (item = {}) => {
+  const name = normalizeBankName(item.name)
+  if (!name) return false
+  return taiwanBankKeywords.some(keyword => name.includes(keyword.toLowerCase()))
+}
+
 export const useBanks = () => {
   const banks = ref([])
   const loading = ref(false)
@@ -214,6 +232,17 @@ export const useBanks = () => {
     return banks.value.reduce((sum, bank) => sum + (Number(bank.deposit) || 0), 0)
   })
 
+  const bankAccounts = computed(() => {
+    return banks.value.filter(bank => isTaiwanBankAccount(bank))
+  })
+
+  const electronicTickets = computed(() => {
+    return banks.value.filter(bank => !isTaiwanBankAccount(bank))
+  })
+
+  const bankAccountCount = computed(() => bankAccounts.value.length)
+  const electronicTicketCount = computed(() => electronicTickets.value.length)
+
   // 批次匯入銀行
   const importBanks = async (rows) => {
     const client = initSupabase()
@@ -259,6 +288,11 @@ export const useBanks = () => {
     updateBank,
     deleteBank,
     initDefaultBanks,
-    totalAssets
+    totalAssets,
+    bankAccounts,
+    electronicTickets,
+    bankAccountCount,
+    electronicTicketCount,
+    isTaiwanBankAccount
   }
 }

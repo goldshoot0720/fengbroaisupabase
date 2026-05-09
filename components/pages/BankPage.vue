@@ -38,6 +38,8 @@
             </label>
             <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
           </template>
+          <span>銀行帳戶 {{ bankAccountCount }} 個</span>
+          <span>電子票證 {{ electronicTicketCount }} 個</span>
           <span>共 {{ banks.length }} 個項目</span>
           <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
         </div>
@@ -395,7 +397,9 @@ const {
   updateBank,
   deleteBank,
   initDefaultBanks,
-  totalAssets
+  totalAssets,
+  bankAccountCount,
+  electronicTicketCount
 } = useBanks()
 
 // 狀態

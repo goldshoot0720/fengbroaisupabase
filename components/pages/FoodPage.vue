@@ -45,7 +45,7 @@
         </button>
 
         <!-- 新增按鈕 -->
-        <button @click="startAddRow" class="btn-add-icon" title="新增食品">+</button>
+        <button @click="startAddRow" class="btn-add-icon" title="新增食品(或商品)">新增食品(或商品)</button>
 
         <!-- 批量選擇模式下的全選/取消 -->
         <template v-if="batchMode">
@@ -772,25 +772,26 @@ defineExpose({ foods, expiringFoods })
 }
 
 .btn-add-icon {
-  width: 36px;
+  width: auto;
+  min-width: 36px;
   height: 36px;
   border: none;
-  border-radius: 50%;
+  border-radius: 999px;
   background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
   color: white;
-  font-size: 1.5rem;
-  font-weight: 300;
+  font-size: 0.9rem;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s;
-  line-height: 1;
-  padding-bottom: 4px;
+  line-height: 1.2;
+  padding: 0 1rem;
 }
 
 .btn-add-icon:hover {
-  transform: translateY(-2px) scale(1.1);
+  transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
 }
 
@@ -1413,9 +1414,10 @@ defineExpose({ foods, expiringFoods })
   }
 
   .btn-add-icon {
-    width: 40px;
+    width: auto;
+    min-width: 40px;
     height: 40px;
-    font-size: 1.35rem;
+    font-size: 0.88rem;
   }
 
   .selected-count,

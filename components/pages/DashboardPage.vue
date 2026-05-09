@@ -116,7 +116,7 @@
           
           <div class="action-card">
             <BaseButton variant="success" icon="➕" full-width @click="$emit('navigate', 'food')">
-              新增食物
+              新增食品(或商品)
             </BaseButton>
             <p class="action-description">追蹤食物庫存狀態</p>
           </div>

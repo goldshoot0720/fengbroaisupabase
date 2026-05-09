@@ -38,7 +38,7 @@
           <button v-if="!batchMode && banks.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
           <button v-if="banks.length > 0" @click="openTransactionModal('income')" class="btn-transaction income" title="新增收入">新增收入</button>
           <button v-if="banks.length > 0" @click="openTransactionModal('expense')" class="btn-transaction expense" title="新增支出">新增支出</button>
-          <button @click="openAddModal" class="btn-add-account" title="新增帳戶">新增帳戶</button>
+          <button @click="openAddModal" class="btn-add-account" title="新增銀行(或電子票證)">新增銀行(或電子票證)</button>
           <template v-if="batchMode">
             <label class="select-all-label">
               <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
@@ -310,7 +310,7 @@
       <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
         <div class="modal-content">
           <div class="modal-header">
-            <h3>{{ isEditing ? '編輯銀行帳戶' : '新增銀行帳戶' }}</h3>
+            <h3>{{ isEditing ? '編輯銀行帳戶' : '新增銀行(或電子票證)' }}</h3>
             <button class="btn-close" @click="closeModal">✕</button>
           </div>
           

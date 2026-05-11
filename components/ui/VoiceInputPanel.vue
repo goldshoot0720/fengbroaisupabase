@@ -25,10 +25,10 @@
           type="button"
           class="voice-main"
           :class="{ recording: isListening }"
-          :disabled="!isSupported"
+          :disabled="!isSupported || (isListening && !canStopListening)"
           @click="toggleListening"
         >
-          {{ isListening ? '停止聆聽' : '開始聆聽' }}
+          {{ voiceMainLabel }}
         </button>
         <button type="button" class="voice-secondary" @click="clearTranscript">清空</button>
       </div>
@@ -44,7 +44,7 @@
           v-model="transcript"
           rows="3"
           placeholder="例如：鋒兄食品、新增食品、搜尋 Netflix、日期 明天、輸入 月費 390、先新增再輸入名稱牛奶"
-          @input="prepareCommand"
+          @input="handleTranscriptInput"
         ></textarea>
       </div>
 
@@ -101,7 +101,24 @@ const transcript = ref('')
 const statusMessage = ref('按下開始後說出指令，系統會先預覽，確認後才執行。')
 const statusType = ref('idle')
 const pendingAction = ref(null)
+const MIN_RECORDING_MS = 10000
+const recordingElapsedMs = ref(0)
+const recordingStartedAt = ref(0)
 let recognition = null
+let recordingTimer = null
+let manuallyStopping = false
+let shouldKeepListening = false
+
+const canStopListening = computed(() => !isListening.value || recordingElapsedMs.value >= MIN_RECORDING_MS)
+const recordingRemainingSeconds = computed(() => {
+  if (!isListening.value) return 0
+  return Math.max(0, Math.ceil((MIN_RECORDING_MS - recordingElapsedMs.value) / 1000))
+})
+const voiceMainLabel = computed(() => {
+  if (!isListening.value) return '開始錄音'
+  if (!canStopListening.value) return `至少錄音 ${recordingRemainingSeconds.value} 秒`
+  return '結束錄音'
+})
 
 const pageAliases = {
   home: ['首頁', '鋒兄首頁', '主頁', '開始', 'home'],
@@ -341,7 +358,7 @@ const toggleExpanded = () => {
 }
 
 const closePanel = () => {
-  stopListening()
+  stopListening({ force: true })
   isExpanded.value = false
 }
 
@@ -356,6 +373,42 @@ const useHint = (hint) => {
   prepareCommand()
 }
 
+const updateRecordingElapsed = () => {
+  recordingElapsedMs.value = recordingStartedAt.value ? Date.now() - recordingStartedAt.value : 0
+}
+
+const startRecordingTimer = () => {
+  if (recordingTimer) clearInterval(recordingTimer)
+  updateRecordingElapsed()
+  recordingTimer = setInterval(updateRecordingElapsed, 250)
+}
+
+const clearRecordingTimer = () => {
+  if (recordingTimer) {
+    clearInterval(recordingTimer)
+    recordingTimer = null
+  }
+}
+
+const finalizeRecording = () => {
+  clearRecordingTimer()
+  shouldKeepListening = false
+  manuallyStopping = false
+  isListening.value = false
+  updateRecordingElapsed()
+
+  if (transcript.value.trim()) {
+    prepareCommand()
+    setStatus('錄音已結束，已產生待確認指令。', pendingAction.value ? 'success' : 'idle')
+  } else {
+    setStatus('錄音已結束，但沒有辨識到內容。可以再試一次。')
+  }
+}
+
+const handleTranscriptInput = () => {
+  if (!isListening.value) prepareCommand()
+}
+
 const createRecognition = () => {
   if (typeof window === 'undefined') return null
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -363,13 +416,13 @@ const createRecognition = () => {
 
   const instance = new SpeechRecognition()
   instance.lang = 'zh-TW'
-  instance.continuous = false
+  instance.continuous = true
   instance.interimResults = true
   instance.maxAlternatives = 1
 
   instance.onstart = () => {
     isListening.value = true
-    setStatus('正在聆聽，說完後會產生待確認指令。')
+    setStatus('錄音中，至少 10 秒後才能手動結束。')
   }
 
   instance.onresult = (event) => {
@@ -378,17 +431,26 @@ const createRecognition = () => {
       .join('')
       .trim()
     transcript.value = text
-    prepareCommand()
   }
 
   instance.onerror = (event) => {
+    if (manuallyStopping && event.error === 'aborted') return
     isListening.value = false
+    clearRecordingTimer()
+    shouldKeepListening = false
     setStatus(`語音辨識失敗：${event.error || '未知錯誤'}`, 'error')
   }
 
   instance.onend = () => {
-    isListening.value = false
-    if (transcript.value && !pendingAction.value) prepareCommand()
+    if (shouldKeepListening && !manuallyStopping) {
+      try {
+        recognition?.start()
+      } catch {
+        setTimeout(() => recognition?.start(), 150)
+      }
+      return
+    }
+    finalizeRecording()
   }
 
   return instance
@@ -409,17 +471,39 @@ const startListening = () => {
   }
   pendingAction.value = null
   transcript.value = ''
+  manuallyStopping = false
+  shouldKeepListening = true
+  recordingStartedAt.value = Date.now()
+  recordingElapsedMs.value = 0
+  startRecordingTimer()
   try {
     recognition.start()
   } catch {
-    stopListening()
-    setTimeout(() => recognition?.start(), 120)
+    clearRecordingTimer()
+    shouldKeepListening = false
+    manuallyStopping = false
+    isListening.value = false
+    setStatus('語音辨識啟動失敗，請稍後再試一次。', 'error')
   }
 }
 
-const stopListening = () => {
-  if (recognition && isListening.value) recognition.stop()
+const stopListening = ({ force = false } = {}) => {
+  if (!isListening.value && !shouldKeepListening) return
+  updateRecordingElapsed()
+  if (!force && recordingElapsedMs.value < MIN_RECORDING_MS) {
+    setStatus(`請至少錄音 10 秒，還差 ${recordingRemainingSeconds.value} 秒。`)
+    return
+  }
+
+  manuallyStopping = true
+  shouldKeepListening = false
+  clearRecordingTimer()
+  if (recognition && isListening.value) {
+    recognition.stop()
+    return
+  }
   isListening.value = false
+  finalizeRecording()
 }
 
 const findPageFromText = (text) => {

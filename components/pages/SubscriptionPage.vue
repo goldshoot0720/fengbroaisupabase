@@ -2,12 +2,31 @@
   <div class="subscription-management">
     <!-- 操作列 -->
     <div class="actions-bar">
-      <input
-        v-model="searchQuery"
-        type="text"
-        class="search-input"
-        placeholder="搜尋訂閱..."
-      />
+      <div class="search-area">
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="search-input"
+          placeholder="搜尋訂閱..."
+          @keyup.enter="commitSearchHistory"
+          @blur="commitSearchHistory"
+        />
+        <div v-if="recentSearches.length > 0" class="recent-searches" aria-label="最近搜尋紀錄">
+          <span class="recent-label">最近搜尋</span>
+          <button
+            v-for="term in recentSearches"
+            :key="term"
+            type="button"
+            class="recent-chip"
+            @click="applyRecentSearch(term)"
+          >
+            {{ term }}
+          </button>
+          <button type="button" class="recent-clear" @click="clearRecentSearches">
+            清除
+          </button>
+        </div>
+      </div>
       <div class="date-filters">
         <select v-model="selectedYear" class="date-filter-select">
           <option value="">全部年份</option>
@@ -348,16 +367,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useSubscriptions } from '../../composables/useSubscriptions'
 import { useFormatters } from '../../composables/useFormatters'
 import { useCommonAccounts } from '../../composables/useCommonAccounts'
 
 const searchQuery = ref('')
+const recentSearches = ref([])
 const renewFilter = ref('all')
 const selectedYear = ref('')
 const selectedMonth = ref('')
 const EMPTY_MONTH_FILTER = 'none'
+const SUBSCRIPTION_SEARCH_HISTORY_KEY = 'fengbro-subscription-search-history'
+const SEARCH_HISTORY_LIMIT = 8
+let searchHistoryTimer = null
 
 const {
   subscriptions,
@@ -375,6 +398,64 @@ const {
 } = useSubscriptions()
 
 const { formatDate, getDateClass } = useFormatters()
+
+const normalizeSearchTerm = (value) => String(value || '').trim().replace(/\s+/g, ' ')
+
+const loadRecentSearches = () => {
+  if (typeof localStorage === 'undefined') return
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SUBSCRIPTION_SEARCH_HISTORY_KEY) || '[]')
+    recentSearches.value = Array.isArray(parsed)
+      ? [...new Set(parsed.map(normalizeSearchTerm).filter(Boolean))].slice(0, SEARCH_HISTORY_LIMIT)
+      : []
+  } catch {
+    recentSearches.value = []
+  }
+}
+
+const persistRecentSearches = () => {
+  if (typeof localStorage === 'undefined') return
+  localStorage.setItem(SUBSCRIPTION_SEARCH_HISTORY_KEY, JSON.stringify(recentSearches.value))
+}
+
+const commitSearchHistory = (value = searchQuery.value) => {
+  const term = normalizeSearchTerm(value)
+  if (!term) return
+
+  recentSearches.value = [
+    term,
+    ...recentSearches.value.filter(item => item !== term)
+  ].slice(0, SEARCH_HISTORY_LIMIT)
+  persistRecentSearches()
+}
+
+const applyRecentSearch = (term) => {
+  searchQuery.value = term
+  commitSearchHistory(term)
+}
+
+const clearRecentSearches = () => {
+  recentSearches.value = []
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem(SUBSCRIPTION_SEARCH_HISTORY_KEY)
+  }
+}
+
+watch(searchQuery, (value) => {
+  if (typeof window === 'undefined') return
+
+  if (searchHistoryTimer) {
+    clearTimeout(searchHistoryTimer)
+  }
+
+  const term = normalizeSearchTerm(value)
+  if (!term) return
+
+  searchHistoryTimer = setTimeout(() => {
+    commitSearchHistory(term)
+  }, 900)
+})
 
 const formatDaysUntil = (dateString) => {
   if (!dateString) return '-'
@@ -728,8 +809,15 @@ const accountNames = computed(() => {
 })
 
 onMounted(() => {
+  loadRecentSearches()
   loadSubscriptions()
   loadCommonAccounts()
+})
+
+onBeforeUnmount(() => {
+  if (searchHistoryTimer) {
+    clearTimeout(searchHistoryTimer)
+  }
 })
 
 // 格式化日期為 ISO 8601 (Appwrite 格式)
@@ -852,8 +940,13 @@ defineExpose({ subscriptions, totalMonthlyCost })
   align-items: center;
 }
 
+.search-area {
+  flex: 1 1 320px;
+  min-width: 260px;
+}
+
 .search-input {
-  flex: 1;
+  width: 100%;
   min-width: 200px;
   padding: 0.75rem 1rem;
   border: 2px solid #e0e0e0;
@@ -865,6 +958,49 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .search-input:focus {
   outline: none;
   border-color: #3498db;
+}
+
+.recent-searches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.recent-label {
+  color: #7f8c8d;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.recent-chip,
+.recent-clear {
+  border: 1px solid #dfe5ec;
+  border-radius: 999px;
+  background: #fff;
+  color: #2c3e50;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.35rem 0.7rem;
+  transition: all 0.2s;
+}
+
+.recent-chip:hover {
+  border-color: #3498db;
+  color: #2477b3;
+  transform: translateY(-1px);
+}
+
+.recent-clear {
+  color: #95a5a6;
+}
+
+.recent-clear:hover {
+  border-color: #f5576c;
+  color: #e74c3c;
 }
 
 .date-filters {
@@ -1448,6 +1584,15 @@ defineExpose({ subscriptions, totalMonthlyCost })
     width: 100%;
     padding: 0.8rem 0.9rem;
     font-size: 0.95rem;
+  }
+
+  .search-area {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .recent-searches {
+    gap: 0.35rem;
   }
 
   .filter-buttons,

@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 初始化 Supabase（優先使用 localStorage 設定）
 const initSupabase = () => {
@@ -131,10 +132,23 @@ export const useCommonAccounts = () => {
 
       if (payload.length === 0) return { success: false, error: '無有效資料（需有 name 欄位）' }
 
-      console.log('Inserting', payload.length, 'common accounts')
+      const { data: existingRows, error: existingError } = await client.from('commonaccount').select('*')
+      if (existingError) throw existingError
+
+      const { unique, skipped } = filterDuplicateImports(payload, existingRows || accounts.value, COMMON_FIELDS)
+      if (unique.length === 0) {
+        return {
+          success: true,
+          count: 0,
+          skipped,
+          message: buildImportMessage('匯入成功', skipped)
+        }
+      }
+
+      console.log('Inserting', unique.length, 'common accounts')
       console.log('Sample payload:', payload[0])
 
-      const { data, error: insertError } = await client.from('commonaccount').insert(payload).select()
+      const { data, error: insertError } = await client.from('commonaccount').insert(unique).select()
       if (insertError) throw insertError
 
       accounts.value.push(...data)
@@ -142,7 +156,8 @@ export const useCommonAccounts = () => {
       return {
         success: true,
         count: data.length,
-        message: '匯入成功'
+        skipped,
+        message: buildImportMessage('匯入成功', skipped)
       }
     } catch (e) {
       console.error('Import error:', e)

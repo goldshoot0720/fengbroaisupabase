@@ -924,7 +924,7 @@ const handleImportCsv = async (e) => {
   if (!confirm(confirmMsg)) return
   const result = await importSubscriptions(rows)
   if (result.success) {
-    alert(`成功匯入 ${result.count} 筆訂閱！`)
+    alert(result.message ? `${result.message}，新增 ${result.count} 筆訂閱` : `成功匯入 ${result.count} 筆訂閱！`)
   } else {
     alert('匯入失敗: ' + result.error)
   }

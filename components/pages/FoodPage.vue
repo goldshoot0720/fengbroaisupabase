@@ -616,7 +616,7 @@ const handleImportCsv = async (e) => {
   if (isAppwrite) confirmMsg = `偵測到 ISO 8601 日期格式\n系統將自動轉換\n\n確定匯入 ${rows.length} 筆食品資料？`
   if (!confirm(confirmMsg)) return
   const result = await importFoods(rows)
-  if (result.success) alert(`成功匯入 ${result.count} 筆食品！`)
+  if (result.success) alert(result.message ? `${result.message}，新增 ${result.count} 筆食品` : `成功匯入 ${result.count} 筆食品！`)
   else alert('匯入失敗: ' + result.error)
   e.target.value = ''
 }

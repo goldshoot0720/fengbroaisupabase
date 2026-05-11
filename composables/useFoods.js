@@ -2,11 +2,13 @@
 // 食物管理的完整邏輯 - 使用共享狀態
 import { ref, computed } from 'vue'
 import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
+import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 共享狀態（在模組層級定義，所有組件共用）
 const foods = ref([])
 const foodLoading = ref(false)
 const editingFood = ref(null)
+const FOOD_IMPORT_KEY_FIELDS = ['name', 'amount', 'price', 'shop', 'todate', 'photo', 'photohash']
 const newFood = ref({
   name: '',
   amount: null,
@@ -410,16 +412,31 @@ export const useFoods = () => {
       
       if (payload.length === 0) return { success: false, error: '無有效資料' }
       
-      console.log('Inserting', payload.length, 'records')
-      const { data, error } = await client.from('food').insert(payload).select()
+      const { data: existingRows, error: existingError } = await client.from('food').select('*')
+      if (existingError) throw existingError
+
+      const { unique, skipped } = filterDuplicateImports(payload, existingRows || foods.value, FOOD_IMPORT_KEY_FIELDS)
+      if (unique.length === 0) {
+        return {
+          success: true,
+          count: 0,
+          skipped,
+          isAppwrite: isAppwrite,
+          message: buildImportMessage('匯入成功', skipped)
+        }
+      }
+
+      console.log('Inserting', unique.length, 'records')
+      const { data, error } = await client.from('food').insert(unique).select()
       if (error) throw error
       
       foods.value.push(...data)
       return { 
         success: true, 
         count: data.length,
+        skipped,
         isAppwrite: isAppwrite,
-        message: isAppwrite ? '已轉換 ISO 8601 日期格式並匯入' : '匯入成功'
+        message: buildImportMessage(isAppwrite ? '已轉換 ISO 8601 日期格式並匯入' : '匯入成功', skipped)
       }
     } catch (e) {
       console.error('Import error:', e)

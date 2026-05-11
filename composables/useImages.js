@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 const initSupabase = () => {
   return getSupabaseBrowserClient()
@@ -150,10 +151,14 @@ export const useImages = () => {
         .map(buildPayload)
         .filter(r => r.name)
       if (payload.length === 0) return { success: false, error: '無有效資料' }
-      const { data, error: err } = await client.from(TABLE).insert(payload).select()
+      const { data: existingRows, error: existingError } = await client.from(TABLE).select('*')
+      if (existingError) throw existingError
+      const { unique, skipped } = filterDuplicateImports(payload, existingRows || images.value, FIELDS)
+      if (unique.length === 0) return { success: true, count: 0, skipped, message: buildImportMessage('匯入成功', skipped) }
+      const { data, error: err } = await client.from(TABLE).insert(unique).select()
       if (err) throw err
       images.value.push(...data)
-      return { success: true, count: data.length, message: '匯入成功' }
+      return { success: true, count: data.length, skipped, message: buildImportMessage('匯入成功', skipped) }
     } catch (e) {
       return { success: false, error: e.message }
     } finally {

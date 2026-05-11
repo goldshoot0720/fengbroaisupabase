@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 初始化 Supabase（優先使用 localStorage 設定）
 const initSupabase = () => {
@@ -220,10 +221,24 @@ export const useArticles = () => {
 
       if (payload.length === 0) return { success: false, error: '無有效資料' }
 
-      console.log('Inserting', payload.length, 'articles')
+      const { data: existingRows, error: existingError } = await client.from('article').select('*')
+      if (existingError) throw existingError
+
+      const { unique, skipped } = filterDuplicateImports(payload, existingRows || articles.value, ARTICLE_FIELDS)
+      if (unique.length === 0) {
+        return {
+          success: true,
+          count: 0,
+          skipped,
+          isAppwrite: isAppwrite,
+          message: buildImportMessage('匯入成功', skipped)
+        }
+      }
+
+      console.log('Inserting', unique.length, 'articles')
       console.log('Sample payload:', payload[0])
 
-      const { data, error: insertError } = await client.from('article').insert(payload).select()
+      const { data, error: insertError } = await client.from('article').insert(unique).select()
       if (insertError) throw insertError
 
       articles.value.push(...data)
@@ -232,8 +247,9 @@ export const useArticles = () => {
       return {
         success: true,
         count: data.length,
+        skipped,
         isAppwrite: isAppwrite,
-        message: isAppwrite ? '已轉換 Appwrite 格式並匯入' : '匯入成功'
+        message: buildImportMessage(isAppwrite ? '已轉換 Appwrite 格式並匯入' : '匯入成功', skipped)
       }
     } catch (e) {
       console.error('Import error:', e)

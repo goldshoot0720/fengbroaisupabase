@@ -1,10 +1,13 @@
 import { ref, computed } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 初始化 Supabase（優先使用 localStorage 設定）
 const initSupabase = () => {
   return getSupabaseBrowserClient()
 }
+
+const BANK_IMPORT_KEY_FIELDS = ['name', 'deposit', 'account', 'card', 'site', 'address', 'withdrawals', 'transfer', 'activity']
 
 const taiwanBankKeywords = [
   '台北富邦', '富邦', '國泰世華', '國泰', '兆豐', '王道', '新光', '中華郵政',
@@ -207,9 +210,17 @@ export const useBanks = () => {
         created_at: new Date().toISOString()
       }))
 
+      const { data: existingRows, error: existingError } = await client.from('bank').select('*')
+      if (existingError) throw existingError
+
+      const { unique, skipped } = filterDuplicateImports(newBanks, existingRows || banks.value, BANK_IMPORT_KEY_FIELDS)
+      if (unique.length === 0) {
+        return { success: true, count: 0, skipped, message: buildImportMessage('預設銀行匯入完成', skipped) }
+      }
+
       const { data, error: insertError } = await client
         .from('bank')
-        .insert(newBanks)
+        .insert(unique)
         .select()
 
       if (insertError) throw insertError
@@ -218,7 +229,7 @@ export const useBanks = () => {
         banks.value = [...banks.value, ...data]
         banks.value.sort((a, b) => (Number(b.deposit) || 0) - (Number(a.deposit) || 0))
       }
-      return { success: true }
+      return { success: true, count: data?.length || 0, skipped, message: buildImportMessage('預設銀行匯入完成', skipped) }
     } catch (e) {
       console.error('Error initializing default banks:', e)
       return { success: false, error: e.message }
@@ -269,11 +280,20 @@ export const useBanks = () => {
         created_at: new Date().toISOString()
       })).filter(r => r.name)
       if (payload.length === 0) return { success: false, error: '無有效資料' }
-      const { data, error: insertError } = await client.from('bank').insert(payload).select()
+
+      const { data: existingRows, error: existingError } = await client.from('bank').select('*')
+      if (existingError) throw existingError
+
+      const { unique, skipped } = filterDuplicateImports(payload, existingRows || banks.value, BANK_IMPORT_KEY_FIELDS)
+      if (unique.length === 0) {
+        return { success: true, count: 0, skipped, message: buildImportMessage('匯入成功', skipped) }
+      }
+
+      const { data, error: insertError } = await client.from('bank').insert(unique).select()
       if (insertError) throw insertError
       banks.value.push(...data)
       banks.value.sort((a, b) => (Number(b.deposit) || 0) - (Number(a.deposit) || 0))
-      return { success: true, count: data.length }
+      return { success: true, count: data.length, skipped, message: buildImportMessage('匯入成功', skipped) }
     } catch (e) {
       return { success: false, error: e.message }
     } finally {

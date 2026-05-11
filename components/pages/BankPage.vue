@@ -643,7 +643,7 @@ const handleImportCsv = async (e) => {
   if (!confirm(confirmMsg)) return
   const result = await importBanks(rows)
   if (result.success) {
-    alert(`✅ 成功匯入 ${result.count} 筆銀行帳戶！`)
+    alert(result.message ? `${result.message}，新增 ${result.count} 筆銀行帳戶` : `✅ 成功匯入 ${result.count} 筆銀行帳戶！`)
   } else {
     alert('匯入失敗: ' + result.error)
   }
@@ -800,7 +800,7 @@ const handleInitDefaults = async () => {
   if (confirm('確定要匯入 9 家預設銀行嗎？')) {
     const result = await initDefaultBanks()
     if (result.success) {
-      alert('成功匯入預設銀行！')
+      alert(result.message || '成功匯入預設銀行！')
     } else {
       alert('匯入失敗: ' + result.error)
     }

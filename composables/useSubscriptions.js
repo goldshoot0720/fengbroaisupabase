@@ -2,11 +2,13 @@
 // 訂閱管理的完整邏輯 - 使用共享狀態
 import { ref, computed } from 'vue'
 import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
+import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 共享狀態（在模組層級定義，所有組件共用）
 const subscriptions = ref([])
 const subscriptionLoading = ref(false)
 const editingSubscription = ref(null)
+const SUBSCRIPTION_IMPORT_KEY_FIELDS = ['name', 'site', 'account', 'price', 'nextdate', 'note', 'currency', 'iscontinue']
 const newSubscription = ref({
   name: '',
   site: '',
@@ -483,16 +485,31 @@ export const useSubscriptions = () => {
       
       if (payload.length === 0) return { success: false, error: '無有效資料' }
       
-      console.log('Inserting', payload.length, 'records')
-      const { data, error } = await client.from('subscription').insert(payload).select()
+      const { data: existingRows, error: existingError } = await client.from('subscription').select('*')
+      if (existingError) throw existingError
+
+      const { unique, skipped } = filterDuplicateImports(payload, existingRows || subscriptions.value, SUBSCRIPTION_IMPORT_KEY_FIELDS)
+      if (unique.length === 0) {
+        return {
+          success: true,
+          count: 0,
+          skipped,
+          isAppwrite: isAppwrite,
+          message: buildImportMessage('匯入成功', skipped)
+        }
+      }
+
+      console.log('Inserting', unique.length, 'records')
+      const { data, error } = await client.from('subscription').insert(unique).select()
       if (error) throw error
       
       subscriptions.value.push(...data)
       return { 
         success: true, 
         count: data.length,
+        skipped,
         isAppwrite: isAppwrite,
-        message: isAppwrite ? '已轉換 ISO 8601 日期格式並匯入' : '匯入成功'
+        message: buildImportMessage(isAppwrite ? '已轉換 ISO 8601 日期格式並匯入' : '匯入成功', skipped)
       }
     } catch (e) {
       console.error('Import error:', e)

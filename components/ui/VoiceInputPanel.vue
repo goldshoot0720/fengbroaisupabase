@@ -797,12 +797,16 @@ const getSearchPayload = (text) => {
 
 const getPageScopedText = (text, pageId) => {
   let scoped = normalizeCommandText(text)
+  scoped = scoped
+    .replace(/^(請)?\s*(全域語音|語音輸入|語音指令)\s*/g, ' ')
+    .replace(/\s*(全域語音|語音輸入|語音指令)\s*/g, ' ')
   const aliases = [pageId, ...(pageAliases[pageId] || [])]
   aliases.forEach((alias) => {
     scoped = scoped.replace(new RegExp(String(alias).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), ' ')
   })
   return scoped
-    .replace(/^(請)?(新增|建立|加一筆|記錄|新增一筆|我要)\s*/g, '')
+    .replace(/^(請)?\s*(在|到|去|前往|打開|開啟)?\s*/g, '')
+    .replace(/^(新增|建立|加一筆|記錄|新增一筆|我要)\s*/g, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -817,19 +821,29 @@ const extractTokenValue = (text, patterns) => {
 
 const stripKnownFieldPhrases = (text) => {
   return text
+    .replace(/(服務名稱|名稱|標題)\s*(是|為|叫做|叫|:|：)?\s*/g, ' ')
     .replace(/(月費|價格|金額|費用)\s*[零〇一二兩三四五六七八九十\d.,-]+/g, ' ')
     .replace(/(數量|庫存|份數|瓶數|包數|個數)\s*[零〇一二兩三四五六七八九十\d.,-]+/g, ' ')
     .replace(/(存款|餘額)\s*[零〇一二兩三四五六七八九十\d.,-]+/g, ' ')
     .replace(/(帳號|信箱|email)\s*[^\s]+/gi, ' ')
     .replace(/(商店|店家|來源|分行|網站)\s*[^\s]+/g, ' ')
-    .replace(/(日期|到期|有效期限|續訂|下次付款|下次日期)?\s*(昨天|昨日|今天|今日|明天|明日|大後天|後天|下週[一二三四五六日天]?|這週[一二三四五六日天]?|本週[一二三四五六日天]?|星期[一二三四五六日天]|禮拜[一二三四五六日天]|下個月|下月|\d+\s*(天|日)後|\d{1,2}\s*月\s*\d{1,2}\s*(日|號)?|\d{4}[/-]\d{1,2}[/-]\d{1,2})/g, ' ')
+    .replace(/(日期|到期|有效期限|續訂|下次付款|下次日期|時間)?\s*(昨天|昨日|今天|今日|明天|明日|大後天|後天|下週[一二三四五六日天]?|這週[一二三四五六日天]?|本週[一二三四五六日天]?|星期[一二三四五六日天]|禮拜[一二三四五六日天]|下個月|下月|\d+\s*(天|日)後|\d{1,2}\s*月\s*\d{1,2}\s*(日|號)?|\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*(日|號)?|\d{4}[/-]\d{1,2}[/-]\d{1,2})/g, ' ')
+    .replace(/(上午|早上|下午|晚上|中午)/g, ' ')
     .replace(/(備註|說明|內容)\s*.+$/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
 const extractSmartDatePhrase = (text) => {
-  return text.match(/昨天|昨日|今天|今日|明天|明日|大後天|後天|下週[一二三四五六日天]?|這週[一二三四五六日天]?|本週[一二三四五六日天]?|星期[一二三四五六日天]|禮拜[一二三四五六日天]|下個月|下月|\d+\s*(天|日)後|\d{1,2}\s*月\s*\d{1,2}\s*(日|號)?|\d{4}[/-]\d{1,2}[/-]\d{1,2}/)?.[0] || ''
+  return text.match(/昨天|昨日|今天|今日|明天|明日|大後天|後天|下週[一二三四五六日天]?|這週[一二三四五六日天]?|本週[一二三四五六日天]?|星期[一二三四五六日天]|禮拜[一二三四五六日天]|下個月|下月|\d+\s*(天|日)後|\d{1,2}\s*月\s*\d{1,2}\s*(日|號)?|\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*(日|號)?|\d{4}[/-]\d{1,2}[/-]\d{1,2}/)?.[0] || ''
+}
+
+const extractSmartTimeNote = (text, pageId) => {
+  if (pageId !== 'subscription') return ''
+  const match = text.match(/上午|早上|下午|晚上|中午/)
+  if (!match) return ''
+  const normalized = match[0] === '早上' ? '上午' : match[0]
+  return `鋒兄語音 ${normalized}`
 }
 
 const parseSmartCreatePayload = (text, pageId) => {
@@ -842,13 +856,14 @@ const parseSmartCreatePayload = (text, pageId) => {
   const shop = extractTokenValue(scoped, [/(?:商店|店家|來源|分行|網站)\s*([^\s]+)/])
   const note = extractTokenValue(scoped, [/(?:備註|說明|內容)\s*(.+)$/])
   const date = extractSmartDatePhrase(scoped)
+  const timeNote = extractSmartTimeNote(scoped, pageId)
 
   if (price) fields.price = price
   if (quantity) fields.quantity = quantity
   if (deposit) fields.deposit = deposit
   if (account) fields.account = account
   if (shop) fields.shop = shop
-  if (note) fields.note = note
+  if (note || timeNote) fields.note = [note, timeNote].filter(Boolean).join(' ')
   if (date) fields.date = date
 
   const name = stripKnownFieldPhrases(scoped)

@@ -13,15 +13,23 @@
         />
         <div v-if="recentSearches.length > 0" class="recent-searches" aria-label="最近搜尋紀錄">
           <span class="recent-label">最近搜尋</span>
-          <button
+          <span
             v-for="term in recentSearches"
             :key="term"
-            type="button"
             class="recent-chip"
-            @click="applyRecentSearch(term)"
           >
-            {{ term }}
-          </button>
+            <button type="button" class="recent-chip-text" @click="applyRecentSearch(term)">
+              {{ term }}
+            </button>
+            <button
+              type="button"
+              class="recent-chip-remove"
+              :aria-label="`移除搜尋紀錄 ${term}`"
+              @click="removeRecentSearch(term)"
+            >
+              X
+            </button>
+          </span>
           <button type="button" class="recent-clear" @click="clearRecentSearches">
             清除
           </button>
@@ -379,7 +387,7 @@ const selectedYear = ref('')
 const selectedMonth = ref('')
 const EMPTY_MONTH_FILTER = 'none'
 const SUBSCRIPTION_SEARCH_HISTORY_KEY = 'fengbro-subscription-search-history'
-const SEARCH_HISTORY_LIMIT = 8
+const SEARCH_HISTORY_LIMIT = 37
 let searchHistoryTimer = null
 
 const {
@@ -440,6 +448,11 @@ const clearRecentSearches = () => {
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem(SUBSCRIPTION_SEARCH_HISTORY_KEY)
   }
+}
+
+const removeRecentSearch = (term) => {
+  recentSearches.value = recentSearches.value.filter(item => item !== term)
+  persistRecentSearches()
 }
 
 watch(searchQuery, (value) => {
@@ -974,7 +987,6 @@ defineExpose({ subscriptions, totalMonthlyCost })
   font-weight: 600;
 }
 
-.recent-chip,
 .recent-clear {
   border: 1px solid #dfe5ec;
   border-radius: 999px;
@@ -988,10 +1000,48 @@ defineExpose({ subscriptions, totalMonthlyCost })
   transition: all 0.2s;
 }
 
+.recent-chip {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #dfe5ec;
+  border-radius: 999px;
+  background: #fff;
+  transition: all 0.2s;
+}
+
 .recent-chip:hover {
   border-color: #3498db;
   color: #2477b3;
   transform: translateY(-1px);
+}
+
+.recent-chip-text,
+.recent-chip-remove {
+  border: 0;
+  background: transparent;
+  color: #2c3e50;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.recent-chip-text {
+  padding: 0.35rem 0.25rem 0.35rem 0.7rem;
+}
+
+.recent-chip-remove {
+  padding: 0.35rem 0.65rem 0.35rem 0.35rem;
+  color: #95a5a6;
+}
+
+.recent-chip-text:hover {
+  color: #2477b3;
+}
+
+.recent-chip-remove:hover {
+  color: #e74c3c;
 }
 
 .recent-clear {

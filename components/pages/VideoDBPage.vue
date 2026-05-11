@@ -138,11 +138,11 @@
               </div>
               <div v-if="addVideoUploading" class="upload-progress-block">
                 <div class="upload-progress-head">
-                  <span>影片上傳進度</span>
-                  <span class="upload-progress">{{ videoUploadProgress }}%</span>
+                  <span>{{ addVideoUploadStatus }}</span>
+                  <span class="upload-progress">{{ addVideoUploadProgress }}%</span>
                 </div>
                 <div class="upload-progress-bar">
-                  <div class="upload-progress-fill" :style="{ width: `${videoUploadProgress}%` }"></div>
+                  <div class="upload-progress-fill" :style="{ width: `${addVideoUploadProgress}%` }"></div>
                 </div>
               </div>
               <div v-if="getAddVideoPreviewSrc()" class="inline-video-preview">
@@ -217,10 +217,10 @@
                 <div v-if="inlineVideoUploading" class="upload-progress-block">
                   <div class="upload-progress-head">
                     <span>影片上傳進度</span>
-                    <span class="upload-progress">{{ videoUploadProgress }}%</span>
+                    <span class="upload-progress">{{ activeVideoUploadProgress }}%</span>
                   </div>
                   <div class="upload-progress-bar">
-                    <div class="upload-progress-fill" :style="{ width: `${videoUploadProgress}%` }"></div>
+                    <div class="upload-progress-fill" :style="{ width: `${activeVideoUploadProgress}%` }"></div>
                   </div>
                 </div>
                 <div v-if="getInlineVideoPreviewSrc()" class="inline-video-preview">
@@ -384,15 +384,15 @@
                 >
                   {{ videoUploading ? '上傳中...' : '選擇影片' }}
                 </button>
-                <span v-if="videoUploadProgress > 0" class="upload-progress">{{ videoUploadProgress }}%</span>
+                <span v-if="videoUploading" class="upload-progress">{{ activeVideoUploadProgress }}%</span>
               </div>
               <div v-if="videoUploading" class="upload-progress-block">
                 <div class="upload-progress-head">
                   <span>影片上傳進度</span>
-                  <span class="upload-progress">{{ videoUploadProgress }}%</span>
+                  <span class="upload-progress">{{ activeVideoUploadProgress }}%</span>
                 </div>
                 <div class="upload-progress-bar">
-                  <div class="upload-progress-fill" :style="{ width: `${videoUploadProgress}%` }"></div>
+                  <div class="upload-progress-fill" :style="{ width: `${activeVideoUploadProgress}%` }"></div>
                 </div>
               </div>
               <div v-if="getFormVideoPreviewSrc()" class="video-preview">
@@ -563,6 +563,11 @@ const {
   pauseGlobal: pausePersistentVideo
 } = usePersistentVideoPlayer()
 const coverUploading = ref(false)
+const activeVideoUploadProgress = computed(() => {
+  if (videoUploadProgress.value > 0) return videoUploadProgress.value
+  if (videoUploading.value || inlineVideoUploading.value || addVideoUploading.value) return 5
+  return 0
+})
 
 // Modal state
 const showModal = ref(false)
@@ -1250,6 +1255,23 @@ const addCoverInput = ref(null)
 const addVideoUploading = ref(false)
 const addCoverUploading = ref(false)
 const addSelectedVideos = ref([])
+const addVideoUploadIndex = ref(0)
+const addVideoUploadTotal = ref(0)
+const addVideoUploadFileName = ref('')
+
+const addVideoUploadProgress = computed(() => {
+  if (!addVideoUploading.value || addVideoUploadTotal.value === 0) return 0
+  const currentProgress = Math.max(videoUploadProgress.value || 0, 5)
+  const completed = Math.max(addVideoUploadIndex.value - 1, 0)
+  const progress = ((completed + (currentProgress / 100)) / addVideoUploadTotal.value) * 100
+  return Math.min(100, Math.max(1, Math.round(progress)))
+})
+
+const addVideoUploadStatus = computed(() => {
+  if (!addVideoUploadTotal.value) return '影片上傳進度'
+  const fileName = addVideoUploadFileName.value ? `：${addVideoUploadFileName.value}` : ''
+  return `上傳第 ${addVideoUploadIndex.value}/${addVideoUploadTotal.value} 部${fileName}`
+})
 
 const getFileBaseName = (fileName = '') => fileName.replace(/\.[^.]+$/, '')
 const getFileExtension = (fileName = '') => fileName.split('.').pop() || ''
@@ -1278,9 +1300,14 @@ const clearAddSelectedVideos = () => {
 const saveInlineAdd = async () => {
   if (addSelectedVideos.value.length > 0) {
     addVideoUploading.value = true
+    addVideoUploadTotal.value = addSelectedVideos.value.length
+    addVideoUploadIndex.value = 0
+    addVideoUploadFileName.value = ''
     try {
       const records = []
-      for (const file of addSelectedVideos.value) {
+      for (const [index, file] of addSelectedVideos.value.entries()) {
+        addVideoUploadIndex.value = index + 1
+        addVideoUploadFileName.value = file.name
         const result = await uploadFile(file, 'video')
         if (!result.success) {
           throw new Error(`${file.name}: ${result.error}`)
@@ -1309,6 +1336,9 @@ const saveInlineAdd = async () => {
       alert('批次上傳失敗: ' + e.message)
     } finally {
       addVideoUploading.value = false
+      addVideoUploadTotal.value = 0
+      addVideoUploadIndex.value = 0
+      addVideoUploadFileName.value = ''
     }
     return
   }
@@ -1700,7 +1730,7 @@ async function handleImport(event) {
       const result = await importVideos(records)
       if (!result.success) throw new Error(result.error || '匯入失敗')
 
-      alert(`成功匯入 ${records.length} 筆影片資料`)
+      alert(result.message || `成功匯入 ${records.length} 筆影片資料`)
       await loadVideos()
     }
   } catch (error) {
@@ -2521,6 +2551,11 @@ onBeforeUnmount(() => {
   margin-bottom: 0.35rem;
   font-size: 0.82rem;
   color: #6b7280;
+}
+
+.upload-progress-head span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .upload-progress-bar {

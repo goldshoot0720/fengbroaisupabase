@@ -51,6 +51,30 @@
         </div>
       </div>
 
+      <div
+        v-if="uploadStatus.active || uploadStatus.completed"
+        class="import-progress-card upload-progress-card"
+        :class="{
+          'is-complete': uploadStatus.completed && !uploadStatus.error,
+          'is-error': uploadStatus.error
+        }"
+      >
+        <div class="import-progress-head">
+          <div>
+            <p class="import-progress-label">圖片上傳進度</p>
+            <p class="import-progress-stage">{{ uploadStatus.stage }}</p>
+          </div>
+          <span class="import-progress-percent">{{ uploadStatus.percent }}%</span>
+        </div>
+        <div class="import-progress-bar">
+          <div class="import-progress-fill" :style="{ width: `${uploadStatus.percent}%` }"></div>
+        </div>
+        <div class="import-progress-meta">
+          <span>{{ uploadStatus.message }}</span>
+          <span v-if="uploadStatus.total > 0">{{ uploadStatus.current }} / {{ uploadStatus.total }}</span>
+        </div>
+      </div>
+
       <div class="summary-bar">
         <div class="summary-left">
           <button v-if="!batchMode && filteredImages.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
@@ -66,6 +90,14 @@
           <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
         </div>
         <div class="summary-right">
+          <label class="sort-control">
+            <span>排序</span>
+            <select v-model="sortMode" class="sort-select">
+              <option value="created-desc">最新在前</option>
+              <option value="size-desc">檔案大小：大到小</option>
+            </select>
+          </label>
+          <span v-if="imageSizeLoading" class="size-loading">讀取大小中...</span>
           <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除選中 ({{ selectedIds.size }})</button>
         </div>
       </div>
@@ -105,7 +137,7 @@
             </div>
             <div v-if="addSelectedFiles.length > 0" class="inline-selected-files">
               <span v-for="file in addSelectedFiles" :key="file.name + file.size" class="selected-file-chip">
-                {{ file.name }}
+                {{ file.name }} · {{ formatBytes(file.size) }}
               </span>
             </div>
             <div v-else-if="addForm.file" class="inline-img-preview-wrap">
@@ -203,6 +235,10 @@
               </div>
               <div v-if="image.filetype" class="detail-row">
                 <span class="file-type-badge">{{ image.filetype }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">檔案大小:</span>
+                <p class="detail-value">{{ formatImageSize(image) }}</p>
               </div>
             </div>
 
@@ -345,6 +381,8 @@ import { ref, onMounted, reactive, computed } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import { useImages } from '../../composables/useImages'
 import { useStorage } from '../../composables/useStorage'
+import { getSupabaseBucket } from '../../composables/useSettings'
+import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
 
 const {
   images,
@@ -362,6 +400,9 @@ const showModal = ref(false)
 const isEditing = ref(false)
 const searchQuery = ref('')
 const viewMode = ref('card')
+const sortMode = ref('created-desc')
+const imageSizeMap = ref({})
+const imageSizeLoading = ref(false)
 const showSection = reactive({
   extra: false
 })
@@ -411,6 +452,49 @@ const finishImportProgress = ({ message, error = false }) => {
     percent: error ? importProgress.percent || 0 : 100
   })
 }
+const createUploadStatusState = () => ({
+  active: false,
+  completed: false,
+  error: false,
+  stage: '準備上傳',
+  message: '',
+  current: 0,
+  total: 0,
+  percent: 0
+})
+const uploadStatus = reactive(createUploadStatusState())
+const startUploadStatus = ({ total = 1, stage = '準備上傳', message = '' } = {}) => {
+  Object.assign(uploadStatus, {
+    active: true,
+    completed: false,
+    error: false,
+    stage,
+    message,
+    current: 0,
+    total,
+    percent: 0
+  })
+}
+const updateUploadStatus = ({ stage, message, current, total, percent }) => {
+  if (stage !== undefined) uploadStatus.stage = stage
+  if (message !== undefined) uploadStatus.message = message
+  if (current !== undefined) uploadStatus.current = current
+  if (total !== undefined) uploadStatus.total = total
+  if (percent !== undefined) {
+    uploadStatus.percent = Math.min(100, Math.max(0, Math.round(percent)))
+  } else if (uploadStatus.total > 0) {
+    uploadStatus.percent = Math.min(99, Math.max(0, Math.round((uploadStatus.current / uploadStatus.total) * 100)))
+  }
+}
+const finishUploadStatus = ({ message, error = false }) => {
+  Object.assign(uploadStatus, {
+    active: false,
+    completed: true,
+    error,
+    message,
+    percent: error ? uploadStatus.percent || 0 : 100
+  })
+}
 const enterBatchMode = () => { batchMode.value = true }
 const exitBatchMode = () => { batchMode.value = false; selectedIds.value = new Set() }
 const isAllSelected = computed(() => filteredImages.value.length > 0 && filteredImages.value.every(a => selectedIds.value.has(a.id)))
@@ -447,6 +531,95 @@ const {
 const coverUploading = ref(false)
 const coverUploadProgress = ref(0)
 
+const getBucketName = () => {
+  const fromSettings = getSupabaseBucket()
+  if (fromSettings) return fromSettings
+  try {
+    const config = useRuntimeConfig()
+    return config.public.supabaseBucket || 'uploads'
+  } catch {
+    return 'uploads'
+  }
+}
+
+const formatBytes = (bytes = 0) => {
+  const amount = Number(bytes)
+  if (!Number.isFinite(amount) || amount <= 0) return '未記錄'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let value = amount
+  let unitIndex = 0
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+  return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(2)} ${units[unitIndex]}`
+}
+
+const extractStoragePath = (value) => {
+  if (typeof value !== 'string') return ''
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+
+  try {
+    const url = new URL(trimmed)
+    const marker = '/storage/v1/object/public/'
+    const markerIndex = url.pathname.indexOf(marker)
+    if (markerIndex === -1) return trimmed
+    const objectPath = decodeURIComponent(url.pathname.slice(markerIndex + marker.length))
+    const slashIndex = objectPath.indexOf('/')
+    if (slashIndex === -1) return trimmed
+    return objectPath.slice(slashIndex + 1)
+  } catch {
+    return trimmed.replace(/^\/+/, '')
+  }
+}
+
+const getStorageObjectSize = (item) => {
+  const size = item?.metadata?.size ?? item?.size ?? 0
+  return Number.isFinite(Number(size)) ? Number(size) : 0
+}
+
+const listStorageSizesRecursive = async (client, bucketName, prefix = '') => {
+  const { data, error } = await client.storage.from(bucketName).list(prefix, {
+    limit: 1000,
+    sortBy: { column: 'name', order: 'asc' }
+  })
+  if (error) throw error
+
+  const entries = {}
+  for (const item of data || []) {
+    const path = prefix ? `${prefix}/${item.name}` : item.name
+    if (item.id === null) {
+      Object.assign(entries, await listStorageSizesRecursive(client, bucketName, path))
+      continue
+    }
+    entries[path] = getStorageObjectSize(item)
+  }
+  return entries
+}
+
+const refreshImageSizes = async () => {
+  const client = getSupabaseBrowserClient()
+  if (!client) return
+
+  imageSizeLoading.value = true
+  try {
+    imageSizeMap.value = await listStorageSizesRecursive(client, getBucketName())
+  } catch (error) {
+    console.warn('讀取圖片檔案大小失敗:', error)
+  } finally {
+    imageSizeLoading.value = false
+  }
+}
+
+const getImageSizeBytes = (image) => {
+  const recordedSize = Number(image?.size || image?.filesize || image?.file_size || 0)
+  if (Number.isFinite(recordedSize) && recordedSize > 0) return recordedSize
+  return imageSizeMap.value[extractStoragePath(image?.file)] || 0
+}
+
+const formatImageSize = (image) => formatBytes(getImageSizeBytes(image))
+
 // 表單資料
 const formData = reactive({
   id: null,
@@ -461,19 +634,32 @@ const formData = reactive({
 })
 
 // 初始化
-onMounted(() => {
-  loadImages()
+onMounted(async () => {
+  await loadImages()
+  await refreshImageSizes()
 })
 
 // 搜尋過濾
 const filteredImages = computed(() => {
-  if (!searchQuery.value) return images.value
+  let result = images.value
 
-  const query = searchQuery.value.toLowerCase()
-  return images.value.filter(image =>
-    (image.name && image.name.toLowerCase().includes(query)) ||
-    (image.category && image.category.toLowerCase().includes(query))
-  )
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(image =>
+      (image.name && image.name.toLowerCase().includes(query)) ||
+      (image.category && image.category.toLowerCase().includes(query))
+    )
+  }
+
+  if (sortMode.value === 'size-desc') {
+    return [...result].sort((a, b) => {
+      const sizeDiff = getImageSizeBytes(b) - getImageSizeBytes(a)
+      if (sizeDiff !== 0) return sizeDiff
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    })
+  }
+
+  return result
 })
 
 const imageCardModeClass = (imageId) => {
@@ -521,27 +707,62 @@ const handleEditImageUpload = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
   editUploading.value = true
+  startUploadStatus({ total: 1, stage: 'Edit image upload', message: `${file.name} ready` })
   try {
-    const result = await uploadImageFile(file, 'gallery')
-    if (result.success) {
-      editForm.file = result.url
-      if (!editForm.name) editForm.name = file.name.replace(/\.[^.]+$/, '')
-      if (!editForm.filetype) editForm.filetype = file.name.split('.').pop() || ''
-    } else { alert('上傳失敗: ' + result.error) }
-  } catch (e) { alert('上傳失敗: ' + e.message) } finally { editUploading.value = false }
+    const result = await uploadGalleryFileWithStatus(file, 'gallery', 1, 1, 'Edit image upload')
+    editForm.file = result.url
+    if (!editForm.name) editForm.name = file.name.replace(/\.[^.]+$/, '')
+    if (!editForm.filetype) editForm.filetype = file.name.split('.').pop() || ''
+    finishUploadStatus({ message: `${file.name} uploaded` })
+  } catch (e) {
+    finishUploadStatus({ message: e.message, error: true })
+    alert('上傳失敗: ' + e.message)
+  } finally {
+    editUploading.value = false
+    event.target.value = ''
+  }
 }
 
 const saveInlineEdit = async () => {
   if (!editForm.name) { alert('請輸入圖片名稱'); return }
   try {
     const result = await updateImage(editingId.value, { ...editForm })
-    if (result.success) { editingId.value = null; await loadImages() }
+    if (result.success) {
+      editingId.value = null
+      await loadImages()
+      await refreshImageSizes()
+    }
     else { alert('儲存失敗: ' + result.error) }
   } catch (e) { alert('儲存失敗: ' + e.message) }
 }
 
 const getFileBaseName = (fileName = '') => fileName.replace(/\.[^.]+$/, '')
 const getFileExtension = (fileName = '') => fileName.split('.').pop() || ''
+const uploadGalleryFileWithStatus = async (file, folder, index = 1, total = 1, stage = 'Image upload') => {
+  const fileName = file?.name || 'image'
+  updateUploadStatus({
+    stage,
+    message: `${fileName} uploading`,
+    current: Math.max(0, index - 1),
+    total,
+    percent: total > 1 ? ((index - 1) / total) * 100 : 8
+  })
+
+  const result = await uploadImageFile(file, folder)
+  if (!result.success) {
+    throw new Error(`${fileName}: ${result.error}`)
+  }
+
+  updateUploadStatus({
+    stage,
+    message: `${fileName} uploaded`,
+    current: index,
+    total,
+    percent: (index / total) * 100
+  })
+
+  return result
+}
 
 const resetAddForm = () => {
   Object.assign(addForm, { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
@@ -578,13 +799,22 @@ const handleAddImageUpload = (event) => {
 const saveInlineAdd = async () => {
   if (addSelectedFiles.value.length > 0) {
     addUploading.value = true
+    const totalFiles = addSelectedFiles.value.length
+    startUploadStatus({
+      total: totalFiles,
+      stage: totalFiles > 1 ? 'Multiple image upload' : 'Single image upload',
+      message: `${totalFiles} file${totalFiles > 1 ? 's' : ''} ready`
+    })
     try {
       const records = []
-      for (const file of addSelectedFiles.value) {
-        const result = await uploadImageFile(file, 'gallery')
-        if (!result.success) {
-          throw new Error(`${file.name}: ${result.error}`)
-        }
+      for (const [index, file] of addSelectedFiles.value.entries()) {
+        const result = await uploadGalleryFileWithStatus(
+          file,
+          'gallery',
+          index + 1,
+          totalFiles,
+          totalFiles > 1 ? 'Multiple image upload' : 'Single image upload'
+        )
         records.push({
           name: addSelectedFiles.value.length === 1 && addForm.name ? addForm.name : getFileBaseName(file.name),
           file: result.url,
@@ -597,15 +827,26 @@ const saveInlineAdd = async () => {
         })
       }
 
+      updateUploadStatus({
+        stage: 'Saving image records',
+        message: 'Saving uploaded image records',
+        current: totalFiles,
+        total: totalFiles,
+        percent: 95
+      })
       const result = await importImages(records)
       if (result.success) {
+        finishUploadStatus({ message: `${result.count} image${result.count > 1 ? 's' : ''} uploaded` })
         resetAddForm()
         isAddingInline.value = false
         await loadImages()
+        await refreshImageSizes()
       } else {
+        finishUploadStatus({ message: result.error, error: true })
         alert('新增失敗: ' + result.error)
       }
     } catch (e) {
+      finishUploadStatus({ message: e.message, error: true })
       alert('批次上傳失敗: ' + e.message)
     } finally {
       addUploading.value = false
@@ -616,7 +857,12 @@ const saveInlineAdd = async () => {
   if (!addForm.name) { alert('請輸入圖片名稱'); return }
   try {
     const result = await addImage({ ...addForm })
-    if (result.success) { resetAddForm(); isAddingInline.value = false; await loadImages() }
+    if (result.success) {
+      resetAddForm()
+      isAddingInline.value = false
+      await loadImages()
+      await refreshImageSizes()
+    }
     else { alert('新增失敗: ' + result.error) }
   } catch (e) { alert('新增失敗: ' + e.message) }
 }
@@ -655,8 +901,9 @@ const handleImageUpload = async (event) => {
   const file = event.target.files?.[0]
   if (!file) return
 
+  startUploadStatus({ total: 1, stage: 'Single image upload', message: `${file.name} ready` })
   try {
-    const result = await uploadImageFile(file, 'gallery')
+    const result = await uploadGalleryFileWithStatus(file, 'gallery', 1, 1, 'Single image upload')
     if (result.success) {
       formData.file = result.url
       // 名稱預設為上傳檔案名稱（去除副檔名）
@@ -666,13 +913,17 @@ const handleImageUpload = async (event) => {
       // 自動偵測檔案類型
       const ext = file.name.split('.').pop()
       if (ext) formData.filetype = ext
+      finishUploadStatus({ message: `${file.name} uploaded` })
       alert('圖片上傳成功！')
     } else {
       alert('上傳失敗: ' + result.error)
     }
   } catch (error) {
     console.error('Upload error:', error)
+    finishUploadStatus({ message: error.message, error: true })
     alert('上傳失敗: ' + error.message)
+  } finally {
+    event.target.value = ''
   }
 }
 
@@ -691,20 +942,23 @@ const handleCoverUpload = async (event) => {
   if (!file) return
 
   coverUploading.value = true
+  startUploadStatus({ total: 1, stage: 'Cover image upload', message: `${file.name} ready` })
   try {
-    const { uploadFile } = useStorage()
-    const result = await uploadFile(file, 'gallery-covers')
+    const result = await uploadGalleryFileWithStatus(file, 'gallery-covers', 1, 1, 'Cover image upload')
     if (result.success) {
       formData.cover = result.url
+      finishUploadStatus({ message: `${file.name} uploaded` })
       alert('封面上傳成功！')
     } else {
       alert('封面上傳失敗: ' + result.error)
     }
   } catch (error) {
     console.error('Cover upload error:', error)
+    finishUploadStatus({ message: error.message, error: true })
     alert('封面上傳失敗: ' + error.message)
   } finally {
     coverUploading.value = false
+    event.target.value = ''
   }
 }
 
@@ -732,6 +986,8 @@ const handleSubmit = async () => {
 
   if (result.success) {
     closeModal()
+    await loadImages()
+    await refreshImageSizes()
   } else {
     alert('儲存失敗: ' + result.error)
   }
@@ -890,6 +1146,8 @@ const handleImportZip = async (e) => {
     const result = await importImages(records)
     if (result.success) {
       alert(`✅ ${result.message}！共 ${result.count} 筆資料`)
+      await loadImages()
+      await refreshImageSizes()
     } else {
       alert('匯入失敗: ' + result.error)
     }
@@ -1029,6 +1287,8 @@ const handleImportZipWithProgress = async (e) => {
       updateImportProgress({ current: records.length, message: `已匯入 ${result.count} 筆圖片資料` })
       finishImportProgress({ message: `匯入完成，共 ${result.count} 筆圖片` })
       alert(`圖片匯入成功，共 ${result.count} 筆`)
+      await loadImages()
+      await refreshImageSizes()
     } else {
       finishImportProgress({ message: '圖片資料匯入失敗', error: true })
       alert('匯入失敗: ' + result.error)
@@ -1711,6 +1971,9 @@ useHead({
 .import-progress-card.is-error .import-progress-fill { background: linear-gradient(90deg, #f97316 0%, #ef4444 100%); }
 .import-progress-meta { margin-top: 0.75rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: 0.9rem; color: #516074; }
 .summary-left, .summary-right { display: flex; align-items: center; gap: 1rem; }
+.sort-control { display: inline-flex; align-items: center; gap: 0.45rem; color: #516074; font-size: 0.88rem; font-weight: 600; }
+.sort-select { min-height: 34px; border: 1px solid #d8e0eb; border-radius: 8px; background: white; color: #2c3e50; padding: 0.35rem 0.55rem; font-size: 0.88rem; }
+.size-loading { color: #667eea; font-size: 0.84rem; font-weight: 700; white-space: nowrap; }
 .select-all-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500; }
 .select-all-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
 .selected-count { background: #3498db; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }

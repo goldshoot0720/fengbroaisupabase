@@ -289,7 +289,6 @@ const {
   sortedFoods,
   loadFoods,
   addFoodInline,
-  duplicateFood,
   importFoods,
   isAppwriteFormat,
   updateFoodInline,
@@ -483,10 +482,17 @@ const saveInlineEdit = async (id) => {
 }
 
 // 安全確認 Modal
-const copyFood = async (food) => {
-  const result = await duplicateFood(food)
-  if (!result.success) {
-    alert('Copy failed: ' + result.error)
+const copyFood = (food) => {
+  editingRowId.value = null
+  showAddRow.value = true
+  addForm.value = {
+    name: `${food.name || ''} 複製`.trim(),
+    shop: food.shop || '',
+    todate: food.todate || '',
+    amount: food.amount || null,
+    price: food.price || null,
+    photo: food.photo || '',
+    photohash: food.photohash || ''
   }
 }
 

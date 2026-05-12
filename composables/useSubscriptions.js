@@ -210,36 +210,6 @@ export const useSubscriptions = () => {
     }
   }
 
-  const duplicateSubscription = async (subscription) => {
-    const client = initSupabase()
-    if (!client) return { success: false, error: '無法連接資料庫' }
-    if (!subscription?.name) return { success: false, error: '缺少訂閱名稱' }
-
-    try {
-      const { data, error } = await client
-        .from('subscription')
-        .insert({
-          name: `${subscription.name} 複製`,
-          site: subscription.site || null,
-          account: subscription.account || null,
-          price: subscription.price || null,
-          nextdate: subscription.nextdate || null,
-          note: subscription.note || null,
-          "iscontinue": subscription.iscontinue !== false,
-          currency: subscription.currency || 'TWD'
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      subscriptions.value.unshift(normalizeSubscription(data))
-      return { success: true }
-    } catch (error) {
-      console.error('複製訂閱失敗:', error.message)
-      return { success: false, error: error.message }
-    }
-  }
 
   // 編輯訂閱
   const editSubscription = (subscription) => {
@@ -561,7 +531,6 @@ export const useSubscriptions = () => {
     loadSubscriptions,
     addSubscription,
     addSubscriptionInline,
-    duplicateSubscription,
     importSubscriptions,
     isAppwriteFormat,
     editSubscription,

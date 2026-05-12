@@ -398,7 +398,6 @@ const {
   sortedSubscriptions,
   loadSubscriptions,
   addSubscriptionInline,
-  duplicateSubscription,
   importSubscriptions,
   isAppwriteFormat,
   updateSubscriptionInline,
@@ -663,10 +662,18 @@ const saveInlineEdit = async (id) => {
 }
 
 // 安全確認 Modal
-const copySubscription = async (sub) => {
-  const result = await duplicateSubscription(sub)
-  if (!result.success) {
-    alert('Copy failed: ' + result.error)
+const copySubscription = (sub) => {
+  editingRowId.value = null
+  showAddRow.value = true
+  addForm.value = {
+    name: `${sub.name || ''} 複製`.trim(),
+    site: sub.site || '',
+    account: sub.account || '',
+    nextdate: sub.nextdate || '',
+    price: sub.price || null,
+    currency: sub.currency || 'TWD',
+    note: sub.note || '',
+    iscontinue: sub.iscontinue !== false
   }
 }
 

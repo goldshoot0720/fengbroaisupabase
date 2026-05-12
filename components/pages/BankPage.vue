@@ -169,7 +169,16 @@
                 class="bank-favicon"
                 @error="$event.target.style.display='none'"
               >
-              <h3 class="bank-name">{{ bank.name }}</h3>
+              <a
+                v-if="getBankSiteUrl(bank.site)"
+                class="bank-name bank-name-link"
+                :href="getBankSiteUrl(bank.site)"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ bank.name }}
+              </a>
+              <h3 v-else class="bank-name">{{ bank.name }}</h3>
             </div>
             <div class="bank-actions">
               <button class="btn-icon" @click="startInlineEdit(bank)" title="編輯">✏️</button>
@@ -475,6 +484,14 @@ const projectedTransactionBalance = computed(() => {
     ? (Number(bank.deposit) || 0) + amount
     : (Number(bank.deposit) || 0) - amount
 })
+
+const getBankSiteUrl = (site) => {
+  const value = String(site || '').trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+  if (/^[\w.-]+\.[a-z]{2,}(?:\/.*)?$/i.test(value)) return `https://${value}`
+  return ''
+}
 
 const enterBatchMode = () => { batchMode.value = true }
 const exitBatchMode = () => { batchMode.value = false; selectedIds.value = new Set() }
@@ -1196,6 +1213,15 @@ useHead({
   font-weight: 700;
   color: #333;
   margin: 0;
+}
+
+.bank-name-link {
+  text-decoration: none;
+  color: #2563eb;
+}
+
+.bank-name-link:hover {
+  text-decoration: underline;
 }
 
 .bank-actions {

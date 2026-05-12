@@ -23,6 +23,18 @@
       </div>
     </section>
 
+    <section v-if="financeAlert" class="tube-home-alert finance-home-alert" role="alert" aria-live="polite">
+      <div class="tube-home-alert__copy">
+        <span class="tube-home-alert__label">鋒兄金融</span>
+        <strong>金融指標創新高</strong>
+        <p>{{ financeAlert.summary }}</p>
+      </div>
+      <div class="tube-home-alert__actions">
+        <button class="hero-btn hero-btn-primary" type="button" @click="openFinanceTools">查看鋒兄金融</button>
+        <button class="hero-btn hero-btn-secondary" type="button" @click="dismissFinanceAlert">今天略過</button>
+      </div>
+    </section>
+
     <section class="hero-grid">
       <article class="hero-panel hero-primary">
         <div class="hero-ascii-shell" aria-label="feng bro ascii art">
@@ -151,9 +163,12 @@ const emit = defineEmits(['navigate'])
 const currentHour = ref(null)
 const tubeAlertVideos = ref([])
 const tubeAlertDismissed = ref(false)
+const financeHighItems = ref([])
+const financeAlertDismissed = ref(false)
 let sleepWarningTimer = null
 
 const TUBE_ALERT_DISMISS_KEY = 'feng-tube-alert-dismissed-date'
+const FINANCE_ALERT_DISMISS_KEY = 'feng-finance-alert-dismissed-date'
 
 const updateCurrentHour = () => {
   currentHour.value = new Date().getHours()
@@ -194,6 +209,15 @@ const tubeAlert = computed(() => {
   }
 })
 
+const financeAlert = computed(() => {
+  if (financeAlertDismissed.value || financeHighItems.value.length === 0) return null
+  const labels = financeHighItems.value.map(item => `${item.name} ${item.lastLabel}`).join('、')
+  return {
+    count: financeHighItems.value.length,
+    summary: `${labels} 已達創新高，請到鋒兄金融確認來源與數值。`
+  }
+})
+
 const todayKey = () => new Date().toISOString().slice(0, 10)
 
 const loadTubeAlert = async () => {
@@ -205,10 +229,27 @@ const loadTubeAlert = async () => {
   }
 }
 
+const loadFinanceAlert = async () => {
+  try {
+    const response = await $fetch('/api/feng-tools/finance')
+    financeHighItems.value = (Array.isArray(response?.items) ? response.items : [])
+      .filter(item => item.status === 'new-high')
+  } catch (error) {
+    console.warn('[HomePage] 鋒兄金融通知載入失敗', error)
+  }
+}
+
 const dismissTubeAlert = () => {
   tubeAlertDismissed.value = true
   if (import.meta.client) {
     localStorage.setItem(TUBE_ALERT_DISMISS_KEY, todayKey())
+  }
+}
+
+const dismissFinanceAlert = () => {
+  financeAlertDismissed.value = true
+  if (import.meta.client) {
+    localStorage.setItem(FINANCE_ALERT_DISMISS_KEY, todayKey())
   }
 }
 
@@ -219,14 +260,23 @@ const openTubeTools = () => {
   emit('navigate', 'tools')
 }
 
+const openFinanceTools = () => {
+  if (import.meta.client) {
+    localStorage.setItem(FENG_TUBE_ACTIVE_TOOL_KEY, 'finance')
+  }
+  emit('navigate', 'tools')
+}
+
 onMounted(() => {
   updateCurrentHour()
   sleepWarningTimer = window.setInterval(updateCurrentHour, 60 * 1000)
 
   if (import.meta.client) {
     tubeAlertDismissed.value = localStorage.getItem(TUBE_ALERT_DISMISS_KEY) === todayKey()
+    financeAlertDismissed.value = localStorage.getItem(FINANCE_ALERT_DISMISS_KEY) === todayKey()
   }
   loadTubeAlert()
+  loadFinanceAlert()
 })
 
 onUnmounted(() => {
@@ -352,6 +402,17 @@ const channels = [
 .tube-home-alert p {
   margin: 0;
   color: #92400e;
+}
+
+.finance-home-alert {
+  border-color: color-mix(in oklab, #ef4444 44%, var(--border-color));
+  background:
+    linear-gradient(135deg, color-mix(in oklab, #fee2e2 82%, var(--bg-secondary)), color-mix(in oklab, #fef3c7 70%, var(--bg-secondary)));
+  color: #7f1d1d;
+}
+
+.finance-home-alert p {
+  color: #991b1b;
 }
 
 .tube-home-alert__actions {

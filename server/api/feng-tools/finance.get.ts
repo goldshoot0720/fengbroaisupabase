@@ -17,12 +17,15 @@ type FinanceItem = {
   symbol: string
   group: string
   url: string
+  source?: string
   last: number | null
   lastLabel: string
   change: number | null
   changePercent: number | null
   week52High: number | null
   week52Low: number | null
+  highLabel?: string
+  lowLabel?: string
   status: 'new-high' | 'new-low' | ''
   error: string
 }
@@ -154,10 +157,38 @@ const parseQuote = (html: string) => {
   }
 }
 
+const parseMultplShillerPe = (html: string) => {
+  const text = stripTags(html)
+  const last = parseNumberAfterLabel(text, ['Current Shiller PE Ratio:'])
+  const changeMatch = text.match(/Current Shiller PE Ratio:\s*[\d,.]+\s*([+-]\d[\d,]*(?:\.\d+)?)\s*\(([+-]?\d+(?:\.\d+)?)%\)/i)
+  const change = toNumber(changeMatch?.[1])
+  const changePercent = toNumber(changeMatch?.[2])
+  const allTimeHigh = parseNumberAfterLabel(text, ['Max:'])
+  const allTimeLow = parseNumberAfterLabel(text, ['Min:'])
+  const maxLabel = text.match(/Max:\s*[\d,.]+\s*\(([^)]+)\)/i)?.[1]
+  const minLabel = text.match(/Min:\s*[\d,.]+\s*\(([^)]+)\)/i)?.[1]
+
+  let status: FinanceItem['status'] = ''
+  if (last !== null && allTimeHigh !== null && last >= allTimeHigh - PRICE_TOLERANCE) status = 'new-high'
+  if (last !== null && allTimeLow !== null && last <= allTimeLow + PRICE_TOLERANCE) status = 'new-low'
+
+  return {
+    last,
+    lastLabel: formatValue(last),
+    change,
+    changePercent,
+    week52High: allTimeHigh,
+    week52Low: allTimeLow,
+    highLabel: maxLabel ? `Max ${maxLabel}` : 'Max',
+    lowLabel: minLabel ? `Min ${minLabel}` : 'Min',
+    status
+  }
+}
+
 const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[number]): Promise<FinanceItem> => {
   try {
     const html = await fetchText(instrument.url)
-    const parsed = parseQuote(html)
+    const parsed = instrument.source === 'Multpl' ? parseMultplShillerPe(html) : parseQuote(html)
 
     if (parsed.last === null) {
       throw new Error('CNBC 頁面未解析到即時價格')
@@ -177,6 +208,8 @@ const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[numb
       changePercent: null,
       week52High: null,
       week52Low: null,
+      highLabel: undefined,
+      lowLabel: undefined,
       status: '',
       error: error?.message || 'CNBC 資料抓取失敗'
     }
@@ -190,7 +223,7 @@ export default defineEventHandler(async () => {
   const items = await Promise.all(FENG_FINANCE_INSTRUMENTS.map(fetchFinanceItem))
   const data = {
     fetchedAt: new Date().toISOString(),
-    source: 'CNBC',
+    source: 'CNBC / Multpl',
     items
   }
 

@@ -217,6 +217,7 @@
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                   </svg>
                 </button>
+                <button @click="copyFood(food)" class="btn-icon btn-copy-icon" title="Copy">C</button>
                 <button @click="deleteFood(food.id)" class="btn-icon btn-delete-icon" title="刪除">✕</button>
               </td>
             </template>
@@ -288,6 +289,7 @@ const {
   sortedFoods,
   loadFoods,
   addFoodInline,
+  duplicateFood,
   importFoods,
   isAppwriteFormat,
   updateFoodInline,
@@ -481,6 +483,13 @@ const saveInlineEdit = async (id) => {
 }
 
 // 安全確認 Modal
+const copyFood = async (food) => {
+  const result = await duplicateFood(food)
+  if (!result.success) {
+    alert('Copy failed: ' + result.error)
+  }
+}
+
 const showConfirmModal = ref(false)
 const confirmInput = ref('')
 const CONFIRM_TEXT = 'DELETE food'
@@ -1144,6 +1153,17 @@ defineExpose({ foods, expiringFoods })
 .btn-edit-icon:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-copy-icon {
+  background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+  color: white;
+  font-weight: 700;
+}
+
+.btn-copy-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.35);
 }
 
 .btn-delete-icon {

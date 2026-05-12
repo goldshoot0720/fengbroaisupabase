@@ -75,5 +75,13 @@ export const FENG_FINANCE_INSTRUMENTS = [
     symbol: 'ETH.CM=',
     group: 'Crypto',
     url: 'https://www.cnbc.com/quotes/ETH.CM='
+  },
+  {
+    id: 'shiller-pe',
+    name: 'Shiller PE Ratio',
+    symbol: 'CAPE',
+    group: 'Valuation',
+    url: 'https://www.multpl.com/shiller-pe',
+    source: 'Multpl'
   }
 ]

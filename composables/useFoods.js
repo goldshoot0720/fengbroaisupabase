@@ -174,6 +174,36 @@ export const useFoods = () => {
     }
   }
 
+  const duplicateFood = async (food) => {
+    const client = initSupabase()
+    if (!client) return { success: false, error: '無法連接資料庫' }
+    if (!food?.name) return { success: false, error: '缺少食品名稱' }
+
+    try {
+      const { data, error } = await client
+        .from('food')
+        .insert({
+          name: `${food.name} 複製`,
+          amount: food.amount || null,
+          price: food.price || null,
+          shop: food.shop || null,
+          todate: food.todate || null,
+          photo: food.photo || null,
+          photohash: food.photohash || null
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      foods.value.unshift(data)
+      return { success: true }
+    } catch (error) {
+      console.error('複製食品失敗:', error.message)
+      return { success: false, error: error.message }
+    }
+  }
+
   // 編輯食物
   const editFood = (food) => {
     editingFood.value = food
@@ -456,6 +486,7 @@ export const useFoods = () => {
     loadFoods,
     addFood,
     addFoodInline,
+    duplicateFood,
     importFoods,
     isAppwriteFormat,
     editFood,

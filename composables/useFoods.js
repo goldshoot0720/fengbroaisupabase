@@ -22,6 +22,12 @@ let supabase = null
 let isInitialized = false
 let currentCredentials = null // 記錄當前使用的認證
 
+const toNullableNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 export const useFoods = () => {
   // 初始化 Supabase（優先使用 localStorage 設定）
   const initSupabase = () => {
@@ -117,7 +123,7 @@ export const useFoods = () => {
         .from('food')
         .insert({
           name: newFood.value.name,
-          amount: newFood.value.amount || null,
+          amount: toNullableNumber(newFood.value.amount),
           price: newFood.value.price || null,
           shop: newFood.value.shop || null,
           todate: newFood.value.todate || null,
@@ -154,7 +160,7 @@ export const useFoods = () => {
         .from('food')
         .insert({
           name: formData.name,
-          amount: formData.amount || null,
+          amount: toNullableNumber(formData.amount),
           price: formData.price || null,
           shop: formData.shop || null,
           todate: formData.todate || null,
@@ -215,7 +221,7 @@ export const useFoods = () => {
         .from('food')
         .update({
           name: newFood.value.name,
-          amount: newFood.value.amount || null,
+          amount: toNullableNumber(newFood.value.amount),
           price: newFood.value.price || null,
           shop: newFood.value.shop || null,
           todate: newFood.value.todate || null,
@@ -254,7 +260,7 @@ export const useFoods = () => {
         .from('food')
         .update({
           name: formData.name,
-          amount: formData.amount || null,
+          amount: toNullableNumber(formData.amount),
           price: formData.price || null,
           shop: formData.shop || null,
           todate: formData.todate || null,

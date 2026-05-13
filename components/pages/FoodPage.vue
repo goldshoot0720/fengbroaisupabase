@@ -115,7 +115,7 @@
               <span class="remaining-empty">-</span>
             </td>
             <td class="col-amount" data-label="數量">
-              <input v-model="addForm.amount" type="number" class="inline-input inline-number" placeholder="0" min="1" />
+              <input v-model="addForm.amount" type="number" class="inline-input inline-number" placeholder="0" min="0" />
             </td>
             <td class="col-photo col-photo-edit" data-label="圖片">
               <div v-if="addForm.photo" class="inline-photo-preview">
@@ -162,7 +162,7 @@
                 <span :class="getRemainingClass(editForm.todate)">{{ formatRemainingDate(editForm.todate) }}</span>
               </td>
               <td class="col-amount" data-label="數量">
-                <input v-model="editForm.amount" type="number" class="inline-input inline-number" placeholder="0" min="1" />
+                <input v-model="editForm.amount" type="number" class="inline-input inline-number" placeholder="0" min="0" />
               </td>
               <td class="col-photo col-photo-edit" data-label="圖片">
                 <div v-if="editForm.photo" class="inline-photo-preview">
@@ -199,7 +199,27 @@
                 <span :class="getRemainingClass(food.todate)">{{ formatRemainingDate(food.todate) }}</span>
               </td>
               <td class="col-amount" data-label="數量">
-                <span>{{ food.amount || '' }}</span>
+                <div class="amount-stepper">
+                  <button
+                    type="button"
+                    class="btn-amount-step"
+                    :disabled="isAmountUpdating(food.id) || getFoodAmount(food) <= 0"
+                    title="減少數量"
+                    @click="adjustFoodAmount(food, -1)"
+                  >
+                    -
+                  </button>
+                  <span class="amount-value">{{ getFoodAmount(food) }}</span>
+                  <button
+                    type="button"
+                    class="btn-amount-step"
+                    :disabled="isAmountUpdating(food.id)"
+                    title="增加數量"
+                    @click="adjustFoodAmount(food, 1)"
+                  >
+                    +
+                  </button>
+                </div>
               </td>
               <td class="col-photo" data-label="圖片">
                 <img
@@ -482,6 +502,41 @@ const saveInlineEdit = async (id) => {
 }
 
 // 安全確認 Modal
+const amountUpdatingIds = ref(new Set())
+
+const getFoodAmount = (food) => {
+  const amount = Number(food?.amount ?? 0)
+  return Number.isFinite(amount) ? Math.max(0, amount) : 0
+}
+
+const isAmountUpdating = (id) => amountUpdatingIds.value.has(id)
+
+const setAmountUpdating = (id, isUpdating) => {
+  const next = new Set(amountUpdatingIds.value)
+  if (isUpdating) next.add(id)
+  else next.delete(id)
+  amountUpdatingIds.value = next
+}
+
+const adjustFoodAmount = async (food, delta) => {
+  if (!food?.id || isAmountUpdating(food.id)) return
+
+  const nextAmount = Math.max(0, getFoodAmount(food) + delta)
+  if (nextAmount === getFoodAmount(food)) return
+
+  setAmountUpdating(food.id, true)
+  const result = await updateFoodInline(food.id, {
+    ...food,
+    amount: nextAmount
+  }).finally(() => {
+    setAmountUpdating(food.id, false)
+  })
+
+  if (!result.success) {
+    alert('數量更新失敗: ' + result.error)
+  }
+}
+
 const copyFood = (food) => {
   editingRowId.value = null
   showAddRow.value = true
@@ -1001,7 +1056,43 @@ defineExpose({ foods, expiringFoods })
 }
 
 .col-amount {
-  width: 70px;
+  width: 130px;
+  text-align: center;
+}
+
+.amount-stepper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 112px;
+}
+
+.btn-amount-step {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 8px;
+  background: #eef6ff;
+  color: #1d4ed8;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-amount-step:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.btn-amount-step:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.amount-value {
+  min-width: 2rem;
+  font-weight: 800;
   text-align: center;
 }
 

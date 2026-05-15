@@ -405,7 +405,7 @@ const tables = reactive([
     exists: false,
     sql: `${TABLE_UUID_EXTENSION_SQL}
 
-CREATE TABLE article (
+CREATE TABLE public.article (
   ${UUID_PRIMARY_KEY_SQL}
   title VARCHAR(100) NOT NULL,
   content TEXT,
@@ -436,7 +436,7 @@ CREATE TABLE article (
     exists: false,
     sql: `${TABLE_UUID_EXTENSION_SQL}
 
-CREATE TABLE bank (
+CREATE TABLE public.bank (
   ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   deposit INTEGER DEFAULT 0,
@@ -459,7 +459,7 @@ CREATE TABLE bank (
     exists: false,
     sql: `${TABLE_UUID_EXTENSION_SQL}
 
-CREATE TABLE commonaccount (
+CREATE TABLE public.commonaccount (
   ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   site01 VARCHAR(100), site02 VARCHAR(100), site03 VARCHAR(100), site04 VARCHAR(100), site05 VARCHAR(100),
@@ -491,7 +491,7 @@ CREATE TABLE commonaccount (
     exists: false,
     sql: `${TABLE_UUID_EXTENSION_SQL}
 
-CREATE TABLE commondocument (
+CREATE TABLE public.commondocument (
   ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   file VARCHAR(150),
@@ -512,7 +512,7 @@ CREATE TABLE commondocument (
     exists: false,
     sql: `${TABLE_UUID_EXTENSION_SQL}
 
-CREATE TABLE food (
+CREATE TABLE public.food (
   ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   amount INTEGER DEFAULT 0,
@@ -533,7 +533,7 @@ CREATE TABLE food (
     exists: false,
     sql: `${TABLE_UUID_EXTENSION_SQL}
 
-CREATE TABLE image (
+CREATE TABLE public.image (
   ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   file VARCHAR(150),
@@ -555,7 +555,7 @@ CREATE TABLE image (
     exists: false,
     sql: `${TABLE_UUID_EXTENSION_SQL}
 
-CREATE TABLE music (
+CREATE TABLE public.music (
   ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   file VARCHAR(150),
@@ -579,7 +579,7 @@ CREATE TABLE music (
     exists: false,
     sql: `${TABLE_UUID_EXTENSION_SQL}
 
-CREATE TABLE podcast (
+CREATE TABLE public.podcast (
   ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   file VARCHAR(150),
@@ -601,7 +601,7 @@ CREATE TABLE podcast (
     exists: false,
     sql: `${TABLE_UUID_EXTENSION_SQL}
 
-CREATE TABLE routine (
+CREATE TABLE public.routine (
   ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   note VARCHAR(100),
@@ -622,7 +622,7 @@ CREATE TABLE routine (
     exists: false,
     sql: `${TABLE_UUID_EXTENSION_SQL}
 
-CREATE TABLE subscription (
+CREATE TABLE public.subscription (
   ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   site TEXT,
@@ -644,7 +644,7 @@ CREATE TABLE subscription (
     exists: false,
     sql: `${TABLE_UUID_EXTENSION_SQL}
 
-CREATE TABLE video (
+CREATE TABLE public.video (
   ${UUID_PRIMARY_KEY_SQL}
   created_at TIMESTAMPTZ DEFAULT NOW(),
   name TEXT UNIQUE,

@@ -7,6 +7,7 @@ import { buildImportMessage, filterDuplicateImports } from '../utils/importDedup
 // 共享狀態（在模組層級定義，所有組件共用）
 const subscriptions = ref([])
 const subscriptionLoading = ref(false)
+const subscriptionError = ref('')
 const editingSubscription = ref(null)
 const SUBSCRIPTION_IMPORT_KEY_FIELDS = ['name', 'site', 'account', 'price', 'nextdate', 'note', 'currency', 'iscontinue']
 const newSubscription = ref({
@@ -22,6 +23,14 @@ const newSubscription = ref({
 let supabase = null
 let isInitialized = false
 let currentCredentials = null // 記錄當前使用的認證
+
+const isMissingSubscriptionTableError = (error) => {
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`
+  return error?.code === 'PGRST205' ||
+    error?.code === '42P01' ||
+    /Could not find the table .*subscription/i.test(message) ||
+    /relation .*subscription.* does not exist/i.test(message)
+}
 
 export const useSubscriptions = () => {
   // 初始化 Supabase（優先使用 localStorage 設定）
@@ -111,6 +120,7 @@ export const useSubscriptions = () => {
     
     try {
       subscriptionLoading.value = true
+      subscriptionError.value = ''
       const { data, error } = await client
         .from('subscription')
         .select('*')
@@ -124,7 +134,11 @@ export const useSubscriptions = () => {
       }
     } catch (error) {
       console.error('載入訂閱資料失敗:', error)
-      alert('載入訂閱資料失敗: ' + error.message)
+      subscriptions.value = []
+      isInitialized = true
+      subscriptionError.value = isMissingSubscriptionTableError(error)
+        ? '尚未建立 subscription 資料表，請到鋒兄設定的資料表狀態手動建立。'
+        : `載入訂閱資料失敗: ${error.message}`
     } finally {
       subscriptionLoading.value = false
     }
@@ -523,6 +537,7 @@ export const useSubscriptions = () => {
   return {
     subscriptions,
     subscriptionLoading,
+    subscriptionError,
     editingSubscription,
     newSubscription,
     totalMonthlyCost,

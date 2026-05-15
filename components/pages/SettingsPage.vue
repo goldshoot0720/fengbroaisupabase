@@ -112,6 +112,9 @@
         <section class="settings-section table-status-section">
           <div class="section-header">
             <h2 class="section-title">🗄️ 資料表狀態</h2>
+            <button class="btn-copy-all-sql" type="button" @click="copyAllTableSql">
+              全表格 SQL 一次複製
+            </button>
           </div>
           <div class="section-body">
             <div class="table-status-list">
@@ -814,6 +817,38 @@ const copySql = async () => {
   }
 }
 
+const copyTextToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+  }
+}
+
+const copyAllTableSql = async () => {
+  const allSql = [
+    '-- Feng AI Supabase 全表格建立 SQL',
+    '-- 請貼到 Supabase SQL Editor 執行；id 一律使用 UUID。',
+    ...tables.map((table) => [
+      '',
+      `-- ${table.label} (${table.name})`,
+      table.sql
+    ].join('\n'))
+  ].join('\n')
+
+  try {
+    await copyTextToClipboard(allSql)
+    alert(`已複製 ${tables.length} 張資料表 SQL！`)
+  } catch (error) {
+    alert('複製全表格 SQL 失敗: ' + error.message)
+  }
+}
+
 const copyBucketSql = async () => {
   const bkt = currentBucketName.value
   const sql = `-- 1. 建立 Bucket
@@ -1126,6 +1161,10 @@ useHead({
   padding: 1.5rem 2rem;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .section-title {
@@ -1136,6 +1175,24 @@ useHead({
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.btn-copy-all-sql {
+  border: 1px solid rgba(102, 126, 234, 0.28);
+  background: var(--bg-secondary);
+  color: var(--primary);
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-bounce);
+}
+
+.btn-copy-all-sql:hover {
+  background: var(--primary-light);
+  transform: translateY(-1px);
 }
 
 .section-badge {
@@ -1744,6 +1801,12 @@ useHead({
 
   .section-header {
     padding: 1.2rem 1.5rem;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .btn-copy-all-sql {
+    width: 100%;
   }
 
   .section-body {

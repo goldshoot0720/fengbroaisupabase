@@ -285,6 +285,7 @@
                 @timeupdate="handleInlineVideoProgress($event, video)"
                 @loadedmetadata="handleInlineVideoProgress($event, video)"
                 @volumechange="handleInlineVideoProgress($event, video)"
+                @error="handleInlineVideoError($event, video)"
               ></video>
               <button @click.stop="playingVideoId = null" class="close-player-btn" title="關閉播放">✕</button>
             </div>
@@ -308,8 +309,12 @@
                 <span class="placeholder-icon">🎬</span>
               </div>
               <!-- 播放按鈕覆蓋層 -->
-              <div v-if="video.file" class="play-overlay">
-                <span class="play-btn">▶</span>
+              <div
+                v-if="video.file"
+                class="play-overlay"
+                :class="{ 'play-overlay--loading': resolvingVideoIds.has(video.id) }"
+              >
+                <span class="play-btn">{{ resolvingVideoIds.has(video.id) ? '...' : '▶' }}</span>
               </div>
               <!-- 類型標籤 -->
               <span v-if="video.filetype" class="filetype-tag">{{ video.filetype.toUpperCase() }}</span>
@@ -591,8 +596,8 @@ const playingVideoId = ref(null)
 const activeVideoElement = ref(null)
 
 // Video caching state
-const videoCache = ref(new Map()) // id -> { blobUrl, size }
-const resolvedVideoSources = ref(new Map()) // id -> { blobUrl, size }
+const videoCache = ref(new Map()) // id -> { blobUrl, size, fileRef }
+const resolvedVideoSources = ref(new Map()) // id -> { blobUrl, size, fileRef }
 const thumbnailVideoSources = ref(new Map()) // id -> blob url for multipart thumbnail
 const resolvingVideoIds = ref(new Set())
 const resolvingThumbnailIds = ref(new Set())
@@ -736,7 +741,8 @@ async function hydratePersistedVideoCache() {
       nextCache.set(video.id, {
         blobUrl,
         size: record.size || record.blob.size,
-        name: record.name || video.name
+        name: record.name || video.name,
+        fileRef: record.fileRef
       })
     } catch (error) {
       console.error(`載入持久化快取失敗 (${video.name || video.id}):`, error)
@@ -751,6 +757,14 @@ function revokeIfBlobUrl(url) {
   if (typeof url === 'string' && url.startsWith('blob:')) {
     URL.revokeObjectURL(url)
   }
+}
+
+function getMemoryCachedVideo(video) {
+  if (!video?.id) return null
+  const cached = videoCache.value.get(video.id)
+  if (!cached) return null
+  if (cached.fileRef && cached.fileRef !== video.file) return null
+  return cached
 }
 
 function setPreviewSrc(targetRef, nextUrl) {
@@ -836,13 +850,19 @@ function seekThumbnailFrame(event) {
 }
 
 async function ensureResolvedVideoSource(video) {
-  if (!video?.file || !isMultipartVideo(video.file)) return video?.file || ''
+  if (!video?.file) return ''
 
-  const cached = videoCache.value.get(video.id)
+  const cached = getMemoryCachedVideo(video)
   if (cached?.blobUrl) return cached.blobUrl
 
   const existing = resolvedVideoSources.value.get(video.id)
-  if (existing) return existing.blobUrl
+  if (existing?.blobUrl && existing.fileRef === video.file) return existing.blobUrl
+  if (existing?.blobUrl) {
+    revokeIfBlobUrl(existing.blobUrl)
+    resolvedVideoSources.value.delete(video.id)
+    resolvedVideoSources.value = new Map(resolvedVideoSources.value)
+  }
+
   if (resolvingVideoPromises.has(video.id)) {
     return await resolvingVideoPromises.get(video.id)
   }
@@ -852,9 +872,9 @@ async function ensureResolvedVideoSource(video) {
 
   const promise = (async () => {
     try {
-      const { blob } = await resolveMultipartFile(video.file)
+      const blob = await getVideoBlobForDownload(video)
       const blobUrl = URL.createObjectURL(blob)
-      resolvedVideoSources.value.set(video.id, { blobUrl, size: blob.size })
+      resolvedVideoSources.value.set(video.id, { blobUrl, size: blob.size, fileRef: video.file })
       resolvedVideoSources.value = new Map(resolvedVideoSources.value)
       return blobUrl
     } finally {
@@ -869,10 +889,11 @@ async function ensureResolvedVideoSource(video) {
 }
 
 function getVideoSrc(video) {
-  const cached = videoCache.value.get(video.id)
+  const cached = getMemoryCachedVideo(video)
   if (cached) return cached.blobUrl
   const resolved = resolvedVideoSources.value.get(video.id)
-  if (resolved) return resolved.blobUrl
+  if (resolved?.blobUrl && resolved.fileRef === video.file) return resolved.blobUrl
+  if (resolvingVideoIds.value.has(video.id)) return ''
   if (isMultipartVideo(video.file)) {
     return ''
   }
@@ -956,11 +977,7 @@ async function downloadVideo(video) {
 async function handlePlay(video) {
   if (!video?.file || batchMode.value) return
   try {
-    const cached = videoCache.value.get(video.id)
-    let src = cached?.blobUrl || video.file
-    if (isMultipartVideo(video.file) && !cached?.blobUrl) {
-      src = await ensureResolvedVideoSource(video)
-    }
+    const src = await ensureResolvedVideoSource(video)
     if (!src) {
       throw new Error('影片仍在準備中，請稍後再試')
     }
@@ -974,20 +991,34 @@ async function handlePlay(video) {
   }
 }
 
+async function handleInlineVideoError(event, video) {
+  if (!video?.file || playingVideoId.value !== video.id) return
+
+  const videoEl = event?.target
+  const errorCode = videoEl?.error?.code || 'unknown'
+  console.warn(`Video playback error (${video.name || video.id}, code ${errorCode}). Retrying with resolved source.`)
+
+  try {
+    const src = await ensureResolvedVideoSource(video)
+    if (!src || !videoEl) return
+    if (videoEl.src !== src) {
+      videoEl.src = src
+      videoEl.load()
+    }
+    await videoEl.play().catch(() => {})
+  } catch (error) {
+    console.error('敶梁?頛憭望?:', error)
+  }
+}
+
 async function cacheVideo(video) {
   if (!video.file || videoCache.value.has(video.id)) return
   cachingVideoId.value = video.id
   try {
-    const blob = isMultipartVideo(video.file)
-      ? (await resolveMultipartFile(video.file)).blob
-      : await (async () => {
-          const response = await fetch(video.file)
-          if (!response.ok) throw new Error(`HTTP ${response.status}`)
-          return await response.blob()
-        })()
+    const blob = await getVideoBlobForDownload(video)
     const blobUrl = URL.createObjectURL(blob)
     await persistVideoCache(video, blob)
-    videoCache.value.set(video.id, { blobUrl, size: blob.size, name: video.name })
+    videoCache.value.set(video.id, { blobUrl, size: blob.size, name: video.name, fileRef: video.file })
     // Force reactivity
     videoCache.value = new Map(videoCache.value)
     updateTotalCacheSize()
@@ -2166,6 +2197,13 @@ onBeforeUnmount(() => {
   background: rgba(0, 0, 0, 0.35);
 }
 
+.play-overlay--loading,
+.video-card:hover .play-overlay--loading {
+  opacity: 1;
+  background: rgba(15, 23, 42, 0.48);
+  cursor: wait;
+}
+
 .play-btn {
   width: 52px;
   height: 52px;
@@ -2184,6 +2222,12 @@ onBeforeUnmount(() => {
 
 .video-card:hover .play-btn {
   transform: scale(1);
+}
+
+.play-overlay--loading .play-btn {
+  padding-left: 0;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
 }
 
 /* Filetype Tag */

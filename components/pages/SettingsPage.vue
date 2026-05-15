@@ -393,6 +393,9 @@ const getSupabaseUrlValidationMessage = (rawUrl) => {
   return ''
 }
 
+const TABLE_UUID_EXTENSION_SQL = 'CREATE EXTENSION IF NOT EXISTS pgcrypto;'
+const UUID_PRIMARY_KEY_SQL = 'id UUID PRIMARY KEY DEFAULT gen_random_uuid(),'
+
 const tables = reactive([
   {
     name: 'article',
@@ -400,8 +403,10 @@ const tables = reactive([
     icon: '📰',
     checking: false,
     exists: false,
-    sql: `CREATE TABLE article (
-  id BIGSERIAL PRIMARY KEY,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE article (
+  ${UUID_PRIMARY_KEY_SQL}
   title VARCHAR(100) NOT NULL,
   content TEXT,
   category VARCHAR(100),
@@ -429,8 +434,10 @@ const tables = reactive([
     icon: '🏦',
     checking: false,
     exists: false,
-    sql: `CREATE TABLE bank (
-  id BIGSERIAL PRIMARY KEY,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE bank (
+  ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   deposit INTEGER DEFAULT 0,
   site TEXT,
@@ -450,8 +457,10 @@ const tables = reactive([
     icon: '🔑',
     checking: false,
     exists: false,
-    sql: `CREATE TABLE commonaccount (
-  id BIGSERIAL PRIMARY KEY,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE commonaccount (
+  ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   site01 VARCHAR(100), site02 VARCHAR(100), site03 VARCHAR(100), site04 VARCHAR(100), site05 VARCHAR(100),
   site06 VARCHAR(100), site07 VARCHAR(100), site08 VARCHAR(100), site09 VARCHAR(100), site10 VARCHAR(100),
@@ -480,8 +489,10 @@ const tables = reactive([
     icon: '📄',
     checking: false,
     exists: false,
-    sql: `CREATE TABLE commondocument (
-  id BIGSERIAL PRIMARY KEY,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE commondocument (
+  ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   file VARCHAR(150),
   note VARCHAR(100),
@@ -499,8 +510,10 @@ const tables = reactive([
     icon: '🍔',
     checking: false,
     exists: false,
-    sql: `CREATE TABLE food (
-  id BIGSERIAL PRIMARY KEY,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE food (
+  ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   amount INTEGER DEFAULT 0,
   price INTEGER DEFAULT 0,
@@ -518,8 +531,10 @@ const tables = reactive([
     icon: '🖼️',
     checking: false,
     exists: false,
-    sql: `CREATE TABLE image (
-  id BIGSERIAL PRIMARY KEY,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE image (
+  ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   file VARCHAR(150),
   filetype VARCHAR(20),
@@ -538,8 +553,10 @@ const tables = reactive([
     icon: '🎵',
     checking: false,
     exists: false,
-    sql: `CREATE TABLE music (
-  id BIGSERIAL PRIMARY KEY,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE music (
+  ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   file VARCHAR(150),
   filetype VARCHAR(20),
@@ -560,8 +577,10 @@ const tables = reactive([
     icon: '🎧',
     checking: false,
     exists: false,
-    sql: `CREATE TABLE podcast (
-  id BIGSERIAL PRIMARY KEY,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE podcast (
+  ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   file VARCHAR(150),
   filetype VARCHAR(20),
@@ -580,8 +599,10 @@ const tables = reactive([
     icon: '🔁',
     checking: false,
     exists: false,
-    sql: `CREATE TABLE routine (
-  id BIGSERIAL PRIMARY KEY,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE routine (
+  ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   note VARCHAR(100),
   lastdate1 TIMESTAMPTZ,
@@ -599,8 +620,10 @@ const tables = reactive([
     icon: '💳',
     checking: false,
     exists: false,
-    sql: `CREATE TABLE subscription (
-  id BIGSERIAL PRIMARY KEY,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE subscription (
+  ${UUID_PRIMARY_KEY_SQL}
   name VARCHAR(100) NOT NULL,
   site TEXT,
   account TEXT,
@@ -619,8 +642,10 @@ const tables = reactive([
     icon: '🎬',
     checking: false,
     exists: false,
-    sql: `CREATE TABLE video (
-  id BIGSERIAL PRIMARY KEY,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE video (
+  ${UUID_PRIMARY_KEY_SQL}
   created_at TIMESTAMPTZ DEFAULT NOW(),
   name TEXT UNIQUE,
   file TEXT,

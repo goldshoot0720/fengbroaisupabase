@@ -32,6 +32,13 @@ const isMissingSubscriptionTableError = (error) => {
     /relation .*subscription.* does not exist/i.test(message)
 }
 
+const getSubscriptionErrorMessage = (error) => {
+  if (isMissingSubscriptionTableError(error)) {
+    return '尚未建立 public.subscription 資料表，請到鋒兄設定的資料表狀態手動建立 subscription。'
+  }
+  return error?.message || String(error)
+}
+
 export const useSubscriptions = () => {
   // 初始化 Supabase（優先使用 localStorage 設定）
   const initSupabase = () => {
@@ -136,9 +143,7 @@ export const useSubscriptions = () => {
       console.error('載入訂閱資料失敗:', error)
       subscriptions.value = []
       isInitialized = true
-      subscriptionError.value = isMissingSubscriptionTableError(error)
-        ? '尚未建立 subscription 資料表，請到鋒兄設定的資料表狀態手動建立。'
-        : `載入訂閱資料失敗: ${error.message}`
+      subscriptionError.value = getSubscriptionErrorMessage(error)
     } finally {
       subscriptionLoading.value = false
     }
@@ -183,7 +188,7 @@ export const useSubscriptions = () => {
       alert('訂閱已新增成功！')
     } catch (error) {
       console.error('新增訂閱失敗:', error.message)
-      alert('新增訂閱失敗: ' + error.message)
+      alert('新增訂閱失敗: ' + getSubscriptionErrorMessage(error))
     } finally {
       subscriptionLoading.value = false
     }
@@ -220,7 +225,7 @@ export const useSubscriptions = () => {
       return { success: true }
     } catch (error) {
       console.error('行内新增失敗:', error.message)
-      return { success: false, error: error.message }
+      return { success: false, error: getSubscriptionErrorMessage(error) }
     }
   }
 
@@ -290,7 +295,7 @@ export const useSubscriptions = () => {
       alert('訂閱已更新成功！')
     } catch (error) {
       console.error('更新訂閱失敗:', error.message)
-      alert('更新訂閱失敗: ' + error.message)
+      alert('更新訂閱失敗: ' + getSubscriptionErrorMessage(error))
     } finally {
       subscriptionLoading.value = false
     }
@@ -329,7 +334,7 @@ export const useSubscriptions = () => {
       return { success: true }
     } catch (error) {
       console.error('行内更新失敗:', error.message)
-      return { success: false, error: error.message }
+      return { success: false, error: getSubscriptionErrorMessage(error) }
     }
   }
 
@@ -354,7 +359,7 @@ export const useSubscriptions = () => {
       alert('訂閱已刪除！')
     } catch (error) {
       console.error('刪除訂閱失敗:', error.message)
-      alert('刪除訂閱失敗: ' + error.message)
+      alert('刪除訂閱失敗: ' + getSubscriptionErrorMessage(error))
     } finally {
       subscriptionLoading.value = false
     }
@@ -379,7 +384,7 @@ export const useSubscriptions = () => {
       return { success: true, count: ids.length }
     } catch (error) {
       console.error('批量刪除失敗:', error.message)
-      return { success: false, error: error.message }
+      return { success: false, error: getSubscriptionErrorMessage(error) }
     } finally {
       subscriptionLoading.value = false
     }
@@ -402,7 +407,7 @@ export const useSubscriptions = () => {
       if (idx !== -1) subscriptions.value[idx] = data
     } catch (error) {
       console.error('切換續訂狀態失敗:', error.message)
-      alert('切換續訂狀態失敗: ' + error.message)
+      alert('切換續訂狀態失敗: ' + getSubscriptionErrorMessage(error))
     }
   }
 
@@ -528,7 +533,7 @@ export const useSubscriptions = () => {
       }
     } catch (e) {
       console.error('Import error:', e)
-      return { success: false, error: e.message }
+      return { success: false, error: getSubscriptionErrorMessage(e) }
     } finally {
       subscriptionLoading.value = false
     }

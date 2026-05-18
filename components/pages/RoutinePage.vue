@@ -55,7 +55,6 @@
               <th>圖片</th>
               <th>最近例行之一</th>
               <th>最近例行之二</th>
-              <th>相距天數</th>
               <th>最近例行之三</th>
               <th>操作</th>
             </tr>
@@ -64,7 +63,7 @@
             <!-- 行內新增面板 -->
             <template v-if="isAddingInline">
               <tr class="row-editing">
-                <td colspan="8" class="td-inline-edit-full">
+                <td colspan="7" class="td-inline-edit-full">
                   <div class="inline-edit-panel">
                     <div class="inline-field-row">
                       <label class="inline-edit-label">名稱</label>
@@ -101,7 +100,7 @@
             <template v-for="routine in filteredRoutines" :key="routine.id">
               <!-- 行內編輯模式 - 整合單列 -->
               <tr v-if="editingId === routine.id" class="row-editing">
-                <td colspan="8" class="td-inline-edit-full">
+                <td colspan="7" class="td-inline-edit-full">
                   <div class="inline-edit-panel">
                     <div class="inline-field-row">
                       <label class="inline-edit-label">名稱</label>
@@ -183,11 +182,16 @@
                     @click="previewImage = routine.photo"
                   />
                 </td>
-                <td class="td-date" data-label="最近例行之一">{{ formatDate(routine.lastdate1) }}</td>
-                <td class="td-date" data-label="最近例行之二">{{ formatDate(routine.lastdate2) }}</td>
-                <td class="td-days" data-label="相距天數">
-                  <span v-if="getDaysBetween(routine.lastdate1, routine.lastdate2) !== null" class="days-badge">
-                    {{ getDaysBetween(routine.lastdate1, routine.lastdate2) }} 天
+                <td class="td-date" data-label="最近例行之一">
+                  <span class="date-main">{{ formatDate(routine.lastdate1) }}</span>
+                  <span v-if="getRoutineGapLabel(routine.lastdate1, routine.lastdate2)" class="date-subline">
+                    {{ getRoutineGapLabel(routine.lastdate1, routine.lastdate2) }}
+                  </span>
+                </td>
+                <td class="td-date" data-label="最近例行之二">
+                  <span class="date-main">{{ formatDate(routine.lastdate2) }}</span>
+                  <span v-if="getRoutineGapLabel(routine.lastdate2, routine.lastdate3)" class="date-subline">
+                    {{ getRoutineGapLabel(routine.lastdate2, routine.lastdate3) }}
                   </span>
                 </td>
                 <td class="td-date" data-label="最近例行之三">{{ formatDate(routine.lastdate3) }}</td>
@@ -452,18 +456,17 @@ const parseDateOnly = (dateString) => {
   return new Date(year, month - 1, day)
 }
 
-const getDaysBetween = (date1, date2) => {
-  if (!date1) return null
-  try {
-    const d1 = parseDateOnly(date1)
-    const d2 = parseDateOnly(date2) || new Date()
-    if (!d1 || Number.isNaN(d2.getTime())) return null
-    const today = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate())
-    const diffMs = Math.abs(today - d1)
-    return Math.round(diffMs / (1000 * 60 * 60 * 24))
-  } catch (e) {
-    return null
-  }
+const getRoutineGapDays = (date1, date2) => {
+  const d1 = parseDateOnly(date1)
+  const d2 = parseDateOnly(date2)
+  if (!d1 || !d2 || Number.isNaN(d1.getTime()) || Number.isNaN(d2.getTime())) return null
+  const diffMs = Math.abs(d2 - d1)
+  return Math.round(diffMs / (1000 * 60 * 60 * 24))
+}
+
+const getRoutineGapLabel = (date1, date2) => {
+  const days = getRoutineGapDays(date1, date2)
+  return days === null ? '' : `相差 ${days} 天`
 }
 
 const resetForm = () => {
@@ -1135,20 +1138,16 @@ onMounted(() => {
   font-size: 0.9rem;
 }
 
-.td-days {
-  width: 10%;
-  text-align: center;
+.date-main,
+.date-subline {
+  display: block;
 }
 
-.days-badge {
-  display: inline-block;
-  padding: 0.25rem 0.6rem;
-  background: linear-gradient(135deg, rgba(242, 153, 74, 0.15) 0%, rgba(242, 201, 76, 0.15) 100%);
-  color: #e67e22;
-  border-radius: 12px;
+.date-subline {
+  margin-top: 0.2rem;
+  color: #7c8594;
+  font-size: 0.78rem;
   font-weight: 600;
-  font-size: 0.85rem;
-  white-space: nowrap;
 }
 
 .td-actions {

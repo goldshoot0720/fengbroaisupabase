@@ -93,6 +93,17 @@
                 <span class="form-hint">Storage Bucket 名稱（預設 uploads）</span>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section class="settings-section resend-section">
+          <div class="section-header">
+            <h2 class="section-title">Resend Email 通知</h2>
+          </div>
+          <div class="section-body">
+            <p class="section-description">
+              有設定時，鋒兄訂閱提前 2 天、鋒兄食品提前 8 天寄出提醒。完整填寫 API Key 與收件信箱的組合才會寄送。
+            </p>
             <div class="form-row">
               <label for="resendApiKey">RESEND_API_KEY</label>
               <div class="form-field">
@@ -104,7 +115,7 @@
                   placeholder="re_..."
                   autocomplete="off"
                 >
-                <span class="form-hint">有設定時，鋒兄訂閱提前 2 天、鋒兄食品提前 8 天寄出提醒。</span>
+                <span class="form-hint">第一組 Resend API Key。</span>
               </div>
             </div>
             <div class="form-row">
@@ -118,7 +129,7 @@
                   placeholder="you@example.com"
                   autocomplete="email"
                 >
-                <span class="form-hint">提醒信收件信箱。</span>
+                <span class="form-hint">第一組提醒信收件信箱。</span>
               </div>
             </div>
             <div class="form-row">
@@ -187,8 +198,19 @@
                   class="form-input"
                   placeholder="FengBro AI <onboarding@resend.dev>"
                 >
-                <span class="form-hint">Resend 寄件人，正式使用可改成已驗證網域。</span>
+                <span class="form-hint">Resend 寄件人，先使用預設測試寄件人，正式使用可改成已驗證網域。</span>
               </div>
+            </div>
+            <div class="resend-actions">
+              <button
+                class="btn-secondary"
+                type="button"
+                :disabled="testingResendEmail"
+                @click="testResendEmail"
+              >
+                {{ testingResendEmail ? '測試寄發中...' : '測試寄發' }}
+              </button>
+              <span class="form-hint">會寄送測試信到所有完整填寫的收件組合。</span>
             </div>
           </div>
         </section>
@@ -431,6 +453,7 @@ const {
 
 // 編輯狀態
 const editingAccountId = ref(null)
+const testingResendEmail = ref(false)
 
 // 載入帳號到表單進行編輯
 const loadAccountToForm = (acc) => {
@@ -483,6 +506,61 @@ const handleDeleteAccount = (id) => {
 }
 
 // 資料表狀態
+const resendNotificationPairs = computed(() => [
+  { label: '第一組', apiKey: resendApiKey.value, toEmail: resendToEmail.value },
+  { label: '第二組', apiKey: resendApiKey2.value, toEmail: resendToEmail2.value },
+  { label: '第三組', apiKey: resendApiKey3.value, toEmail: resendToEmail3.value }
+].map(item => ({
+  ...item,
+  apiKey: String(item.apiKey || '').trim(),
+  toEmail: String(item.toEmail || '').trim()
+})))
+
+const completeResendNotificationPairs = computed(() => resendNotificationPairs.value
+  .filter(item => item.apiKey && item.toEmail))
+
+const testResendEmail = async () => {
+  const completePairs = completeResendNotificationPairs.value
+  if (completePairs.length === 0) {
+    alert('請至少完整填寫一組 RESEND_API_KEY 與 RESEND_TO_EMAIL。')
+    return
+  }
+
+  const incompletePairs = resendNotificationPairs.value
+    .filter(item => item.apiKey || item.toEmail)
+    .filter(item => !item.apiKey || !item.toEmail)
+
+  if (incompletePairs.length > 0) {
+    const names = incompletePairs.map(item => item.label).join('、')
+    if (!confirm(`${names} 尚未完整填寫，測試時會略過。是否繼續？`)) {
+      return
+    }
+  }
+
+  testingResendEmail.value = true
+  try {
+    const now = new Date()
+    await Promise.all(completePairs.map((pair, index) => $fetch('/api/notifications/resend', {
+      method: 'POST',
+      body: {
+        apiKey: pair.apiKey,
+        from: resendFromEmail.value || 'FengBro AI <onboarding@resend.dev>',
+        to: pair.toEmail,
+        subject: `鋒兄 Resend Email 測試寄發（${pair.label}）`,
+        text: `鋒兄 Resend Email 測試成功。\n組別：${pair.label}\n時間：${now.toLocaleString('zh-TW')}`,
+        html: `<p>鋒兄 Resend Email 測試成功。</p><p>組別：${pair.label}</p><p>時間：${now.toLocaleString('zh-TW')}</p>`,
+        idempotencyKey: `feng-resend-test-${Date.now()}-${index + 1}`
+      }
+    })))
+    alert(`測試寄發完成：已送出 ${completePairs.length} 封測試信。`)
+  } catch (error) {
+    console.error('Resend test email failed:', error)
+    alert(`測試寄發失敗：${error?.data?.message || error?.statusMessage || error?.message || '未知錯誤'}`)
+  } finally {
+    testingResendEmail.value = false
+  }
+}
+
 const showSqlModal = ref(false)
 const currentTable = ref(null)
 const isChecking = ref(false)
@@ -1336,6 +1414,23 @@ useHead({
 
 .section-body {
   padding: 2rem;
+}
+
+.section-description {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  line-height: 1.7;
+  margin: 0 0 1.5rem;
+}
+
+.resend-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
 }
 
 /* ===== 帳號列表 ===== */

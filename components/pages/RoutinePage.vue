@@ -432,11 +432,26 @@ const deleteSelected = async () => {
   alert(`已刪除 ${ok} 筆`)
 }
 
+const getRoutineDateSortValue = (dateString) => {
+  const parsed = parseDateOnly(dateString)
+  return parsed && !Number.isNaN(parsed.getTime()) ? parsed.getTime() : -Infinity
+}
+
+const sortRoutinesByRecentDate = (items) => {
+  return [...items].sort((a, b) => {
+    const dateDiff = getRoutineDateSortValue(b.lastdate1) - getRoutineDateSortValue(a.lastdate1)
+    if (dateDiff !== 0) return dateDiff
+    return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
+  })
+}
+
 const filteredRoutines = computed(() => {
-  if (!searchQuery.value) return routines.value
+  if (!searchQuery.value) return sortRoutinesByRecentDate(routines.value)
   const query = searchQuery.value.toLowerCase()
-  return routines.value.filter(routine =>
-    routine.name?.toLowerCase().includes(query)
+  return sortRoutinesByRecentDate(
+    routines.value.filter(routine =>
+      routine.name?.toLowerCase().includes(query)
+    )
   )
 })
 

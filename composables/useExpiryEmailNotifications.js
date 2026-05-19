@@ -104,11 +104,11 @@ const buildHtmlList = (items, type) => {
 const sendGroupedNotification = async ({ settings, type, items }) => {
   const isSubscription = type === 'subscription'
   const subject = isSubscription
-    ? `鋒兄訂閱到期提醒：${items.length} 項明天到期`
-    : `鋒兄食品到期提醒：${items.length} 項一週後到期`
+    ? `鋒兄訂閱到期提醒：${items.length} 項 2 天後到期`
+    : `鋒兄食品到期提醒：${items.length} 項 8 天後到期`
   const intro = isSubscription
-    ? '以下鋒兄訂閱將在明天到期：'
-    : '以下鋒兄食品將在一週後到期：'
+    ? '以下鋒兄訂閱將在 2 天後到期：'
+    : '以下鋒兄食品將在 8 天後到期：'
   const rows = isSubscription ? buildSubscriptionRows(items) : buildFoodRows(items)
   const today = new Date().toISOString().slice(0, 10)
   const markerHash = hashString(items
@@ -148,11 +148,11 @@ export function useExpiryEmailNotifications() {
       const log = readLog()
       const dueSubscriptions = subscriptions.value
         .filter(item => normalizeSubscriptionContinue(item.iscontinue))
-        .filter(item => daysUntil(item.nextdate) === 1)
+        .filter(item => daysUntil(item.nextdate) === 2)
         .filter(item => !log[markerFor('subscription', item, item.nextdate)])
 
       const dueFoods = foods.value
-        .filter(item => daysUntil(item.todate) === 7)
+        .filter(item => daysUntil(item.todate) === 8)
         .filter(item => !log[markerFor('food', item, item.todate)])
 
       const sent = []

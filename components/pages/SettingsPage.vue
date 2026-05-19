@@ -104,7 +104,7 @@
                   placeholder="re_..."
                   autocomplete="off"
                 >
-                <span class="form-hint">有設定時，鋒兄訂閱提前 1 天、鋒兄食品提前 7 天寄出提醒。</span>
+                <span class="form-hint">有設定時，鋒兄訂閱提前 2 天、鋒兄食品提前 8 天寄出提醒。</span>
               </div>
             </div>
             <div class="form-row">

@@ -16,6 +16,10 @@ const tempSupabaseAnonKey = ref('')
 const tempBucket = ref('')
 const tempResendApiKey = ref('')
 const tempResendToEmail = ref('')
+const tempResendApiKey2 = ref('')
+const tempResendToEmail2 = ref('')
+const tempResendApiKey3 = ref('')
+const tempResendToEmail3 = ref('')
 const tempResendFromEmail = ref(DEFAULT_RESEND_FROM_EMAIL)
 
 // 當前啟用的帳號
@@ -83,6 +87,50 @@ const resendToEmail = computed({
       activeAccount.value.resendToEmail = val
     } else {
       tempResendToEmail.value = val
+    }
+  }
+})
+
+const resendApiKey2 = computed({
+  get: () => activeAccount.value?.resendApiKey2 ?? tempResendApiKey2.value,
+  set: (val) => {
+    if (activeAccount.value) {
+      activeAccount.value.resendApiKey2 = val
+    } else {
+      tempResendApiKey2.value = val
+    }
+  }
+})
+
+const resendToEmail2 = computed({
+  get: () => activeAccount.value?.resendToEmail2 ?? tempResendToEmail2.value,
+  set: (val) => {
+    if (activeAccount.value) {
+      activeAccount.value.resendToEmail2 = val
+    } else {
+      tempResendToEmail2.value = val
+    }
+  }
+})
+
+const resendApiKey3 = computed({
+  get: () => activeAccount.value?.resendApiKey3 ?? tempResendApiKey3.value,
+  set: (val) => {
+    if (activeAccount.value) {
+      activeAccount.value.resendApiKey3 = val
+    } else {
+      tempResendApiKey3.value = val
+    }
+  }
+})
+
+const resendToEmail3 = computed({
+  get: () => activeAccount.value?.resendToEmail3 ?? tempResendToEmail3.value,
+  set: (val) => {
+    if (activeAccount.value) {
+      activeAccount.value.resendToEmail3 = val
+    } else {
+      tempResendToEmail3.value = val
     }
   }
 })
@@ -170,9 +218,20 @@ export function getResendNotificationSettings() {
   }
 
   const acc = accounts.value.find(a => a.id === activeAccountId.value)
+  const recipients = [
+    { apiKey: acc?.resendApiKey || '', toEmail: acc?.resendToEmail || '' },
+    { apiKey: acc?.resendApiKey2 || '', toEmail: acc?.resendToEmail2 || '' },
+    { apiKey: acc?.resendApiKey3 || '', toEmail: acc?.resendToEmail3 || '' }
+  ].filter(item => item.apiKey && item.toEmail)
+
   return {
     apiKey: acc?.resendApiKey || '',
     toEmail: acc?.resendToEmail || '',
+    apiKey2: acc?.resendApiKey2 || '',
+    toEmail2: acc?.resendToEmail2 || '',
+    apiKey3: acc?.resendApiKey3 || '',
+    toEmail3: acc?.resendToEmail3 || '',
+    recipients,
     fromEmail: acc?.resendFromEmail || DEFAULT_RESEND_FROM_EMAIL,
     accountId: acc?.id || ''
   }
@@ -245,6 +304,10 @@ export function useSettings() {
       bucket: account.bucket || '',
       resendApiKey: account.resendApiKey || '',
       resendToEmail: account.resendToEmail || '',
+      resendApiKey2: account.resendApiKey2 || '',
+      resendToEmail2: account.resendToEmail2 || '',
+      resendApiKey3: account.resendApiKey3 || '',
+      resendToEmail3: account.resendToEmail3 || '',
       resendFromEmail: account.resendFromEmail || DEFAULT_RESEND_FROM_EMAIL
     }
     accounts.value.push(newAccount)
@@ -306,11 +369,15 @@ export function useSettings() {
     const key = tempSupabaseAnonKey.value.trim()
     const resendKey = tempResendApiKey.value.trim()
     const resendTo = tempResendToEmail.value.trim()
+    const resendKey2 = tempResendApiKey2.value.trim()
+    const resendTo2 = tempResendToEmail2.value.trim()
+    const resendKey3 = tempResendApiKey3.value.trim()
+    const resendTo3 = tempResendToEmail3.value.trim()
     const resendFrom = tempResendFromEmail.value.trim()
     const bkt = tempBucket.value.trim()
     const hasResendFromOverride = resendFrom && resendFrom !== DEFAULT_RESEND_FROM_EMAIL
     
-    if (name || url || key || bkt || resendKey || resendTo || hasResendFromOverride) {
+    if (name || url || key || bkt || resendKey || resendTo || resendKey2 || resendTo2 || resendKey3 || resendTo3 || hasResendFromOverride) {
       const newAccount = addAccount({
         friendlyName: name,
         supabaseUrl: url,
@@ -318,6 +385,10 @@ export function useSettings() {
         bucket: bkt,
         resendApiKey: resendKey,
         resendToEmail: resendTo,
+        resendApiKey2: resendKey2,
+        resendToEmail2: resendTo2,
+        resendApiKey3: resendKey3,
+        resendToEmail3: resendTo3,
         resendFromEmail: resendFrom || DEFAULT_RESEND_FROM_EMAIL
       })
       // 設為當前啟用帳號
@@ -329,6 +400,10 @@ export function useSettings() {
       tempBucket.value = ''
       tempResendApiKey.value = ''
       tempResendToEmail.value = ''
+      tempResendApiKey2.value = ''
+      tempResendToEmail2.value = ''
+      tempResendApiKey3.value = ''
+      tempResendToEmail3.value = ''
       tempResendFromEmail.value = DEFAULT_RESEND_FROM_EMAIL
       return saveAccounts()
     }
@@ -346,6 +421,10 @@ export function useSettings() {
     tempBucket.value = ''
     tempResendApiKey.value = ''
     tempResendToEmail.value = ''
+    tempResendApiKey2.value = ''
+    tempResendToEmail2.value = ''
+    tempResendApiKey3.value = ''
+    tempResendToEmail3.value = ''
     tempResendFromEmail.value = DEFAULT_RESEND_FROM_EMAIL
     localStorage.removeItem(ACCOUNTS_KEY)
     localStorage.removeItem(STORAGE_KEY)
@@ -374,6 +453,10 @@ export function useSettings() {
     bucket,
     resendApiKey,
     resendToEmail,
+    resendApiKey2,
+    resendToEmail2,
+    resendApiKey3,
+    resendToEmail3,
     resendFromEmail,
     displayName,
     loadSettings,

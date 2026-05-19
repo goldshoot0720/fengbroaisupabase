@@ -122,6 +122,62 @@
               </div>
             </div>
             <div class="form-row">
+              <label for="resendApiKey2">RESEND_API_KEY2</label>
+              <div class="form-field">
+                <input
+                  id="resendApiKey2"
+                  v-model="resendApiKey2"
+                  type="password"
+                  class="form-input"
+                  placeholder="re_..."
+                  autocomplete="off"
+                >
+                <span class="form-hint">第二組 Resend API Key，可寄送到第二個收件信箱。</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="resendToEmail2">RESEND_TO_EMAIL2</label>
+              <div class="form-field">
+                <input
+                  id="resendToEmail2"
+                  v-model="resendToEmail2"
+                  type="email"
+                  class="form-input"
+                  placeholder="you2@example.com"
+                  autocomplete="email"
+                >
+                <span class="form-hint">第二組提醒信收件信箱。</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="resendApiKey3">RESEND_API_KEY3</label>
+              <div class="form-field">
+                <input
+                  id="resendApiKey3"
+                  v-model="resendApiKey3"
+                  type="password"
+                  class="form-input"
+                  placeholder="re_..."
+                  autocomplete="off"
+                >
+                <span class="form-hint">第三組 Resend API Key，可寄送到第三個收件信箱。</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="resendToEmail3">RESEND_TO_EMAIL3</label>
+              <div class="form-field">
+                <input
+                  id="resendToEmail3"
+                  v-model="resendToEmail3"
+                  type="email"
+                  class="form-input"
+                  placeholder="you3@example.com"
+                  autocomplete="email"
+                >
+                <span class="form-hint">第三組提醒信收件信箱。</span>
+              </div>
+            </div>
+            <div class="form-row">
               <label for="resendFromEmail">RESEND_FROM_EMAIL</label>
               <div class="form-field">
                 <input
@@ -359,6 +415,10 @@ const {
   bucket: bucketName,
   resendApiKey,
   resendToEmail,
+  resendApiKey2,
+  resendToEmail2,
+  resendApiKey3,
+  resendToEmail3,
   resendFromEmail,
   loadSettings,
   saveSettings,
@@ -381,6 +441,10 @@ const loadAccountToForm = (acc) => {
   bucketName.value = acc.bucket || ''
   resendApiKey.value = acc.resendApiKey || ''
   resendToEmail.value = acc.resendToEmail || ''
+  resendApiKey2.value = acc.resendApiKey2 || ''
+  resendToEmail2.value = acc.resendToEmail2 || ''
+  resendApiKey3.value = acc.resendApiKey3 || ''
+  resendToEmail3.value = acc.resendToEmail3 || ''
   resendFromEmail.value = acc.resendFromEmail || 'FengBro AI <onboarding@resend.dev>'
 }
 
@@ -393,6 +457,10 @@ const cancelEdit = () => {
   bucketName.value = ''
   resendApiKey.value = ''
   resendToEmail.value = ''
+  resendApiKey2.value = ''
+  resendToEmail2.value = ''
+  resendApiKey3.value = ''
+  resendToEmail3.value = ''
   resendFromEmail.value = 'FengBro AI <onboarding@resend.dev>'
 }
 
@@ -1160,6 +1228,10 @@ const handleSave = () => {
       bucket: bucketName.value || 'uploads',
       resendApiKey: resendApiKey.value,
       resendToEmail: resendToEmail.value,
+      resendApiKey2: resendApiKey2.value,
+      resendToEmail2: resendToEmail2.value,
+      resendApiKey3: resendApiKey3.value,
+      resendToEmail3: resendToEmail3.value,
       resendFromEmail: resendFromEmail.value || 'FengBro AI <onboarding@resend.dev>'
     })
     // 切換到該帳號

@@ -116,18 +116,19 @@ const sendGroupedNotification = async ({ settings, type, items }) => {
     .sort()
     .join('|'))
 
-  return await $fetch('/api/notifications/resend', {
+  const recipients = Array.isArray(settings.recipients) ? settings.recipients : []
+  return await Promise.all(recipients.map((recipient, index) => $fetch('/api/notifications/resend', {
     method: 'POST',
     body: {
-      apiKey: settings.apiKey,
+      apiKey: recipient.apiKey,
       from: settings.fromEmail,
-      to: settings.toEmail,
+      to: recipient.toEmail,
       subject,
       text: `${intro}\n\n${rows}\n\nFengBro AI 自動提醒`,
       html: `<p>${escapeHtml(intro)}</p>${buildHtmlList(items, type)}<p>FengBro AI 自動提醒</p>`,
-      idempotencyKey: `feng-${settings.accountId || 'account'}-${type}-${today}-${markerHash}`
+      idempotencyKey: `feng-${settings.accountId || 'account'}-${type}-${today}-${markerHash}-${index + 1}`
     }
-  })
+  })))
 }
 
 export function useExpiryEmailNotifications() {
@@ -137,8 +138,9 @@ export function useExpiryEmailNotifications() {
 
     runPromise = (async () => {
       const settings = getResendNotificationSettings()
-      if (!settings.apiKey) return { skipped: 'missing-api-key' }
-      if (!settings.toEmail) return { skipped: 'missing-to-email' }
+      if (!Array.isArray(settings.recipients) || settings.recipients.length === 0) {
+        return { skipped: 'missing-resend-recipient' }
+      }
 
       const { subscriptions, loadSubscriptions } = useSubscriptions()
       const { foods, loadFoods } = useFoods()

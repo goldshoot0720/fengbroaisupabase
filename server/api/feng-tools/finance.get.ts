@@ -187,13 +187,40 @@ const parseMultplShillerPe = (html: string) => {
   }
 }
 
+const parseMultplShillerPeTable = (html: string) => {
+  const text = stripTags(html)
+  const rowMatch = text.match(/([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})\s+([+-]?\d[\d,]*(?:\.\d+)?)/)
+  const last = toNumber(rowMatch?.[2])
+  const allTimeHigh = SHILLER_PE_HISTORICAL_HIGH
+
+  let status: FinanceItem['status'] = ''
+  if (last !== null && last >= allTimeHigh - PRICE_TOLERANCE) status = 'new-high'
+
+  return {
+    last,
+    lastLabel: formatValue(last),
+    change: null,
+    changePercent: null,
+    week52High: allTimeHigh,
+    week52Low: null,
+    highLabel: `Max ${SHILLER_PE_HISTORICAL_HIGH_LABEL}`,
+    lowLabel: 'Min',
+    status
+  }
+}
+
 const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[number]): Promise<FinanceItem> => {
   try {
     const html = await fetchText(instrument.url)
-    const parsed = instrument.source === 'Multpl' ? parseMultplShillerPe(html) : parseQuote(html)
+    let parsed = instrument.source === 'Multpl' ? parseMultplShillerPe(html) : parseQuote(html)
+
+    if (instrument.source === 'Multpl' && parsed.last === null) {
+      const tableHtml = await fetchText(`${instrument.url}/table/by-month`)
+      parsed = parseMultplShillerPeTable(tableHtml)
+    }
 
     if (parsed.last === null) {
-      throw new Error('CNBC 頁面未解析到即時價格')
+      throw new Error(instrument.source === 'Multpl' ? 'Multpl 頁面未解析到 Shiller PE data' : 'CNBC 頁面未解析到即時價格')
     }
 
     return {
@@ -213,7 +240,7 @@ const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[numb
       highLabel: undefined,
       lowLabel: undefined,
       status: '',
-      error: error?.message || 'CNBC 資料抓取失敗'
+      error: error?.message || `${instrument.source || 'CNBC'} 資料抓取失敗`
     }
   }
 }

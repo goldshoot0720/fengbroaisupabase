@@ -93,6 +93,47 @@
                 <span class="form-hint">Storage Bucket 名稱（預設 uploads）</span>
               </div>
             </div>
+            <div class="form-row">
+              <label for="resendApiKey">RESEND_API_KEY</label>
+              <div class="form-field">
+                <input
+                  id="resendApiKey"
+                  v-model="resendApiKey"
+                  type="password"
+                  class="form-input"
+                  placeholder="re_..."
+                  autocomplete="off"
+                >
+                <span class="form-hint">有設定時，鋒兄訂閱提前 1 天、鋒兄食品提前 7 天寄出提醒。</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="resendToEmail">RESEND_TO_EMAIL</label>
+              <div class="form-field">
+                <input
+                  id="resendToEmail"
+                  v-model="resendToEmail"
+                  type="email"
+                  class="form-input"
+                  placeholder="you@example.com"
+                  autocomplete="email"
+                >
+                <span class="form-hint">提醒信收件信箱。</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="resendFromEmail">RESEND_FROM_EMAIL</label>
+              <div class="form-field">
+                <input
+                  id="resendFromEmail"
+                  v-model="resendFromEmail"
+                  type="text"
+                  class="form-input"
+                  placeholder="FengBro AI <onboarding@resend.dev>"
+                >
+                <span class="form-hint">Resend 寄件人，正式使用可改成已驗證網域。</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -316,6 +357,9 @@ const {
   supabaseUrl,
   supabaseAnonKey,
   bucket: bucketName,
+  resendApiKey,
+  resendToEmail,
+  resendFromEmail,
   loadSettings,
   saveSettings,
   clearSettings,
@@ -335,6 +379,9 @@ const loadAccountToForm = (acc) => {
   supabaseUrl.value = acc.supabaseUrl
   supabaseAnonKey.value = acc.supabaseAnonKey
   bucketName.value = acc.bucket || ''
+  resendApiKey.value = acc.resendApiKey || ''
+  resendToEmail.value = acc.resendToEmail || ''
+  resendFromEmail.value = acc.resendFromEmail || 'FengBro AI <onboarding@resend.dev>'
 }
 
 // 取消編輯
@@ -344,6 +391,9 @@ const cancelEdit = () => {
   supabaseUrl.value = ''
   supabaseAnonKey.value = ''
   bucketName.value = ''
+  resendApiKey.value = ''
+  resendToEmail.value = ''
+  resendFromEmail.value = 'FengBro AI <onboarding@resend.dev>'
 }
 
 // 切換帳號
@@ -1107,7 +1157,10 @@ const handleSave = () => {
       friendlyName: friendlyName.value,
       supabaseUrl: supabaseUrl.value,
       supabaseAnonKey: supabaseAnonKey.value,
-      bucket: bucketName.value || 'uploads'
+      bucket: bucketName.value || 'uploads',
+      resendApiKey: resendApiKey.value,
+      resendToEmail: resendToEmail.value,
+      resendFromEmail: resendFromEmail.value || 'FengBro AI <onboarding@resend.dev>'
     })
     // 切換到該帳號
     switchAccount(editingAccountId.value)

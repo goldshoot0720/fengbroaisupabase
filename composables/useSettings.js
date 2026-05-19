@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 
 const STORAGE_KEY = 'feng-settings'
 const ACCOUNTS_KEY = 'feng-accounts'
+const DEFAULT_RESEND_FROM_EMAIL = 'FengBro AI <onboarding@resend.dev>'
 
 // 共享狀態
 const accounts = ref([]) // 帳號列表
@@ -13,6 +14,9 @@ const tempFriendlyName = ref('')
 const tempSupabaseUrl = ref('')
 const tempSupabaseAnonKey = ref('')
 const tempBucket = ref('')
+const tempResendApiKey = ref('')
+const tempResendToEmail = ref('')
+const tempResendFromEmail = ref(DEFAULT_RESEND_FROM_EMAIL)
 
 // 當前啟用的帳號
 const activeAccount = computed(() => {
@@ -57,6 +61,39 @@ const bucket = computed({
       activeAccount.value.bucket = val
     } else {
       tempBucket.value = val
+    }
+  }
+})
+
+const resendApiKey = computed({
+  get: () => activeAccount.value?.resendApiKey ?? tempResendApiKey.value,
+  set: (val) => {
+    if (activeAccount.value) {
+      activeAccount.value.resendApiKey = val
+    } else {
+      tempResendApiKey.value = val
+    }
+  }
+})
+
+const resendToEmail = computed({
+  get: () => activeAccount.value?.resendToEmail ?? tempResendToEmail.value,
+  set: (val) => {
+    if (activeAccount.value) {
+      activeAccount.value.resendToEmail = val
+    } else {
+      tempResendToEmail.value = val
+    }
+  }
+})
+
+const resendFromEmail = computed({
+  get: () => activeAccount.value?.resendFromEmail ?? tempResendFromEmail.value,
+  set: (val) => {
+    if (activeAccount.value) {
+      activeAccount.value.resendFromEmail = val
+    } else {
+      tempResendFromEmail.value = val
     }
   }
 })
@@ -115,6 +152,30 @@ export function getSupabaseBucket() {
   // 如果有自訂帳號但沒設 bucket，用 'uploads' 而非 .env（.env 可能屬於不同專案）
   if (acc) return 'uploads'
   return null // 沒有自訂帳號時，讓調用者 fallback 到 .env
+}
+
+export function getResendNotificationSettings() {
+  if (!_isLoaded && typeof localStorage !== 'undefined') {
+    try {
+      const accountsRaw = localStorage.getItem(ACCOUNTS_KEY)
+      if (accountsRaw) {
+        const data = JSON.parse(accountsRaw)
+        accounts.value = data.accounts || []
+        activeAccountId.value = data.activeId || (accounts.value[0]?.id || null)
+      }
+      _isLoaded = true
+    } catch (e) {
+      console.error('getResendNotificationSettings load error:', e)
+    }
+  }
+
+  const acc = accounts.value.find(a => a.id === activeAccountId.value)
+  return {
+    apiKey: acc?.resendApiKey || '',
+    toEmail: acc?.resendToEmail || '',
+    fromEmail: acc?.resendFromEmail || DEFAULT_RESEND_FROM_EMAIL,
+    accountId: acc?.id || ''
+  }
 }
 
 export function useSettings() {
@@ -181,7 +242,10 @@ export function useSettings() {
       friendlyName: account.friendlyName || '',
       supabaseUrl: account.supabaseUrl || '',
       supabaseAnonKey: account.supabaseAnonKey || '',
-      bucket: account.bucket || ''
+      bucket: account.bucket || '',
+      resendApiKey: account.resendApiKey || '',
+      resendToEmail: account.resendToEmail || '',
+      resendFromEmail: account.resendFromEmail || DEFAULT_RESEND_FROM_EMAIL
     }
     accounts.value.push(newAccount)
     // 如果是第一個帳號，自動設為啟用
@@ -240,14 +304,21 @@ export function useSettings() {
     const name = tempFriendlyName.value.trim()
     const url = tempSupabaseUrl.value.trim()
     const key = tempSupabaseAnonKey.value.trim()
+    const resendKey = tempResendApiKey.value.trim()
+    const resendTo = tempResendToEmail.value.trim()
+    const resendFrom = tempResendFromEmail.value.trim()
+    const bkt = tempBucket.value.trim()
+    const hasResendFromOverride = resendFrom && resendFrom !== DEFAULT_RESEND_FROM_EMAIL
     
-    if (name || url || key) {
-      const bkt = tempBucket.value.trim()
+    if (name || url || key || bkt || resendKey || resendTo || hasResendFromOverride) {
       const newAccount = addAccount({
         friendlyName: name,
         supabaseUrl: url,
         supabaseAnonKey: key,
-        bucket: bkt
+        bucket: bkt,
+        resendApiKey: resendKey,
+        resendToEmail: resendTo,
+        resendFromEmail: resendFrom || DEFAULT_RESEND_FROM_EMAIL
       })
       // 設為當前啟用帳號
       activeAccountId.value = newAccount.id
@@ -256,6 +327,9 @@ export function useSettings() {
       tempSupabaseUrl.value = ''
       tempSupabaseAnonKey.value = ''
       tempBucket.value = ''
+      tempResendApiKey.value = ''
+      tempResendToEmail.value = ''
+      tempResendFromEmail.value = DEFAULT_RESEND_FROM_EMAIL
       return saveAccounts()
     }
     
@@ -270,6 +344,9 @@ export function useSettings() {
     tempSupabaseUrl.value = ''
     tempSupabaseAnonKey.value = ''
     tempBucket.value = ''
+    tempResendApiKey.value = ''
+    tempResendToEmail.value = ''
+    tempResendFromEmail.value = DEFAULT_RESEND_FROM_EMAIL
     localStorage.removeItem(ACCOUNTS_KEY)
     localStorage.removeItem(STORAGE_KEY)
   }
@@ -295,6 +372,9 @@ export function useSettings() {
     supabaseUrl,
     supabaseAnonKey,
     bucket,
+    resendApiKey,
+    resendToEmail,
+    resendFromEmail,
     displayName,
     loadSettings,
     saveSettings,

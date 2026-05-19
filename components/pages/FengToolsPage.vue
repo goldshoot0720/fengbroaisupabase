@@ -344,16 +344,16 @@
                 </strong>
               </span>
               <span>
-                52週高
+                {{ item.highLabel || '52週高' }}
                 <strong>{{ formatFinanceNumber(item.week52High) }}</strong>
               </span>
               <span>
-                52週低
+                {{ item.lowLabel || '52週低' }}
                 <strong>{{ formatFinanceNumber(item.week52Low) }}</strong>
               </span>
             </div>
 
-            <a :href="item.url" target="_blank" rel="noreferrer" class="store-card__link">查看 CNBC</a>
+            <a :href="item.url" target="_blank" rel="noreferrer" class="store-card__link">查看 {{ item.source || 'CNBC' }}</a>
           </article>
         </div>
       </section>

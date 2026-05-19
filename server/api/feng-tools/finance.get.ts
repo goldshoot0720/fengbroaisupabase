@@ -10,6 +10,8 @@ const DEFAULT_HEADERS = {
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 const PRICE_TOLERANCE = 0.0001
+const SHILLER_PE_HISTORICAL_HIGH = 44.19
+const SHILLER_PE_HISTORICAL_HIGH_LABEL = 'Dec 1999'
 
 type FinanceItem = {
   id: string
@@ -163,9 +165,9 @@ const parseMultplShillerPe = (html: string) => {
   const changeMatch = text.match(/Current Shiller PE Ratio:\s*[\d,.]+\s*([+-]\d[\d,]*(?:\.\d+)?)\s*\(([+-]?\d+(?:\.\d+)?)%\)/i)
   const change = toNumber(changeMatch?.[1])
   const changePercent = toNumber(changeMatch?.[2])
-  const allTimeHigh = parseNumberAfterLabel(text, ['Max:'])
+  const allTimeHigh = parseNumberAfterLabel(text, ['Max:']) ?? SHILLER_PE_HISTORICAL_HIGH
   const allTimeLow = parseNumberAfterLabel(text, ['Min:'])
-  const maxLabel = text.match(/Max:\s*[\d,.]+\s*\(([^)]+)\)/i)?.[1]
+  const maxLabel = text.match(/Max:\s*[\d,.]+\s*\(([^)]+)\)/i)?.[1] ?? SHILLER_PE_HISTORICAL_HIGH_LABEL
   const minLabel = text.match(/Min:\s*[\d,.]+\s*\(([^)]+)\)/i)?.[1]
 
   let status: FinanceItem['status'] = ''

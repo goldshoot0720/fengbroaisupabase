@@ -52,7 +52,7 @@
           <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
         </div>
         <div class="summary-right">
-          <button v-if="selectedIds.size > 0" class="btn-batch-adjust" @click="openBatchAdjustModal" :disabled="loading">調整金額 ({{ selectedIds.size }})</button>
+          <button v-if="selectedIds.size > 0" class="btn-batch-adjust" @click="openBatchAdjustModal" :disabled="loading">設定/調整存款 ({{ selectedIds.size }})</button>
           <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除選中 ({{ selectedIds.size }})</button>
         </div>
       </div>
@@ -246,33 +246,53 @@
       <div v-if="showBatchAdjustModal" class="modal-overlay" @click.self="closeBatchAdjustModal">
         <div class="modal-content modal-content--batch-adjust">
           <div class="modal-header">
-            <h3>批量調整銀行金額</h3>
+            <h3>批量設定銀行存款</h3>
             <button class="btn-close" @click="closeBatchAdjustModal">✕</button>
           </div>
 
           <div class="modal-body batch-adjust-body">
             <div class="batch-adjust-controls">
               <div class="form-group">
-                <label>調整方式</label>
+                <label>處理方式</label>
+                <div class="segmented-control">
+                  <button
+                    type="button"
+                    :class="{ active: batchOperation === 'set' }"
+                    @click="batchOperation = 'set'"
+                  >
+                    設定存款
+                  </button>
+                  <button
+                    type="button"
+                    :class="{ active: batchOperation === 'adjust' }"
+                    @click="batchOperation = 'adjust'"
+                  >
+                    加減金額
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>數字方式</label>
                 <div class="segmented-control">
                   <button
                     type="button"
                     :class="{ active: batchAdjustMode === 'fixed' }"
                     @click="batchAdjustMode = 'fixed'"
                   >
-                    固定金額
+                    固定數字
                   </button>
                   <button
                     type="button"
                     :class="{ active: batchAdjustMode === 'individual' }"
                     @click="batchAdjustMode = 'individual'"
                   >
-                    分別輸入
+                    分別數字
                   </button>
                 </div>
               </div>
 
-              <div class="form-group">
+              <div v-if="batchOperation === 'adjust'" class="form-group">
                 <label>加減方向</label>
                 <div class="transaction-type-group">
                   <button
@@ -295,14 +315,15 @@
               </div>
 
               <div v-if="batchAdjustMode === 'fixed'" class="form-group">
-                <label>每家銀行固定金額</label>
-                <input v-model.number="batchFixedAmount" type="number" min="0" class="form-input" placeholder="例如 1000">
+                <label>{{ batchOperation === 'set' ? '每家銀行固定存款數字' : '每家銀行固定加減金額' }}</label>
+                <input v-model.number="batchFixedAmount" type="number" min="0" class="form-input" :placeholder="batchOperation === 'set' ? '例如 50000' : '例如 1000'">
               </div>
             </div>
 
             <div class="batch-adjust-summary">
               <span>已選 {{ selectedBanks.length }} 家銀行</span>
-              <strong>{{ batchAdjustType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(totalBatchAdjustment) }}</strong>
+              <strong v-if="batchOperation === 'set'">設定後合計 NT$ {{ formatNumber(totalProjectedDeposit) }}</strong>
+              <strong v-else>{{ batchAdjustType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(totalBatchAdjustment) }}</strong>
             </div>
 
             <div class="batch-selected-list">
@@ -317,10 +338,11 @@
                   type="number"
                   min="0"
                   class="form-input batch-amount-input"
-                  placeholder="輸入金額"
+                  :placeholder="batchOperation === 'set' ? '輸入存款數字' : '輸入金額'"
                 >
                 <div class="batch-bank-preview">
-                  <span>{{ batchAdjustType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(getAdjustmentAmount(bank)) }}</span>
+                  <span v-if="batchOperation === 'set'">設定 NT$ {{ formatNumber(getBatchAmount(bank)) }}</span>
+                  <span v-else>{{ batchAdjustType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(getBatchAmount(bank)) }}</span>
                   <strong>更新後 NT$ {{ formatNumber(getAdjustedDeposit(bank)) }}</strong>
                 </div>
               </div>
@@ -577,6 +599,7 @@ const saveInlineEdit = async () => {
 const batchMode = ref(false)
 const selectedIds = ref(new Set())
 const showBatchAdjustModal = ref(false)
+const batchOperation = ref('set')
 const batchAdjustMode = ref('fixed')
 const batchAdjustType = ref('income')
 const batchFixedAmount = ref(null)
@@ -626,6 +649,7 @@ const toggleSelectAll = () => {
 }
 
 const resetBatchAdjustForm = () => {
+  batchOperation.value = 'set'
   batchAdjustMode.value = 'fixed'
   batchAdjustType.value = 'income'
   batchFixedAmount.value = null
@@ -649,24 +673,43 @@ const closeBatchAdjustModal = () => {
   resetBatchAdjustForm()
 }
 
-const getAdjustmentAmount = (bank) => {
-  const rawAmount = batchAdjustMode.value === 'fixed'
+const getRawBatchAmount = (bank) => {
+  return batchAdjustMode.value === 'fixed'
     ? batchFixedAmount.value
     : individualAdjustments[bank.id]
+}
+
+const getBatchAmount = (bank) => {
+  const rawAmount = getRawBatchAmount(bank)
   const amount = Number(rawAmount)
   return Number.isFinite(amount) ? amount : 0
 }
 
+const hasValidBatchAmount = (bank) => {
+  const rawAmount = getRawBatchAmount(bank)
+  if (rawAmount === null || rawAmount === '') return false
+  const amount = Number(rawAmount)
+  if (!Number.isFinite(amount) || amount < 0) return false
+  return batchOperation.value === 'set' || amount > 0
+}
+
 const getAdjustedDeposit = (bank) => {
   const currentDeposit = Number(bank.deposit) || 0
-  const amount = getAdjustmentAmount(bank)
+  const amount = getBatchAmount(bank)
+  if (batchOperation.value === 'set') {
+    return amount
+  }
   return batchAdjustType.value === 'income'
     ? currentDeposit + amount
     : currentDeposit - amount
 }
 
 const totalBatchAdjustment = computed(() => {
-  return selectedBanks.value.reduce((total, bank) => total + getAdjustmentAmount(bank), 0)
+  return selectedBanks.value.reduce((total, bank) => total + getBatchAmount(bank), 0)
+})
+
+const totalProjectedDeposit = computed(() => {
+  return selectedBanks.value.reduce((total, bank) => total + getAdjustedDeposit(bank), 0)
 })
 
 const submitBatchAdjust = async () => {
@@ -676,16 +719,24 @@ const submitBatchAdjust = async () => {
     return
   }
 
-  const invalidBanks = targets.filter(bank => getAdjustmentAmount(bank) <= 0)
+  const invalidBanks = targets.filter(bank => !hasValidBatchAmount(bank))
   if (invalidBanks.length > 0) {
-    alert(batchAdjustMode.value === 'fixed'
-      ? '請輸入大於 0 的固定金額'
-      : '每家選中的銀行都要輸入大於 0 的金額')
+    if (batchOperation.value === 'set') {
+      alert(batchAdjustMode.value === 'fixed'
+        ? '請輸入 0 或更大的固定存款數字'
+        : '每家選中的銀行都要輸入 0 或更大的存款數字')
+    } else {
+      alert(batchAdjustMode.value === 'fixed'
+        ? '請輸入大於 0 的固定金額'
+        : '每家選中的銀行都要輸入大於 0 的金額')
+    }
     return
   }
 
-  const actionText = batchAdjustType.value === 'income' ? '增加' : '減少'
-  if (!confirm(`確定要為 ${targets.length} 家銀行${actionText}金額嗎？`)) return
+  const actionText = batchOperation.value === 'set'
+    ? '設定存款數字'
+    : `${batchAdjustType.value === 'income' ? '增加' : '減少'}金額`
+  if (!confirm(`確定要為 ${targets.length} 家銀行${actionText}嗎？`)) return
 
   let ok = 0
   const failed = []

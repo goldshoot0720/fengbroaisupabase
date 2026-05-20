@@ -167,12 +167,12 @@
 
           <!-- 顯示模式 -->
           <template v-else>
+          <label v-if="batchMode" class="card-select-row" @click.stop>
+            <input type="checkbox" :checked="selectedIds.has(bank.id)" @change="toggleSelect(bank.id)">
+            <span>{{ selectedIds.has(bank.id) ? '已選取' : '選取這家' }}</span>
+          </label>
           <div class="bank-header">
             <div class="bank-title">
-              <label v-if="batchMode" class="card-select" @click.stop>
-                <input type="checkbox" :checked="selectedIds.has(bank.id)" @change="toggleSelect(bank.id)">
-                <span></span>
-              </label>
               <img 
                 v-if="getBankFavicon(bank.name)" 
                 :src="getBankFavicon(bank.name)" 
@@ -1553,6 +1553,32 @@ useHead({
   background: #eef2ff;
 }
 
+.card-select-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bank-card.selected .card-select-row {
+  border-color: #667eea;
+  background: #e0e7ff;
+}
+
+.card-select-row input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
 .bank-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
@@ -1572,26 +1598,6 @@ useHead({
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
-}
-
-.card-select {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
-  border-radius: 999px;
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
-  cursor: pointer;
-}
-
-.card-select input {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: #667eea;
 }
 
 .bank-favicon {

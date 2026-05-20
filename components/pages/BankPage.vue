@@ -52,6 +52,7 @@
           <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
         </div>
         <div class="summary-right">
+          <button v-if="selectedIds.size > 0" class="btn-batch-adjust" @click="openBatchAdjustModal" :disabled="loading">調整金額 ({{ selectedIds.size }})</button>
           <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除選中 ({{ selectedIds.size }})</button>
         </div>
       </div>
@@ -108,7 +109,13 @@
             </div>
           </div>
         </div>
-        <div v-for="bank in banks" :key="bank.id" class="bank-card" :class="{ 'card-editing': editingId === bank.id }">
+        <div
+          v-for="bank in banks"
+          :key="bank.id"
+          class="bank-card"
+          :class="{ 'card-editing': editingId === bank.id, selected: selectedIds.has(bank.id) }"
+          @click="batchMode && editingId !== bank.id ? toggleSelect(bank.id) : null"
+        >
           <!-- 行內編輯模式 -->
           <template v-if="editingId === bank.id">
             <div class="bank-header">
@@ -162,6 +169,10 @@
           <template v-else>
           <div class="bank-header">
             <div class="bank-title">
+              <label v-if="batchMode" class="card-select" @click.stop>
+                <input type="checkbox" :checked="selectedIds.has(bank.id)" @change="toggleSelect(bank.id)">
+                <span></span>
+              </label>
               <img 
                 v-if="getBankFavicon(bank.name)" 
                 :src="getBankFavicon(bank.name)" 
@@ -229,6 +240,99 @@
             </button>
           </div>
           </template>
+        </div>
+      </div>
+
+      <div v-if="showBatchAdjustModal" class="modal-overlay" @click.self="closeBatchAdjustModal">
+        <div class="modal-content modal-content--batch-adjust">
+          <div class="modal-header">
+            <h3>批量調整銀行金額</h3>
+            <button class="btn-close" @click="closeBatchAdjustModal">✕</button>
+          </div>
+
+          <div class="modal-body batch-adjust-body">
+            <div class="batch-adjust-controls">
+              <div class="form-group">
+                <label>調整方式</label>
+                <div class="segmented-control">
+                  <button
+                    type="button"
+                    :class="{ active: batchAdjustMode === 'fixed' }"
+                    @click="batchAdjustMode = 'fixed'"
+                  >
+                    固定金額
+                  </button>
+                  <button
+                    type="button"
+                    :class="{ active: batchAdjustMode === 'individual' }"
+                    @click="batchAdjustMode = 'individual'"
+                  >
+                    分別輸入
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>加減方向</label>
+                <div class="transaction-type-group">
+                  <button
+                    type="button"
+                    class="transaction-type-btn"
+                    :class="{ active: batchAdjustType === 'income' }"
+                    @click="batchAdjustType = 'income'"
+                  >
+                    + 增加
+                  </button>
+                  <button
+                    type="button"
+                    class="transaction-type-btn"
+                    :class="{ active: batchAdjustType === 'expense' }"
+                    @click="batchAdjustType = 'expense'"
+                  >
+                    - 減少
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="batchAdjustMode === 'fixed'" class="form-group">
+                <label>每家銀行固定金額</label>
+                <input v-model.number="batchFixedAmount" type="number" min="0" class="form-input" placeholder="例如 1000">
+              </div>
+            </div>
+
+            <div class="batch-adjust-summary">
+              <span>已選 {{ selectedBanks.length }} 家銀行</span>
+              <strong>{{ batchAdjustType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(totalBatchAdjustment) }}</strong>
+            </div>
+
+            <div class="batch-selected-list">
+              <div v-for="bank in selectedBanks" :key="bank.id" class="batch-bank-row">
+                <div class="batch-bank-main">
+                  <strong>{{ bank.name }}</strong>
+                  <span>目前 NT$ {{ formatNumber(bank.deposit) }}</span>
+                </div>
+                <input
+                  v-if="batchAdjustMode === 'individual'"
+                  v-model.number="individualAdjustments[bank.id]"
+                  type="number"
+                  min="0"
+                  class="form-input batch-amount-input"
+                  placeholder="輸入金額"
+                >
+                <div class="batch-bank-preview">
+                  <span>{{ batchAdjustType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(getAdjustmentAmount(bank)) }}</span>
+                  <strong>更新後 NT$ {{ formatNumber(getAdjustedDeposit(bank)) }}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="closeBatchAdjustModal">取消</button>
+            <button class="btn-submit" @click="submitBatchAdjust" :disabled="loading">
+              {{ loading ? '處理中...' : '確認批量更新' }}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -472,10 +576,16 @@ const saveInlineEdit = async () => {
 
 const batchMode = ref(false)
 const selectedIds = ref(new Set())
+const showBatchAdjustModal = ref(false)
+const batchAdjustMode = ref('fixed')
+const batchAdjustType = ref('income')
+const batchFixedAmount = ref(null)
+const individualAdjustments = reactive({})
 const selectedTransactionBank = computed(() => {
   if (!transactionForm.bankId) return null
   return banks.value.find(bank => String(bank.id) === String(transactionForm.bankId)) || null
 })
+const selectedBanks = computed(() => banks.value.filter(bank => selectedIds.value.has(bank.id)))
 const projectedTransactionBalance = computed(() => {
   const bank = selectedTransactionBank.value
   if (!bank) return 0
@@ -494,7 +604,11 @@ const getBankSiteUrl = (site) => {
 }
 
 const enterBatchMode = () => { batchMode.value = true }
-const exitBatchMode = () => { batchMode.value = false; selectedIds.value = new Set() }
+const exitBatchMode = () => {
+  batchMode.value = false
+  selectedIds.value = new Set()
+  closeBatchAdjustModal()
+}
 
 const isAllSelected = computed(() => {
   return banks.value.length > 0 && banks.value.every(a => selectedIds.value.has(a.id))
@@ -509,6 +623,91 @@ const toggleSelect = (id) => {
 const toggleSelectAll = () => {
   if (isAllSelected.value) { selectedIds.value = new Set() }
   else { selectedIds.value = new Set(banks.value.map(a => a.id)) }
+}
+
+const resetBatchAdjustForm = () => {
+  batchAdjustMode.value = 'fixed'
+  batchAdjustType.value = 'income'
+  batchFixedAmount.value = null
+  Object.keys(individualAdjustments).forEach(key => delete individualAdjustments[key])
+}
+
+const openBatchAdjustModal = () => {
+  if (selectedIds.value.size === 0) {
+    alert('請先選擇銀行')
+    return
+  }
+  resetBatchAdjustForm()
+  selectedBanks.value.forEach(bank => {
+    individualAdjustments[bank.id] = null
+  })
+  showBatchAdjustModal.value = true
+}
+
+const closeBatchAdjustModal = () => {
+  showBatchAdjustModal.value = false
+  resetBatchAdjustForm()
+}
+
+const getAdjustmentAmount = (bank) => {
+  const rawAmount = batchAdjustMode.value === 'fixed'
+    ? batchFixedAmount.value
+    : individualAdjustments[bank.id]
+  const amount = Number(rawAmount)
+  return Number.isFinite(amount) ? amount : 0
+}
+
+const getAdjustedDeposit = (bank) => {
+  const currentDeposit = Number(bank.deposit) || 0
+  const amount = getAdjustmentAmount(bank)
+  return batchAdjustType.value === 'income'
+    ? currentDeposit + amount
+    : currentDeposit - amount
+}
+
+const totalBatchAdjustment = computed(() => {
+  return selectedBanks.value.reduce((total, bank) => total + getAdjustmentAmount(bank), 0)
+})
+
+const submitBatchAdjust = async () => {
+  const targets = selectedBanks.value.map(bank => ({ ...bank }))
+  if (targets.length === 0) {
+    alert('請先選擇銀行')
+    return
+  }
+
+  const invalidBanks = targets.filter(bank => getAdjustmentAmount(bank) <= 0)
+  if (invalidBanks.length > 0) {
+    alert(batchAdjustMode.value === 'fixed'
+      ? '請輸入大於 0 的固定金額'
+      : '每家選中的銀行都要輸入大於 0 的金額')
+    return
+  }
+
+  const actionText = batchAdjustType.value === 'income' ? '增加' : '減少'
+  if (!confirm(`確定要為 ${targets.length} 家銀行${actionText}金額嗎？`)) return
+
+  let ok = 0
+  const failed = []
+
+  for (const bank of targets) {
+    const result = await updateBank(bank.id, {
+      ...bank,
+      deposit: getAdjustedDeposit(bank)
+    })
+    if (result.success) {
+      ok++
+    } else {
+      failed.push(`${bank.name}: ${result.error}`)
+    }
+  }
+
+  if (failed.length > 0) {
+    alert(`已更新 ${ok} 筆，失敗 ${failed.length} 筆\n${failed.join('\n')}`)
+  } else {
+    alert(`已更新 ${ok} 家銀行金額`)
+    closeBatchAdjustModal()
+  }
 }
 
 const deleteSelected = async () => {
@@ -887,6 +1086,120 @@ useHead({
   max-width: 560px;
 }
 
+.modal-content--batch-adjust {
+  max-width: 720px;
+}
+
+.batch-adjust-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.batch-adjust-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.batch-adjust-controls .form-group:last-child {
+  grid-column: 1 / -1;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 14px;
+  background: #f1f5f9;
+}
+
+.segmented-control button {
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  color: #475569;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.segmented-control button.active {
+  background: white;
+  color: #be123c;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.batch-adjust-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(250, 112, 154, 0.12), rgba(254, 225, 64, 0.16));
+  color: #334155;
+}
+
+.batch-adjust-summary strong {
+  color: #be123c;
+  font-size: 1.05rem;
+}
+
+.batch-selected-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 42vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.batch-bank-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(130px, 0.7fr);
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.batch-bank-row:has(.batch-amount-input) {
+  grid-template-columns: minmax(150px, 1fr) 140px minmax(130px, 0.7fr);
+}
+
+.batch-bank-main,
+.batch-bank-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.batch-bank-main strong {
+  color: #0f172a;
+}
+
+.batch-bank-main span,
+.batch-bank-preview span {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.batch-bank-preview {
+  text-align: right;
+}
+
+.batch-bank-preview strong {
+  color: #0f766e;
+}
+
+.batch-amount-input {
+  min-width: 0;
+}
+
 .transaction-body {
   display: flex;
   flex-direction: column;
@@ -1179,6 +1492,16 @@ useHead({
   border-top: 4px solid #fa709a;
 }
 
+.bank-card.selected {
+  border-top-color: #667eea;
+  box-shadow: 0 10px 22px rgba(102, 126, 234, 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+}
+
+.bank-card.selected .info-item.highlight {
+  background: #eef2ff;
+}
+
 .bank-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
@@ -1197,6 +1520,27 @@ useHead({
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
+}
+
+.card-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 999px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  cursor: pointer;
+}
+
+.card-select input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #667eea;
 }
 
 .bank-favicon {
@@ -1213,6 +1557,7 @@ useHead({
   font-weight: 700;
   color: #333;
   margin: 0;
+  word-break: break-word;
 }
 
 .bank-name-link {
@@ -1533,6 +1878,9 @@ useHead({
 .btn-add-icon:hover { transform: translateY(-2px) scale(1.1); box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4); }
 .btn-cancel-batch { padding: 0.35rem 0.75rem; background: #e0e0e0; color: #666; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
 .btn-cancel-batch:hover { background: #d0d0d0; }
+.btn-batch-adjust { padding: 0.5rem 1rem; background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
+.btn-batch-adjust:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35); }
+.btn-batch-adjust:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-batch-delete { padding: 0.5rem 1rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
 .btn-batch-delete:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4); }
 .btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -1589,8 +1937,19 @@ useHead({
   .btn-transaction,
   .btn-add-account,
   .btn-cancel-batch,
+  .btn-batch-adjust,
   .btn-batch-delete {
     min-height: 40px;
+  }
+
+  .batch-adjust-controls,
+  .batch-bank-row,
+  .batch-bank-row:has(.batch-amount-input) {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-bank-preview {
+    text-align: left;
   }
 
   .bank-card {
@@ -1625,6 +1984,7 @@ useHead({
   .btn-transaction,
   .btn-add-account,
   .btn-cancel-batch,
+  .btn-batch-adjust,
   .btn-batch-delete {
     width: 100%;
     justify-content: center;

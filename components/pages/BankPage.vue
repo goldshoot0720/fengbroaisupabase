@@ -322,7 +322,9 @@
 
             <div class="batch-adjust-summary">
               <span>已選 {{ selectedBanks.length }} 家銀行</span>
-              <strong v-if="batchOperation === 'set'">設定後合計 NT$ {{ formatNumber(totalProjectedDeposit) }}</strong>
+              <strong v-if="batchOperation === 'set'">
+                {{ isBatchReady ? `設定後合計 NT$ ${formatNumber(totalProjectedDeposit)}` : '等待輸入存款數字' }}
+              </strong>
               <strong v-else>{{ batchAdjustType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(totalBatchAdjustment) }}</strong>
             </div>
 
@@ -341,7 +343,8 @@
                   :placeholder="batchOperation === 'set' ? '輸入存款數字' : '輸入金額'"
                 >
                 <div class="batch-bank-preview">
-                  <span v-if="batchOperation === 'set'">設定 NT$ {{ formatNumber(getBatchAmount(bank)) }}</span>
+                  <span v-if="!hasBatchInput(bank)" class="preview-muted">尚未輸入</span>
+                  <span v-else-if="batchOperation === 'set'">設定 NT$ {{ formatNumber(getBatchAmount(bank)) }}</span>
                   <span v-else>{{ batchAdjustType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(getBatchAmount(bank)) }}</span>
                   <strong>更新後 NT$ {{ formatNumber(getAdjustedDeposit(bank)) }}</strong>
                 </div>
@@ -679,6 +682,11 @@ const getRawBatchAmount = (bank) => {
     : individualAdjustments[bank.id]
 }
 
+const hasBatchInput = (bank) => {
+  const rawAmount = getRawBatchAmount(bank)
+  return rawAmount !== null && rawAmount !== ''
+}
+
 const getBatchAmount = (bank) => {
   const rawAmount = getRawBatchAmount(bank)
   const amount = Number(rawAmount)
@@ -686,8 +694,8 @@ const getBatchAmount = (bank) => {
 }
 
 const hasValidBatchAmount = (bank) => {
+  if (!hasBatchInput(bank)) return false
   const rawAmount = getRawBatchAmount(bank)
-  if (rawAmount === null || rawAmount === '') return false
   const amount = Number(rawAmount)
   if (!Number.isFinite(amount) || amount < 0) return false
   return batchOperation.value === 'set' || amount > 0
@@ -695,6 +703,9 @@ const hasValidBatchAmount = (bank) => {
 
 const getAdjustedDeposit = (bank) => {
   const currentDeposit = Number(bank.deposit) || 0
+  if (!hasBatchInput(bank)) {
+    return currentDeposit
+  }
   const amount = getBatchAmount(bank)
   if (batchOperation.value === 'set') {
     return amount
@@ -710,6 +721,10 @@ const totalBatchAdjustment = computed(() => {
 
 const totalProjectedDeposit = computed(() => {
   return selectedBanks.value.reduce((total, bank) => total + getAdjustedDeposit(bank), 0)
+})
+
+const isBatchReady = computed(() => {
+  return selectedBanks.value.length > 0 && selectedBanks.value.every(bank => hasValidBatchAmount(bank))
 })
 
 const submitBatchAdjust = async () => {
@@ -1237,6 +1252,10 @@ useHead({
 .batch-bank-preview span {
   color: #64748b;
   font-size: 0.9rem;
+}
+
+.batch-bank-preview .preview-muted {
+  color: #94a3b8;
 }
 
 .batch-bank-preview {

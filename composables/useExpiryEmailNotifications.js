@@ -149,7 +149,6 @@ export function useExpiryEmailNotifications() {
 
       const log = readLog()
       const dueSubscriptions = subscriptions.value
-        .filter(item => normalizeSubscriptionContinue(item.iscontinue))
         .filter(item => daysUntil(item.nextdate) === 2)
         .filter(item => !log[markerFor('subscription', item, item.nextdate)])
 

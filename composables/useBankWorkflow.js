@@ -1,4 +1,5 @@
 import { computed, reactive, ref } from 'vue'
+import { useSelectionSet } from './useSelectionSet'
 
 const formatNumber = (num) => Number(num || 0).toLocaleString()
 
@@ -10,21 +11,27 @@ export const useBankWorkflow = ({ banks, updateBank, deleteBank }) => {
     amount: null
   })
 
-  const batchMode = ref(false)
-  const selectedIds = ref(new Set())
   const showBatchAdjustModal = ref(false)
   const batchOperation = ref('set')
   const batchAdjustMode = ref('fixed')
   const batchAdjustType = ref('income')
   const batchFixedAmount = ref(null)
   const individualAdjustments = reactive({})
+  const {
+    isSelectionMode: batchMode,
+    selectedIds,
+    selectedItems: selectedBanks,
+    isAllSelected,
+    enterSelectionMode,
+    exitSelectionMode,
+    toggleSelect,
+    toggleSelectAll
+  } = useSelectionSet(banks)
 
   const selectedTransactionBank = computed(() => {
     if (!transactionForm.bankId) return null
     return banks.value.find(bank => String(bank.id) === String(transactionForm.bankId)) || null
   })
-
-  const selectedBanks = computed(() => banks.value.filter(bank => selectedIds.value.has(bank.id)))
 
   const projectedTransactionBalance = computed(() => {
     const bank = selectedTransactionBank.value
@@ -35,31 +42,11 @@ export const useBankWorkflow = ({ banks, updateBank, deleteBank }) => {
       : (Number(bank.deposit) || 0) - amount
   })
 
-  const enterBatchMode = () => {
-    batchMode.value = true
-  }
+  const enterBatchMode = enterSelectionMode
 
   const exitBatchMode = () => {
-    batchMode.value = false
-    selectedIds.value = new Set()
+    exitSelectionMode()
     closeBatchAdjustModal()
-  }
-
-  const isAllSelected = computed(() => {
-    return banks.value.length > 0 && banks.value.every(bank => selectedIds.value.has(bank.id))
-  })
-
-  const toggleSelect = (id) => {
-    const nextSelectedIds = new Set(selectedIds.value)
-    if (nextSelectedIds.has(id)) nextSelectedIds.delete(id)
-    else nextSelectedIds.add(id)
-    selectedIds.value = nextSelectedIds
-  }
-
-  const toggleSelectAll = () => {
-    selectedIds.value = isAllSelected.value
-      ? new Set()
-      : new Set(banks.value.map(bank => bank.id))
   }
 
   const resetBatchAdjustForm = () => {
@@ -200,8 +187,7 @@ export const useBankWorkflow = ({ banks, updateBank, deleteBank }) => {
       const result = await deleteBank(id)
       if (result.success) ok++
     }
-    selectedIds.value = new Set()
-    batchMode.value = false
+    exitSelectionMode()
     alert(`已刪除 ${ok} 筆`)
   }
 

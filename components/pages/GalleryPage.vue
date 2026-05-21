@@ -383,6 +383,7 @@ import { useImages } from '../../composables/useImages'
 import { useStorage } from '../../composables/useStorage'
 import { getSupabaseBucket } from '../../composables/useSettings'
 import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
+import { useSelectionSet } from '../../composables/useSelectionSet'
 
 const {
   images,
@@ -407,8 +408,6 @@ const showSection = reactive({
   extra: false
 })
 
-const batchMode = ref(false)
-const selectedIds = ref(new Set())
 const createImportProgressState = () => ({
   active: false,
   completed: false,
@@ -495,11 +494,6 @@ const finishUploadStatus = ({ message, error = false }) => {
     percent: error ? uploadStatus.percent || 0 : 100
   })
 }
-const enterBatchMode = () => { batchMode.value = true }
-const exitBatchMode = () => { batchMode.value = false; selectedIds.value = new Set() }
-const isAllSelected = computed(() => filteredImages.value.length > 0 && filteredImages.value.every(a => selectedIds.value.has(a.id)))
-const toggleSelect = (id) => { const s = new Set(selectedIds.value); if (s.has(id)) s.delete(id); else s.add(id); selectedIds.value = s }
-const toggleSelectAll = () => { if (isAllSelected.value) selectedIds.value = new Set(); else selectedIds.value = new Set(filteredImages.value.map(a => a.id)) }
 const viewOptions = [
   { value: 'hybrid', label: '??' },
   { value: 'card', label: '??' },
@@ -515,7 +509,7 @@ const deleteSelected = async () => {
   } else { if (!confirm(`確定要刪除選中的 ${count} 筆嗎？`)) return }
   let ok = 0
   for (const id of [...selectedIds.value]) { const r = await deleteImage(id); if (r.success) ok++ }
-  selectedIds.value = new Set(); batchMode.value = false
+  exitBatchMode()
   alert(`已刪除 ${ok} 筆`)
 }
 
@@ -661,6 +655,16 @@ const filteredImages = computed(() => {
 
   return result
 })
+
+const {
+  isSelectionMode: batchMode,
+  selectedIds,
+  isAllSelected,
+  enterSelectionMode: enterBatchMode,
+  exitSelectionMode: exitBatchMode,
+  toggleSelect,
+  toggleSelectAll
+} = useSelectionSet(filteredImages)
 
 const imageCardModeClass = (imageId) => {
   if (viewMode.value === 'card') return 'image-card--card'

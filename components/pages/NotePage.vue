@@ -19,7 +19,7 @@
             <span class="icon">📦</span> {{ zipExporting ? '匯出中...' : '匯出 ZIP' }}
           </button>
           <button @click="$refs.zipFileInput.click()" class="btn-import" :disabled="zipImporting">
-            <span class="icon">📦</span> {{ zipImporting ? '匯入中...' : '匯入 ZIP' }}
+            <span class="icon">📦</span> {{ zipImportButtonLabel }}
           </button>
           <input
             ref="zipFileInput"
@@ -32,6 +32,16 @@
       </div>
 
       <!-- 摘要列：批量選擇 + 新增 + 項目數 -->
+      <div v-if="zipImporting" class="zip-import-progress" role="status" aria-live="polite">
+        <div class="zip-import-progress-head">
+          <span>{{ zipImportStatus }}</span>
+          <strong>{{ zipImportProgress }}%</strong>
+        </div>
+        <div class="zip-import-progress-bar" aria-hidden="true">
+          <div class="zip-import-progress-fill" :style="{ width: `${zipImportProgress}%` }"></div>
+        </div>
+      </div>
+
       <div class="summary-bar">
         <div class="summary-left">
           <button
@@ -788,6 +798,16 @@ const deleteSelected = async () => {
 const zipFileInput = ref(null)
 const zipExporting = ref(false)
 const zipImporting = ref(false)
+const zipImportProgress = ref(0)
+const zipImportStatus = ref('準備匯入...')
+const zipImportButtonLabel = computed(() => {
+  return zipImporting.value ? `匯入中 ${zipImportProgress.value}%` : '匯入 ZIP'
+})
+
+const setZipImportProgress = (percent, status) => {
+  zipImportProgress.value = Math.min(100, Math.max(0, Math.round(percent)))
+  if (status) zipImportStatus.value = status
+}
 
 const parseCsv = (text) => {
   const parseRow = (line) => {
@@ -961,8 +981,10 @@ const handleImportZip = async (e) => {
   if (!file) return
 
   zipImporting.value = true
+  setZipImportProgress(1, '讀取 ZIP 檔案...')
   try {
     const JSZip = (await import('jszip')).default
+    setZipImportProgress(5, '解析 ZIP 內容...')
     const zip = await JSZip.loadAsync(file)
 
     // 找到 CSV 檔案（優先找 appwrite-article.csv / supabase-article.csv，否則找任何 .csv）
@@ -978,10 +1000,12 @@ const handleImportZip = async (e) => {
       return
     }
 
+    setZipImportProgress(12, '讀取 CSV 資料...')
     const rawCsvText = await csvFile.async('text')
     // 移除 BOM 字元
     const csvText = rawCsvText.replace(/^\uFEFF/, '')
     let rows = parseCsv(csvText)
+    setZipImportProgress(20, `已解析 ${rows.length} 筆資料`)
     if (rows.length === 0) {
       alert('CSV 檔案無有效資料')
       return
@@ -1012,6 +1036,7 @@ const handleImportZip = async (e) => {
         return mapped
       })
     }
+    setZipImportProgress(28, '整理匯入欄位...')
 
     // 統計附件數量
     let fileCount = 0
@@ -1027,6 +1052,7 @@ const handleImportZip = async (e) => {
       confirmMsg += `\n（含 ${fileCount} 個附件將自動上傳至 Supabase Storage）`
     }
     if (!confirm(confirmMsg)) return
+    setZipImportProgress(32, fileCount > 0 ? `準備上傳附件 0/${fileCount}` : '準備寫入資料庫...')
 
     // MIME type 對照表
     const mimeTypes = {
@@ -1050,6 +1076,12 @@ const handleImportZip = async (e) => {
     // 遍歷每筆記錄，上傳附件
     let uploadedCount = 0
     let failedCount = 0
+    const updateAttachmentImportProgress = () => {
+      if (fileCount === 0) return
+      const handledCount = uploadedCount + failedCount
+      const percent = 32 + (handledCount / fileCount) * 50
+      setZipImportProgress(percent, `上傳附件 ${handledCount}/${fileCount}`)
+    }
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
       for (let slot = 1; slot <= 3; slot++) {
@@ -1074,6 +1106,7 @@ const handleImportZip = async (e) => {
           console.warn(`ZIP 中找不到檔案: ${filePath}`)
           row['file' + slot] = ''
           failedCount++
+          updateAttachmentImportProgress()
           continue
         }
 
@@ -1088,15 +1121,18 @@ const handleImportZip = async (e) => {
           if (result.success) {
             row['file' + slot] = result.url
             uploadedCount++
+            updateAttachmentImportProgress()
           } else {
             console.warn(`上傳附件失敗 (row ${i}, slot ${slot}):`, result.error)
             row['file' + slot] = ''
             failedCount++
+            updateAttachmentImportProgress()
           }
         } catch (err) {
           console.warn(`處理附件失敗 (row ${i}, slot ${slot}):`, err)
           row['file' + slot] = ''
           failedCount++
+          updateAttachmentImportProgress()
         }
       }
     }
@@ -1104,8 +1140,10 @@ const handleImportZip = async (e) => {
       console.log(`附件上傳完成: 成功 ${uploadedCount}, 失敗 ${failedCount}`)
     }
 
+    setZipImportProgress(88, '寫入筆記資料庫...')
     const result = await importArticles(rows)
     if (result.success) {
+      setZipImportProgress(100, '匯入完成')
       let msg = `匯入成功！共 ${result.count} 筆資料`
       if (uploadedCount > 0) msg += `\n附件上傳: ${uploadedCount} 個成功`
       if (failedCount > 0) msg += `\n附件失敗: ${failedCount} 個`
@@ -1118,6 +1156,8 @@ const handleImportZip = async (e) => {
     alert('匯入失敗：' + error.message)
   } finally {
     zipImporting.value = false
+    zipImportProgress.value = 0
+    zipImportStatus.value = '準備匯入...'
     e.target.value = ''
   }
 }
@@ -1307,6 +1347,45 @@ useHead({
   color: #555;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.zip-import-progress {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: 8px;
+  background: rgba(236, 253, 245, 0.92);
+  color: #065f46;
+}
+
+.zip-import-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.zip-import-progress-head strong {
+  min-width: 3.2rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.zip-import-progress-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(6, 95, 70, 0.14);
+}
+
+.zip-import-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #10b981, #0ea5e9);
+  transition: width 0.25s ease;
 }
 
 .summary-left,

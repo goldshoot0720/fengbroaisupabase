@@ -47,6 +47,11 @@
           <pre class="hero-ascii-art">{{ asciiArt }}</pre>
         </div>
 
+        <figure class="hero-person">
+          <img src="/fengbro-home-person.webp" alt="鋒兄人物圖" loading="eager" />
+          <figcaption>鋒兄人物圖</figcaption>
+        </figure>
+
         <p class="eyebrow">2026 interface direction</p>
         <h1 class="hero-title">
           用科技編輯風，
@@ -74,9 +79,6 @@
       </article>
 
       <aside class="hero-panel hero-briefing">
-        <figure class="hero-person">
-          <img src="/fengbro-home-person.webp" alt="鋒兄人物圖" loading="eager" />
-        </figure>
         <p class="briefing-label">Issue Brief</p>
         <div class="briefing-item">
           <span class="briefing-index">A1</span>
@@ -637,19 +639,32 @@ const channels = [
 }
 
 .hero-person {
-  margin: 0 0 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: min(420px, 100%);
+  margin: 1rem 0 0;
+  padding: 0.65rem;
   overflow: hidden;
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: 24px;
+  border: 1px solid color-mix(in oklab, var(--primary) 18%, var(--border-color));
+  background: color-mix(in oklab, var(--bg-primary) 78%, transparent);
 }
 
 .hero-person img {
   display: block;
-  width: 100%;
-  aspect-ratio: 4 / 5;
+  width: 96px;
+  height: 116px;
+  flex: 0 0 auto;
+  border-radius: 18px;
   object-fit: cover;
   object-position: 50% 30%;
+}
+
+.hero-person figcaption {
+  margin: 0;
+  color: var(--text-secondary);
+  font-weight: 800;
 }
 
 .briefing-item {

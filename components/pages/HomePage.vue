@@ -74,6 +74,9 @@
       </article>
 
       <aside class="hero-panel hero-briefing">
+        <figure class="hero-person">
+          <img src="/fengbro-home-person.webp" alt="鋒兄人物圖" loading="eager" />
+        </figure>
         <p class="briefing-label">Issue Brief</p>
         <div class="briefing-item">
           <span class="briefing-index">A1</span>
@@ -631,6 +634,22 @@ const channels = [
 .hero-briefing {
   background: linear-gradient(180deg, color-mix(in oklab, var(--surface-strong) 94%, white 6%), color-mix(in oklab, var(--surface-strong) 90%, black 10%));
   color: var(--text-inverse);
+}
+
+.hero-person {
+  margin: 0 0 1.15rem;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hero-person img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  object-position: 50% 30%;
 }
 
 .briefing-item {

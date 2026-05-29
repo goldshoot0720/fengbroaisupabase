@@ -19,6 +19,8 @@ type TubeVideo = {
   isNew: boolean
 }
 
+type TubeSourceChannel = typeof FENG_TUBE_CHANNELS[number]
+
 type TubeChannelResult = {
   id: string
   label: string
@@ -42,7 +44,7 @@ type TubeResponse = {
   newVideos: Array<TubeVideo & { channelId: string, channelLabel: string, channelUrl: string }>
 }
 
-let tubeCache: { expiresAt: number, data: TubeResponse } | null = null
+let tubeCache = new Map<string, { expiresAt: number, data: TubeResponse }>()
 
 const decodeEntities = (value: string) => value
   .replace(/&amp;/g, '&')
@@ -132,7 +134,7 @@ const extractChannelId = (html: string) => {
     null
 }
 
-const fetchChannelVideos = async (channel: typeof FENG_TUBE_CHANNELS[number]): Promise<TubeChannelResult> => {
+const fetchChannelVideos = async (channel: TubeSourceChannel): Promise<TubeChannelResult> => {
   try {
     const channelHtml = await fetchText(channel.url)
     const channelId = extractChannelId(channelHtml)
@@ -163,11 +165,48 @@ const fetchChannelVideos = async (channel: typeof FENG_TUBE_CHANNELS[number]): P
   }
 }
 
-export default defineEventHandler(async () => {
-  const now = Date.now()
-  if (tubeCache && tubeCache.expiresAt > now) return tubeCache.data
+const normalizeRequestChannel = (channel: any) => {
+  const id = String(channel?.id || '').trim()
+  const label = String(channel?.label || '').trim()
+  const handle = String(channel?.handle || '').trim()
+  const url = String(channel?.url || '').trim()
 
-  const channels = await Promise.all(FENG_TUBE_CHANNELS.map(fetchChannelVideos))
+  if (!id || !label || !handle || !/^https:\/\/www\.youtube\.com\/@[^/]+\/videos$/i.test(url)) {
+    return null
+  }
+
+  return { id, label, handle, url }
+}
+
+const readRequestChannels = (event: any): TubeSourceChannel[] => {
+  const rawChannels = getQuery(event).channels
+  const rawValue = Array.isArray(rawChannels) ? rawChannels[0] : rawChannels
+  if (!rawValue || typeof rawValue !== 'string') return FENG_TUBE_CHANNELS
+
+  try {
+    const parsed = JSON.parse(rawValue)
+    if (!Array.isArray(parsed)) return FENG_TUBE_CHANNELS
+
+    return parsed
+      .map(normalizeRequestChannel)
+      .filter((channel): channel is TubeSourceChannel => Boolean(channel))
+      .slice(0, 60)
+  } catch {
+    return FENG_TUBE_CHANNELS
+  }
+}
+
+const buildCacheKey = (channels: TubeSourceChannel[]) =>
+  channels.map(channel => `${channel.id}:${channel.url}`).join('|')
+
+export default defineEventHandler(async (event) => {
+  const now = Date.now()
+  const requestChannels = readRequestChannels(event)
+  const cacheKey = buildCacheKey(requestChannels)
+  const cached = tubeCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) return cached.data
+
+  const channels = await Promise.all(requestChannels.map(fetchChannelVideos))
   const newVideos = channels.flatMap(channel =>
     channel.videos
       .filter(video => video.isNew)
@@ -186,10 +225,10 @@ export default defineEventHandler(async () => {
     newVideos
   }
 
-  tubeCache = {
+  tubeCache.set(cacheKey, {
     expiresAt: now + CACHE_TTL_MS,
     data
-  }
+  })
 
   return data
 })

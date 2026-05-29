@@ -234,10 +234,71 @@
           <div>
             <p class="panel-kicker">鋒兄tube</p>
             <h3>各頻道最新影片各 10 部</h3>
+            <p class="tool-subtitle">目前追蹤 {{ tubeChannelCount }} 個頻道，預設清單 {{ defaultTubeChannelCount }} 個。</p>
           </div>
-          <button type="button" class="tool-primary-btn tool-primary-btn--compact" :disabled="tubeLoading" @click="runTubeLookup">
-            {{ tubeLoading ? '更新中...' : '重新整理' }}
-          </button>
+          <div class="tool-panel__actions">
+            <button type="button" class="tool-secondary-btn tool-secondary-btn--compact" @click="showTubeManager = !showTubeManager">
+              {{ showTubeManager ? '收起管理' : '頻道管理' }}
+            </button>
+            <button type="button" class="tool-primary-btn tool-primary-btn--compact" :disabled="tubeLoading" @click="runTubeLookup">
+              {{ tubeLoading ? '更新中...' : '重新整理' }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="showTubeManager" class="tube-manager">
+          <div class="tube-manager__form">
+            <label class="tool-field">
+              <span>頻道別名</span>
+              <input
+                v-model.trim="tubeChannelForm.label"
+                type="text"
+                class="tool-input"
+                placeholder="例如：cheap"
+                @keydown.enter.prevent="addTubeChannel"
+              />
+            </label>
+            <label class="tool-field">
+              <span>頻道網址</span>
+              <input
+                v-model.trim="tubeChannelForm.url"
+                type="text"
+                class="tool-input"
+                placeholder="@cheapaoe 或 https://www.youtube.com/@cheapaoe/videos"
+                @keydown.enter.prevent="addTubeChannel"
+              />
+            </label>
+            <button type="button" class="tool-primary-btn" @click="addTubeChannel">新增頻道</button>
+            <button type="button" class="tool-secondary-btn" @click="resetTubeChannels">還原預設</button>
+          </div>
+          <p v-if="tubeChannelFormError" class="tool-error">{{ tubeChannelFormError }}</p>
+          <div class="tube-channel-list" aria-label="鋒兄tube 頻道清單">
+            <div v-for="channel in tubeUserChannels" :key="channel.id" class="tube-channel-chip">
+              <template v-if="editingTubeChannelId === channel.id">
+                <label class="tube-channel-edit-field">
+                  <span>頻道別名</span>
+                  <input v-model.trim="tubeEditForm.label" type="text" class="tool-input" />
+                </label>
+                <label class="tube-channel-edit-field">
+                  <span>頻道網址</span>
+                  <input v-model.trim="tubeEditForm.url" type="text" class="tool-input" />
+                </label>
+                <p v-if="tubeEditFormError" class="tool-error tube-channel-edit-error">{{ tubeEditFormError }}</p>
+                <div class="tube-channel-edit-actions">
+                  <button type="button" class="tube-save-btn" @click="saveTubeChannelEdit(channel.id)">儲存</button>
+                  <button type="button" class="tube-cancel-btn" @click="cancelTubeChannelEdit">取消</button>
+                </div>
+              </template>
+              <template v-else>
+                <span>{{ channel.label }}</span>
+                <small>{{ channel.url }}</small>
+                <div class="tube-channel-chip__actions">
+                  <button type="button" class="tube-edit-btn" @click="startTubeChannelEdit(channel)">編輯</button>
+                  <button type="button" class="tube-delete-btn" @click="confirmRemoveTubeChannel(channel.id)">刪除</button>
+                </div>
+              </template>
+            </div>
+          </div>
         </div>
 
         <p v-if="tubeError" class="tool-error">{{ tubeError }}</p>
@@ -269,7 +330,9 @@
                   </a>
                 </h4>
               </div>
-              <a :href="channel.url" target="_blank" rel="noreferrer" class="store-card__link">前往頻道</a>
+              <div class="tube-channel-card__actions">
+                <a :href="channel.url" target="_blank" rel="noreferrer" class="store-card__link">前往頻道</a>
+              </div>
             </div>
 
             <p v-if="channel.error" class="tool-error">{{ channel.error }}</p>
@@ -364,7 +427,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
-import { FENG_TUBE_ACTIVE_TOOL_KEY } from '../../utils/fengTubeChannels'
+import { FENG_TUBE_ACTIVE_TOOL_KEY, FENG_TUBE_CHANNELS } from '../../utils/fengTubeChannels'
 
 const toolTabs = [
   { value: 'biggo', label: '鋒兄比價', description: '網址貼上後抓 BigGo 價格區間' },
@@ -400,6 +463,13 @@ const phoneCompareHistory = ref([])
 const tubeLoading = ref(false)
 const tubeError = ref('')
 const tubeResult = ref(null)
+const tubeUserChannels = ref(FENG_TUBE_CHANNELS.map(channel => ({ ...channel })))
+const tubeChannelForm = ref({ label: '', url: '' })
+const tubeChannelFormError = ref('')
+const showTubeManager = ref(false)
+const editingTubeChannelId = ref('')
+const tubeEditForm = ref({ label: '', url: '' })
+const tubeEditFormError = ref('')
 
 const financeLoading = ref(false)
 const financeError = ref('')
@@ -408,6 +478,8 @@ const financeResult = ref(null)
 const HISTORY_INTERVAL_DAYS = 7
 const BIGGO_HISTORY_KEY = 'fengbro-tools-biggo-history'
 const PHONE_COMPARE_HISTORY_KEY = 'fengbro-tools-phone-compare-history'
+const TUBE_CHANNELS_STORAGE_KEY = 'fengbro-tools-tube-channels'
+const defaultTubeChannelCount = FENG_TUBE_CHANNELS.length
 
 const safeJsonParse = (value, fallback) => {
   try {
@@ -608,9 +680,233 @@ const phoneCompareLegend = computed(() => {
   )
 })
 
-const tubeChannels = computed(() => tubeResult.value?.channels || [])
+const latestTubeChannelTime = (channel) => {
+  const timestamps = (channel?.videos || [])
+    .map(video => new Date(video.published).getTime())
+    .filter(timestamp => Number.isFinite(timestamp))
+
+  return timestamps.length > 0 ? Math.max(...timestamps) : 0
+}
+
+const tubeChannels = computed(() => {
+  const channels = tubeResult.value?.channels || []
+  return [...channels].sort((left, right) => latestTubeChannelTime(right) - latestTubeChannelTime(left))
+})
 const tubeNewVideos = computed(() => tubeResult.value?.newVideos || [])
+const tubeChannelCount = computed(() => tubeUserChannels.value.length)
 const financeItems = computed(() => financeResult.value?.items || [])
+
+const normalizeTubeChannels = (channels) => {
+  if (!Array.isArray(channels)) return []
+  return channels
+    .map(channel => ({
+      id: String(channel?.id || '').trim(),
+      label: String(channel?.label || '').trim(),
+      handle: String(channel?.handle || '').trim(),
+      url: String(channel?.url || '').trim()
+    }))
+    .filter(channel =>
+      channel.id &&
+      channel.label &&
+      channel.handle &&
+      /^https:\/\/www\.youtube\.com\/@[^/]+\/videos$/i.test(channel.url)
+    )
+}
+
+const writeTubeChannels = () => {
+  if (!import.meta.client) return
+  localStorage.setItem(TUBE_CHANNELS_STORAGE_KEY, JSON.stringify(tubeUserChannels.value))
+}
+
+const readTubeChannels = () => {
+  if (!import.meta.client) return
+  const savedValue = localStorage.getItem(TUBE_CHANNELS_STORAGE_KEY)
+  if (savedValue === null) return
+
+  const parsedChannels = safeJsonParse(savedValue, [])
+  if (Array.isArray(parsedChannels)) {
+    tubeUserChannels.value = normalizeTubeChannels(parsedChannels)
+  }
+}
+
+const decodeHandleSegment = (value) => {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+const slugifyTubeId = (value) => {
+  const decoded = decodeHandleSegment(value)
+  const slug = decoded
+    .toLowerCase()
+    .replace(/^@/, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return slug || `tube-${Date.now()}`
+}
+
+const uniqueTubeId = (baseId) => {
+  const existingIds = new Set(tubeUserChannels.value.map(channel => channel.id))
+  if (!existingIds.has(baseId)) return baseId
+
+  let index = 2
+  while (existingIds.has(`${baseId}-${index}`)) index += 1
+  return `${baseId}-${index}`
+}
+
+const parseTubeChannelSource = (source) => {
+  const trimmedSource = String(source || '').trim()
+  if (!trimmedSource) return null
+
+  if (/^https?:\/\//i.test(trimmedSource)) {
+    try {
+      const url = new URL(trimmedSource)
+      const handleSegment = url.pathname.match(/\/@([^/]+)/)?.[1]
+      if (!handleSegment || !/youtube\.com$/i.test(url.hostname.replace(/^www\./, ''))) return null
+      return {
+        handleSegment,
+        handle: `@${handleSegment}`,
+        url: `https://www.youtube.com/@${handleSegment}/videos`
+      }
+    } catch {
+      return null
+    }
+  }
+
+  const rawHandle = trimmedSource.replace(/^@/, '')
+  if (!rawHandle) return null
+  const handleSegment = encodeURIComponent(rawHandle)
+  return {
+    handleSegment,
+    handle: `@${handleSegment}`,
+    url: `https://www.youtube.com/@${handleSegment}/videos`
+  }
+}
+
+const isDuplicateTubeChannel = (parsed, currentChannelId = '') => {
+  return tubeUserChannels.value.some(channel =>
+    channel.id !== currentChannelId &&
+    (
+      channel.handle.toLowerCase() === parsed.handle.toLowerCase() ||
+      channel.url.toLowerCase() === parsed.url.toLowerCase()
+    )
+  )
+}
+
+const resolveTubeChannelLabel = async (parsed, fallbackLabel) => {
+  if (fallbackLabel) return fallbackLabel
+
+  try {
+    const response = await $fetch('/api/feng-tools/youtube-channel', {
+      query: { url: parsed.url }
+    })
+    return response?.label || decodeHandleSegment(parsed.handleSegment)
+  } catch {
+    return decodeHandleSegment(parsed.handleSegment)
+  }
+}
+
+const addTubeChannel = async () => {
+  const parsed = parseTubeChannelSource(tubeChannelForm.value.url)
+  if (!parsed) {
+    tubeChannelFormError.value = '請輸入有效的 YouTube handle 或頻道網址。'
+    return
+  }
+
+  if (isDuplicateTubeChannel(parsed)) {
+    tubeChannelFormError.value = '這個頻道已經在清單裡。'
+    return
+  }
+
+  const channelLabel = await resolveTubeChannelLabel(parsed, tubeChannelForm.value.label)
+  const channel = {
+    id: uniqueTubeId(slugifyTubeId(parsed.handleSegment)),
+    label: channelLabel,
+    handle: parsed.handle,
+    url: parsed.url
+  }
+
+  tubeUserChannels.value = [...tubeUserChannels.value, channel]
+  tubeChannelForm.value = { label: '', url: '' }
+  tubeChannelFormError.value = ''
+  writeTubeChannels()
+  runTubeLookup()
+}
+
+const removeTubeChannel = (channelId) => {
+  tubeUserChannels.value = tubeUserChannels.value.filter(channel => channel.id !== channelId)
+  writeTubeChannels()
+
+  if (tubeResult.value) {
+    tubeResult.value = {
+      ...tubeResult.value,
+      channels: tubeResult.value.channels.filter(channel => channel.id !== channelId),
+      newVideos: tubeResult.value.newVideos.filter(video => video.channelId !== channelId)
+    }
+  }
+}
+
+const confirmRemoveTubeChannel = (channelId) => {
+  const channel = tubeUserChannels.value.find(item => item.id === channelId)
+  const channelLabel = channel?.label || '這個頻道'
+  if (import.meta.client && !window.confirm(`確定刪除「${channelLabel}」？`)) return
+  removeTubeChannel(channelId)
+}
+
+const startTubeChannelEdit = (channel) => {
+  editingTubeChannelId.value = channel.id
+  tubeEditForm.value = {
+    label: channel.label,
+    url: channel.url
+  }
+  tubeEditFormError.value = ''
+}
+
+const cancelTubeChannelEdit = () => {
+  editingTubeChannelId.value = ''
+  tubeEditForm.value = { label: '', url: '' }
+  tubeEditFormError.value = ''
+}
+
+const saveTubeChannelEdit = async (channelId) => {
+  const parsed = parseTubeChannelSource(tubeEditForm.value.url)
+  if (!parsed) {
+    tubeEditFormError.value = '請輸入有效的 YouTube handle 或頻道網址。'
+    return
+  }
+
+  if (isDuplicateTubeChannel(parsed, channelId)) {
+    tubeEditFormError.value = '這個頻道已經在清單裡。'
+    return
+  }
+
+  const channelLabel = await resolveTubeChannelLabel(parsed, tubeEditForm.value.label)
+  tubeUserChannels.value = tubeUserChannels.value.map(channel => {
+    if (channel.id !== channelId) return channel
+    return {
+      ...channel,
+      label: channelLabel,
+      handle: parsed.handle,
+      url: parsed.url
+    }
+  })
+
+  writeTubeChannels()
+  cancelTubeChannelEdit()
+  runTubeLookup()
+}
+
+const resetTubeChannels = () => {
+  if (import.meta.client && !window.confirm('確定還原為預設 20 個頻道？目前自訂清單會被覆蓋。')) return
+  tubeUserChannels.value = FENG_TUBE_CHANNELS.map(channel => ({ ...channel }))
+  tubeChannelFormError.value = ''
+  cancelTubeChannelEdit()
+  writeTubeChannels()
+  runTubeLookup()
+}
 
 const sortSources = (sources) => [...sources].sort((a, b) => {
   const left = Number.isFinite(a.numericPrice) ? a.numericPrice : Number.MAX_SAFE_INTEGER
@@ -700,7 +996,9 @@ const runTubeLookup = async () => {
   tubeError.value = ''
 
   try {
-    tubeResult.value = await $fetch('/api/feng-tools/youtube')
+    tubeResult.value = await $fetch('/api/feng-tools/youtube', {
+      query: { channels: JSON.stringify(tubeUserChannels.value) }
+    })
   } catch (error) {
     tubeError.value = error?.data?.statusMessage || error?.message || '鋒兄tube 更新失敗'
   } finally {
@@ -722,6 +1020,7 @@ const runFinanceLookup = async () => {
 }
 
 onMounted(() => {
+  readTubeChannels()
   if (activeTool.value === 'tube') runTubeLookup()
   if (activeTool.value === 'finance') runFinanceLookup()
 })
@@ -863,6 +1162,19 @@ watch(
   align-items: flex-start;
 }
 
+.tool-panel__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.tool-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+}
+
 .tool-input-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -909,6 +1221,22 @@ watch(
 .tool-primary-btn--compact {
   min-height: 44px;
   padding-inline: 1rem;
+}
+
+.tool-secondary-btn--compact {
+  min-height: 44px;
+  padding-inline: 1rem;
+}
+
+.tool-secondary-btn {
+  min-height: 52px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  padding: 0.85rem 1.1rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .tool-error {
@@ -1040,6 +1368,115 @@ watch(
   gap: 1rem;
 }
 
+.tube-manager {
+  display: grid;
+  gap: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  background: color-mix(in oklab, var(--bg-primary) 88%, var(--bg-secondary));
+  padding: 1rem;
+}
+
+.tube-manager__form {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(260px, 1.2fr) auto auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.tube-channel-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.55rem;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.tube-channel-chip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.15rem 0.5rem;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-primary);
+  padding: 0.65rem 0.7rem;
+}
+
+.tube-channel-chip span,
+.tube-channel-chip small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tube-channel-chip span {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.tube-channel-chip small {
+  grid-column: 1;
+  color: var(--text-secondary);
+}
+
+.tube-channel-chip__actions,
+.tube-channel-edit-actions {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.tube-channel-chip__actions {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+
+.tube-channel-chip button {
+  border-radius: 999px;
+  padding: 0.28rem 0.62rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.tube-delete-btn {
+  border: 1px solid color-mix(in oklab, var(--danger) 30%, var(--border-color));
+  background: color-mix(in oklab, var(--danger) 8%, var(--bg-primary));
+  color: var(--danger);
+}
+
+.tube-edit-btn,
+.tube-save-btn {
+  border: 1px solid color-mix(in oklab, var(--primary) 35%, var(--border-color));
+  background: color-mix(in oklab, var(--primary) 8%, var(--bg-primary));
+  color: var(--primary);
+}
+
+.tube-cancel-btn {
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.tube-channel-edit-field {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.tube-channel-edit-field span {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.tube-channel-edit-actions,
+.tube-channel-edit-error {
+  grid-column: 1 / -1;
+}
+
 .tube-channel-card {
   display: grid;
   gap: 0.9rem;
@@ -1054,6 +1491,13 @@ watch(
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
+}
+
+.tube-channel-card__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.6rem;
+  align-items: center;
 }
 
 .tube-channel-card h4 {
@@ -1349,11 +1793,14 @@ watch(
 
 @media (max-width: 960px) {
   .tools-hero,
-  .tool-input-grid {
+  .tool-input-grid,
+  .tube-channel-list,
+  .tube-manager__form {
     grid-template-columns: 1fr;
   }
 
-  .tool-primary-btn {
+  .tool-primary-btn,
+  .tool-secondary-btn {
     width: 100%;
   }
 
@@ -1381,6 +1828,28 @@ watch(
 
   .tube-channel-grid {
     grid-template-columns: 1fr;
+  }
+
+  .tool-panel__header,
+  .tool-panel__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tube-channel-card__header,
+  .tube-channel-card__actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tube-channel-chip,
+  .tube-channel-chip__actions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .tube-channel-chip__actions {
+    justify-content: flex-start;
   }
 
   .finance-meta-row {

@@ -285,7 +285,7 @@
           </div>
           <div class="section-body">
             <p class="storage-description">
-              系統會掃描 Supabase Storage 中的所有檔案，找出資料庫中未引用的多餘檔案（圖片、影片、音樂、文件、播客）。分段影片會連同 manifest 與所有 PART 一起納入引用判斷。
+              系統會掃描 Supabase Storage 中的所有檔案，找出資料庫中未引用的多餘檔案（圖片、影片、音樂、文件、播客、食品照片、例行照片、筆記附件）。分段影片會連同 manifest 與所有 PART 一起納入引用判斷。
             </p>
 
             <div class="storage-actions">
@@ -309,14 +309,22 @@
               <div class="storage-stat">
                 <span class="storage-stat-label">Storage 檔案</span>
                 <strong>{{ storageScan.totalFiles }}</strong>
+                <span class="storage-stat-note">{{ formatStorageSize(storageScan.totalBytes) }}</span>
               </div>
               <div class="storage-stat">
                 <span class="storage-stat-label">已引用</span>
                 <strong>{{ storageScan.referencedCount }}</strong>
+                <span class="storage-stat-note">{{ formatStorageSize(storageScan.referencedBytes) }}</span>
               </div>
               <div class="storage-stat danger">
                 <span class="storage-stat-label">未引用</span>
                 <strong>{{ storageScan.unusedFiles.length }}</strong>
+                <span class="storage-stat-note">{{ formatStorageSize(storageScan.unusedBytes) }}</span>
+              </div>
+              <div class="storage-stat warning">
+                <span class="storage-stat-label">推估可釋放</span>
+                <strong>{{ formatStorageSize(storageScan.unusedBytes) }}</strong>
+                <span class="storage-stat-note">已掃描容量的 {{ unusedStoragePercent }}%</span>
               </div>
             </div>
 
@@ -1079,7 +1087,10 @@ const STORAGE_REFERENCE_TABLES = [
   { name: 'video', fields: ['file', 'cover'] },
   { name: 'music', fields: ['file', 'cover'] },
   { name: 'commondocument', fields: ['file', 'cover'] },
-  { name: 'podcast', fields: ['file', 'cover'] }
+  { name: 'podcast', fields: ['file', 'cover'] },
+  { name: 'food', fields: ['photo'] },
+  { name: 'routine', fields: ['photo'] },
+  { name: 'article', fields: ['file1', 'file2', 'file3'] }
 ]
 
 const MULTIPART_REFERENCE_PREFIX = 'supabase-multipart://'
@@ -1090,8 +1101,16 @@ const storageScan = reactive({
   status: '',
   error: '',
   totalFiles: 0,
+  totalBytes: 0,
   referencedCount: 0,
+  referencedBytes: 0,
+  unusedBytes: 0,
   unusedFiles: []
+})
+
+const unusedStoragePercent = computed(() => {
+  if (!storageScan.totalBytes) return 0
+  return Math.min(100, Number(((storageScan.unusedBytes / storageScan.totalBytes) * 100).toFixed(1)))
 })
 
 const normalizeStoragePath = (path = '') => String(path || '').replace(/\\/g, '/').replace(/^\/+/, '')
@@ -1216,6 +1235,7 @@ const listStorageFilesRecursive = async (client, bucket, prefix = '') => {
 
 const formatStorageSize = (bytes = 0) => {
   const value = Number(bytes || 0)
+  if (value >= 1024 * 1024 * 1024) return `${(value / 1024 / 1024 / 1024).toFixed(2)} GB`
   if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`
   if (value >= 1024) return `${(value / 1024).toFixed(1)} KB`
   return `${value} B`
@@ -1232,7 +1252,10 @@ const scanStorageFiles = async () => {
   storageScan.error = ''
   storageScan.status = '準備掃描 Storage...'
   storageScan.totalFiles = 0
+  storageScan.totalBytes = 0
   storageScan.referencedCount = 0
+  storageScan.referencedBytes = 0
+  storageScan.unusedBytes = 0
   storageScan.unusedFiles = []
 
   try {
@@ -1240,13 +1263,20 @@ const scanStorageFiles = async () => {
     const referencedPaths = await loadStorageReferences(client, bucket)
     storageScan.status = '遞迴掃描 Storage 檔案...'
     const files = await listStorageFilesRecursive(client, bucket)
-    const unusedFiles = files.filter(file => !referencedPaths.has(normalizeStoragePath(file.path)))
+    const unusedFiles = files
+      .filter(file => !referencedPaths.has(normalizeStoragePath(file.path)))
+      .sort((a, b) => Number(b.size || 0) - Number(a.size || 0))
+    const totalBytes = files.reduce((sum, file) => sum + Number(file.size || 0), 0)
+    const unusedBytes = unusedFiles.reduce((sum, file) => sum + Number(file.size || 0), 0)
 
     storageScan.totalFiles = files.length
+    storageScan.totalBytes = totalBytes
     storageScan.referencedCount = files.length - unusedFiles.length
+    storageScan.referencedBytes = Math.max(0, totalBytes - unusedBytes)
+    storageScan.unusedBytes = unusedBytes
     storageScan.unusedFiles = unusedFiles
     storageScan.status = unusedFiles.length
-      ? `掃描完成，找到 ${unusedFiles.length} 個未引用檔案。`
+      ? `掃描完成，找到 ${unusedFiles.length} 個未引用檔案，推估可釋放 ${formatStorageSize(unusedBytes)}。`
       : '掃描完成，沒有找到未引用檔案。'
   } catch (error) {
     console.error('Storage scan failed:', error)
@@ -1591,6 +1621,11 @@ useHead({
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+.storage-stat.warning {
+  border-color: rgba(245, 158, 11, 0.38);
+  background: color-mix(in oklab, var(--bg-primary) 88%, #f59e0b);
+}
+
 .storage-stat-label {
   display: block;
   color: var(--text-secondary);
@@ -1599,8 +1634,17 @@ useHead({
 }
 
 .storage-stat strong {
+  display: block;
   color: var(--text-primary);
   font-size: 1.25rem;
+}
+
+.storage-stat-note {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .storage-status,

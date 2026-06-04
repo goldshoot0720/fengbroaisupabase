@@ -28,6 +28,7 @@ type FinanceItem = {
   week52Low: number | null
   highLabel?: string
   lowLabel?: string
+  statusLabel?: string
   status: 'new-high' | 'new-low' | ''
   error: string
 }
@@ -134,6 +135,73 @@ const parseChange = (text: string, last: number | null) => {
   return { change, changePercent: percent }
 }
 
+const parseYahooEmbeddedValue = (html: string, field: string) => {
+  const patterns = [
+    new RegExp(`"${field}"\\s*:\\s*\\{\\s*"raw"\\s*:\\s*([+-]?\\d[\\d,.]*)`, 'i'),
+    new RegExp(`"${field}"\\s*:\\s*([+-]?\\d[\\d,.]*)`, 'i')
+  ]
+
+  for (const pattern of patterns) {
+    const value = toNumber(html.match(pattern)?.[1])
+    if (value !== null) return value
+  }
+
+  return null
+}
+
+const parseYahooQuote = (html: string) => {
+  const text = stripTags(html)
+  const last = parseYahooEmbeddedValue(html, 'regularMarketPrice')
+    ?? parseNumberAfterLabel(text, ['成交', 'Price', 'Last Price'])
+  const change = parseYahooEmbeddedValue(html, 'regularMarketChange')
+    ?? parseNumberAfterLabel(text, ['漲跌', 'Change'])
+  const changePercent = parseYahooEmbeddedValue(html, 'regularMarketChangePercent')
+    ?? parseNumberAfterLabel(text, ['漲跌幅', 'Change %'])
+  const embeddedHigh = parseYahooEmbeddedValue(html, 'fiftyTwoWeekHigh')
+  const embeddedLow = parseYahooEmbeddedValue(html, 'fiftyTwoWeekLow')
+  const explicitHigh = parseNumberAfterLabel(text, ['一年內最高', '52 Week High', '52週高'])
+  const explicitLow = parseNumberAfterLabel(text, ['一年內最低', '52 Week Low', '52週低'])
+  const range = parseRangeAfterLabel(text, ['52 週波幅', '52週波幅', '52 week range', '52-week range', '52 wk range'])
+  const week52High = embeddedHigh ?? explicitHigh ?? range.high
+  const week52Low = embeddedLow ?? explicitLow ?? range.low
+
+  let status: FinanceItem['status'] = ''
+  if (last !== null && week52High !== null && last >= week52High - PRICE_TOLERANCE) status = 'new-high'
+  if (last !== null && week52Low !== null && last <= week52Low + PRICE_TOLERANCE) status = 'new-low'
+
+  return {
+    last,
+    lastLabel: formatValue(last),
+    change,
+    changePercent,
+    week52High,
+    week52Low,
+    status
+  }
+}
+
+const applyAlertThreshold = (
+  parsed: ReturnType<typeof parseQuote>,
+  instrument: typeof FENG_FINANCE_INSTRUMENTS[number]
+) => {
+  if (
+    'alertThreshold' in instrument &&
+    typeof instrument.alertThreshold === 'number' &&
+    parsed.last !== null &&
+    parsed.last >= instrument.alertThreshold
+  ) {
+    return {
+      ...parsed,
+      status: 'new-high' as const,
+      statusLabel: instrument.alertLabel || '突破門檻',
+      highLabel: instrument.alertLabel ? `門檻 ${instrument.alertLabel}` : '門檻',
+      week52High: instrument.alertThreshold
+    }
+  }
+
+  return parsed
+}
+
 const parseQuote = (html: string) => {
   const text = stripTags(html)
   const last = parseNumberAfterLabel(text, ['Last |', 'Last', 'Price', 'Latest Price'])
@@ -212,15 +280,21 @@ const parseMultplShillerPeTable = (html: string) => {
 const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[number]): Promise<FinanceItem> => {
   try {
     const html = await fetchText(instrument.url)
-    let parsed = instrument.source === 'Multpl' ? parseMultplShillerPe(html) : parseQuote(html)
+    let parsed = instrument.source === 'Multpl'
+      ? parseMultplShillerPe(html)
+      : instrument.source === 'Yahoo Finance'
+        ? parseYahooQuote(html)
+        : parseQuote(html)
 
     if (instrument.source === 'Multpl' && parsed.last === null) {
       const tableHtml = await fetchText(`${instrument.url}/table/by-month`)
       parsed = parseMultplShillerPeTable(tableHtml)
     }
 
+    parsed = applyAlertThreshold(parsed, instrument)
+
     if (parsed.last === null) {
-      throw new Error(instrument.source === 'Multpl' ? 'Multpl 頁面未解析到 Shiller PE data' : 'CNBC 頁面未解析到即時價格')
+      throw new Error(`${instrument.source || 'CNBC'} 頁面未解析到即時價格`)
     }
 
     return {
@@ -239,6 +313,7 @@ const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[numb
       week52Low: null,
       highLabel: undefined,
       lowLabel: undefined,
+      statusLabel: undefined,
       status: '',
       error: error?.message || `${instrument.source || 'CNBC'} 資料抓取失敗`
     }
@@ -252,7 +327,7 @@ export default defineEventHandler(async () => {
   const items = await Promise.all(FENG_FINANCE_INSTRUMENTS.map(fetchFinanceItem))
   const data = {
     fetchedAt: new Date().toISOString(),
-    source: 'CNBC / Multpl',
+    source: 'CNBC / Yahoo Finance / Multpl',
     items
   }
 

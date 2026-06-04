@@ -53,6 +53,7 @@
 
         <template v-if="biggoResult">
           <p v-if="biggoSourceNotice" class="tool-notice">{{ biggoSourceNotice }}</p>
+          <p v-if="biggoResult.notice" class="tool-notice">{{ biggoResult.notice }}</p>
 
           <div class="tool-meta">
             <div>
@@ -62,6 +63,10 @@
             <div>
               <span class="tool-meta__label">BigGo 關鍵字</span>
               <strong>{{ biggoResult.keyword }}</strong>
+            </div>
+            <div v-if="biggoResult.biggoUrl">
+              <span class="tool-meta__label">可行方案</span>
+              <a :href="biggoResult.biggoUrl" target="_blank" rel="noreferrer" class="store-card__link">開啟 BigGo 搜尋</a>
             </div>
           </div>
 
@@ -107,7 +112,9 @@
                 r="1.8"
               />
             </svg>
-            <div v-else class="chart-empty">至少累積兩筆 7 天快照後，這裡會出現價格走勢。</div>
+            <div v-else class="chart-empty">
+              {{ biggoResult.lookupMode === 'price' ? '至少累積兩筆 7 天快照後，這裡會出現價格走勢。' : '目前還沒有可繪製的歷史價格資料。' }}
+            </div>
 
             <div v-if="biggoHistory.length > 0" class="chart-legend chart-legend--row">
               <div v-for="entry in biggoHistory" :key="entry.date" class="history-chip">
@@ -365,7 +372,7 @@
         <div class="tool-panel__header">
           <div>
             <p class="panel-kicker">鋒兄金融</p>
-            <h3>CNBC 金融市場觀察</h3>
+            <h3>金融市場觀察</h3>
           </div>
           <button type="button" class="tool-primary-btn tool-primary-btn--compact" :disabled="financeLoading" @click="runFinanceLookup">
             {{ financeLoading ? '更新中...' : '重新整理' }}
@@ -373,7 +380,7 @@
         </div>
 
         <p v-if="financeError" class="tool-error">{{ financeError }}</p>
-        <p v-else-if="financeLoading && !financeResult" class="tool-notice">正在整理 CNBC 指數、商品、利率與加密貨幣。</p>
+        <p v-else-if="financeLoading && !financeResult" class="tool-notice">正在整理指數、商品、利率、加密貨幣與台韓股。</p>
         <p v-else-if="financeResult" class="tool-notice">
           資料來源：{{ financeResult.source }}，更新時間 {{ formatTubeDate(financeResult.fetchedAt) }}。
         </p>
@@ -393,7 +400,7 @@
                 <p class="store-card__name">{{ item.group }} / {{ item.symbol }}</p>
                 <h4>{{ item.name }}</h4>
               </div>
-              <span v-if="item.status === 'new-high'" class="finance-status finance-status--high">創新高</span>
+              <span v-if="item.status === 'new-high'" class="finance-status finance-status--high">{{ item.statusLabel || '創新高' }}</span>
               <span v-else-if="item.status === 'new-low'" class="finance-status finance-status--low">創新低</span>
             </div>
 
@@ -937,13 +944,17 @@ const runBiggoLookup = async () => {
     })
 
     biggoResult.value = response
-    const queryKey = normalizeLookupKey(biggoForm.value.url)
-    biggoHistory.value = updateHistoryEntries(BIGGO_HISTORY_KEY, queryKey, {
-      date: new Date().toISOString(),
-      currentPrice: response.currentPrice,
-      historicalHigh: response.historicalHigh,
-      historicalLow: response.historicalLow
-    })
+    if (Number.isFinite(Number(response.currentPrice))) {
+      const queryKey = normalizeLookupKey(biggoForm.value.url)
+      biggoHistory.value = updateHistoryEntries(BIGGO_HISTORY_KEY, queryKey, {
+        date: new Date().toISOString(),
+        currentPrice: response.currentPrice,
+        historicalHigh: response.historicalHigh,
+        historicalLow: response.historicalLow
+      })
+    } else {
+      biggoHistory.value = []
+    }
   } catch (error) {
     biggoResult.value = null
     biggoError.value = error?.data?.statusMessage || error?.message || 'BigGo 查詢失敗。'

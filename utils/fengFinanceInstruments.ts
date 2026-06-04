@@ -11,7 +11,39 @@ export const FENG_FINANCE_INSTRUMENTS = [
     name: 'KOSPI Index',
     symbol: '.KS11',
     group: 'Asia Index',
-    url: 'https://www.cnbc.com/quotes/.KS11?qsearchterm=kospi'
+    url: 'https://www.cnbc.com/quotes/.KS11?qsearchterm=kospi',
+    alertThreshold: 12682,
+    alertLabel: '好想贏韓國'
+  },
+  {
+    id: 'tsmc',
+    name: 'Taiwan Semiconductor Manufacturing Co., Ltd.',
+    symbol: '2330.TW',
+    group: 'Taiwan Stock',
+    url: 'https://tw.stock.yahoo.com/quote/2330.TW',
+    source: 'Yahoo Finance',
+    alertThreshold: 3333,
+    alertLabel: '33電'
+  },
+  {
+    id: 'sk-hynix',
+    name: 'SK hynix Inc.',
+    symbol: '000660.KS',
+    group: 'Korea Stock',
+    url: 'https://tw.stock.yahoo.com/quote/000660.KS',
+    source: 'Yahoo Finance',
+    alertThreshold: 11110000,
+    alertLabel: '8位數'
+  },
+  {
+    id: 'samsung-electronics',
+    name: 'Samsung Electronics Co., Ltd.',
+    symbol: '005930.KS',
+    group: 'Korea Stock',
+    url: 'https://hk.finance.yahoo.com/quote/005930.KS/',
+    source: 'Yahoo Finance',
+    alertThreshold: 1110000,
+    alertLabel: '7位數'
   },
   {
     id: 'brent',

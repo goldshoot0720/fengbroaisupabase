@@ -112,6 +112,21 @@ const buildSearchVariants = (candidate: string) => {
   return unique(variants.map(value => value.trim()).filter(value => value.length >= 3))
 }
 
+const buildBiggoSearchUrl = (keyword: string) => `https://biggo.com.tw/s/${encodeURIComponent(keyword)}/`
+
+const inferProductTitle = (productUrl: URL, keyword: string, sourceHtml?: string) => {
+  const sourceText = sourceHtml ? stripTags(sourceHtml) : ''
+  const sourceTitle = sourceText.split('\n').find(value => value.trim().length >= 3)
+  if (sourceTitle) return sourceTitle
+
+  if (/pchome\.com\.tw$/i.test(productUrl.hostname) || /\.pchome\.com\.tw$/i.test(productUrl.hostname)) {
+    const productId = decodeURIComponent(productUrl.pathname).split('/').filter(Boolean).pop()
+    if (productId) return `PChome 商品 ${productId}`
+  }
+
+  return keyword
+}
+
 const fetchText = async (url: string) => {
   const response = await fetch(url, {
     headers: DEFAULT_HEADERS,
@@ -201,9 +216,25 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 422, statusMessage: '無法從商品頁或網址抓到可用的搜尋關鍵字。' })
   }
 
+  const fallbackKeyword = keywordCandidates[0]
+  const fallbackBiggoUrl = buildBiggoSearchUrl(fallbackKeyword)
   const biggoMatch = await pickBiggoMatch(keywordCandidates)
   if (!biggoMatch) {
-    throw createError({ statusCode: 404, statusMessage: 'BigGo 找不到對應商品結果。' })
+    return {
+      sourceUrl: rawUrl,
+      keyword: fallbackKeyword,
+      productTitle: inferProductTitle(productUrl, fallbackKeyword, sourceHtml),
+      currentPrice: null,
+      historicalHigh: null,
+      historicalLow: null,
+      series: [],
+      sourceStatus: sourceAttempt?.status || null,
+      biggoUrl: fallbackBiggoUrl,
+      lookupMode: 'search-link',
+      notice: sourceFetchFailed
+        ? `來源商品頁回應 ${sourceAttempt?.status}，且 BigGo 目前沒有可解析的價格資料。`
+        : 'BigGo 目前沒有可解析的價格資料，請開啟搜尋結果人工確認。'
+    }
   }
 
   const biggoText = stripTags(biggoMatch.html)
@@ -219,20 +250,31 @@ export default defineEventHandler(async (event) => {
   const allHistorical = historicalPrices.length > 0 ? historicalPrices : fallbackAllPrices
 
   if (allCurrent.length === 0 || allHistorical.length === 0) {
-    throw createError({ statusCode: 422, statusMessage: 'BigGo 頁面沒有可分析的價格資料。' })
+    return {
+      sourceUrl: rawUrl,
+      keyword: biggoMatch.keyword,
+      productTitle: inferProductTitle(productUrl, biggoMatch.keyword, sourceHtml),
+      currentPrice: null,
+      historicalHigh: null,
+      historicalLow: null,
+      series: [],
+      sourceStatus: sourceAttempt?.status || null,
+      biggoUrl: buildBiggoSearchUrl(biggoMatch.keyword),
+      lookupMode: 'search-link',
+      notice: 'BigGo 頁面目前沒有可繪製的價格資料，請開啟搜尋結果人工確認。'
+    }
   }
-
-  const sourceText = sourceHtml ? stripTags(sourceHtml) : ''
-  const productTitle = keywordCandidates[0] || sourceText.split('\n')[0] || biggoMatch.keyword
 
   return {
     sourceUrl: rawUrl,
     keyword: biggoMatch.keyword,
-    productTitle,
+    productTitle: inferProductTitle(productUrl, biggoMatch.keyword, sourceHtml),
     currentPrice: Math.min(...allCurrent),
     historicalHigh: Math.max(...allHistorical),
     historicalLow: Math.min(...allHistorical),
     series: buildHistorySeries(allHistorical),
-    sourceStatus: sourceAttempt?.status || null
+    sourceStatus: sourceAttempt?.status || null,
+    biggoUrl: buildBiggoSearchUrl(biggoMatch.keyword),
+    lookupMode: 'price'
   }
 })

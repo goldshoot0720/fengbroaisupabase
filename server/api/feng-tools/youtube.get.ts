@@ -30,7 +30,7 @@ type TubeChannelResult = {
   videos: TubeVideo[]
   downfallIndexUpdate: {
     hasUpdate: boolean
-    value: number | null
+    value: string | null
     title: string
     videoUrl: string
   }
@@ -109,21 +109,37 @@ const createDownfallIndexUpdate = (channelId: string, videos: TubeVideo[]) => {
     }
   }
 
-  const indexValuePattern = '[\\d０-９]+(?:[\\.．][\\d０-９]+)?'
-  const indexTitlePattern = new RegExp(`倒台指[數数][^\\d０-９]{0,12}(${indexValuePattern})`, 'i')
-  const matchedVideo = videos.find(video => indexTitlePattern.test(video.title))
-  const rawValue = matchedVideo?.title.match(indexTitlePattern)?.[1] || ''
-  const value = rawValue
-    ? Number(rawValue
+  const normalizeDigits = (value: string) =>
+    value
       .replace(/[０-９]/g, char => String(char.charCodeAt(0) - 0xFF10))
-      .replace(/．/g, '.'))
-    : null
+      .replace(/．/g, '.')
+  const formatIndex = (value: string) => Number(value).toFixed(2).padStart(5, '0')
+  const indexValuePattern = '([\\d０-９]+(?:[\\.．][\\d０-９]+)?)'
+  const extractValue = (title: string) => {
+    const normalizedTitle = normalizeDigits(title)
+    const labelMatch = /倒台指[數数]/.exec(normalizedTitle)
+    if (!labelMatch) return null
+
+    const afterLabelText = normalizedTitle.slice(labelMatch.index + labelMatch[0].length, labelMatch.index + labelMatch[0].length + 80)
+    const movementValue = afterLabelText.match(new RegExp(`(?:飆至|飙至|升至|漲至|涨至|達到|达到|達|达|至|突破|破)\\s*${indexValuePattern}`))
+    if (movementValue?.[1]) return formatIndex(movementValue[1])
+
+    const afterLabelNumbers = [...afterLabelText.matchAll(new RegExp(indexValuePattern, 'g'))]
+    const firstNonDateNumber = afterLabelNumbers.find((match) => {
+      const nextText = afterLabelText.slice((match.index || 0) + match[0].length).trimStart()
+      return !/^[月日號号]/.test(nextText)
+    })
+    return firstNonDateNumber?.[1] ? formatIndex(firstNonDateNumber[1]) : null
+  }
+  const matched = videos
+    .map(video => ({ video, value: extractValue(video.title) }))
+    .find(item => item.value !== null)
 
   return {
-    hasUpdate: Boolean(matchedVideo),
-    value: Number.isFinite(value) ? value : null,
-    title: matchedVideo?.title || '',
-    videoUrl: matchedVideo?.url || ''
+    hasUpdate: Boolean(matched),
+    value: matched?.value || null,
+    title: matched?.video.title || '',
+    videoUrl: matched?.video.url || ''
   }
 }
 

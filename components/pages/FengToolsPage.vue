@@ -332,7 +332,7 @@
                   >
                     更新
                     <span v-if="channel.downfallIndexUpdate.value !== null">
-                      {{ channel.downfallIndexUpdate.value }}
+                      {{ formatDownfallIndex(channel.downfallIndexUpdate.value) }}
                     </span>
                   </a>
                 </h4>
@@ -526,6 +526,13 @@ const formatTubeDate = (value) => {
     hour: '2-digit',
     minute: '2-digit'
   }).format(date)
+}
+
+const formatDownfallIndex = (value) => {
+  if (value === null || value === undefined || value === '') return '--'
+  const amount = Number(String(value).replace(/[^\d.-]/g, ''))
+  if (!Number.isFinite(amount)) return String(value)
+  return amount.toFixed(2).padStart(5, '0')
 }
 
 const formatFinanceNumber = (value) => {

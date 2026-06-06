@@ -13,7 +13,7 @@ export const FENG_FINANCE_INSTRUMENTS = [
     group: 'Asia Index',
     url: 'https://www.cnbc.com/quotes/.KS11?qsearchterm=kospi',
     alertThreshold: 12682,
-    alertLabel: '好想贏韓國'
+    alertLabel: 'KOSPI target'
   },
   {
     id: 'tsmc',
@@ -23,7 +23,7 @@ export const FENG_FINANCE_INSTRUMENTS = [
     url: 'https://tw.stock.yahoo.com/quote/2330.TW',
     source: 'Yahoo Finance',
     alertThreshold: 3333,
-    alertLabel: '33電'
+    alertLabel: 'TSMC target'
   },
   {
     id: 'sk-hynix',
@@ -33,7 +33,7 @@ export const FENG_FINANCE_INSTRUMENTS = [
     url: 'https://tw.stock.yahoo.com/quote/000660.KS',
     source: 'Yahoo Finance',
     alertThreshold: 11110000,
-    alertLabel: '8位數'
+    alertLabel: 'SK Hynix target'
   },
   {
     id: 'samsung-electronics',
@@ -43,7 +43,7 @@ export const FENG_FINANCE_INSTRUMENTS = [
     url: 'https://hk.finance.yahoo.com/quote/005930.KS/',
     source: 'Yahoo Finance',
     alertThreshold: 1110000,
-    alertLabel: '7位數'
+    alertLabel: 'Samsung target'
   },
   {
     id: 'brent',
@@ -86,6 +86,13 @@ export const FENG_FINANCE_INSTRUMENTS = [
     symbol: '.IXIC',
     group: 'U.S. Index',
     url: 'https://www.cnbc.com/quotes/.IXIC'
+  },
+  {
+    id: 'philadelphia-semiconductor',
+    name: 'Philadelphia Semiconductor Index',
+    symbol: '.SOX',
+    group: 'U.S. Index',
+    url: 'https://www.cnbc.com/quotes/.SOX'
   },
   {
     id: 'vix',

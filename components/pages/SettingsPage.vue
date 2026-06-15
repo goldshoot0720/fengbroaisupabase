@@ -119,12 +119,21 @@
                 <span class="form-hint">預設 3 組，可選 6、9、12、15、18、21 組。</span>
               </div>
             </div>
+            <div class="resend-summary-strip">
+              <span>顯示 {{ visibleResendPairs.length }} 組</span>
+              <span class="is-complete">完整 {{ completeResendNotificationPairs.length }} 組</span>
+              <span class="is-partial">待補 {{ partialResendNotificationPairs.length }} 組</span>
+            </div>
             <div
               v-for="pair in visibleResendPairs"
               :key="pair.index"
               class="resend-pair-card"
+              :class="resendPairClass(pair)"
             >
-              <div class="resend-pair-card__title">{{ pair.label }}</div>
+              <div class="resend-pair-card__title">
+                <span>{{ pair.label }}</span>
+                <span class="resend-pair-card__status">{{ resendPairStatus(pair) }}</span>
+              </div>
               <div class="form-row">
                 <label :for="`resendApiKey${pair.index}`">RESEND_API_KEY{{ pair.index === 1 ? '' : pair.index }}</label>
                 <div class="form-field">
@@ -586,6 +595,21 @@ const resendNotificationPairs = computed(() => visibleResendPairs.value.map(pair
 
 const completeResendNotificationPairs = computed(() => resendNotificationPairs.value
   .filter(item => item.apiKey && item.toEmail))
+const partialResendNotificationPairs = computed(() => resendNotificationPairs.value
+  .filter(item => (item.apiKey || item.toEmail) && (!item.apiKey || !item.toEmail)))
+
+const resendPairStatus = (pair) => {
+  const apiKey = String(pair.apiKey.value || '').trim()
+  const toEmail = String(pair.toEmail.value || '').trim()
+  if (apiKey && toEmail) return '完整'
+  if (apiKey || toEmail) return '待補'
+  return '空白'
+}
+
+const resendPairClass = (pair) => ({
+  'resend-pair-card--complete': resendPairStatus(pair) === '完整',
+  'resend-pair-card--partial': resendPairStatus(pair) === '待補'
+})
 
 const testResendEmail = async () => {
   const completePairs = completeResendNotificationPairs.value
@@ -1508,6 +1532,32 @@ useHead({
   margin: 0 0 1.5rem;
 }
 
+.resend-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.25rem 0 1rem;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+.resend-summary-strip span {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full, 999px);
+  background: var(--bg-secondary);
+}
+
+.resend-summary-strip .is-complete {
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #047857;
+}
+
+.resend-summary-strip .is-partial {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #b45309;
+}
+
 .resend-pair-card {
   margin-top: 1rem;
   padding: 1rem;
@@ -1516,10 +1566,41 @@ useHead({
   background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
 }
 
+.resend-pair-card--complete {
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.resend-pair-card--partial {
+  border-color: rgba(245, 158, 11, 0.55);
+}
+
 .resend-pair-card__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 0.85rem;
   color: var(--text-primary);
   font-weight: 700;
+}
+
+.resend-pair-card__status {
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full, 999px);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  font-weight: 600;
+}
+
+.resend-pair-card--complete .resend-pair-card__status {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.resend-pair-card--partial .resend-pair-card__status {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
 }
 
 .resend-actions {

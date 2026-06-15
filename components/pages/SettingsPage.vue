@@ -105,6 +105,57 @@
               有設定時，鋒兄訂閱提前 2 天、鋒兄食品提前 8 天寄出提醒。完整填寫 API Key 與收件信箱的組合才會寄送。
             </p>
             <div class="form-row">
+              <label for="resendGroupCount">RESEND_EMAIL_GROUPS</label>
+              <div class="form-field">
+                <select
+                  id="resendGroupCount"
+                  v-model.number="resendGroupCount"
+                  class="form-input"
+                >
+                  <option v-for="count in resendGroupOptions" :key="count" :value="count">
+                    {{ count }} 組
+                  </option>
+                </select>
+                <span class="form-hint">預設 3 組，可選 6、9、12、15、18、21 組。</span>
+              </div>
+            </div>
+            <div
+              v-for="pair in visibleResendPairs"
+              :key="pair.index"
+              class="resend-pair-card"
+            >
+              <div class="resend-pair-card__title">{{ pair.label }}</div>
+              <div class="form-row">
+                <label :for="`resendApiKey${pair.index}`">RESEND_API_KEY{{ pair.index === 1 ? '' : pair.index }}</label>
+                <div class="form-field">
+                  <input
+                    :id="`resendApiKey${pair.index}`"
+                    v-model="pair.apiKey.value"
+                    type="password"
+                    class="form-input"
+                    placeholder="re_..."
+                    autocomplete="off"
+                  >
+                  <span class="form-hint">{{ pair.label }} Resend API Key。</span>
+                </div>
+              </div>
+              <div class="form-row">
+                <label :for="`resendToEmail${pair.index}`">RESEND_TO_EMAIL{{ pair.index === 1 ? '' : pair.index }}</label>
+                <div class="form-field">
+                  <input
+                    :id="`resendToEmail${pair.index}`"
+                    v-model="pair.toEmail.value"
+                    type="email"
+                    class="form-input"
+                    :placeholder="`you${pair.index === 1 ? '' : pair.index}@example.com`"
+                    autocomplete="email"
+                  >
+                  <span class="form-hint">{{ pair.label }}提醒信收件信箱。</span>
+                </div>
+              </div>
+            </div>
+            <template v-if="false">
+            <div class="form-row">
               <label for="resendApiKey">RESEND_API_KEY</label>
               <div class="form-field">
                 <input
@@ -188,6 +239,7 @@
                 <span class="form-hint">第三組提醒信收件信箱。</span>
               </div>
             </div>
+            </template>
             <div class="form-row">
               <label for="resendFromEmail">RESEND_FROM_EMAIL</label>
               <div class="form-field">
@@ -443,6 +495,9 @@ const {
   supabaseUrl,
   supabaseAnonKey,
   bucket: bucketName,
+  resendGroupOptions,
+  resendGroupCount,
+  resendPairs,
   resendApiKey,
   resendToEmail,
   resendApiKey2,
@@ -453,6 +508,7 @@ const {
   loadSettings,
   saveSettings,
   clearSettings,
+  currentResendPayload,
   addAccount,
   updateAccount,
   deleteAccount,
@@ -462,6 +518,24 @@ const {
 // 編輯狀態
 const editingAccountId = ref(null)
 const testingResendEmail = ref(false)
+const visibleResendPairs = computed(() => resendPairs.slice(0, Number(resendGroupCount.value) || 3))
+
+const syncResendPairsFromAccount = (acc = {}) => {
+  resendGroupCount.value = acc.resendGroupCount || 3
+  resendPairs.forEach((pair) => {
+    const suffix = pair.index === 1 ? '' : pair.index
+    pair.apiKey.value = acc[`resendApiKey${suffix}`] || ''
+    pair.toEmail.value = acc[`resendToEmail${suffix}`] || ''
+  })
+}
+
+const clearResendPairs = () => {
+  resendGroupCount.value = 3
+  resendPairs.forEach((pair) => {
+    pair.apiKey.value = ''
+    pair.toEmail.value = ''
+  })
+}
 
 // 載入帳號到表單進行編輯
 const loadAccountToForm = (acc) => {
@@ -470,12 +544,7 @@ const loadAccountToForm = (acc) => {
   supabaseUrl.value = acc.supabaseUrl
   supabaseAnonKey.value = acc.supabaseAnonKey
   bucketName.value = acc.bucket || ''
-  resendApiKey.value = acc.resendApiKey || ''
-  resendToEmail.value = acc.resendToEmail || ''
-  resendApiKey2.value = acc.resendApiKey2 || ''
-  resendToEmail2.value = acc.resendToEmail2 || ''
-  resendApiKey3.value = acc.resendApiKey3 || ''
-  resendToEmail3.value = acc.resendToEmail3 || ''
+  syncResendPairsFromAccount(acc)
   resendFromEmail.value = acc.resendFromEmail || 'FengBro AI <onboarding@resend.dev>'
 }
 
@@ -486,12 +555,7 @@ const cancelEdit = () => {
   supabaseUrl.value = ''
   supabaseAnonKey.value = ''
   bucketName.value = ''
-  resendApiKey.value = ''
-  resendToEmail.value = ''
-  resendApiKey2.value = ''
-  resendToEmail2.value = ''
-  resendApiKey3.value = ''
-  resendToEmail3.value = ''
+  clearResendPairs()
   resendFromEmail.value = 'FengBro AI <onboarding@resend.dev>'
 }
 
@@ -514,14 +578,10 @@ const handleDeleteAccount = (id) => {
 }
 
 // 資料表狀態
-const resendNotificationPairs = computed(() => [
-  { label: '第一組', apiKey: resendApiKey.value, toEmail: resendToEmail.value },
-  { label: '第二組', apiKey: resendApiKey2.value, toEmail: resendToEmail2.value },
-  { label: '第三組', apiKey: resendApiKey3.value, toEmail: resendToEmail3.value }
-].map(item => ({
-  ...item,
-  apiKey: String(item.apiKey || '').trim(),
-  toEmail: String(item.toEmail || '').trim()
+const resendNotificationPairs = computed(() => visibleResendPairs.value.map(pair => ({
+  label: pair.label,
+  apiKey: String(pair.apiKey.value || '').trim(),
+  toEmail: String(pair.toEmail.value || '').trim()
 })))
 
 const completeResendNotificationPairs = computed(() => resendNotificationPairs.value
@@ -1334,12 +1394,7 @@ const handleSave = () => {
       supabaseUrl: supabaseUrl.value,
       supabaseAnonKey: supabaseAnonKey.value,
       bucket: bucketName.value || 'uploads',
-      resendApiKey: resendApiKey.value,
-      resendToEmail: resendToEmail.value,
-      resendApiKey2: resendApiKey2.value,
-      resendToEmail2: resendToEmail2.value,
-      resendApiKey3: resendApiKey3.value,
-      resendToEmail3: resendToEmail3.value,
+      ...currentResendPayload(),
       resendFromEmail: resendFromEmail.value || 'FengBro AI <onboarding@resend.dev>'
     })
     // 切換到該帳號
@@ -1451,6 +1506,20 @@ useHead({
   font-size: var(--font-sm);
   line-height: 1.7;
   margin: 0 0 1.5rem;
+}
+
+.resend-pair-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
+}
+
+.resend-pair-card__title {
+  margin-bottom: 0.85rem;
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 .resend-actions {

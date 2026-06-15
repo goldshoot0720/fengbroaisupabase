@@ -14,7 +14,7 @@ const tempFriendlyName = ref('')
 const tempSupabaseUrl = ref('')
 const tempSupabaseAnonKey = ref('')
 const tempBucket = ref('')
-const tempResendGroupCount = ref(3)
+const tempResendGroupCount = ref(21)
 const tempResendPairs = Array.from({ length: RESEND_PAIR_COUNT }, () => ({
   apiKey: ref(''),
   toEmail: ref('')
@@ -30,7 +30,7 @@ const resendToEmailField = (index) => index === 1 ? 'resendToEmail' : `resendToE
 
 const normalizeResendGroupCount = (value) => {
   const count = Number(value)
-  return RESEND_GROUP_OPTIONS.includes(count) ? count : 3
+  return RESEND_GROUP_OPTIONS.includes(count) ? count : 21
 }
 
 const loadAccountsFromStorage = () => {

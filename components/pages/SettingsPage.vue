@@ -116,7 +116,7 @@
                     {{ count }} 組
                   </option>
                 </select>
-                <span class="form-hint">預設 3 組，可選 6、9、12、15、18、21 組。</span>
+                <span class="form-hint">預設 21 組，可選 3、6、9、12、15、18、21 組。</span>
               </div>
             </div>
             <div class="resend-summary-strip">
@@ -527,10 +527,10 @@ const {
 // 編輯狀態
 const editingAccountId = ref(null)
 const testingResendEmail = ref(false)
-const visibleResendPairs = computed(() => resendPairs.slice(0, Number(resendGroupCount.value) || 3))
+const visibleResendPairs = computed(() => resendPairs.slice(0, Number(resendGroupCount.value) || 21))
 
 const syncResendPairsFromAccount = (acc = {}) => {
-  resendGroupCount.value = acc.resendGroupCount || 3
+  resendGroupCount.value = acc.resendGroupCount || 21
   resendPairs.forEach((pair) => {
     const suffix = pair.index === 1 ? '' : pair.index
     pair.apiKey.value = acc[`resendApiKey${suffix}`] || ''
@@ -539,7 +539,7 @@ const syncResendPairsFromAccount = (acc = {}) => {
 }
 
 const clearResendPairs = () => {
-  resendGroupCount.value = 3
+  resendGroupCount.value = 21
   resendPairs.forEach((pair) => {
     pair.apiKey.value = ''
     pair.toEmail.value = ''

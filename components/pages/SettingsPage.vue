@@ -105,7 +105,7 @@
               有設定時，鋒兄訂閱提前 2 天、鋒兄食品提前 8 天寄出提醒。完整填寫 API Key 與收件信箱的組合才會寄送。
             </p>
             <div class="form-row">
-              <label for="resendGroupCount">RESEND_EMAIL_GROUPS</label>
+              <label for="resendGroupCount">顯示通知組數</label>
               <div class="form-field">
                 <select
                   id="resendGroupCount"
@@ -116,7 +116,7 @@
                     {{ count }} 組
                   </option>
                 </select>
-                <span class="form-hint">預設 21 組，可選 3、6、9、12、15、18、21 組。</span>
+                <span class="form-hint">可選 3 / 6 / 9 / 12 / 15 / 18 / 21 組，預設顯示 21 組。</span>
               </div>
             </div>
             <div class="resend-summary-strip">

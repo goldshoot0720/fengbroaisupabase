@@ -118,6 +118,18 @@ export const FENG_TUBE_CHANNELS = [
     label: 'cheap',
     handle: '@cheapaoe',
     url: 'https://www.youtube.com/@cheapaoe/videos'
+  },
+  {
+    id: 'tankman2020',
+    label: '二爷故事',
+    handle: '@Tankman2020',
+    url: 'https://www.youtube.com/@Tankman2020/videos'
+  },
+  {
+    id: 'leonard2834',
+    label: 'Leonard',
+    handle: '@leonard2834',
+    url: 'https://www.youtube.com/@leonard2834/videos'
   }
 ]
 

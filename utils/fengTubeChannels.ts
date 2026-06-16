@@ -120,6 +120,30 @@ export const FENG_TUBE_CHANNELS = [
     url: 'https://www.youtube.com/@cheapaoe/videos'
   },
   {
+    id: 'storyteller-hk',
+    label: 'StorytellerHK 說書客',
+    handle: '@StorytellerHK',
+    url: 'https://www.youtube.com/@StorytellerHK/videos'
+  },
+  {
+    id: 'mrshenofficial',
+    label: '公子沈 Terence Shen',
+    handle: '@mrshenofficial',
+    url: 'https://www.youtube.com/@mrshenofficial/videos'
+  },
+  {
+    id: 'jiangtaigong',
+    label: '加拿大太公NEWS',
+    handle: '@jiangtaigong',
+    url: 'https://www.youtube.com/@jiangtaigong/videos'
+  },
+  {
+    id: 'gc-reader-life',
+    label: 'Gavinchiu趙氏讀書生活',
+    handle: '@GC%E8%B6%99%E6%B0%8F%E8%AE%80%E6%9B%B8%E7%94%9F%E6%B4%BB',
+    url: 'https://www.youtube.com/@GC%E8%B6%99%E6%B0%8F%E8%AE%80%E6%9B%B8%E7%94%9F%E6%B4%BB/videos'
+  },
+  {
     id: 'tankman2020',
     label: '二爷故事',
     handle: '@Tankman2020',

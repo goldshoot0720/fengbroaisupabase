@@ -90,12 +90,6 @@ export const FENG_TUBE_CHANNELS = [
     url: 'https://www.youtube.com/@SunChannelHK/videos'
   },
   {
-    id: 'jlaw',
-    label: '夏河東渡',
-    handle: '@jlaw',
-    url: 'https://www.youtube.com/@jlaw/videos'
-  },
-  {
     id: 'neixian-zhang',
     label: '張内咸脫口秀',
     handle: '@NeixianZhang',

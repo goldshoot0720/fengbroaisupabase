@@ -142,6 +142,10 @@ export default defineNuxtConfig({
     // Private keys (only available on server-side)
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    VAPID_EMAIL: process.env.VAPID_EMAIL,
+    VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
     NETLIFY_SITE_ID: process.env.NETLIFY_SITE_ID,
     NETLIFY_AUTH_TOKEN: process.env.NETLIFY_AUTH_TOKEN,
     // Public keys (exposed to client-side)

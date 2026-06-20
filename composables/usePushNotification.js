@@ -1,10 +1,11 @@
 // composables/usePushNotification.js
-// Web Push 訂閱管理 - 真正的背景推播，不需要開 App
+// Browser Web Push subscription helper for the Supabase version.
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 
 const isSubscribed = ref(false)
 const isLoading = ref(false)
+const lastError = ref('')
 
 const urlBase64ToUint8Array = (base64String) => {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -17,69 +18,78 @@ const urlBase64ToUint8Array = (base64String) => {
   return outputArray
 }
 
-export const usePushNotification = () => {
-  const getSupabaseClient = () => {
-    return getSupabaseBrowserClient()
-  }
+const getBrowserSupportError = () => {
+  if (!import.meta.client) return '目前不是瀏覽器環境'
+  if (!('serviceWorker' in navigator)) return '此瀏覽器不支援 Service Worker'
+  if (!('PushManager' in window)) return '此瀏覽器不支援 Web Push'
+  if (!('Notification' in window)) return '此瀏覽器不支援通知'
+  return ''
+}
 
-  // 檢查目前是否已訂閱
+export const usePushNotification = () => {
   const checkSubscription = async () => {
-    if (!import.meta.client) return
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    const supportError = getBrowserSupportError()
+    if (supportError) {
+      lastError.value = supportError
+      isSubscribed.value = false
+      return false
+    }
+
     try {
       const registration = await navigator.serviceWorker.ready
       const existing = await registration.pushManager.getSubscription()
       isSubscribed.value = !!existing
-    } catch {
+      lastError.value = ''
+      return isSubscribed.value
+    } catch (err) {
+      lastError.value = err?.message || '檢查推播訂閱失敗'
       isSubscribed.value = false
+      return false
     }
   }
 
-  // 訂閱 Web Push 並儲存 endpoint 到 Supabase
   const subscribe = async () => {
-    if (!import.meta.client) return false
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.log('[Push] 此瀏覽器不支援 Web Push')
+    const supportError = getBrowserSupportError()
+    if (supportError) {
+      lastError.value = supportError
+      console.warn('[Push]', supportError)
       return false
     }
 
     const config = useRuntimeConfig()
     const vapidPublicKey = config.public.vapidPublicKey
     if (!vapidPublicKey) {
-      console.warn('[Push] 未設定 VAPID 公鑰，跳過 Web Push 訂閱')
+      lastError.value = '未設定 NUXT_PUBLIC_VAPID_PUBLIC_KEY'
+      console.warn('[Push] 未設定 NUXT_PUBLIC_VAPID_PUBLIC_KEY，略過 Web Push 訂閱')
       return false
     }
 
     isLoading.value = true
     try {
-      // 請求通知權限
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
-        console.log('[Push] 通知權限被拒絕')
+        lastError.value = '使用者未授權通知'
+        isSubscribed.value = false
         return false
       }
 
       const registration = await navigator.serviceWorker.ready
+      let subscription = await registration.pushManager.getSubscription()
 
-      // 先取消舊的訂閱（避免 VAPID key 更換後出錯）
-      const oldSub = await registration.pushManager.getSubscription()
-      if (oldSub) await oldSub.unsubscribe()
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+        })
+      }
 
-      // 訂閱 Push
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-      })
-
-      // 儲存 endpoint + keys 到 Supabase
       const subJson = subscription.toJSON()
-      const client = getSupabaseClient()
-
+      const client = getSupabaseBrowserClient()
       const { error } = await client.from('push_subscriptions').upsert(
         {
           endpoint: subJson.endpoint,
-          p256dh: subJson.keys.p256dh,
-          auth: subJson.keys.auth,
+          p256dh: subJson.keys?.p256dh,
+          auth: subJson.keys?.auth,
           updated_at: new Date().toISOString()
         },
         { onConflict: 'endpoint' }
@@ -88,15 +98,18 @@ export const usePushNotification = () => {
       if (error) throw error
 
       isSubscribed.value = true
-      console.log('[Push] Web Push 訂閱成功，已儲存到 Supabase')
+      lastError.value = ''
+      console.log('[Push] Web Push 訂閱已寫入 Supabase')
       return true
     } catch (err) {
-      console.error('[Push] 訂閱失敗:', err)
+      lastError.value = err?.message || 'Web Push 訂閱失敗'
+      console.error('[Push] Web Push 訂閱失敗:', err)
+      isSubscribed.value = false
       return false
     } finally {
       isLoading.value = false
     }
   }
 
-  return { isSubscribed, isLoading, subscribe, checkSubscription }
+  return { isSubscribed, isLoading, lastError, subscribe, checkSubscription }
 }

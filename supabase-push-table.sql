@@ -1,27 +1,43 @@
--- 在 Supabase SQL Editor 執行此腳本
--- 建立 Web Push 訂閱儲存表
+-- Supabase SQL Editor:
+-- Create the Web Push subscription table used by the PWA notification flow.
 
-CREATE TABLE IF NOT EXISTS push_subscriptions (
-  id          bigserial PRIMARY KEY,
-  endpoint    text UNIQUE NOT NULL,
-  p256dh      text NOT NULL,
-  auth        text NOT NULL,
-  created_at  timestamptz DEFAULT now(),
-  updated_at  timestamptz DEFAULT now()
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+  id bigserial PRIMARY KEY,
+  endpoint text UNIQUE NOT NULL,
+  p256dh text NOT NULL,
+  auth text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
 
--- 開放匿名寫入（讓前端可以儲存訂閱）
-ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "anon can insert" ON push_subscriptions
-  FOR INSERT TO anon WITH CHECK (true);
+DROP POLICY IF EXISTS "anon can insert push subscriptions" ON public.push_subscriptions;
+DROP POLICY IF EXISTS "anon can update push subscriptions" ON public.push_subscriptions;
+DROP POLICY IF EXISTS "service role can select push subscriptions" ON public.push_subscriptions;
+DROP POLICY IF EXISTS "service role can delete push subscriptions" ON public.push_subscriptions;
 
-CREATE POLICY "anon can upsert own endpoint" ON push_subscriptions
-  FOR UPDATE TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "anon can insert push subscriptions"
+  ON public.push_subscriptions
+  FOR INSERT
+  TO anon
+  WITH CHECK (true);
 
--- 只有 service_role 可以讀取（Netlify cron function 使用）
-CREATE POLICY "service role can select" ON push_subscriptions
-  FOR SELECT TO service_role USING (true);
+CREATE POLICY "anon can update push subscriptions"
+  ON public.push_subscriptions
+  FOR UPDATE
+  TO anon
+  USING (true)
+  WITH CHECK (true);
 
-CREATE POLICY "service role can delete" ON push_subscriptions
-  FOR DELETE TO service_role USING (true);
+CREATE POLICY "service role can select push subscriptions"
+  ON public.push_subscriptions
+  FOR SELECT
+  TO service_role
+  USING (true);
+
+CREATE POLICY "service role can delete push subscriptions"
+  ON public.push_subscriptions
+  FOR DELETE
+  TO service_role
+  USING (true);

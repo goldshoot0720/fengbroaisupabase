@@ -610,10 +610,12 @@ onMounted(async () => {
   // 1. 在 Supabase 執行 supabase-push-table.sql 建立 push_subscriptions table
   // 2. 在 .env 填入 SUPABASE_SERVICE_ROLE_KEY
   // 3. 在 Netlify 環境變數設定 VAPID 相關金鑰
-  // if (import.meta.client && 'serviceWorker' in navigator && 'PushManager' in window) {
-  //   await checkPushSubscription()
-  //   subscribePush().catch(() => {})
-  // }
+  if (import.meta.client && 'serviceWorker' in navigator && 'PushManager' in window) {
+    await checkPushSubscription()
+    subscribePush().catch((error) => {
+      console.warn('[Push] Web Push 訂閱失敗:', error)
+    })
+  }
 
   // 初始化主題
   initTheme()

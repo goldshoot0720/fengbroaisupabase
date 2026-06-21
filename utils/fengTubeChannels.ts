@@ -126,12 +126,6 @@ export const FENG_TUBE_CHANNELS = [
     url: 'https://www.youtube.com/@mrshenofficial/videos'
   },
   {
-    id: 'jiangtaigong',
-    label: '加拿大太公NEWS',
-    handle: '@jiangtaigong',
-    url: 'https://www.youtube.com/@jiangtaigong/videos'
-  },
-  {
     id: 'gc-reader-life',
     label: 'Gavinchiu趙氏讀書生活',
     handle: '@GC%E8%B6%99%E6%B0%8F%E8%AE%80%E6%9B%B8%E7%94%9F%E6%B4%BB',

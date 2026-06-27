@@ -398,7 +398,10 @@
             <div class="finance-card__header">
               <div>
                 <p class="store-card__name">{{ item.group }} / {{ item.symbol }}</p>
-                <h4>{{ item.name }}</h4>
+                <h4>
+                  {{ item.name }}
+                  <span v-if="item.labelAlias" class="finance-alias">{{ item.labelAlias }}</span>
+                </h4>
               </div>
               <span v-if="item.status === 'new-high'" class="finance-status finance-status--high">{{ item.statusLabel || '創新高' }}</span>
               <span v-else-if="item.status === 'new-low'" class="finance-status finance-status--low">創新低</span>
@@ -423,7 +426,18 @@
               </span>
             </div>
 
-            <a :href="item.url" target="_blank" rel="noreferrer" class="store-card__link">查看 {{ item.source || 'CNBC' }}</a>
+            <div class="finance-link-row">
+              <a :href="item.url" target="_blank" rel="noreferrer" class="store-card__link">查看 {{ item.source || 'CNBC' }}</a>
+              <a
+                v-if="item.youtubeUrl"
+                :href="item.youtubeUrl"
+                target="_blank"
+                rel="noreferrer"
+                class="store-card__link store-card__link--youtube"
+              >
+                查看 YouTube
+              </a>
+            </div>
           </article>
         </div>
       </section>
@@ -1331,6 +1345,20 @@ watch(
   line-height: 1.35;
 }
 
+.finance-alias {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.55rem;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
 .finance-price {
   font-family: var(--font-display);
   font-size: clamp(1.55rem, 1.2rem + 1vw, 2.2rem);
@@ -1378,6 +1406,18 @@ watch(
 
 .finance-change--down {
   color: #dc2626 !important;
+}
+
+.finance-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.store-card__link--youtube {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
 }
 
 .tube-channel-grid {

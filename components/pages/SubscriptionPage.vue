@@ -118,6 +118,8 @@
         </template>
         
         <span>共 {{ subscriptions.length }} 個項目</span>
+        <span class="renew-stat renew-stat-on">續訂 {{ subscriptionRenewStats.renew }} 個</span>
+        <span class="renew-stat renew-stat-off">不續訂 {{ subscriptionRenewStats.notRenew }} 個</span>
         <span v-if="selectedIds.length > 0" class="selected-count">
           已選 {{ selectedIds.length }} 項
         </span>
@@ -759,6 +761,17 @@ const totalMonthlyCostTWD = computed(() => {
   }, 0)
 })
 
+const subscriptionRenewStats = computed(() => {
+  return subscriptions.value.reduce((stats, sub) => {
+    if (sub.iscontinue === false) {
+      stats.notRenew += 1
+    } else {
+      stats.renew += 1
+    }
+    return stats
+  }, { renew: 0, notRenew: 0 })
+})
+
 const availableYears = computed(() => {
   const years = subscriptions.value
     .map(sub => sub.nextdate ? new Date(sub.nextdate) : null)
@@ -1205,6 +1218,29 @@ defineExpose({ subscriptions, totalMonthlyCost })
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+.renew-stat {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.renew-stat-on {
+  color: #087f5b;
+  background: rgba(46, 204, 113, 0.13);
+  border: 1px solid rgba(46, 204, 113, 0.35);
+}
+
+.renew-stat-off {
+  color: #8a5a00;
+  background: rgba(255, 193, 7, 0.16);
+  border: 1px solid rgba(255, 193, 7, 0.38);
 }
 
 .btn-batch-mode {
@@ -1738,6 +1774,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   }
 
   .selected-count,
+  .renew-stat,
   .total-cost {
     font-size: 0.82rem;
   }

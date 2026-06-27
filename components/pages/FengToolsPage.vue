@@ -426,6 +426,32 @@
               </span>
             </div>
 
+            <div class="finance-history">
+              <div class="finance-history__header">
+                <span>最近五年走勢</span>
+                <strong v-if="item.history?.length">{{ item.history.length }} 筆</strong>
+              </div>
+              <svg
+                v-if="item.chart.points"
+                class="finance-history-chart"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                :aria-label="`${item.name} 最近五年走勢`"
+              >
+                <polyline class="finance-history-area" :points="item.chart.areaPoints" />
+                <polyline class="finance-history-line" :points="item.chart.points" />
+                <circle
+                  v-for="point in item.chart.circles"
+                  :key="point.key"
+                  class="finance-history-dot"
+                  :cx="point.x"
+                  :cy="point.y"
+                  r="1.5"
+                />
+              </svg>
+              <div v-else class="finance-history-empty">暫無五年走勢資料</div>
+            </div>
+
             <div class="finance-link-row">
               <a :href="item.url" target="_blank" rel="noreferrer" class="store-card__link">查看 {{ item.source || 'CNBC' }}</a>
               <a
@@ -722,7 +748,13 @@ const tubeChannels = computed(() => {
 })
 const tubeNewVideos = computed(() => tubeResult.value?.newVideos || [])
 const tubeChannelCount = computed(() => tubeUserChannels.value.length)
-const financeItems = computed(() => financeResult.value?.items || [])
+const financeItems = computed(() => {
+  const items = financeResult.value?.items || []
+  return items.map(item => ({
+    ...item,
+    chart: buildSingleSeriesChart(item.history || [], 'value')
+  }))
+})
 
 const normalizeTubeChannels = (channels) => {
   if (!Array.isArray(channels)) return []
@@ -1406,6 +1438,61 @@ watch(
 
 .finance-change--down {
   color: #dc2626 !important;
+}
+
+.finance-history {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--border-color) 75%, transparent);
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--bg-secondary) 72%, transparent);
+}
+
+.finance-history__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.finance-history__header strong {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.finance-history-chart {
+  width: 100%;
+  height: 88px;
+  overflow: visible;
+}
+
+.finance-history-area {
+  fill: rgba(37, 99, 235, 0.12);
+}
+
+.finance-history-line {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 2.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.finance-history-dot {
+  fill: #2563eb;
+  stroke: white;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.finance-history-empty {
+  min-height: 88px;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
 }
 
 .finance-link-row {

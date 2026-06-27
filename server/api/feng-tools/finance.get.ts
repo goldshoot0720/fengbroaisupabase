@@ -20,6 +20,9 @@ type FinanceItem = {
   group: string
   url: string
   source?: string
+  labelAlias?: string
+  youtubeUrl?: string
+  chartSymbol?: string
   last: number | null
   lastLabel: string
   change: number | null
@@ -30,6 +33,11 @@ type FinanceItem = {
   lowLabel?: string
   statusLabel?: string
   status: 'new-high' | 'new-low' | ''
+  history: Array<{
+    date: string
+    value: number
+    label: string
+  }>
   error: string
 }
 
@@ -83,6 +91,22 @@ const fetchText = async (url: string) => {
   }
 
   return await response.text()
+}
+
+const fetchJson = async (url: string) => {
+  const response = await fetch(url, {
+    headers: {
+      ...DEFAULT_HEADERS,
+      accept: 'application/json,text/plain,*/*'
+    },
+    redirect: 'follow'
+  })
+
+  if (!response.ok) {
+    throw new Error(`Yahoo Finance chart failed: ${response.status}`)
+  }
+
+  return await response.json()
 }
 
 const parseNumberAfterLabel = (text: string, labels: string[]) => {
@@ -277,6 +301,70 @@ const parseMultplShillerPeTable = (html: string) => {
   }
 }
 
+const fetchYahooFiveYearHistory = async (symbol: string) => {
+  const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5y&interval=1mo&includePrePost=false&events=history`
+  const data = await fetchJson(chartUrl)
+  const result = data?.chart?.result?.[0]
+  const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : []
+  const closes = Array.isArray(result?.indicators?.quote?.[0]?.close)
+    ? result.indicators.quote[0].close
+    : []
+
+  return timestamps
+    .map((timestamp: number, index: number) => {
+      const value = Number(closes[index])
+      if (!Number.isFinite(value)) return null
+
+      const date = new Date(timestamp * 1000)
+      if (Number.isNaN(date.getTime())) return null
+
+      return {
+        date: date.toISOString().slice(0, 10),
+        value: Number(value.toFixed(4)),
+        label: formatValue(value)
+      }
+    })
+    .filter(Boolean)
+    .slice(-72)
+}
+
+const fetchMultplFiveYearHistory = async (url: string) => {
+  const html = await fetchText(`${url}/table/by-month`)
+  const rows = Array.from(html.matchAll(/<tr[^>]*>\s*<td[^>]*>\s*([^<]+?)\s*<\/td>\s*<td[^>]*>\s*([+-]?\d[\d,]*(?:\.\d+)?)\s*<\/td>/gi))
+    .map(match => {
+      const date = new Date(decodeEntities(match[1].trim()))
+      const value = toNumber(match[2])
+      if (value === null || Number.isNaN(date.getTime())) return null
+
+      return {
+        date: date.toISOString().slice(0, 10),
+        value: Number(value.toFixed(4)),
+        label: formatValue(value)
+      }
+    })
+    .filter(Boolean)
+
+  return rows
+    .sort((left: any, right: any) => new Date(left.date).getTime() - new Date(right.date).getTime())
+    .slice(-72)
+}
+
+const fetchFiveYearHistory = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[number]) => {
+  try {
+    if (instrument.source === 'Multpl') {
+      return await fetchMultplFiveYearHistory(instrument.url)
+    }
+
+    if ('chartSymbol' in instrument && typeof instrument.chartSymbol === 'string' && instrument.chartSymbol) {
+      return await fetchYahooFiveYearHistory(instrument.chartSymbol)
+    }
+  } catch (error) {
+    console.warn(`[finance] ${instrument.id} five-year history unavailable`, error)
+  }
+
+  return []
+}
+
 const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[number]): Promise<FinanceItem> => {
   try {
     const html = await fetchText(instrument.url)
@@ -292,6 +380,7 @@ const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[numb
     }
 
     parsed = applyAlertThreshold(parsed, instrument)
+    const history = await fetchFiveYearHistory(instrument)
 
     if (parsed.last === null) {
       throw new Error(`${instrument.source || 'CNBC'} 頁面未解析到即時價格`)
@@ -300,6 +389,7 @@ const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[numb
     return {
       ...instrument,
       ...parsed,
+      history,
       error: ''
     }
   } catch (error: any) {
@@ -315,6 +405,7 @@ const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[numb
       lowLabel: undefined,
       statusLabel: undefined,
       status: '',
+      history: [],
       error: error?.message || `${instrument.source || 'CNBC'} 資料抓取失敗`
     }
   }
@@ -327,7 +418,7 @@ export default defineEventHandler(async () => {
   const items = await Promise.all(FENG_FINANCE_INSTRUMENTS.map(fetchFinanceItem))
   const data = {
     fetchedAt: new Date().toISOString(),
-    source: 'CNBC / Yahoo Finance / Multpl',
+    source: 'CNBC / Yahoo Finance / Multpl / Yahoo Finance 5Y chart',
     items
   }
 

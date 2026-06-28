@@ -17,7 +17,20 @@ const pages = [
   { id: 'podcast', name: '鋒兄播客', icon: '12', title: '鋒兄播客', subtitle: '整理播客音檔、封面與備註。' },
   { id: 'bank', name: '鋒兄銀行', menuHint: '( +電子票證)', icon: '13', title: '鋒兄銀行 (+電子票證)', subtitle: '整理存款、提款、轉帳與卡片資訊。' },
   { id: 'routine', name: '鋒兄例行', icon: '14', title: '鋒兄例行', subtitle: '記錄固定流程、連結與最近執行日期。' },
-  { id: 'tools', name: '鋒兄工具', menuHint: '（＋比價）', icon: '06', title: '鋒兄工具', subtitle: '整合 BigGo 與手機通路比價工具。' },
+  {
+    id: 'tools',
+    name: '鋒兄工具',
+    menuHint: '（＋比價）',
+    icon: '06',
+    title: '鋒兄工具',
+    subtitle: '整合 BigGo 與手機通路比價工具。',
+    children: [
+      { id: 'tools:biggo', tool: 'biggo', name: '鋒兄比價', menuHint: 'BigGo' },
+      { id: 'tools:phone', tool: 'phone', name: '手機比價', menuHint: '通路價格' },
+      { id: 'tools:tube', tool: 'tube', name: '鋒兄Tube', menuHint: 'YouTube' },
+      { id: 'tools:finance', tool: 'finance', name: '鋒兄金融', menuHint: 'CNBC 報價' }
+    ]
+  },
   { id: 'settings', name: '鋒兄設定', icon: '15', title: '鋒兄設定', subtitle: '管理來源、匯入匯出與儲存設定。' },
   { id: 'about', name: '鋒兄關於', icon: '16', title: '鋒兄關於', subtitle: '查看系統說明與目前工作區資訊。' }
 ]

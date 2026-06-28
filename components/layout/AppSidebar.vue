@@ -30,6 +30,22 @@
             <span class="nav-name">{{ page.name }}</span>
             <span v-if="page.menuHint" class="nav-hint">{{ page.menuHint }}</span>
           </button>
+          <ul
+            v-if="page.children?.length && (currentPage === page.id || page.id === 'tools')"
+            class="nav-children"
+          >
+            <li v-for="child in page.children" :key="child.id">
+              <button
+                @click="$emit('navigate', child.id)"
+                :class="{ active: currentPage === page.id && activeTool === child.tool }"
+                class="nav-child-btn"
+                type="button"
+              >
+                <span class="nav-child-name">{{ child.name }}</span>
+                <span v-if="child.menuHint" class="nav-child-hint">{{ child.menuHint }}</span>
+              </button>
+            </li>
+          </ul>
         </li>
       </ul>
     </nav>
@@ -46,6 +62,7 @@
 defineProps({
   isOpen: { type: Boolean, default: false },
   currentPage: { type: String, default: 'home' },
+  activeTool: { type: String, default: 'biggo' },
   pages: { type: Array, default: () => [] }
 })
 
@@ -198,6 +215,56 @@ defineEmits(['toggle', 'navigate'])
   font-size: 0.72rem;
   line-height: 1.25;
   text-align: left;
+}
+
+.nav-children {
+  margin: 0.2rem 0 0.35rem 1.05rem !important;
+  gap: 0.18rem !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  padding-left: 0.55rem;
+}
+
+.nav-child-btn {
+  width: 100%;
+  border: 0;
+  color: rgba(255, 255, 255, 0.78);
+  background: transparent;
+  border-radius: 14px;
+  padding: 0.48rem 0.6rem;
+  display: block;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.nav-child-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.055);
+  transform: translateX(2px);
+}
+
+.nav-child-btn.active {
+  color: #fff;
+  background: rgba(93, 122, 255, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(174, 189, 255, 0.22);
+}
+
+.nav-child-name,
+.nav-child-hint {
+  display: block;
+  text-align: left;
+}
+
+.nav-child-name {
+  font-weight: 700;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.nav-child-hint {
+  margin-top: 0.12rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.66rem;
+  line-height: 1.2;
 }
 
 .footer-title {

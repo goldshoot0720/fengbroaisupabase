@@ -6,9 +6,10 @@
       <AppSidebar
         :is-open="sidebarOpen"
         :current-page="currentPage"
+        :active-tool="activeTool"
         :pages="pages"
         @toggle="toggleSidebar"
-        @navigate="setCurrentPage"
+        @navigate="handleSidebarNavigate"
       />
 
       <!-- 主要內容區 -->
@@ -128,6 +129,7 @@
 
           <FengToolsPage
             v-if="currentPage === 'tools'"
+            v-model="activeTool"
           />
 
           <CommonPage
@@ -401,6 +403,26 @@ const foodsCount = computed(() => foods.value.length)
 const isDevelopment = computed(() => false) // 設為 true 以啟用滾動調試
 const placeholderPages = {}
 const placeholderConfig = computed(() => placeholderPages[currentPage.value] || null)
+const TOOL_STORAGE_KEY = 'feng-tools-active-tool'
+const TOOL_KEYS = ['biggo', 'phone', 'tube', 'finance']
+const readStoredTool = () => {
+  if (typeof localStorage === 'undefined') return 'biggo'
+  const saved = localStorage.getItem(TOOL_STORAGE_KEY)
+  return TOOL_KEYS.includes(saved) ? saved : 'biggo'
+}
+const activeTool = ref(readStoredTool())
+const handleSidebarNavigate = (pageId) => {
+  if (typeof pageId === 'string' && pageId.startsWith('tools:')) {
+    const tool = pageId.split(':')[1]
+    if (TOOL_KEYS.includes(tool)) {
+      activeTool.value = tool
+      setCurrentPage('tools')
+      return
+    }
+  }
+
+  setCurrentPage(pageId)
+}
 const SUPABASE_URL_WARNING_KEY = 'feng-supabase-url-warning'
 const BIRTHDAY_EASTER_EGG_KEY_PREFIX = 'feng-birthday-easter-egg'
 const showBirthdayEasterEgg = ref(false)

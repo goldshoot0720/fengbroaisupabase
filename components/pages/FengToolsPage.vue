@@ -498,13 +498,21 @@ const toolTabs = [
   { value: 'finance', label: '鋒兄金融', description: '追蹤 CNBC 市場價格與高低標記' }
 ]
 
+const props = defineProps({
+  modelValue: { type: String, default: '' }
+})
+
+const emit = defineEmits(['update:modelValue'])
+
+const isValidTool = (value) => toolTabs.some(tab => tab.value === value)
+
 const readInitialTool = () => {
   if (!import.meta.client) return 'biggo'
   const savedTool = localStorage.getItem(FENG_TUBE_ACTIVE_TOOL_KEY)
-  return toolTabs.some(tab => tab.value === savedTool) ? savedTool : 'biggo'
+  return isValidTool(savedTool) ? savedTool : 'biggo'
 }
 
-const activeTool = ref(readInitialTool())
+const activeTool = ref(isValidTool(props.modelValue) ? props.modelValue : readInitialTool())
 
 const currentYearSuffix = String(new Date().getFullYear()).slice(-2)
 const defaultPhoneKeyword = `Samsung S${currentYearSuffix}`
@@ -1152,10 +1160,18 @@ onMounted(() => {
   if (activeTool.value === 'finance') runFinanceLookup()
 })
 
+watch(() => props.modelValue, (value) => {
+  if (isValidTool(value) && value !== activeTool.value) {
+    activeTool.value = value
+  }
+})
+
 watch(activeTool, (value) => {
   if (import.meta.client) {
     localStorage.setItem(FENG_TUBE_ACTIVE_TOOL_KEY, value)
   }
+
+  emit('update:modelValue', value)
 
   if (value === 'tube' && !tubeResult.value && !tubeLoading.value) {
     runTubeLookup()

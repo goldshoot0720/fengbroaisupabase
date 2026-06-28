@@ -435,7 +435,15 @@
               >
                 <summary class="finance-history__header">
                   <span>{{ range.label }}</span>
-                  <strong v-if="range.points?.length">{{ range.points.length }} 筆</strong>
+                  <span class="finance-history__stats">
+                    <strong v-if="range.points?.length">{{ range.points.length }} 筆</strong>
+                    <strong
+                      v-if="range.summary?.label"
+                      :class="financeChangeClass(range.summary.change)"
+                    >
+                      {{ range.summary.label }}
+                    </strong>
+                  </span>
                 </summary>
                 <svg
                   v-if="range.chart.points"
@@ -597,10 +605,47 @@ const formatFinanceChange = (change, percent) => {
   return `${changeLabel}${percentLabel}`
 }
 
+const formatFinanceRangeChange = (change, percent) => {
+  if (change === null || change === undefined) return ''
+  const amount = Number(change)
+  if (!Number.isFinite(amount)) return ''
+  const sign = amount > 0 ? '+' : ''
+  const percentAmount = Number(percent)
+  const percentLabel = Number.isFinite(percentAmount)
+    ? ` (${percentAmount > 0 ? '+' : ''}${formatFinanceNumber(percentAmount)}%)`
+    : ''
+  return `${sign}${formatFinanceNumber(amount)}${percentLabel}`
+}
+
 const financeChangeClass = (change) => {
   if (Number(change) > 0) return 'finance-change--up'
   if (Number(change) < 0) return 'finance-change--down'
   return ''
+}
+
+const buildFinanceRangeSummary = (points) => {
+  const values = (points || [])
+    .map(point => Number(point?.value))
+    .filter(value => Number.isFinite(value))
+
+  if (values.length < 2) {
+    return {
+      change: null,
+      percent: null,
+      label: ''
+    }
+  }
+
+  const first = values[0]
+  const last = values[values.length - 1]
+  const change = last - first
+  const percent = first !== 0 ? (change / Math.abs(first)) * 100 : null
+
+  return {
+    change,
+    percent,
+    label: formatFinanceRangeChange(change, percent)
+  }
 }
 
 const normalizeLookupKey = (value) => String(value || '').trim().toLowerCase()
@@ -767,7 +812,8 @@ const financeItems = computed(() => {
       historyRanges: historyRanges.map(range => ({
         ...range,
         points: range.points || [],
-        chart: buildSingleSeriesChart(range.points || [], 'value')
+        chart: buildSingleSeriesChart(range.points || [], 'value'),
+        summary: buildFinanceRangeSummary(range.points || [])
       }))
     }
   })
@@ -1506,6 +1552,15 @@ watch(
 .finance-history__header strong {
   color: var(--text-primary);
   font-size: 0.78rem;
+}
+
+.finance-history__stats {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+  text-align: right;
 }
 
 .finance-history-chart {

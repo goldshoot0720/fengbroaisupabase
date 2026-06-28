@@ -33,7 +33,17 @@ type FinanceItem = {
   lowLabel?: string
   statusLabel?: string
   status: 'new-high' | 'new-low' | ''
-  history: Array<{
+  historyRanges: Array<{
+    key: string
+    label: string
+    years: number
+    points: Array<{
+      date: string
+      value: number
+      label: string
+    }>
+  }>
+  history?: Array<{
     date: string
     value: number
     label: string
@@ -301,8 +311,37 @@ const parseMultplShillerPeTable = (html: string) => {
   }
 }
 
-const fetchYahooFiveYearHistory = async (symbol: string) => {
-  const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5y&interval=1mo&includePrePost=false&events=history`
+const FINANCE_HISTORY_RANGES = [
+  { key: '1y', label: '最近一年走勢', years: 1 },
+  { key: '5y', label: '最近五年走勢', years: 5 },
+  { key: '10y', label: '最近十年走勢', years: 10 },
+  { key: '20y', label: '最近二十年走勢', years: 20 },
+  { key: '30y', label: '最近三十年走勢', years: 30 }
+]
+
+const sliceHistoryByYears = (
+  history: Array<{ date: string, value: number, label: string }>,
+  years: number
+) => {
+  if (!history.length) return []
+  const latestTime = new Date(history[history.length - 1].date).getTime()
+  if (!Number.isFinite(latestTime)) return history.slice(-(years * 12 + 2))
+
+  const cutoff = new Date(latestTime)
+  cutoff.setFullYear(cutoff.getFullYear() - years)
+  const cutoffTime = cutoff.getTime()
+  return history.filter(entry => new Date(entry.date).getTime() >= cutoffTime)
+}
+
+const buildHistoryRanges = (history: Array<{ date: string, value: number, label: string }>) => {
+  return FINANCE_HISTORY_RANGES.map(range => ({
+    ...range,
+    points: sliceHistoryByYears(history, range.years)
+  }))
+}
+
+const fetchYahooFinanceHistory = async (symbol: string) => {
+  const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=max&interval=1mo&includePrePost=false&events=history`
   const data = await fetchJson(chartUrl)
   const result = data?.chart?.result?.[0]
   const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : []
@@ -325,10 +364,9 @@ const fetchYahooFiveYearHistory = async (symbol: string) => {
       }
     })
     .filter(Boolean)
-    .slice(-72)
 }
 
-const fetchMultplFiveYearHistory = async (url: string) => {
+const fetchMultplHistory = async (url: string) => {
   const html = await fetchText(`${url}/table/by-month`)
   const rows = Array.from(html.matchAll(/<tr[^>]*>\s*<td[^>]*>\s*([^<]+?)\s*<\/td>\s*<td[^>]*>\s*([+-]?\d[\d,]*(?:\.\d+)?)\s*<\/td>/gi))
     .map(match => {
@@ -346,23 +384,24 @@ const fetchMultplFiveYearHistory = async (url: string) => {
 
   return rows
     .sort((left: any, right: any) => new Date(left.date).getTime() - new Date(right.date).getTime())
-    .slice(-72)
 }
 
-const fetchFiveYearHistory = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[number]) => {
+const fetchHistoryRanges = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[number]) => {
   try {
+    let history: Array<{ date: string, value: number, label: string }> = []
+
     if (instrument.source === 'Multpl') {
-      return await fetchMultplFiveYearHistory(instrument.url)
+      history = await fetchMultplHistory(instrument.url)
+    } else if ('chartSymbol' in instrument && typeof instrument.chartSymbol === 'string' && instrument.chartSymbol) {
+      history = await fetchYahooFinanceHistory(instrument.chartSymbol)
     }
 
-    if ('chartSymbol' in instrument && typeof instrument.chartSymbol === 'string' && instrument.chartSymbol) {
-      return await fetchYahooFiveYearHistory(instrument.chartSymbol)
-    }
+    return buildHistoryRanges(history)
   } catch (error) {
-    console.warn(`[finance] ${instrument.id} five-year history unavailable`, error)
+    console.warn(`[finance] ${instrument.id} history ranges unavailable`, error)
   }
 
-  return []
+  return buildHistoryRanges([])
 }
 
 const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[number]): Promise<FinanceItem> => {
@@ -380,7 +419,7 @@ const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[numb
     }
 
     parsed = applyAlertThreshold(parsed, instrument)
-    const history = await fetchFiveYearHistory(instrument)
+    const historyRanges = await fetchHistoryRanges(instrument)
 
     if (parsed.last === null) {
       throw new Error(`${instrument.source || 'CNBC'} 頁面未解析到即時價格`)
@@ -389,7 +428,7 @@ const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[numb
     return {
       ...instrument,
       ...parsed,
-      history,
+      historyRanges,
       error: ''
     }
   } catch (error: any) {
@@ -405,7 +444,7 @@ const fetchFinanceItem = async (instrument: typeof FENG_FINANCE_INSTRUMENTS[numb
       lowLabel: undefined,
       statusLabel: undefined,
       status: '',
-      history: [],
+      historyRanges: buildHistoryRanges([]),
       error: error?.message || `${instrument.source || 'CNBC'} 資料抓取失敗`
     }
   }
@@ -418,7 +457,7 @@ export default defineEventHandler(async () => {
   const items = await Promise.all(FENG_FINANCE_INSTRUMENTS.map(fetchFinanceItem))
   const data = {
     fetchedAt: new Date().toISOString(),
-    source: 'CNBC / Yahoo Finance / Multpl / Yahoo Finance 5Y chart',
+    source: 'CNBC / Yahoo Finance / Multpl / Yahoo Finance 1Y-30Y charts',
     items
   }
 

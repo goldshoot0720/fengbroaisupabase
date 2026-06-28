@@ -426,30 +426,37 @@
               </span>
             </div>
 
-            <div class="finance-history">
-              <div class="finance-history__header">
-                <span>最近五年走勢</span>
-                <strong v-if="item.history?.length">{{ item.history.length }} 筆</strong>
-              </div>
-              <svg
-                v-if="item.chart.points"
-                class="finance-history-chart"
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-                :aria-label="`${item.name} 最近五年走勢`"
+            <div class="finance-history-list">
+              <details
+                v-for="range in item.historyRanges"
+                :key="`${item.id}-${range.key}`"
+                class="finance-history"
+                :open="range.key === '1y'"
               >
-                <polyline class="finance-history-area" :points="item.chart.areaPoints" />
-                <polyline class="finance-history-line" :points="item.chart.points" />
-                <circle
-                  v-for="point in item.chart.circles"
-                  :key="point.key"
-                  class="finance-history-dot"
-                  :cx="point.x"
-                  :cy="point.y"
-                  r="1.5"
-                />
-              </svg>
-              <div v-else class="finance-history-empty">暫無五年走勢資料</div>
+                <summary class="finance-history__header">
+                  <span>{{ range.label }}</span>
+                  <strong v-if="range.points?.length">{{ range.points.length }} 筆</strong>
+                </summary>
+                <svg
+                  v-if="range.chart.points"
+                  class="finance-history-chart"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  :aria-label="`${item.name} ${range.label}`"
+                >
+                  <polyline class="finance-history-area" :points="range.chart.areaPoints" />
+                  <polyline class="finance-history-line" :points="range.chart.points" />
+                  <circle
+                    v-for="point in range.chart.circles"
+                    :key="point.key"
+                    class="finance-history-dot"
+                    :cx="point.x"
+                    :cy="point.y"
+                    r="1.5"
+                  />
+                </svg>
+                <div v-else class="finance-history-empty">暫無{{ range.label }}資料</div>
+              </details>
             </div>
 
             <div class="finance-link-row">
@@ -750,10 +757,20 @@ const tubeNewVideos = computed(() => tubeResult.value?.newVideos || [])
 const tubeChannelCount = computed(() => tubeUserChannels.value.length)
 const financeItems = computed(() => {
   const items = financeResult.value?.items || []
-  return items.map(item => ({
-    ...item,
-    chart: buildSingleSeriesChart(item.history || [], 'value')
-  }))
+  return items.map((item) => {
+    const historyRanges = Array.isArray(item.historyRanges)
+      ? item.historyRanges
+      : [{ key: '5y', label: '最近五年走勢', years: 5, points: item.history || [] }]
+
+    return {
+      ...item,
+      historyRanges: historyRanges.map(range => ({
+        ...range,
+        points: range.points || [],
+        chart: buildSingleSeriesChart(range.points || [], 'value')
+      }))
+    }
+  })
 })
 
 const normalizeTubeChannels = (channels) => {
@@ -1440,6 +1457,11 @@ watch(
   color: #dc2626 !important;
 }
 
+.finance-history-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
 .finance-history {
   display: grid;
   gap: 0.45rem;
@@ -1452,10 +1474,33 @@ watch(
 .finance-history__header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 0.75rem;
+  list-style: none;
   color: var(--text-secondary);
   font-size: 0.78rem;
   font-weight: 700;
+  cursor: pointer;
+}
+
+.finance-history__header::-webkit-details-marker {
+  display: none;
+}
+
+.finance-history__header::after {
+  content: '+';
+  width: 1.4rem;
+  height: 1.4rem;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  color: #2563eb;
+  background: color-mix(in oklab, #2563eb 10%, transparent);
+}
+
+.finance-history[open] > .finance-history__header::after {
+  content: '-';
 }
 
 .finance-history__header strong {
@@ -1466,6 +1511,7 @@ watch(
 .finance-history-chart {
   width: 100%;
   height: 88px;
+  margin-top: 0.35rem;
   overflow: visible;
 }
 
@@ -1489,6 +1535,7 @@ watch(
 
 .finance-history-empty {
   min-height: 88px;
+  margin-top: 0.35rem;
   display: grid;
   place-items: center;
   color: var(--text-secondary);

@@ -105,6 +105,13 @@ export const FENG_FINANCE_INSTRUMENTS = [
     chartSymbol: '^IXIC'
   },
   {
+    id: 'amd',
+    name: 'Advanced Micro Devices, Inc.',
+    symbol: 'AMD',
+    group: 'NASDAQ Stock',
+    url: 'https://www.cnbc.com/quotes/AMD'
+  },
+  {
     id: 'philadelphia-semiconductor',
     name: 'Philadelphia Semiconductor Index',
     labelAlias: '半導體泡沫',

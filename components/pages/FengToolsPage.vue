@@ -407,6 +407,13 @@
               <span v-else-if="item.status === 'new-low'" class="finance-status finance-status--low">創新低</span>
             </div>
 
+            <img
+              v-if="item.image"
+              class="finance-card__image"
+              :src="item.image"
+              :alt="`${item.name} image`"
+              loading="lazy"
+            />
             <strong class="finance-price">{{ item.lastLabel }}</strong>
             <p v-if="item.error" class="tool-error">{{ item.error }}</p>
             <div v-else class="finance-meta-row">
@@ -1468,6 +1475,16 @@ watch(
   font-size: 0.78rem;
   font-weight: 800;
   vertical-align: middle;
+}
+
+.finance-card__image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
 }
 
 .finance-price {

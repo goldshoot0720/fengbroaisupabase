@@ -6,6 +6,7 @@ export const FENG_FINANCE_INSTRUMENTS = [
     symbol: '.N225',
     group: 'Asia Index',
     url: 'https://www.cnbc.com/quotes/.N225',
+    image: '/finance/nikkei-225.png',
     chartSymbol: '^N225',
     youtubeUrl: 'https://www.youtube.com/results?search_query=%E6%97%A5%E7%B5%8C%E5%B9%B3%E5%9D%87%E6%A0%AA%E4%BE%A1'
   },

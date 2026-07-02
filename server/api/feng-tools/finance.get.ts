@@ -21,6 +21,7 @@ type FinanceItem = {
   url: string
   source?: string
   labelAlias?: string
+  image?: string
   youtubeUrl?: string
   chartSymbol?: string
   last: number | null

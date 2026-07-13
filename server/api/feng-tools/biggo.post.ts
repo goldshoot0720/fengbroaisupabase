@@ -115,6 +115,31 @@ const stripTags = (html: string) => decodeEntities(
 
 const unique = <T>(items: T[]) => [...new Set(items)]
 
+const PATH_STOPWORDS = new Set([
+  'prod', 'product', 'products', 'goods', 'item', 'items', 'shop', 'store',
+  'category', 'categories', 'search', 'page', 'pages', 'index', 'html',
+  'www', 'com', 'tw', 'http', 'https', 'gdsale', 'detail', 'dp',
+  'p', 'id', 'sku', 'buy', 'mall', 'sale', 'web', 'app', 'mobile'
+])
+
+/** SKU / 商品編號風格：短、幾乎只有英數，不適合當主搜尋關鍵字 */
+const isSkuLike = (value: string) => {
+  const compact = value.replace(/[\s_-]+/g, '')
+  if (compact.length < 5 || compact.length > 28) return false
+  if (/[\u4e00-\u9fff]/.test(value)) return false
+  if (!/^[a-zA-Z0-9._-]+$/.test(value)) return false
+  // Must mix letters and digits, or look like marketplace product codes.
+  return /[a-zA-Z]/.test(compact) && /\d/.test(compact)
+}
+
+const isWeakKeyword = (value: string) => {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized || normalized.length < 3) return true
+  if (PATH_STOPWORDS.has(normalized)) return true
+  if (/^\d+$/.test(normalized)) return true
+  return false
+}
+
 const sanitizeKeyword = (value: string) => decodeEntities(value)
   .replace(/\s*[-|｜]\s*[^-|｜]+$/, '')
   .replace(/[()[\]{}]/g, ' ')
@@ -124,6 +149,7 @@ const sanitizeKeyword = (value: string) => decodeEntities(value)
 const addCandidate = (target: string[], rawValue: string) => {
   const value = sanitizeKeyword(rawValue)
   if (value.length < 3) return
+  if (isWeakKeyword(value)) return
   if (!/[a-zA-Z\u4e00-\u9fff]/.test(value) && !/\d{3,}/.test(value)) return
   target.push(value)
 }
@@ -131,7 +157,7 @@ const addCandidate = (target: string[], rawValue: string) => {
 const splitTokens = (value: string) => value
   .split(/[\s/\\?&=_.-]+/)
   .map(token => token.trim())
-  .filter(token => token.length >= 3)
+  .filter(token => token.length >= 3 && !isWeakKeyword(token))
 
 const buildBiggoSearchUrl = (keyword: string) => `https://biggo.com.tw/s/${encodeURIComponent(keyword)}/`
 
@@ -154,31 +180,72 @@ const isFinitePrice = (value: unknown): value is number =>
 
 const scoreSearchItem = (item: SearchItem, keyword: string) => {
   const title = String(item.title || '').toLowerCase()
-  const tokens = keyword.toLowerCase().split(/\s+/).filter(Boolean)
+  const tokens = keyword.toLowerCase().split(/[\s/_-]+/).filter(token => token.length >= 2)
   let score = 0
+  let matchedTokens = 0
   for (const token of tokens) {
-    if (title.includes(token)) score += 2
+    if (title.includes(token)) {
+      score += token.length >= 4 ? 3 : 2
+      matchedTokens += 1
+    }
   }
   if (isFinitePrice(item.price)) score += 1
   if (item.history_id) score += 1
   // Prefer realistic retail prices over junk $1 listings.
   if (isFinitePrice(item.price) && item.price >= 50) score += 2
-  return score
+  return { score, matchedTokens }
 }
 
 const pickBestSearchItem = (items: SearchItem[], keyword: string) => {
   if (!items.length) return null
-  return [...items]
-    .map(item => ({ item, score: scoreSearchItem(item, keyword) }))
-    .sort((a, b) => b.score - a.score || (a.item.price || Infinity) - (b.item.price || Infinity))[0]?.item || null
+
+  const keywordTokens = keyword.toLowerCase().split(/[\s/_-]+/).filter(token => token.length >= 2)
+  const ranked = items
+    .map(item => {
+      const { score, matchedTokens } = scoreSearchItem(item, keyword)
+      return { item, score, matchedTokens }
+    })
+    .sort((a, b) => b.score - a.score || (a.item.price || Infinity) - (b.item.price || Infinity))
+
+  const best = ranked[0]
+  if (!best) return null
+
+  // SKU / 短代碼關鍵字若標題完全對不上，寧可回傳 null 也不亂配商品。
+  if (isSkuLike(keyword) && best.matchedTokens === 0) return null
+  if (best.matchedTokens === 0 && best.score < 4) return null
+
+  // Multi-token queries need at least half of meaningful tokens to appear in title.
+  if (keywordTokens.length >= 2) {
+    const required = Math.ceil(keywordTokens.length * 0.5)
+    if (best.matchedTokens < required) return null
+  }
+
+  return best.item
 }
 
 const buildUrlCandidates = (productUrl: URL) => {
   const candidates: string[] = []
+  const pathname = decodeURIComponent(productUrl.pathname)
+  const segments = pathname.split('/').filter(Boolean)
 
-  addCandidate(candidates, decodeURIComponent(productUrl.pathname))
+  // Prefer the last path segment as a human phrase (e.g. iPhone-16-Pro-256G).
+  const lastSegment = segments[segments.length - 1] || ''
+  if (lastSegment && !isWeakKeyword(lastSegment)) {
+    const phrase = lastSegment
+      .replace(/\.(html?|php|aspx)$/i, '')
+      .replace(/[_+]+/g, ' ')
+      .replace(/-/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    addCandidate(candidates, phrase)
+    addCandidate(candidates, lastSegment.replace(/\.(html?|php|aspx)$/i, ''))
+  }
 
-  for (const token of splitTokens(decodeURIComponent(productUrl.pathname))) {
+  addCandidate(candidates, pathname)
+
+  for (const token of splitTokens(pathname)) {
+    // Skip ultra-generic single tokens; they cause noisy matches (e.g. bare "iPhone").
+    if (token.length <= 6 && !/\d/.test(token) && !/[\u4e00-\u9fff]/.test(token)) continue
     addCandidate(candidates, token)
   }
 
@@ -214,16 +281,22 @@ const buildKeywordCandidates = (productUrl: URL, sourceHtml?: string) => {
   const sourceCandidates = sourceHtml ? buildHtmlCandidates(sourceHtml) : []
   const urlCandidates = buildUrlCandidates(productUrl)
 
-  // Prefer human-readable titles / long phrases first.
+  // Prefer human-readable titles / long phrases first; demote SKU-like codes.
   const ranked = unique([...sourceCandidates, ...urlCandidates])
     .sort((a, b) => {
+      const aSku = isSkuLike(a) ? 1 : 0
+      const bSku = isSkuLike(b) ? 1 : 0
+      if (aSku !== bSku) return aSku - bSku
       const aHasHan = /[\u4e00-\u9fff]/.test(a) ? 1 : 0
       const bHasHan = /[\u4e00-\u9fff]/.test(b) ? 1 : 0
       if (aHasHan !== bHasHan) return bHasHan - aHasHan
       return b.length - a.length
     })
 
-  return ranked.slice(0, 8)
+  // Keep at most 2 SKU fallbacks after readable keywords.
+  const readable = ranked.filter(value => !isSkuLike(value))
+  const skus = ranked.filter(value => isSkuLike(value)).slice(0, 2)
+  return [...readable, ...skus].slice(0, 8)
 }
 
 const buildSearchVariants = (candidate: string) => {
@@ -725,7 +798,8 @@ export default defineEventHandler(async (event) => {
     return matched
   }
 
-  const fallbackKeyword = keywordCandidates[0]
+  const fallbackKeyword = keywordCandidates.find(value => !isSkuLike(value)) || keywordCandidates[0]
+  const sourceBlocked = sourceStatus === 429 || sourceStatus === 403
   return {
     sourceUrl: rawUrl,
     keyword: fallbackKeyword,
@@ -737,8 +811,10 @@ export default defineEventHandler(async (event) => {
     sourceStatus,
     biggoUrl: buildBiggoSearchUrl(fallbackKeyword),
     lookupMode: 'search-link',
-    notice: sourceStatus && sourceStatus >= 400
-      ? `來源商品頁回應 ${sourceStatus}，且 BigGo 目前沒有可解析的價格資料。`
-      : 'BigGo 目前沒有可解析的價格資料，請開啟搜尋結果人工確認。'
+    notice: sourceBlocked
+      ? `來源商品頁回應 ${sourceStatus}（被限流或拒絕），無法自動讀取品名。請改在下方輸入商品關鍵字再查。`
+      : sourceStatus && sourceStatus >= 400
+        ? `來源商品頁回應 ${sourceStatus}，且 BigGo 目前沒有可解析的價格資料。`
+        : 'BigGo 目前沒有可解析的價格資料，請開啟搜尋結果人工確認，或改用商品關鍵字查詢。'
   } satisfies LookupResult
 })

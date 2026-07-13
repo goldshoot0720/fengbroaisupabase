@@ -215,22 +215,15 @@
               <div>
                 <p class="panel-kicker">價錢</p>
                 <h4>為「{{ selectedManualProduct.name }}」新增價錢</h4>
+                <p v-if="selectedManualProduct.note" class="tool-subtitle">{{ selectedManualProduct.note }}</p>
               </div>
-              <button
-                v-if="selectedManualProduct.note"
-                type="button"
-                class="tool-secondary-btn tool-secondary-btn--compact"
-                disabled
-              >
-                {{ selectedManualProduct.note }}
-              </button>
             </div>
 
             <div class="tool-input-grid manual-price-form">
               <label class="tool-field">
                 <span>價錢（元）</span>
                 <input
-                  v-model.trim="manualPriceForm.price"
+                  v-model="manualPriceForm.price"
                   type="number"
                   min="0"
                   step="1"
@@ -1243,7 +1236,10 @@ const biggoChart = computed(() => buildSingleSeriesChart(biggoHistory.value, 'cu
 const biggoSourceNotice = computed(() => {
   const status = Number(biggoResult.value?.sourceStatus)
   if (!Number.isFinite(status) || status < 400) return ''
-  return `原始商品頁回應 ${status}，目前改用網址與頁面關鍵字轉查 BigGo。`
+  if (status === 429 || status === 403) {
+    return `原始商品頁回應 ${status}（限流），若結果不準請改用關鍵字查詢。`
+  }
+  return `原始商品頁回應 ${status}，目前改用網址關鍵字轉查 BigGo。`
 })
 
 const selectedManualProduct = computed(() =>

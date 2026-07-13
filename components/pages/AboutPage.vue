@@ -179,7 +179,7 @@
             <div class="manual-step">5</div>
             <div class="manual-content">
               <h3>通路比價</h3>
-              <p>鋒兄工具可查 BigGo 與手機比價，並留下每 7 天一筆的價格快照。</p>
+              <p>鋒兄工具可查 BigGo、手動紀錄商品價錢與走勢，以及手機通路比價（每 7 天一筆快照）。</p>
             </div>
           </div>
         </div>

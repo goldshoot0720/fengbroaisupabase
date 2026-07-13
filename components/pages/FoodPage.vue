@@ -1,0 +1,1777 @@
+<template>
+  <div class="food-management">
+    <!-- 操作列 -->
+    <div class="actions-bar">
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="search-input"
+        placeholder="搜尋食品..."
+      />
+      <div class="date-filters" aria-label="食品年月篩選">
+        <select v-model="selectedYear" class="date-filter-select">
+          <option value="">全部年份</option>
+          <option value="__empty">無日期</option>
+          <option v-for="year in availableYears" :key="year" :value="String(year)">
+            {{ year }} 年
+          </option>
+        </select>
+        <select v-model="selectedMonth" class="date-filter-select" :disabled="selectedYear === '__empty'">
+          <option value="">全部月份</option>
+          <option v-for="month in monthOptions" :key="month.value" :value="month.value">
+            {{ month.label }}
+          </option>
+        </select>
+      </div>
+      <div class="csv-actions">
+        <button v-if="foods.length > 0" @click="exportFoodsZip" class="btn-export" :disabled="exporting">
+          {{ exporting ? '匯出中...' : '匯出 ZIP' }}
+        </button>
+        <button v-if="foods.length > 0" @click="exportFoodsCsv" class="btn-export btn-export-secondary">匯出 CSV</button>
+        <label class="btn-import">
+          匯入 ZIP/CSV
+          <input ref="csvFileInput" type="file" accept=".csv,.zip" style="display:none" @change="handleImportFile" />
+        </label>
+      </div>
+    </div>
+
+    <!-- 摘要列 + 批量操作 -->
+    <div class="summary-bar">
+      <div class="summary-left">
+        <!-- 批量選擇模式按鈕 -->
+        <button
+          v-if="!batchMode && filteredFoods.length > 0"
+          @click="enterBatchMode"
+          class="btn-batch-mode"
+        >
+          批量選擇
+        </button>
+
+        <!-- 新增按鈕 -->
+        <button @click="startAddRow" class="btn-add-icon" title="新增食品(或商品)">新增食品(或商品)</button>
+
+        <!-- 批量選擇模式下的全選/取消 -->
+        <template v-if="batchMode">
+          <label class="select-all-label">
+            <input
+              type="checkbox"
+              :checked="isAllSelected"
+              @change="toggleSelectAll"
+            />
+            <span>全選</span>
+          </label>
+          <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
+        </template>
+
+        <span>共 {{ filteredFoods.length }} / {{ foods.length }} 個項目</span>
+        <span v-if="selectedIds.length > 0" class="selected-count">
+          已選 {{ selectedIds.length }} 項
+        </span>
+      </div>
+      <div class="summary-right">
+        <button
+          v-if="selectedIds.length > 0"
+          @click="openConfirmModal"
+          class="btn-batch-delete"
+        >
+          刪除選中 ({{ selectedIds.length }})
+        </button>
+        <span v-if="expiringFoods.length > 0" class="expiry-warning">{{ expiringFoods.length }} 項即將到期</span>
+      </div>
+    </div>
+
+    <!-- 食物表格 -->
+    <div v-if="foodLoading" class="loading">載入中...</div>
+    <div v-else-if="filteredFoods.length === 0 && !showAddRow" class="empty-state">暫無食品記錄</div>
+    <div v-else class="food-table-container">
+      <table class="food-table">
+        <thead>
+          <tr>
+            <th v-if="batchMode" class="col-checkbox">
+              <input
+                type="checkbox"
+                :checked="isAllSelected"
+                @change="toggleSelectAll"
+              />
+            </th>
+            <th class="col-name">名稱</th>
+            <th class="col-date">有效期限</th>
+            <th class="col-remaining">剩餘日期</th>
+            <th class="col-amount">數量</th>
+            <th class="col-photo">圖片</th>
+            <th class="col-actions">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 新增行 -->
+          <tr v-if="showAddRow" class="add-row">
+            <td v-if="batchMode" class="col-checkbox"></td>
+            <td class="col-name" data-label="名稱">
+              <input v-model="addForm.name" type="text" class="inline-input" placeholder="食物名稱 *" />
+              <input v-model="addForm.shop" type="text" class="inline-input inline-small" placeholder="購買商店" />
+              <input v-model="addForm.price" type="number" class="inline-input inline-small inline-price" placeholder="價格" min="0" />
+            </td>
+            <td class="col-date" data-label="有效期限">
+              <input v-model="addForm.todate" type="date" class="inline-input inline-date" />
+            </td>
+            <td class="col-remaining" data-label="剩餘日期">
+              <span class="remaining-empty">-</span>
+            </td>
+            <td class="col-amount" data-label="數量">
+              <input v-model="addForm.amount" type="number" class="inline-input inline-number" placeholder="0" min="0" />
+            </td>
+            <td class="col-photo col-photo-edit" data-label="圖片">
+              <div v-if="addForm.photo" class="inline-photo-preview">
+                <img :src="resolveMediaUrl(addForm.photo)" alt="預覽" class="mini-photo" />
+                <button type="button" class="btn-remove-photo" @click="addForm.photo = ''">✕</button>
+              </div>
+              <label class="btn-upload-photo" :class="{ disabled: addPhotoUploading }">
+                {{ addPhotoUploading ? '...' : '📷上傳' }}
+                <input type="file" accept="image/*" style="display:none" :disabled="addPhotoUploading" @change="handleAddPhotoUpload" />
+              </label>
+              <input v-model="addForm.photo" type="text" class="inline-input inline-small" placeholder="照片URL" />
+            </td>
+            <td class="col-actions" data-label="操作">
+              <button @click="saveAddRow" class="btn-icon btn-save-icon" title="新增">✓</button>
+              <button @click="cancelAddRow" class="btn-icon btn-cancel-icon" title="取消">✕</button>
+            </td>
+          </tr>
+
+          <tr
+            v-for="food in filteredFoods"
+            :key="food.id"
+            :class="{ selected: selectedIds.includes(food.id), editing: editingRowId === food.id }"
+          >
+            <!-- 批量選擇 Checkbox -->
+            <td v-if="batchMode" class="col-checkbox">
+              <input
+                type="checkbox"
+                :value="food.id"
+                v-model="selectedIds"
+              />
+            </td>
+
+            <!-- 編輯模式：行内編輯 -->
+            <template v-if="editingRowId === food.id">
+              <td class="col-name" data-label="名稱">
+                <input v-model="editForm.name" type="text" class="inline-input" placeholder="食物名稱" />
+                <input v-model="editForm.shop" type="text" class="inline-input inline-small" placeholder="購買商店" />
+                <input v-model="editForm.price" type="number" class="inline-input inline-small inline-price" placeholder="價格" min="0" />
+              </td>
+              <td class="col-date" data-label="有效期限">
+                <input v-model="editForm.todate" type="date" class="inline-input inline-date" />
+              </td>
+              <td class="col-remaining" data-label="剩餘日期">
+                <span :class="getRemainingClass(editForm.todate)">{{ formatRemainingDate(editForm.todate) }}</span>
+              </td>
+              <td class="col-amount" data-label="數量">
+                <input v-model="editForm.amount" type="number" class="inline-input inline-number" placeholder="0" min="0" />
+              </td>
+              <td class="col-photo col-photo-edit" data-label="圖片">
+                <div v-if="editForm.photo" class="inline-photo-preview">
+                  <img :src="resolveMediaUrl(editForm.photo)" alt="預覽" class="mini-photo" @click="previewImage = resolveMediaUrl(editForm.photo)" />
+                  <button type="button" class="btn-remove-photo" @click="editForm.photo = ''">✕</button>
+                </div>
+                <label class="btn-upload-photo" :class="{ disabled: editPhotoUploading }">
+                  {{ editPhotoUploading ? '...' : '📷上傳' }}
+                  <input type="file" accept="image/*" style="display:none" :disabled="editPhotoUploading" @change="handleEditPhotoUpload" />
+                </label>
+                <input v-model="editForm.photo" type="text" class="inline-input inline-small" placeholder="照片URL" />
+              </td>
+              <td class="col-actions" data-label="操作">
+                <button @click="saveInlineEdit(food.id)" class="btn-icon btn-save-icon" title="儲存">✓</button>
+                <button @click="cancelInlineEdit" class="btn-icon btn-cancel-icon" title="取消">✕</button>
+              </td>
+            </template>
+
+            <!-- 正常顯示模式 -->
+            <template v-else>
+              <td class="col-name" data-label="名稱">
+                <div class="name-cell">
+                  <span class="food-name">{{ food.name }}</span>
+                  <div v-if="food.shop || food.price" class="food-meta">
+                    <span v-if="food.shop" class="food-shop">{{ food.shop }}</span>
+                    <span v-if="food.price" class="price-value">NT$ {{ food.price }}</span>
+                  </div>
+                </div>
+              </td>
+              <td class="col-date" data-label="有效期限">
+                <span :class="getExpiryClass(food.todate)">{{ formatDate(food.todate) }}</span>
+              </td>
+              <td class="col-remaining" data-label="剩餘日期">
+                <span :class="getRemainingClass(food.todate)">{{ formatRemainingDate(food.todate) }}</span>
+              </td>
+              <td class="col-amount" data-label="數量">
+                <div class="amount-stepper">
+                  <button
+                    type="button"
+                    class="btn-amount-step"
+                    :disabled="isAmountUpdating(food.id) || getFoodAmount(food) <= 0"
+                    title="減少數量"
+                    @click="adjustFoodAmount(food, -1)"
+                  >
+                    -
+                  </button>
+                  <span class="amount-value">{{ getFoodAmount(food) }}</span>
+                  <button
+                    type="button"
+                    class="btn-amount-step"
+                    :disabled="isAmountUpdating(food.id)"
+                    title="增加數量"
+                    @click="adjustFoodAmount(food, 1)"
+                  >
+                    +
+                  </button>
+                </div>
+              </td>
+              <td class="col-photo" data-label="圖片">
+                <img
+                  v-if="food.photo"
+                  :src="resolveMediaUrl(food.photo)"
+                  :alt="food.name"
+                  class="table-photo"
+                  @click="previewImage = resolveMediaUrl(food.photo)"
+                />
+              </td>
+              <td class="col-actions" data-label="操作">
+                <button @click="startInlineEdit(food)" class="btn-icon btn-edit-icon" title="編輯">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+                <button @click="copyFood(food)" class="btn-icon btn-copy-icon" title="Copy">C</button>
+                <button @click="deleteFood(food.id)" class="btn-icon btn-delete-icon" title="刪除">✕</button>
+              </td>
+            </template>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Image Preview Lightbox -->
+    <div v-if="previewImage" class="lightbox-overlay" @click="previewImage = null">
+      <img :src="previewImage" class="lightbox-image" />
+    </div>
+
+    <!-- 安全確認 Modal -->
+    <div v-if="showConfirmModal" class="modal-overlay" @click.self="closeConfirmModal">
+      <div class="modal confirm-modal">
+        <div class="modal-header danger">
+          <h2>安全確認</h2>
+          <button @click="closeConfirmModal" class="btn-close">&times;</button>
+        </div>
+        <div class="confirm-body">
+          <p class="confirm-warning">
+            您即將刪除 <strong>{{ selectedIds.length }}</strong> 個食品項目
+          </p>
+          <p class="confirm-hint">
+            此操作不可復原。請在下方輸入 <code>{{ CONFIRM_TEXT }}</code> 以確認刪除：
+          </p>
+          <input
+            v-model="confirmInput"
+            type="text"
+            class="confirm-input"
+            :placeholder="CONFIRM_TEXT"
+            @keyup.enter="confirmBatchDelete"
+          />
+          <p v-if="confirmInput && !isConfirmValid" class="confirm-error">
+            輸入不正確，請輸入 {{ CONFIRM_TEXT }}
+          </p>
+        </div>
+        <div class="modal-actions">
+          <button @click="closeConfirmModal" class="btn-cancel">取消</button>
+          <button
+            @click="confirmBatchDelete"
+            class="btn-submit btn-danger"
+            :disabled="!isConfirmValid"
+          >
+            確認刪除 ({{ selectedIds.length }})
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useFoods } from '../../composables/useFoods'
+import { useFormatters } from '../../composables/useFormatters'
+import { useStorage } from '../../composables/useStorage'
+
+const searchQuery = ref('')
+const selectedYear = ref('')
+const selectedMonth = ref('')
+const previewImage = ref(null)
+
+const {
+  foods,
+  foodLoading,
+  expiringFoods,
+  sortedFoods,
+  loadFoods,
+  addFoodInline,
+  importFoods,
+  isAppwriteFormat,
+  updateFoodInline,
+  deleteFood,
+  batchDeleteFoods
+} = useFoods()
+
+const { formatDate, getExpiryClass } = useFormatters()
+
+const EMPTY_DATE_FILTER = '__empty'
+
+const monthOptions = Array.from({ length: 12 }, (_, index) => {
+  const month = index + 1
+  return {
+    value: String(month),
+    label: `${month} 月`
+  }
+})
+
+const parseFoodDate = (dateString) => {
+  if (!dateString) return null
+  const date = new Date(dateString)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const getStartOfDay = (date) => {
+  const normalized = new Date(date)
+  normalized.setHours(0, 0, 0, 0)
+  return normalized
+}
+
+const calculateDaysRemaining = (dateString) => {
+  const targetDate = parseFoodDate(dateString)
+  if (!targetDate) return null
+
+  const today = getStartOfDay(new Date())
+  const target = getStartOfDay(targetDate)
+  return Math.round((target - today) / (1000 * 60 * 60 * 24))
+}
+
+const formatRemainingDate = (dateString) => {
+  const days = calculateDaysRemaining(dateString)
+  if (days === null) return '-'
+  if (days === 0) return '今天到期'
+  if (days === 1) return '明天到期'
+  if (days < 0) return `已過期 ${Math.abs(days)} 天`
+  return `剩 ${days} 天`
+}
+
+const getRemainingClass = (dateString) => {
+  const days = calculateDaysRemaining(dateString)
+  if (days === null) return 'remaining-empty'
+  if (days < 0) return 'remaining-badge remaining-expired'
+  if (days <= 7) return 'remaining-badge remaining-critical'
+  if (days <= 30) return 'remaining-badge remaining-warning'
+  return 'remaining-badge remaining-normal'
+}
+
+const availableYears = computed(() => {
+  const years = new Set()
+  foods.value.forEach((food) => {
+    const date = parseFoodDate(food.todate)
+    if (date) years.add(date.getFullYear())
+  })
+  const currentYear = new Date().getFullYear()
+  return [...years].sort((a, b) => {
+    const distance = Math.abs(a - currentYear) - Math.abs(b - currentYear)
+    return distance || a - b
+  })
+})
+
+// 圖片上傳
+const { uploadFile: uploadImageFile, getPublicUrl } = useStorage()
+const editPhotoUploading = ref(false)
+const addPhotoUploading = ref(false)
+const exporting = ref(false)
+
+const resolveMediaUrl = (value) => {
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value
+  return getPublicUrl(value) || value
+}
+
+const handleEditPhotoUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  editPhotoUploading.value = true
+  try {
+    const result = await uploadImageFile(file, 'food')
+    if (result.success) { editForm.value.photo = result.url }
+    else { alert('上傳失敗: ' + result.error) }
+  } catch (e) { alert('上傳失敗: ' + e.message) } finally { editPhotoUploading.value = false }
+}
+
+const handleAddPhotoUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  addPhotoUploading.value = true
+  try {
+    const result = await uploadImageFile(file, 'food')
+    if (result.success) { addForm.value.photo = result.url }
+    else { alert('上傳失敗: ' + result.error) }
+  } catch (e) { alert('上傳失敗: ' + e.message) } finally { addPhotoUploading.value = false }
+}
+
+// 批量選擇
+const selectedIds = ref([])
+const batchMode = ref(false)
+
+const enterBatchMode = () => {
+  batchMode.value = true
+  selectedIds.value = []
+}
+
+const exitBatchMode = () => {
+  batchMode.value = false
+  selectedIds.value = []
+}
+
+// 行内編輯
+const editingRowId = ref(null)
+const editForm = ref({
+  name: '',
+  shop: '',
+  todate: '',
+  amount: null,
+  price: null,
+  photo: '',
+  photohash: ''
+})
+
+// 行内新增
+const showAddRow = ref(false)
+const addForm = ref({
+  name: '',
+  shop: '',
+  todate: '',
+  amount: null,
+  price: null,
+  photo: '',
+  photohash: ''
+})
+
+const startAddRow = () => {
+  showAddRow.value = true
+  addForm.value = {
+    name: '',
+    shop: '',
+    todate: '',
+    amount: null,
+    price: null,
+    photo: '',
+    photohash: ''
+  }
+}
+
+const cancelAddRow = () => {
+  showAddRow.value = false
+}
+
+const saveAddRow = async () => {
+  if (!addForm.value.name) {
+    alert('請輸入食物名稱')
+    return
+  }
+  const result = await addFoodInline(addForm.value)
+  if (result.success) {
+    showAddRow.value = false
+  } else {
+    alert('新增失敗: ' + result.error)
+  }
+}
+
+const startInlineEdit = (food) => {
+  editingRowId.value = food.id
+  editForm.value = {
+    name: food.name || '',
+    shop: food.shop || '',
+    todate: food.todate || '',
+    amount: food.amount || null,
+    price: food.price || null,
+    photo: food.photo || '',
+    photohash: food.photohash || ''
+  }
+}
+
+const cancelInlineEdit = () => {
+  editingRowId.value = null
+}
+
+const saveInlineEdit = async (id) => {
+  const result = await updateFoodInline(id, editForm.value)
+  if (result.success) {
+    editingRowId.value = null
+  } else {
+    alert('儲存失敗: ' + result.error)
+  }
+}
+
+// 安全確認 Modal
+const amountUpdatingIds = ref(new Set())
+
+const getFoodAmount = (food) => {
+  const amount = Number(food?.amount ?? 0)
+  return Number.isFinite(amount) ? Math.max(0, amount) : 0
+}
+
+const isAmountUpdating = (id) => amountUpdatingIds.value.has(id)
+
+const setAmountUpdating = (id, isUpdating) => {
+  const next = new Set(amountUpdatingIds.value)
+  if (isUpdating) next.add(id)
+  else next.delete(id)
+  amountUpdatingIds.value = next
+}
+
+const adjustFoodAmount = async (food, delta) => {
+  if (!food?.id || isAmountUpdating(food.id)) return
+
+  const nextAmount = Math.max(0, getFoodAmount(food) + delta)
+  if (nextAmount === getFoodAmount(food)) return
+
+  setAmountUpdating(food.id, true)
+  const result = await updateFoodInline(food.id, {
+    ...food,
+    amount: nextAmount
+  }).finally(() => {
+    setAmountUpdating(food.id, false)
+  })
+
+  if (!result.success) {
+    alert('數量更新失敗: ' + result.error)
+  }
+}
+
+const copyFood = (food) => {
+  editingRowId.value = null
+  showAddRow.value = true
+  addForm.value = {
+    name: `${food.name || ''} 複製`.trim(),
+    shop: food.shop || '',
+    todate: food.todate || '',
+    amount: food.amount || null,
+    price: food.price || null,
+    photo: food.photo || '',
+    photohash: food.photohash || ''
+  }
+}
+
+const showConfirmModal = ref(false)
+const confirmInput = ref('')
+const CONFIRM_TEXT = 'DELETE food'
+
+const isAllSelected = computed(() => {
+  return filteredFoods.value.length > 0 &&
+         selectedIds.value.length === filteredFoods.value.length
+})
+
+const isConfirmValid = computed(() => {
+  return confirmInput.value === CONFIRM_TEXT
+})
+
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    selectedIds.value = []
+  } else {
+    selectedIds.value = filteredFoods.value.map(f => f.id)
+  }
+}
+
+const openConfirmModal = () => {
+  if (selectedIds.value.length === 0) return
+  confirmInput.value = ''
+  showConfirmModal.value = true
+}
+
+const closeConfirmModal = () => {
+  showConfirmModal.value = false
+  confirmInput.value = ''
+}
+
+const confirmBatchDelete = async () => {
+  if (!isConfirmValid.value) return
+
+  const result = await batchDeleteFoods(selectedIds.value)
+  if (result.success) {
+    selectedIds.value = []
+    batchMode.value = false
+    closeConfirmModal()
+    alert(`成功刪除 ${result.count} 個食品！`)
+  } else {
+    alert('批量刪除失敗: ' + result.error)
+  }
+}
+
+const filteredFoods = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  const year = selectedYear.value
+  const month = selectedMonth.value
+
+  return sortedFoods.value.filter((food) => {
+    const matchesSearch = !q ||
+      (food.name || '').toLowerCase().includes(q) ||
+      (food.shop || '').toLowerCase().includes(q)
+
+    if (!matchesSearch) return false
+    if (!year && !month) return true
+
+    const date = parseFoodDate(food.todate)
+    if (year === EMPTY_DATE_FILTER) return !date
+    if (!date) return false
+    if (year && date.getFullYear() !== Number(year)) return false
+    if (month && date.getMonth() + 1 !== Number(month)) return false
+    return true
+  })
+})
+
+onMounted(() => {
+  loadFoods()
+})
+
+const exportFoodsCsv = () => {
+  const header = ['name', 'amount', 'price', 'shop', 'todate', 'photo', 'photohash']
+  const rows = sortedFoods.value.map(food => [
+    food.name || '', food.amount ?? '', food.price ?? '',
+    food.shop || '', food.todate || '', food.photo || '', food.photohash || ''
+  ])
+  const bom = '\uFEFF'
+  const csvContent = bom + [header, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'supabase-food.csv'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+const exportFoodsZip = async () => {
+  if (foods.value.length === 0) {
+    alert('沒有資料可以匯出')
+    return
+  }
+  exporting.value = true
+  try {
+    const { exportRecordsAsMediaZip } = await import('../../utils/zipMediaBundle')
+    const stats = await exportRecordsAsMediaZip({
+      records: foods.value,
+      jsonFileName: 'foods.json',
+      downloadName: 'supabase-food.zip',
+      mediaMap: {
+        photo: { folder: 'photos', fallbackExt: 'jpg' }
+      },
+      resolveUrl: resolveMediaUrl
+    })
+    alert(`匯出成功！\n照片成功 ${stats.ok}，失敗 ${stats.fail}，略過 ${stats.skipped}`)
+  } catch (error) {
+    console.error('Food ZIP export failed:', error)
+    alert('匯出失敗：' + error.message)
+  } finally {
+    exporting.value = false
+  }
+}
+
+const csvFileInput = ref(null)
+
+const parseCsv = (text) => {
+  const parseRow = (line) => {
+    const cells = []; let current = ''; let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i]
+      if (char === '"') { if (inQuotes && line[i+1] === '"') { current += '"'; i++ } else inQuotes = !inQuotes }
+      else if (char === ',' && !inQuotes) { cells.push(current.trim()); current = '' }
+      else current += char
+    }
+    cells.push(current.trim()); return cells
+  }
+  const splitIntoRows = (text) => {
+    const rows = []; let current = ''; let inQuotes = false
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i]
+      if (char === '"') { inQuotes = !inQuotes; current += char }
+      else if (char === '\n' && !inQuotes) { if (current.trim()) rows.push(current); current = '' }
+      else current += char
+    }
+    if (current.trim()) rows.push(current); return rows
+  }
+  const lines = splitIntoRows(text)
+  if (lines.length < 2) return []
+  const headers = parseRow(lines[0])
+  return lines.slice(1).map(line => {
+    const cells = parseRow(line); const obj = {}
+    headers.forEach((h, i) => { obj[h] = cells[i] || '' }); return obj
+  })
+}
+
+const importFoodRows = async (rows) => {
+  if (!rows.length) {
+    alert('檔案無有效資料')
+    return
+  }
+  const isAppwrite = isAppwriteFormat(rows)
+  let confirmMsg = `確定匯入 ${rows.length} 筆食品資料？`
+  if (isAppwrite) confirmMsg = `偵測到 ISO 8601 日期格式\n系統將自動轉換\n\n確定匯入 ${rows.length} 筆食品資料？`
+  if (!confirm(confirmMsg)) return
+  const result = await importFoods(rows)
+  if (result.success) alert(result.message ? `${result.message}，新增 ${result.count} 筆食品` : `成功匯入 ${result.count} 筆食品！`)
+  else alert('匯入失敗: ' + result.error)
+}
+
+const handleImportFile = async (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  try {
+    const lower = file.name.toLowerCase()
+    if (lower.endsWith('.zip')) {
+      const JSZip = (await import('jszip')).default
+      const zip = await JSZip.loadAsync(file)
+      const jsonFile = zip.file('foods.json')
+      if (!jsonFile) {
+        alert('ZIP 中找不到 foods.json')
+        return
+      }
+      const jsonData = JSON.parse(await jsonFile.async('text'))
+      if (!Array.isArray(jsonData) || jsonData.length === 0) {
+        alert('JSON 檔案格式錯誤或無資料')
+        return
+      }
+      let records = jsonData.map(({ id, created_at, updated_at, ...rest }) => rest)
+      if (!confirm(`確定匯入 ${records.length} 筆食品？\n若 ZIP 內含照片，會自動上傳。`)) return
+
+      const { reuploadLocalMediaFromZip } = await import('../../utils/zipMediaBundle')
+      const reuploaded = await reuploadLocalMediaFromZip({
+        zip,
+        records,
+        mediaMap: {
+          photo: { prefixes: ['photos/', 'media/'], storageFolder: 'food', mimeFallback: 'image/jpeg' }
+        },
+        uploadFile: uploadImageFile
+      })
+      records = reuploaded.records
+      const result = await importFoods(records)
+      if (result.success) alert(result.message ? `${result.message}，新增 ${result.count} 筆食品` : `成功匯入 ${result.count} 筆食品！`)
+      else alert('匯入失敗: ' + result.error)
+      return
+    }
+
+    const text = await file.text()
+    const rows = parseCsv(text)
+    await importFoodRows(rows)
+  } catch (error) {
+    console.error('Food import failed:', error)
+    alert('匯入失敗：' + error.message)
+  } finally {
+    e.target.value = ''
+  }
+}
+
+defineExpose({ foods, expiringFoods })
+</script>
+
+<style scoped>
+.food-management {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.actions-bar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #27ae60;
+}
+
+.date-filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.date-filter-select {
+  min-width: 130px;
+  padding: 0.75rem 0.95rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  font-size: 0.95rem;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.date-filter-select:focus {
+  outline: none;
+  border-color: #27ae60;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.12);
+}
+
+.date-filter-select:disabled {
+  color: #999;
+  background: #f4f6f8;
+  cursor: not-allowed;
+}
+
+.csv-actions { display: flex; gap: 0.5rem; }
+
+.btn-export,
+.btn-import {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.btn-export:hover,
+.btn-import:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-import { display: inline-block; }
+
+/* Summary bar */
+.summary-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.08) 0%, rgba(46, 204, 113, 0.08) 100%);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  color: #555;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.summary-left,
+.summary-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.select-all-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.select-all-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.selected-count {
+  background: #27ae60;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.btn-batch-mode {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-batch-mode:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-add-icon {
+  width: auto;
+  min-width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  line-height: 1.2;
+  padding: 0 1rem;
+}
+
+.btn-add-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+}
+
+.btn-cancel-batch {
+  padding: 0.35rem 0.75rem;
+  background: #e0e0e0;
+  color: #666;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-cancel-batch:hover { background: #d0d0d0; }
+
+.btn-batch-delete {
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-batch-delete:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+}
+
+.expiry-warning {
+  color: #e74c3c;
+  font-weight: 700;
+}
+
+.loading,
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+/* Table */
+.food-table-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  overflow-x: auto;
+  border: 1px solid #f0f0f0;
+}
+
+.food-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.food-table thead {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.food-table th {
+  padding: 1rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  white-space: nowrap;
+}
+
+.food-table td {
+  padding: 0.875rem 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+}
+
+.food-table tbody tr {
+  transition: background-color 0.2s;
+}
+
+.food-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.food-table tbody tr.selected {
+  background-color: rgba(39, 174, 96, 0.1);
+}
+
+.food-table tbody tr.selected:hover {
+  background-color: rgba(39, 174, 96, 0.15);
+}
+
+.food-table tbody tr.editing {
+  background-color: rgba(255, 243, 205, 0.5);
+}
+
+.food-table tbody tr.editing:hover {
+  background-color: rgba(255, 243, 205, 0.7);
+}
+
+.food-table tbody tr.add-row {
+  background-color: rgba(212, 237, 218, 0.5);
+  border-left: 3px solid #28a745;
+}
+
+.food-table tbody tr.add-row:hover {
+  background-color: rgba(212, 237, 218, 0.7);
+}
+
+/* Inline editing inputs */
+.inline-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 2px solid #27ae60;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.inline-input:focus {
+  outline: none;
+  border-color: #219a52;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+}
+
+.inline-input + .inline-input {
+  margin-top: 0.35rem;
+}
+
+.inline-small {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.5rem;
+  border-width: 1px;
+}
+
+.inline-price {
+  max-width: 110px;
+}
+
+.inline-date {
+  min-width: 130px;
+}
+
+.inline-number {
+  width: 80px;
+  text-align: right;
+}
+
+.inline-photo-preview {
+  margin-bottom: 0.35rem;
+}
+
+.mini-photo {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Column widths */
+.col-checkbox {
+  width: 40px;
+  text-align: center;
+}
+
+.col-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.col-name {
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.col-date {
+  width: 110px;
+  white-space: nowrap;
+}
+
+.col-remaining {
+  width: 110px;
+  white-space: nowrap;
+}
+
+.col-amount {
+  width: 130px;
+  text-align: center;
+}
+
+.amount-stepper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 112px;
+}
+
+.btn-amount-step {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 8px;
+  background: #eef6ff;
+  color: #1d4ed8;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-amount-step:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.btn-amount-step:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.amount-value {
+  min-width: 2rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.col-photo {
+  width: 60px;
+}
+
+.col-photo-edit {
+  width: 120px;
+  min-width: 110px;
+}
+
+.btn-upload-photo {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-bottom: 0.3rem;
+  transition: opacity 0.2s;
+}
+
+.btn-upload-photo.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-remove-photo {
+  background: none;
+  border: 1px solid #f87171;
+  color: #f87171;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.3rem;
+  cursor: pointer;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+
+.btn-remove-photo:hover {
+  background: #fee2e2;
+}
+
+.col-actions {
+  width: 100px;
+  text-align: center;
+}
+
+/* Cell content */
+.name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.food-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.food-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.food-shop {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.price-value {
+  font-weight: 600;
+  color: #e67e22;
+  white-space: nowrap;
+}
+
+.table-photo {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.table-photo:hover { transform: scale(1.1); }
+
+.date-normal { color: #27ae60; }
+.date-soon { color: #f39c12; font-weight: bold; }
+.date-overdue { color: #e74c3c; font-weight: bold; }
+.date-critical { color: #e74c3c; font-weight: bold; }
+
+.remaining-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 74px;
+  min-height: 28px;
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.remaining-normal {
+  color: #1f7a4d;
+  background: #eaf7ef;
+}
+
+.remaining-warning {
+  color: #9a5b00;
+  background: #fff3d8;
+}
+
+.remaining-critical {
+  color: #b54708;
+  background: #ffe7d6;
+}
+
+.remaining-expired {
+  color: #b42318;
+  background: #ffe4e0;
+}
+
+.remaining-empty {
+  color: #adb5bd;
+}
+
+/* Icon action buttons */
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  margin: 0 0.25rem;
+}
+
+.btn-edit-icon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-edit-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-copy-icon {
+  background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+  color: white;
+  font-weight: 700;
+}
+
+.btn-copy-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.35);
+}
+
+.btn-delete-icon {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.btn-delete-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+}
+
+.btn-save-icon {
+  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+  color: white;
+  font-weight: bold;
+}
+
+.btn-save-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+}
+
+.btn-cancel-icon {
+  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+  color: white;
+  font-weight: bold;
+}
+
+.btn-cancel-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(149, 165, 166, 0.4);
+}
+
+/* Lightbox */
+.lightbox-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  cursor: pointer;
+}
+
+.lightbox-image {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.modal-header.danger h2 {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #999;
+  line-height: 1;
+  padding: 0;
+  width: 32px; height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.btn-close:hover { background: #f5f5f5; color: #333; }
+
+.confirm-body {
+  padding: 1rem 0;
+}
+
+.confirm-warning {
+  font-size: 1.1rem;
+  color: #e74c3c;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.confirm-warning strong {
+  font-size: 1.5rem;
+  color: #c0392b;
+}
+
+.confirm-hint {
+  color: #666;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.confirm-hint code {
+  background: #f5f5f5;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  color: #e74c3c;
+  font-weight: 600;
+}
+
+.confirm-input {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  letter-spacing: 1px;
+  transition: all 0.3s;
+}
+
+.confirm-input:focus {
+  outline: none;
+  border-color: #e74c3c;
+}
+
+.confirm-error {
+  color: #e74c3c;
+  font-size: 0.9rem;
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.btn-cancel,
+.btn-submit {
+  flex: 1;
+  padding: 0.875rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-cancel { background: #e0e0e0; color: #666; }
+.btn-cancel:hover { background: #d0d0d0; }
+
+.btn-danger {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+}
+
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .actions-bar {
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    align-items: stretch;
+  }
+
+  .search-input {
+    min-width: 0;
+    width: 100%;
+    padding: 0.8rem 0.9rem;
+    font-size: 0.95rem;
+  }
+
+  .date-filters,
+  .date-filter-select {
+    width: 100%;
+  }
+
+  .csv-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .btn-export,
+  .btn-import {
+    width: 100%;
+    padding: 0.8rem 0.95rem;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+
+  .summary-bar {
+    padding: 0.8rem 0.9rem;
+    margin-bottom: 1rem;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .summary-left,
+  .summary-right {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+  }
+
+  .summary-right {
+    justify-content: flex-start;
+  }
+
+  .btn-batch-mode,
+  .btn-cancel-batch,
+  .btn-batch-delete {
+    min-height: 40px;
+  }
+
+  .btn-add-icon {
+    width: auto;
+    min-width: 40px;
+    height: 40px;
+    font-size: 0.88rem;
+  }
+
+  .selected-count,
+  .expiry-warning {
+    font-size: 0.82rem;
+  }
+
+  .food-table-container {
+    font-size: 0.85rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .food-table,
+  .food-table tbody,
+  .food-table tr,
+  .food-table td {
+    display: block;
+  }
+
+  .food-table thead {
+    display: none;
+  }
+
+  .food-table tbody {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .food-table tbody tr {
+    background: #fff;
+    border: 1px solid #e8edf3;
+    border-radius: 18px;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+    padding: 0.85rem 0.9rem;
+  }
+
+  .food-table tbody tr.add-row {
+    border-left: 1px solid #28a745;
+  }
+
+  .food-table td {
+    padding: 0;
+    border-bottom: none;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .food-table td + td {
+    margin-top: 0.75rem;
+  }
+
+  .food-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #7a8796;
+  }
+
+  .col-checkbox {
+    text-align: left;
+  }
+
+  .col-name,
+  .col-date,
+  .col-remaining,
+  .col-amount,
+  .col-photo,
+  .col-photo-edit,
+  .col-actions {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .name-cell {
+    gap: 0.2rem;
+  }
+
+  .food-name {
+    font-size: 1rem;
+  }
+
+  .col-date span,
+  .col-remaining span,
+  .col-amount span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.5rem;
+  }
+
+  .col-photo {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .table-photo,
+  .mini-photo {
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
+  }
+
+  .col-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .col-actions .btn-icon {
+    margin: 0;
+    width: 40px;
+    height: 40px;
+  }
+
+  .inline-number,
+  .inline-price,
+  .inline-date {
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .csv-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-left,
+  .summary-right {
+    gap: 0.55rem;
+  }
+
+  .btn-batch-mode,
+  .btn-cancel-batch,
+  .btn-batch-delete {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .select-all-label {
+    width: 100%;
+  }
+
+  .food-table tbody tr {
+    padding: 0.8rem;
+    border-radius: 16px;
+  }
+}
+</style>

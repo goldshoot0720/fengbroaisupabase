@@ -1,0 +1,1869 @@
+<template>
+  <PageContainer>
+    <div class="bank-page">
+      <!-- 操作區 -->
+      <div class="actions-bar">
+        <div class="total-assets-card">
+          <div class="label">所有資產</div>
+          <div class="amount">NT$ {{ formatNumber(totalAssets) }}</div>
+        </div>
+        <div class="total-assets-card bank-assets-card">
+          <div class="label">銀行總資產</div>
+          <div class="amount">NT$ {{ formatNumber(bankTotalAssets) }}</div>
+        </div>
+        <div class="total-assets-card ticket-assets-card">
+          <div class="label">電子票證總資產</div>
+          <div class="amount">NT$ {{ formatNumber(electronicTicketTotalAssets) }}</div>
+        </div>
+        <div class="csv-actions">
+          <button v-if="banks.length > 0" @click="exportBanksCsv" class="btn-csv export">
+            匯出 CSV
+          </button>
+          <button @click="$refs.csvFileInput.click()" class="btn-csv import">
+            匯入 CSV
+          </button>
+          <input
+            ref="csvFileInput"
+            type="file"
+            accept=".csv"
+            style="display:none"
+            @change="handleImportCsv"
+          >
+        </div>
+      </div>
+
+      <!-- 摘要列 -->
+      <div class="summary-bar">
+        <div class="summary-left">
+          <button v-if="!batchMode && banks.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
+          <button v-if="banks.length > 0" @click="openTransactionModal('income')" class="btn-transaction income" title="新增收入">新增收入</button>
+          <button v-if="banks.length > 0" @click="openTransactionModal('expense')" class="btn-transaction expense" title="新增支出">新增支出</button>
+          <button @click="openAddModal" class="btn-add-account" title="新增銀行(或電子票證)">新增銀行(或電子票證)</button>
+          <template v-if="batchMode">
+            <label class="select-all-label">
+              <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
+              <span>全選</span>
+            </label>
+            <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
+          </template>
+          <span>銀行帳戶 {{ bankAccountCount }} 個</span>
+          <span>電子票證 {{ electronicTicketCount }} 個</span>
+          <span>共 {{ banks.length }} 個項目</span>
+          <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
+        </div>
+        <div class="summary-right">
+          <button v-if="selectedIds.size > 0" class="btn-batch-adjust" @click="openBatchAdjustModal" :disabled="loading">設定/調整存款 ({{ selectedIds.size }})</button>
+          <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除選中 ({{ selectedIds.size }})</button>
+        </div>
+      </div>
+
+      <div v-if="banks.length > 0" class="transaction-hint">
+        交易流程：先選銀行，再選收入或支出，最後輸入金額，系統會直接更新該銀行目前餘額。
+      </div>
+
+      <!-- 載入中 -->
+      <div v-if="loading && banks.length === 0" class="loading-state">
+        <div class="spinner"></div>
+        <p>載入資料中...</p>
+      </div>
+
+      <!-- 空狀態 (無資料時顯示) -->
+      <div v-else-if="banks.length === 0 && !isAddingInline" class="empty-state">
+        <div class="empty-icon">🏦</div>
+        <h3>尚無銀行帳戶資料</h3>
+        <p>您可以手動新增，或直接匯入預設的 9 家銀行。</p>
+        <div class="empty-actions">
+          <button class="btn-primary" @click="handleInitDefaults">
+            <span class="icon">⚡</span> 一鍵匯入預設銀行
+          </button>
+          <button class="btn-secondary" @click="openAddModal">
+            <span class="icon">➕</span> 手動新增
+          </button>
+        </div>
+      </div>
+
+      <!-- 銀行列表 Grid -->
+      <div v-if="isAddingInline || banks.length > 0" class="bank-grid">
+
+        <!-- 行內新增卡片 -->
+        <div v-if="isAddingInline" class="bank-card card-editing">
+          <div class="bank-header">
+            <div class="bank-title">
+              <input v-model="addForm.name" type="text" class="inline-input inline-name" placeholder="銀行名稱 *" />
+            </div>
+            <div class="bank-actions">
+              <button class="btn-icon save" @click="saveInlineAdd" title="儲存">💾</button>
+              <button class="btn-icon" @click="cancelInlineAdd" title="取消">✕</button>
+            </div>
+          </div>
+          <div class="bank-info inline-edit-content">
+            <div class="inline-edit-form">
+              <div class="inline-field-row"><label>存款</label><input v-model.number="addForm.deposit" type="number" class="inline-input" placeholder="0" /></div>
+              <div class="inline-field-row"><label>帳號</label><input v-model="addForm.account" type="text" class="inline-input" placeholder="帳號" /></div>
+              <div class="inline-field-row"><label>卡號</label><input v-model="addForm.card" type="text" class="inline-input" placeholder="卡號" /></div>
+              <div class="inline-field-row"><label>分行</label><input v-model="addForm.site" type="text" class="inline-input" placeholder="分行/網點" /></div>
+              <div class="inline-field-row"><label>地址</label><input v-model="addForm.address" type="text" class="inline-input" placeholder="地址" /></div>
+              <div class="inline-field-row"><label>提款</label><input v-model.number="addForm.withdrawals" type="number" class="inline-input" placeholder="提款" /></div>
+              <div class="inline-field-row"><label>轉帳</label><input v-model.number="addForm.transfer" type="number" class="inline-input" placeholder="轉帳" /></div>
+              <div class="inline-field-row"><label>活動</label><textarea v-model="addForm.activity" class="inline-input inline-textarea" rows="2" placeholder="活動/備註"></textarea></div>
+            </div>
+          </div>
+        </div>
+        <div
+          v-for="bank in banks"
+          :key="bank.id"
+          class="bank-card"
+          :class="{ 'card-editing': editingId === bank.id, selected: selectedIds.has(bank.id) }"
+          @click="batchMode && editingId !== bank.id ? toggleSelect(bank.id) : null"
+        >
+          <!-- 行內編輯模式 -->
+          <template v-if="editingId === bank.id">
+            <div class="bank-header">
+              <div class="bank-title">
+                <input v-model="editForm.name" type="text" class="inline-input inline-name" placeholder="銀行名稱">
+              </div>
+              <div class="bank-actions">
+                <button class="btn-icon save" @click="saveInlineEdit" title="儲存">💾</button>
+                <button class="btn-icon" @click="cancelInlineEdit" title="取消">✕</button>
+              </div>
+            </div>
+            <div class="bank-info inline-edit-content">
+              <div class="inline-edit-form">
+                <div class="inline-field-row">
+                  <label>存款</label>
+                  <input v-model.number="editForm.deposit" type="number" class="inline-input" placeholder="存款金額">
+                </div>
+                <div class="inline-field-row">
+                  <label>帳號</label>
+                  <input v-model="editForm.account" type="text" class="inline-input" placeholder="帳號">
+                </div>
+                <div class="inline-field-row">
+                  <label>卡號</label>
+                  <input v-model="editForm.card" type="text" class="inline-input" placeholder="卡號">
+                </div>
+                <div class="inline-field-row">
+                  <label>分行</label>
+                  <input v-model="editForm.site" type="text" class="inline-input" placeholder="分行/網點">
+                </div>
+                <div class="inline-field-row">
+                  <label>地址</label>
+                  <input v-model="editForm.address" type="text" class="inline-input" placeholder="地址">
+                </div>
+                <div class="inline-field-row">
+                  <label>提款</label>
+                  <input v-model.number="editForm.withdrawals" type="number" class="inline-input" placeholder="提款">
+                </div>
+                <div class="inline-field-row">
+                  <label>轉帳</label>
+                  <input v-model.number="editForm.transfer" type="number" class="inline-input" placeholder="轉帳">
+                </div>
+                <div class="inline-field-row">
+                  <label>活動</label>
+                  <textarea v-model="editForm.activity" class="inline-input inline-textarea" rows="2" placeholder="活動/備註"></textarea>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- 顯示模式 -->
+          <template v-else>
+          <label v-if="batchMode" class="card-select-row" @click.stop>
+            <input type="checkbox" :checked="selectedIds.has(bank.id)" @change="toggleSelect(bank.id)">
+            <span>{{ selectedIds.has(bank.id) ? '已選取' : '選取這家' }}</span>
+          </label>
+          <div class="bank-header">
+            <div class="bank-title">
+              <img 
+                v-if="getBankFavicon(bank.name)" 
+                :src="getBankFavicon(bank.name)" 
+                :alt="bank.name"
+                class="bank-favicon"
+                @error="$event.target.style.display='none'"
+              >
+              <a
+                v-if="getBankSiteUrl(bank.site)"
+                class="bank-name bank-name-link"
+                :href="getBankSiteUrl(bank.site)"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ bank.name }}
+              </a>
+              <h3 v-else class="bank-name">{{ bank.name }}</h3>
+            </div>
+            <div class="bank-actions">
+              <button class="btn-icon" @click="startInlineEdit(bank)" title="編輯">✏️</button>
+              <button class="btn-icon delete" @click="confirmDelete(bank)" title="刪除">🗑️</button>
+            </div>
+          </div>
+          
+          <div class="bank-info">
+            <div class="info-item highlight">
+              <span class="label">存款</span>
+              <span class="value">NT$ {{ formatNumber(bank.deposit) }}</span>
+            </div>
+            
+            <div class="info-row">
+              <div class="info-item">
+                <span class="label">帳號</span>
+                <span class="value">{{ bank.account || '未設定' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">卡號</span>
+                <span class="value">{{ bank.card || '未設定' }}</span>
+              </div>
+            </div>
+
+            <div class="info-details" v-if="showDetails[bank.id]">
+              <div class="detail-item">
+                <span class="label">分行/網點:</span> {{ bank.site || '-' }}
+              </div>
+              <div class="detail-item">
+                <span class="label">地址:</span> {{ bank.address || '-' }}
+              </div>
+              <div class="detail-item">
+                <span class="label">提款:</span> NT$ {{ formatNumber(bank.withdrawals) }}
+              </div>
+              <div class="detail-item">
+                <span class="label">轉帳:</span> NT$ {{ formatNumber(bank.transfer) }}
+              </div>
+              <div class="detail-item full-width">
+                <span class="label">活動/備註:</span> {{ bank.activity || '-' }}
+              </div>
+            </div>
+            
+            <button 
+              class="btn-toggle-details" 
+              @click="toggleDetails(bank.id)"
+            >
+              {{ showDetails[bank.id] ? '收起詳細資訊' : '顯示詳細資訊' }}
+            </button>
+          </div>
+          </template>
+        </div>
+      </div>
+
+      <div v-if="showBatchAdjustModal" class="modal-overlay" @click.self="closeBatchAdjustModal">
+        <div class="modal-content modal-content--batch-adjust">
+          <div class="modal-header">
+            <h3>批量設定銀行存款</h3>
+            <button class="btn-close" @click="closeBatchAdjustModal">✕</button>
+          </div>
+
+          <div class="modal-body batch-adjust-body">
+            <div class="batch-adjust-controls">
+              <div class="form-group">
+                <label>處理方式</label>
+                <div class="segmented-control">
+                  <button
+                    type="button"
+                    :class="{ active: batchOperation === 'set' }"
+                    @click="batchOperation = 'set'"
+                  >
+                    設定存款
+                  </button>
+                  <button
+                    type="button"
+                    :class="{ active: batchOperation === 'adjust' }"
+                    @click="batchOperation = 'adjust'"
+                  >
+                    加減金額
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>數字方式</label>
+                <div class="segmented-control">
+                  <button
+                    type="button"
+                    :class="{ active: batchAdjustMode === 'fixed' }"
+                    @click="batchAdjustMode = 'fixed'"
+                  >
+                    固定數字
+                  </button>
+                  <button
+                    type="button"
+                    :class="{ active: batchAdjustMode === 'individual' }"
+                    @click="batchAdjustMode = 'individual'"
+                  >
+                    分別數字
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="batchOperation === 'adjust'" class="form-group">
+                <label>加減方向</label>
+                <div class="transaction-type-group">
+                  <button
+                    type="button"
+                    class="transaction-type-btn"
+                    :class="{ active: batchAdjustType === 'income' }"
+                    @click="batchAdjustType = 'income'"
+                  >
+                    + 增加
+                  </button>
+                  <button
+                    type="button"
+                    class="transaction-type-btn"
+                    :class="{ active: batchAdjustType === 'expense' }"
+                    @click="batchAdjustType = 'expense'"
+                  >
+                    - 減少
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="batchAdjustMode === 'fixed'" class="form-group">
+                <label>{{ batchOperation === 'set' ? '每家銀行固定存款數字' : '每家銀行固定加減金額' }}</label>
+                <input v-model.number="batchFixedAmount" type="number" min="0" class="form-input" :placeholder="batchOperation === 'set' ? '例如 50000' : '例如 1000'">
+              </div>
+            </div>
+
+            <div class="batch-adjust-summary">
+              <span>已選 {{ selectedBanks.length }} 家銀行</span>
+              <strong v-if="batchOperation === 'set'">
+                {{ isBatchReady ? `設定後合計 NT$ ${formatNumber(totalProjectedDeposit)}` : '等待輸入存款數字' }}
+              </strong>
+              <strong v-else>{{ batchAdjustType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(totalBatchAdjustment) }}</strong>
+            </div>
+
+            <div class="batch-selected-list">
+              <div v-for="bank in selectedBanks" :key="bank.id" class="batch-bank-row">
+                <div class="batch-bank-main">
+                  <strong>{{ bank.name }}</strong>
+                  <span>目前 NT$ {{ formatNumber(bank.deposit) }}</span>
+                </div>
+                <input
+                  v-if="batchAdjustMode === 'individual'"
+                  v-model.number="individualAdjustments[bank.id]"
+                  type="number"
+                  min="0"
+                  class="form-input batch-amount-input"
+                  :placeholder="batchOperation === 'set' ? '輸入存款數字' : '輸入金額'"
+                >
+                <div class="batch-bank-preview">
+                  <span v-if="!hasBatchInput(bank)" class="preview-muted">尚未輸入</span>
+                  <span v-else-if="batchOperation === 'set'">設定 NT$ {{ formatNumber(getBatchAmount(bank)) }}</span>
+                  <span v-else>{{ batchAdjustType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(getBatchAmount(bank)) }}</span>
+                  <strong>更新後 NT$ {{ formatNumber(getAdjustedDeposit(bank)) }}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="closeBatchAdjustModal">取消</button>
+            <button class="btn-submit" @click="submitBatchAdjust" :disabled="loading">
+              {{ loading ? '處理中...' : '確認批量更新' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="showTransactionModal" class="modal-overlay" @click.self="closeTransactionModal">
+        <div class="modal-content modal-content--transaction">
+          <div class="modal-header">
+            <h3>{{ transactionType === 'income' ? '新增收入' : '新增支出' }}</h3>
+            <button class="btn-close" @click="closeTransactionModal">✕</button>
+          </div>
+
+          <div class="modal-body transaction-body">
+            <div class="transaction-steps">
+              <div class="transaction-step">
+                <span class="step-index">1</span>
+                <div>
+                  <div class="step-title">選擇銀行</div>
+                  <select v-model="transactionForm.bankId" class="form-select">
+                    <option value="" disabled>請選擇銀行帳戶</option>
+                    <option v-for="bank in banks" :key="bank.id" :value="String(bank.id)">
+                      {{ bank.name }} (目前 NT$ {{ formatNumber(bank.deposit) }})
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="transaction-step">
+                <span class="step-index">2</span>
+                <div>
+                  <div class="step-title">選擇類型</div>
+                  <div class="transaction-type-group">
+                    <button
+                      type="button"
+                      class="transaction-type-btn"
+                      :class="{ active: transactionType === 'income' }"
+                      @click="transactionType = 'income'"
+                    >
+                      收入
+                    </button>
+                    <button
+                      type="button"
+                      class="transaction-type-btn"
+                      :class="{ active: transactionType === 'expense' }"
+                      @click="transactionType = 'expense'"
+                    >
+                      支出
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="transaction-step">
+                <span class="step-index">3</span>
+                <div>
+                  <div class="step-title">輸入金額</div>
+                  <input v-model.number="transactionForm.amount" type="number" min="0" class="form-input" placeholder="請輸入金額">
+                </div>
+              </div>
+            </div>
+
+            <div v-if="selectedTransactionBank" class="transaction-preview">
+              <div class="preview-row">
+                <span>目前金額</span>
+                <strong>NT$ {{ formatNumber(selectedTransactionBank.deposit) }}</strong>
+              </div>
+              <div class="preview-row">
+                <span>{{ transactionType === 'income' ? '本次收入' : '本次支出' }}</span>
+                <strong :class="transactionType === 'income' ? 'preview-positive' : 'preview-negative'">
+                  {{ transactionType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(transactionForm.amount || 0) }}
+                </strong>
+              </div>
+              <div class="preview-row preview-total">
+                <span>更新後餘額</span>
+                <strong>NT$ {{ formatNumber(projectedTransactionBalance) }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="closeTransactionModal">取消</button>
+            <button class="btn-submit" @click="submitTransaction" :disabled="loading">
+              {{ loading ? '處理中...' : '確認更新餘額' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 編輯/新增 Modal -->
+      <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>{{ isEditing ? '編輯銀行帳戶' : '新增銀行(或電子票證)' }}</h3>
+            <button class="btn-close" @click="closeModal">✕</button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="form-group">
+              <label>銀行名稱</label>
+              <select v-model="formData.name" class="form-select">
+                <option value="" disabled>請選擇銀行</option>
+                <option v-for="name in defaultBankNames" :key="name" :value="name">
+                  {{ name }}
+                </option>
+                <option value="other">其他 (手動輸入)</option>
+              </select>
+              <input 
+                v-if="formData.name === 'other' || !defaultBankNames.includes(formData.name)" 
+                v-model="customBankName" 
+                type="text" 
+                class="form-input mt-2" 
+                placeholder="輸入銀行名稱"
+              >
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>存款金額</label>
+                <input v-model.number="formData.deposit" type="number" class="form-input">
+              </div>
+              <div class="form-group">
+                <label>帳號</label>
+                <input v-model="formData.account" type="text" class="form-input">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>卡號</label>
+                <input v-model="formData.card" type="text" class="form-input">
+              </div>
+              <div class="form-group">
+                <label>分行/網點</label>
+                <input v-model="formData.site" type="text" class="form-input">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>地址</label>
+              <input v-model="formData.address" type="text" class="form-input">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>提款紀錄</label>
+                <input v-model.number="formData.withdrawals" type="number" class="form-input">
+              </div>
+              <div class="form-group">
+                <label>轉帳紀錄</label>
+                <input v-model.number="formData.transfer" type="number" class="form-input">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>活動/備註</label>
+              <textarea v-model="formData.activity" class="form-textarea" rows="3"></textarea>
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="closeModal">取消</button>
+            <button class="btn-submit" @click="handleSubmit" :disabled="loading">
+              {{ loading ? '處理中...' : '確認儲存' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </PageContainer>
+</template>
+
+<script setup>
+import { ref, onMounted, reactive, watch } from 'vue'
+import PageContainer from '../layout/PageContainer.vue'
+import { useBanks } from '../../composables/useBanks'
+import { useBankWorkflow } from '../../composables/useBankWorkflow'
+
+const {
+  banks,
+  loading,
+  defaultBankNames,
+  getBankFavicon,
+  loadBanks,
+  addBank,
+  importBanks,
+  updateBank,
+  deleteBank,
+  initDefaultBanks,
+  totalAssets,
+  bankAccountCount,
+  electronicTicketCount,
+  bankTotalAssets,
+  electronicTicketTotalAssets
+} = useBanks()
+
+// 狀態
+const showModal = ref(false)
+const isEditing = ref(false)
+const showDetails = ref({})
+const customBankName = ref('')
+
+// 行內編輯
+const editingId = ref(null)
+const editForm = reactive({})
+
+const startInlineEdit = (bank) => {
+  Object.assign(editForm, {
+    id: bank.id,
+    name: bank.name || '',
+    deposit: bank.deposit || 0,
+    site: bank.site || '',
+    address: bank.address || '',
+    withdrawals: bank.withdrawals || 0,
+    transfer: bank.transfer || 0,
+    activity: bank.activity || '',
+    card: bank.card || '',
+    account: bank.account || ''
+  })
+  editingId.value = bank.id
+}
+
+const cancelInlineEdit = () => {
+  editingId.value = null
+}
+
+const saveInlineEdit = async () => {
+  if (!editForm.name) {
+    alert('請輸入銀行名稱')
+    return
+  }
+  const result = await updateBank(editForm.id, { ...editForm })
+  if (result.success) {
+    editingId.value = null
+  } else {
+    alert('儲存失敗: ' + result.error)
+  }
+}
+
+const {
+  showTransactionModal,
+  transactionType,
+  transactionForm,
+  selectedTransactionBank,
+  projectedTransactionBalance,
+  openTransactionModal,
+  closeTransactionModal,
+  submitTransaction,
+  batchMode,
+  selectedIds,
+  showBatchAdjustModal,
+  batchOperation,
+  batchAdjustMode,
+  batchAdjustType,
+  batchFixedAmount,
+  individualAdjustments,
+  selectedBanks,
+  totalBatchAdjustment,
+  totalProjectedDeposit,
+  isBatchReady,
+  enterBatchMode,
+  exitBatchMode,
+  isAllSelected,
+  toggleSelect,
+  toggleSelectAll,
+  openBatchAdjustModal,
+  closeBatchAdjustModal,
+  hasBatchInput,
+  getBatchAmount,
+  getAdjustedDeposit,
+  submitBatchAdjust,
+  deleteSelected
+} = useBankWorkflow({ banks, updateBank, deleteBank })
+
+const getBankSiteUrl = (site) => {
+  const value = String(site || '').trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+  if (/^[\w.-]+\.[a-z]{2,}(?:\/.*)?$/i.test(value)) return `https://${value}`
+  return ''
+}
+
+// 表單資料
+const formData = reactive({
+  id: null,
+  name: '',
+  deposit: 0,
+  site: '',
+  address: '',
+  withdrawals: 0,
+  transfer: 0,
+  activity: '',
+  card: '',
+  account: ''
+})
+
+// 初始化
+onMounted(() => {
+  loadBanks()
+})
+
+// 監聽銀行名稱選擇：僅在從預設銀行切到「其他」時清空自訂名稱
+watch(() => formData.name, (newVal, oldVal) => {
+  if (newVal === 'other') {
+    if (oldVal && defaultBankNames.includes(oldVal)) {
+      customBankName.value = ''
+    }
+  } else if (newVal && defaultBankNames.includes(newVal)) {
+    customBankName.value = ''
+  }
+})
+
+const csvFileInput = ref(null)
+
+const parseCsv = (text) => {
+  const parseRow = (line) => {
+    const cells = []
+    let current = ''
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i]
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') { current += '"'; i++ }
+        else inQuotes = !inQuotes
+      } else if (char === ',' && !inQuotes) {
+        cells.push(current.trim()); current = ''
+      } else { current += char }
+    }
+    cells.push(current.trim())
+    return cells
+  }
+  const splitIntoRows = (text) => {
+    const rows = []
+    let current = ''
+    let inQuotes = false
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i]
+      if (char === '"') { inQuotes = !inQuotes; current += char }
+      else if (char === '\n' && !inQuotes) { if (current.trim()) rows.push(current); current = '' }
+      else { current += char }
+    }
+    if (current.trim()) rows.push(current)
+    return rows
+  }
+  const lines = splitIntoRows(text)
+  if (lines.length < 2) return []
+  const headers = parseRow(lines[0])
+  return lines.slice(1).map(line => {
+    const cells = parseRow(line)
+    const obj = {}
+    headers.forEach((h, i) => { obj[h] = cells[i] || '' })
+    return obj
+  })
+}
+
+const exportBanksCsv = () => {
+  const header = ['銀行名稱', '存款', '帳號', '卡號', '分行/網點', '地址', '提款', '轉帳', '活動/備註']
+  const rows = banks.value.map(b => [
+    b.name || '',
+    b.deposit ?? '',
+    b.account || '',
+    b.card || '',
+    b.site || '',
+    b.address || '',
+    b.withdrawals ?? '',
+    b.transfer ?? '',
+    b.activity || ''
+  ])
+  const bom = '\uFEFF'
+  const csvContent = bom + [header, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'supabase-bank.csv'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+const handleImportCsv = async (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+  const text = await file.text()
+  let rows = parseCsv(text)
+  if (rows.length === 0) { alert('CSV 檔案無有效資料'); return }
+
+  // 偵測 Appwrite 格式
+  const firstRow = rows[0]
+  const isAppwrite = '$id' in firstRow || '$createdAt' in firstRow || '$collectionId' in firstRow
+
+  if (isAppwrite) {
+    console.log('偵測到 Appwrite CSV 格式，自動轉換欄位')
+    rows = rows.map(r => {
+      const mapped = {}
+      for (const [key, value] of Object.entries(r)) {
+        if (key.startsWith('$')) continue
+        mapped[key] = value
+      }
+      return mapped
+    })
+  }
+
+  let confirmMsg = `確定匯入 ${rows.length} 筆銀行資料？`
+  if (isAppwrite) {
+    confirmMsg = `ℹ️ 偵測到 Appwrite CSV 格式\n\n已自動移除系統欄位（$id, $createdAt...）\n\n確定匯入 ${rows.length} 筆銀行資料？`
+  }
+
+  if (!confirm(confirmMsg)) return
+  const result = await importBanks(rows)
+  if (result.success) {
+    alert(result.message ? `${result.message}，新增 ${result.count} 筆銀行帳戶` : `✅ 成功匯入 ${result.count} 筆銀行帳戶！`)
+  } else {
+    alert('匯入失敗: ' + result.error)
+  }
+  e.target.value = ''
+}
+
+// 格式化數字
+const formatNumber = (num) => {
+  return Number(num || 0).toLocaleString()
+}
+
+// 切換詳細資訊
+const toggleDetails = (id) => {
+  showDetails.value[id] = !showDetails.value[id]
+}
+
+// 行內新增
+const isAddingInline = ref(false)
+const addForm = reactive({ name: '', deposit: 0, site: '', address: '', withdrawals: 0, transfer: 0, activity: '', card: '', account: '' })
+const openInlineAdd = () => { Object.assign(addForm, { name: '', deposit: 0, site: '', address: '', withdrawals: 0, transfer: 0, activity: '', card: '', account: '' }); isAddingInline.value = true }
+const cancelInlineAdd = () => { isAddingInline.value = false }
+const saveInlineAdd = async () => {
+  if (!addForm.name) { alert('請輸入銀行名稱'); return }
+  const result = await addBank({ ...addForm })
+  if (result.success) { isAddingInline.value = false } else { alert('新增失敗: ' + result.error) }
+}
+
+// 開啟新增 Modal
+const openAddModal = () => {
+  isEditing.value = false
+  resetForm()
+  showModal.value = true
+}
+
+// 開啟編輯 Modal
+const editBank = (bank) => {
+  isEditing.value = true
+  Object.assign(formData, bank)
+
+  // 自訂銀行名稱：select 顯示「其他」，實際名稱放在 customBankName
+  if (bank.name && !defaultBankNames.includes(bank.name)) {
+    customBankName.value = bank.name
+    formData.name = 'other'
+  } else {
+    customBankName.value = ''
+  }
+
+  showModal.value = true
+}
+
+// 重置表單
+const resetForm = () => {
+  Object.keys(formData).forEach(key => {
+    formData[key] = key === 'deposit' || key === 'withdrawals' || key === 'transfer' ? 0 : ''
+  })
+  formData.id = null
+  customBankName.value = ''
+}
+
+// 關閉 Modal
+const closeModal = () => {
+  showModal.value = false
+  resetForm()
+}
+
+// 提交表單
+const handleSubmit = async () => {
+  // 處理銀行名稱
+  let finalName = formData.name
+  if (finalName === 'other' || !defaultBankNames.includes(finalName)) {
+    finalName = customBankName.value
+  }
+  
+  if (!finalName) {
+    alert('請輸入銀行名稱')
+    return
+  }
+
+  const payload = {
+    ...formData,
+    name: finalName
+  }
+
+  let result
+  if (isEditing.value) {
+    result = await updateBank(formData.id, payload)
+  } else {
+    result = await addBank(payload)
+  }
+
+  if (result.success) {
+    closeModal()
+  } else {
+    alert('儲存失敗: ' + result.error)
+  }
+}
+
+// 確認刪除
+const confirmDelete = async (bank) => {
+  if (confirm(`確定要刪除 ${bank.name} 的資料嗎？`)) {
+    await deleteBank(bank.id)
+  }
+}
+
+// 一鍵匯入預設銀行
+const handleInitDefaults = async () => {
+  if (confirm('確定要匯入 9 家預設銀行嗎？')) {
+    const result = await initDefaultBanks()
+    if (result.success) {
+      alert(result.message || '成功匯入預設銀行！')
+    } else {
+      alert('匯入失敗: ' + result.error)
+    }
+  }
+}
+
+// SEO
+useHead({
+  title: '銀行統計 - 鋒兄AI Supabase',
+  meta: [
+    { name: 'description', content: '管理銀行帳戶與資產統計' }
+  ]
+})
+</script>
+
+<style scoped>
+/* 行內編輯樣式 */
+.card-editing {
+  box-shadow: 0 4px 12px rgba(250, 112, 154, 0.2);
+  border-left: 4px solid #fa709a;
+}
+
+.transaction-hint {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(14, 165, 233, 0.12));
+  color: #155e75;
+  font-size: 0.92rem;
+}
+
+.btn-transaction,
+.btn-add-account {
+  border: none;
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-transaction:hover,
+.btn-add-account:hover {
+  transform: translateY(-1px);
+}
+
+.btn-transaction.income {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  box-shadow: 0 8px 18px rgba(16, 185, 129, 0.25);
+}
+
+.btn-transaction.expense {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.25);
+}
+
+.btn-add-account {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.modal-content--transaction {
+  max-width: 560px;
+}
+
+.modal-content--batch-adjust {
+  max-width: 720px;
+}
+
+.batch-adjust-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.batch-adjust-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.batch-adjust-controls .form-group:last-child {
+  grid-column: 1 / -1;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 14px;
+  background: #f1f5f9;
+}
+
+.segmented-control button {
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  color: #475569;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.segmented-control button.active {
+  background: white;
+  color: #be123c;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.batch-adjust-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(250, 112, 154, 0.12), rgba(254, 225, 64, 0.16));
+  color: #334155;
+}
+
+.batch-adjust-summary strong {
+  color: #be123c;
+  font-size: 1.05rem;
+}
+
+.batch-selected-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 42vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.batch-bank-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(130px, 0.7fr);
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.batch-bank-row:has(.batch-amount-input) {
+  grid-template-columns: minmax(150px, 1fr) 140px minmax(130px, 0.7fr);
+}
+
+.batch-bank-main,
+.batch-bank-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.batch-bank-main strong {
+  color: #0f172a;
+}
+
+.batch-bank-main span,
+.batch-bank-preview span {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.batch-bank-preview .preview-muted {
+  color: #94a3b8;
+}
+
+.batch-bank-preview {
+  text-align: right;
+}
+
+.batch-bank-preview strong {
+  color: #0f766e;
+}
+
+.batch-amount-input {
+  min-width: 0;
+}
+
+.transaction-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.transaction-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.transaction-step {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.step-index {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, #0f766e, #0284c7);
+}
+
+.step-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.45rem;
+}
+
+.transaction-type-group {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.transaction-type-btn {
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 0.8rem 1rem;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.transaction-type-btn.active {
+  border-color: #0f766e;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(14, 165, 233, 0.12));
+  color: #0f766e;
+}
+
+.transaction-preview {
+  border-radius: 18px;
+  padding: 1rem 1.1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  color: #334155;
+}
+
+.preview-total {
+  margin-top: 0.4rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #cbd5e1;
+  font-size: 1rem;
+}
+
+.preview-positive {
+  color: #059669;
+}
+
+.preview-negative {
+  color: #dc2626;
+}
+
+.inline-input {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.inline-input:focus {
+  outline: none;
+  border-color: #fa709a;
+  box-shadow: 0 0 0 2px rgba(250, 112, 154, 0.15);
+}
+
+.inline-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.inline-edit-content {
+  padding: 1rem;
+}
+
+.inline-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.inline-field-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.inline-field-row label {
+  min-width: 50px;
+  font-size: 0.8rem;
+  color: #666;
+  padding-top: 0.4rem;
+  flex-shrink: 0;
+}
+
+.inline-textarea {
+  resize: vertical;
+  min-height: 50px;
+}
+
+.btn-icon.save:hover {
+  background: #ecfdf5;
+}
+
+.bank-page {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  margin-top: 2rem;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.empty-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  border-radius: 12px;
+  color: white;
+  position: relative;
+}
+
+.page-title {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.page-description {
+  font-size: 1.1rem;
+  opacity: 0.95;
+  margin-bottom: 1.5rem;
+}
+
+.total-assets-card {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  border-radius: 12px;
+  padding: 0.75rem 1.5rem;
+  color: white;
+}
+
+.bank-assets-card {
+  background: linear-gradient(135deg, #2563eb 0%, #14b8a6 100%);
+}
+
+.ticket-assets-card {
+  background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%);
+}
+
+.total-assets-card .label {
+  font-size: 0.8rem;
+  opacity: 0.9;
+  margin-bottom: 0.15rem;
+}
+
+.total-assets-card .amount {
+  font-size: 1.5rem;
+  font-weight: 800;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.actions-bar {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.csv-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-csv {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+}
+
+.btn-csv.export {
+  background: #27ae60;
+}
+
+.btn-csv.export:hover {
+  background: #219a52;
+}
+
+.btn-csv.import {
+  background: #2980b9;
+}
+
+.btn-csv.import:hover {
+  background: #2471a3;
+}
+
+/* Grid Layout - 手機版優先一欄，平板以上兩欄 */
+.bank-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 769px) {
+  .bank-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.bank-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+  border-top: 4px solid #fa709a;
+}
+
+.bank-card.selected {
+  border-top-color: #667eea;
+  box-shadow: 0 10px 22px rgba(102, 126, 234, 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+}
+
+.bank-card.selected .info-item.highlight {
+  background: #eef2ff;
+}
+
+.card-select-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bank-card.selected .card-select-row {
+  border-color: #667eea;
+  background: #e0e7ff;
+}
+
+.card-select-row input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+.bank-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+}
+
+.bank-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.75rem;
+}
+
+.bank-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.bank-favicon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: #f8f9fa;
+  padding: 2px;
+}
+
+.bank-name {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+  word-break: break-word;
+}
+
+.bank-name-link {
+  text-decoration: none;
+  color: #2563eb;
+}
+
+.bank-name-link:hover {
+  text-decoration: underline;
+}
+
+.bank-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.btn-icon:hover {
+  background: #f0f0f0;
+}
+
+.btn-icon.delete:hover {
+  background: #fee2e2;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.info-item.highlight {
+  background: #fff5f7;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.info-item.highlight .value {
+  color: #fa709a;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.info-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.info-row .info-item {
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0;
+}
+
+.info-row .label {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.info-row .value {
+  font-size: 0.95rem;
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.label {
+  color: #666;
+}
+
+.value {
+  color: #333;
+  font-weight: 500;
+}
+
+.btn-toggle-details {
+  width: 100%;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  color: #666;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.btn-toggle-details:hover {
+  background: #eee;
+}
+
+.info-details {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #eee;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.modal-footer {
+  padding: 1.5rem;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
+  border-color: #fa709a;
+  box-shadow: 0 0 0 3px rgba(250, 112, 154, 0.1);
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: opacity 0.2s;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  background: white;
+  color: #fa709a;
+  border: 1px solid #fa709a;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+  margin-right: 1rem;
+}
+
+.btn-secondary:hover {
+  background: #fff0f5;
+}
+
+.btn-submit {
+  background: #fa709a;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-submit:disabled {
+  background: #fca5c2;
+  cursor: not-allowed;
+}
+
+.btn-cancel {
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  background: #f9fafb;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 4rem;
+  color: #666;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #fa709a;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.summary-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(46, 204, 113, 0.08) 100%); border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.95rem; color: #555; flex-wrap: wrap; gap: 0.5rem; }
+.summary-left, .summary-right { display: flex; align-items: center; gap: 1rem; }
+.select-all-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500; }
+.select-all-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+.selected-count { background: #3498db; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
+.btn-batch-mode { padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
+.btn-batch-mode:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+.btn-add-icon { width: 36px; height: 36px; border: none; border-radius: 50%; background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%); color: white; font-size: 1.5rem; font-weight: 300; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; line-height: 1; padding-bottom: 4px; }
+.btn-add-icon:hover { transform: translateY(-2px) scale(1.1); box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4); }
+.btn-cancel-batch { padding: 0.35rem 0.75rem; background: #e0e0e0; color: #666; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
+.btn-cancel-batch:hover { background: #d0d0d0; }
+.btn-batch-adjust { padding: 0.5rem 1rem; background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
+.btn-batch-adjust:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35); }
+.btn-batch-adjust:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-batch-delete { padding: 0.5rem 1rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
+.btn-batch-delete:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4); }
+.btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 768px) {
+  .actions-bar {
+    margin-bottom: 1rem;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .total-assets-card {
+    width: 100%;
+    padding: 0.85rem 1rem;
+  }
+
+  .total-assets-card .amount {
+    font-size: 1.25rem;
+  }
+
+  .csv-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .btn-csv {
+    width: 100%;
+    min-height: 40px;
+    justify-content: center;
+  }
+
+  .summary-bar {
+    padding: 0.8rem 0.9rem;
+    margin-bottom: 1rem;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .summary-left,
+  .summary-right {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+  }
+
+  .summary-right {
+    justify-content: flex-start;
+  }
+
+  .btn-batch-mode,
+  .btn-transaction,
+  .btn-add-account,
+  .btn-cancel-batch,
+  .btn-batch-adjust,
+  .btn-batch-delete {
+    min-height: 40px;
+  }
+
+  .batch-adjust-controls,
+  .batch-bank-row,
+  .batch-bank-row:has(.batch-amount-input) {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-bank-preview {
+    text-align: left;
+  }
+
+  .bank-card {
+    padding: 1rem;
+  }
+
+  .bank-header {
+    gap: 0.75rem;
+  }
+
+  .bank-name {
+    font-size: 1.15rem;
+  }
+
+  .info-row,
+  .info-details {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .csv-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-left,
+  .summary-right {
+    gap: 0.55rem;
+  }
+
+  .btn-batch-mode,
+  .btn-transaction,
+  .btn-add-account,
+  .btn-cancel-batch,
+  .btn-batch-adjust,
+  .btn-batch-delete {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .select-all-label {
+    width: 100%;
+  }
+}
+</style>

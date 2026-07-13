@@ -30,3 +30,4 @@ Shared pure helpers live in `utils/notificationHelpers.js` (date math, day text,
 | Resend email | `useExpiryEmailNotifications` | subscription = 2 days before; food = 8 days before |
 | Web Push subscribe | `usePushNotification` | writes `push_subscriptions` |
 | In-app toast UI | `useToast` + `ToastContainer` | generic UI, not expiry-specific |
+| Self-check | `useNotifications.runNotificationSelfCheck` | Settings page diagnostics + optional probes |

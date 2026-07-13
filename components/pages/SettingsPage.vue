@@ -96,6 +96,83 @@
           </div>
         </section>
 
+        <section class="settings-section notification-check-section">
+          <div class="section-header">
+            <h2 class="section-title">通知自我檢測</h2>
+          </div>
+          <div class="section-body">
+            <p class="section-description">
+              檢查 Toast、瀏覽器通知權限、Service Worker、Web Push、Resend 設定與伺服器 VAPID / Service Role 是否就緒。
+              不會寄出真實到期信；可選擇送出測試 Toast 或系統通知。
+            </p>
+            <div class="notification-check-actions">
+              <button
+                class="btn-primary"
+                type="button"
+                :disabled="selfCheckRunning"
+                @click="runSelfCheck()"
+              >
+                {{ selfCheckRunning ? '檢測中…' : '執行自我檢測' }}
+              </button>
+              <button
+                class="btn-secondary"
+                type="button"
+                :disabled="selfCheckRunning"
+                @click="runSelfCheck({ probeNative: true })"
+              >
+                檢測並送系統通知
+              </button>
+              <button
+                class="btn-secondary"
+                type="button"
+                :disabled="selfCheckRunning"
+                @click="handleRequestPush"
+              >
+                請求通知權限 / 訂閱推播
+              </button>
+              <button
+                class="btn-secondary"
+                type="button"
+                :disabled="selfCheckRunning"
+                @click="handleRefreshSwCreds"
+              >
+                重新寫入 SW 憑證
+              </button>
+            </div>
+
+            <div v-if="selfCheckResult" class="notification-check-summary" :class="`is-${selfCheckResult.overall}`">
+              <div class="notification-check-summary__title">
+                <span>結果：{{ selfCheckOverallLabel }}</span>
+                <span class="notification-check-summary__time">
+                  {{ formatSelfCheckTime(selfCheckResult.checkedAt) }}
+                </span>
+              </div>
+              <div class="notification-check-summary__counts">
+                <span class="is-pass">通過 {{ selfCheckResult.summary.pass || 0 }}</span>
+                <span class="is-warn">注意 {{ selfCheckResult.summary.warn || 0 }}</span>
+                <span class="is-fail">失敗 {{ selfCheckResult.summary.fail || 0 }}</span>
+                <span class="is-info">資訊 {{ selfCheckResult.summary.info || 0 }}</span>
+              </div>
+            </div>
+
+            <ul v-if="selfCheckResult?.checks?.length" class="notification-check-list">
+              <li
+                v-for="item in selfCheckResult.checks"
+                :key="item.id"
+                class="notification-check-item"
+                :class="`is-${item.status}`"
+              >
+                <div class="notification-check-item__head">
+                  <span class="notification-check-item__status">{{ selfCheckStatusLabel(item.status) }}</span>
+                  <strong>{{ item.label }}</strong>
+                </div>
+                <p class="notification-check-item__detail">{{ item.detail }}</p>
+                <p v-if="item.fix" class="notification-check-item__fix">建議：{{ item.fix }}</p>
+              </li>
+            </ul>
+          </div>
+        </section>
+
         <section class="settings-section resend-section">
           <div class="section-header">
             <h2 class="section-title">Resend Email 通知</h2>
@@ -494,6 +571,7 @@ CREATE POLICY "Allow public delete" ON storage.objects
 import { ref, reactive, computed, onMounted } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import { useSettings } from '../../composables/useSettings'
+import { useNotifications } from '../../composables/useNotifications'
 import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
 import packageJson from '../../package.json'
 
@@ -528,6 +606,77 @@ const {
 const editingAccountId = ref(null)
 const testingResendEmail = ref(false)
 const visibleResendPairs = computed(() => resendPairs.slice(0, Number(resendGroupCount.value) || 21))
+
+const {
+  selfCheckRunning,
+  selfCheckResult,
+  runNotificationSelfCheck,
+  requestPushAndRecheck,
+  storeServiceWorkerCredentials
+} = useNotifications()
+
+const selfCheckOverallLabel = computed(() => {
+  const overall = selfCheckResult.value?.overall
+  if (overall === 'pass') return '正常'
+  if (overall === 'warn') return '部分需注意'
+  if (overall === 'fail') return '有失敗項目'
+  return '尚未檢測'
+})
+
+const selfCheckStatusLabel = (status) => {
+  if (status === 'pass') return '通過'
+  if (status === 'warn') return '注意'
+  if (status === 'fail') return '失敗'
+  return '資訊'
+}
+
+const formatSelfCheckTime = (iso) => {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleString('zh-TW')
+  } catch {
+    return iso
+  }
+}
+
+const runSelfCheck = async (options = {}) => {
+  try {
+    await runNotificationSelfCheck({
+      probeToast: true,
+      probeNative: false,
+      ensurePush: false,
+      refreshSwCreds: true,
+      ...options
+    })
+  } catch (error) {
+    console.error('[Settings] notification self-check failed:', error)
+    alert(`通知自我檢測失敗：${error?.message || '未知錯誤'}`)
+  }
+}
+
+const handleRequestPush = async () => {
+  try {
+    await requestPushAndRecheck()
+  } catch (error) {
+    console.error('[Settings] push subscribe failed:', error)
+    alert(`推播訂閱失敗：${error?.message || '未知錯誤'}`)
+  }
+}
+
+const handleRefreshSwCreds = async () => {
+  try {
+    await storeServiceWorkerCredentials()
+    await runNotificationSelfCheck({
+      probeToast: false,
+      probeNative: false,
+      ensurePush: false,
+      refreshSwCreds: false
+    })
+  } catch (error) {
+    console.error('[Settings] refresh SW creds failed:', error)
+    alert(`寫入 SW 憑證失敗：${error?.message || '未知錯誤'}`)
+  }
+}
 
 const syncResendPairsFromAccount = (acc = {}) => {
   resendGroupCount.value = acc.resendGroupCount || 21
@@ -1611,6 +1760,139 @@ useHead({
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border-color);
+}
+
+.notification-check-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.notification-check-summary {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+
+.notification-check-summary.is-pass {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.notification-check-summary.is-warn {
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.notification-check-summary.is-fail {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.notification-check-summary__title {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.notification-check-summary__time {
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.notification-check-summary__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  font-size: var(--font-sm);
+}
+
+.notification-check-summary__counts span {
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full, 999px);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.notification-check-summary__counts .is-pass,
+.notification-check-item.is-pass .notification-check-item__status {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.notification-check-summary__counts .is-warn,
+.notification-check-item.is-warn .notification-check-item__status {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.notification-check-summary__counts .is-fail,
+.notification-check-item.is-fail .notification-check-item__status {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.notification-check-summary__counts .is-info,
+.notification-check-item.is-info .notification-check-item__status {
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.notification-check-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.notification-check-item {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
+}
+
+.notification-check-item.is-fail {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.notification-check-item.is-warn {
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.notification-check-item__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-primary);
+}
+
+.notification-check-item__status {
+  flex-shrink: 0;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.notification-check-item__detail,
+.notification-check-item__fix {
+  margin: 0.4rem 0 0;
+  font-size: var(--font-sm);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.notification-check-item__fix {
+  color: var(--text-muted);
 }
 
 /* ===== 帳號列表 ===== */

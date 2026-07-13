@@ -13,6 +13,7 @@
             class="store-card__link"
           >ImageVoiceVideo</a>
           · 預設男聲；圖片為單一人物時可自動選聲
+          · 輸入草稿暫存於本機（切換工具可還原）
           · 成品暫存至 Supabase Storage 供下載
         </p>
       </div>
@@ -25,6 +26,14 @@
           <div class="ivv-card__head">
             <span class="ivv-step">1</span>
             <strong>封面圖片</strong>
+            <button
+              v-if="imagePreviewUrl"
+              type="button"
+              class="tool-secondary-btn tool-secondary-btn--compact ivv-draft-clear"
+              @click="onClearImageClick"
+            >
+              清除圖片
+            </button>
           </div>
           <div
             ref="imageDropzoneRef"
@@ -52,6 +61,16 @@
               @click.stop
             />
             <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="預覽" class="ivv-dropzone__img" />
+            <button
+              v-if="imagePreviewUrl"
+              type="button"
+              class="ivv-dropzone__clear"
+              title="清除封面圖片"
+              aria-label="清除封面圖片"
+              @click.stop="onClearImageClick"
+            >
+              ×
+            </button>
             <div v-else class="ivv-dropzone__empty">
               <span>拖放、點選或 Ctrl+V 貼上圖片</span>
               <small>JPG / PNG / WebP · 支援剪貼簿</small>
@@ -70,11 +89,12 @@
               v-if="imagePreviewUrl"
               type="button"
               class="tool-secondary-btn tool-secondary-btn--compact"
-              @click="clearImage"
+              @click="onClearImageClick"
             >
               清除圖片
             </button>
           </div>
+          <p v-if="draftHint" class="ivv-hint">{{ draftHint }}</p>
         </div>
 
         <!-- 2. Script -->
@@ -82,6 +102,24 @@
           <div class="ivv-card__head">
             <span class="ivv-step">2</span>
             <strong>語音稿</strong>
+            <div class="ivv-card__head-actions">
+              <button
+                v-if="hasScriptText"
+                type="button"
+                class="tool-secondary-btn tool-secondary-btn--compact"
+                @click="onClearScriptClick"
+              >
+                清除語音稿
+              </button>
+              <button
+                v-if="hasDraft"
+                type="button"
+                class="tool-secondary-btn tool-secondary-btn--compact"
+                @click="clearAllDraft"
+              >
+                清除暫存草稿
+              </button>
+            </div>
           </div>
           <label class="tool-field">
             <span>稿件語言</span>
@@ -93,13 +131,35 @@
           </label>
           <label class="tool-field tool-field--wide">
             <span>內容（每行一段；可加「男：」「女：」指定該句性別，優先於軌道設定）</span>
-            <textarea
-              v-model="script"
-              class="tool-input ivv-script"
-              rows="6"
-              placeholder="歡迎來到鋒兄工具&#10;今天帶你把圖片變成有旁白的影片&#10;女：這句會強制用女聲"
-            />
+            <div class="ivv-script-wrap">
+              <textarea
+                v-model="script"
+                class="tool-input ivv-script"
+                rows="6"
+                placeholder="歡迎來到鋒兄工具&#10;今天帶你把圖片變成有旁白的影片&#10;女：這句會強制用女聲"
+              />
+              <button
+                v-if="hasScriptText"
+                type="button"
+                class="ivv-script__clear"
+                title="清除語音稿"
+                aria-label="清除語音稿"
+                @click="onClearScriptClick"
+              >
+                ×
+              </button>
+            </div>
           </label>
+          <div class="ivv-image-actions">
+            <button
+              v-if="hasScriptText"
+              type="button"
+              class="tool-secondary-btn tool-secondary-btn--compact"
+              @click="onClearScriptClick"
+            >
+              清除語音稿
+            </button>
+          </div>
           <p class="ivv-hint">{{ lineCount }} 段台詞</p>
         </div>
 
@@ -284,6 +344,10 @@ import {
 } from '../../utils/imageVoiceVideo/personGender'
 
 const TEMP_FOLDER = 'temp/image-voice-video'
+const DRAFT_META_KEY = 'fengbro-tools-image-voice-draft'
+const DRAFT_DB_NAME = 'FengImageVoiceDraft'
+const DRAFT_STORE_NAME = 'drafts'
+const DRAFT_IMAGE_KEY = 'last-image'
 const { uploadFile } = useStorage()
 
 const imageInputRef = ref(null)
@@ -291,6 +355,8 @@ const imageDropzoneRef = ref(null)
 const canvasRef = ref(null)
 const imagePreviewUrl = ref(null)
 const imageEl = ref(null)
+/** @type {import('vue').Ref<File|Blob|null>} */
+const imageFile = ref(null)
 const dropzoneFocused = ref(false)
 const pastingClipboard = ref(false)
 const script = ref('')
@@ -313,7 +379,259 @@ const result = ref(null)
 const detectedGender = ref(null)
 const genderHint = ref('語音預設男聲；軌道選「自動」時會依封面單一人物選聲')
 const detectingGender = ref(false)
+const draftHint = ref('')
+const draftRestoring = ref(false)
 let genderDetectSeq = 0
+let imageDraftSeq = 0
+let draftDbPromise = null
+let draftSaveTimer = null
+let draftHydrated = false
+
+const hasScriptText = computed(() => Boolean(script.value?.trim()))
+
+const hasDraft = computed(() => {
+  const hasImage = Boolean(imagePreviewUrl.value || imageFile.value)
+  const hasCustomSettings =
+    scriptLang.value !== 'zh-TW' ||
+    rate.value !== 0 ||
+    volume.value !== 100 ||
+    format.value !== 'webm' ||
+    orientationMode.value !== 'auto' ||
+    Boolean(filename.value?.trim()) ||
+    tracks.value.length > 1 ||
+    tracks.value.some((t) => t.language !== 'zh-TW' || t.gender !== 'auto')
+  return hasScriptText.value || hasImage || hasCustomSettings
+})
+
+// ─── Draft persistence (localStorage meta + IndexedDB image) ───
+
+const safeJsonParse = (raw, fallback) => {
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return fallback
+  }
+}
+
+const initDraftDb = async () => {
+  if (typeof window === 'undefined' || !window.indexedDB) return null
+  if (!draftDbPromise) {
+    draftDbPromise = new Promise((resolve, reject) => {
+      const request = window.indexedDB.open(DRAFT_DB_NAME, 1)
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result
+        if (!db.objectStoreNames.contains(DRAFT_STORE_NAME)) {
+          db.createObjectStore(DRAFT_STORE_NAME, { keyPath: 'key' })
+        }
+      }
+    }).catch((err) => {
+      draftDbPromise = null
+      throw err
+    })
+  }
+  return await draftDbPromise
+}
+
+const readDraftImage = async () => {
+  try {
+    const db = await initDraftDb()
+    if (!db) return null
+    return await new Promise((resolve, reject) => {
+      const request = db
+        .transaction([DRAFT_STORE_NAME], 'readonly')
+        .objectStore(DRAFT_STORE_NAME)
+        .get(DRAFT_IMAGE_KEY)
+      request.onsuccess = () => resolve(request.result || null)
+      request.onerror = () => reject(request.error)
+    })
+  } catch {
+    return null
+  }
+}
+
+const writeDraftImage = async (file, seq = imageDraftSeq) => {
+  try {
+    const db = await initDraftDb()
+    if (!db || !file) return false
+    // Drop stale writes if user cleared / replaced the image meanwhile
+    if (seq !== imageDraftSeq) return false
+    const blob = file instanceof Blob ? file : new Blob([file], { type: file.type || 'image/png' })
+    const record = {
+      key: DRAFT_IMAGE_KEY,
+      name: file.name || 'draft-image.png',
+      type: blob.type || file.type || 'image/png',
+      size: blob.size,
+      updatedAt: new Date().toISOString(),
+      blob
+    }
+    await new Promise((resolve, reject) => {
+      const request = db
+        .transaction([DRAFT_STORE_NAME], 'readwrite')
+        .objectStore(DRAFT_STORE_NAME)
+        .put(record)
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+    })
+    return seq === imageDraftSeq
+  } catch (err) {
+    console.warn('[image-voice] draft image save failed', err)
+    return false
+  }
+}
+
+const deleteDraftImage = async (seq = imageDraftSeq) => {
+  try {
+    const db = await initDraftDb()
+    if (!db) return
+    await new Promise((resolve, reject) => {
+      const request = db
+        .transaction([DRAFT_STORE_NAME], 'readwrite')
+        .objectStore(DRAFT_STORE_NAME)
+        .delete(DRAFT_IMAGE_KEY)
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+    })
+    // Ignore if a newer image write was started after this clear
+    return seq === imageDraftSeq
+  } catch {
+    return false
+  }
+}
+
+const buildDraftMeta = (hasImage = Boolean(imageFile.value || imagePreviewUrl.value)) => ({
+  script: script.value,
+  scriptLang: scriptLang.value,
+  tracks: tracks.value.map((t) => ({
+    language: t.language,
+    label: t.label || langShort(t.language),
+    gender: t.gender || 'auto'
+  })),
+  rate: rate.value,
+  volume: volume.value,
+  format: format.value,
+  orientationMode: orientationMode.value,
+  filename: filename.value,
+  hasImage,
+  updatedAt: new Date().toISOString()
+})
+
+const saveDraftMeta = (hasImage) => {
+  if (typeof localStorage === 'undefined' || draftRestoring.value || !draftHydrated) return
+  try {
+    localStorage.setItem(DRAFT_META_KEY, JSON.stringify(buildDraftMeta(hasImage)))
+  } catch (err) {
+    console.warn('[image-voice] draft meta save failed', err)
+  }
+}
+
+const scheduleDraftMetaSave = () => {
+  if (draftRestoring.value || !draftHydrated) return
+  if (draftSaveTimer) clearTimeout(draftSaveTimer)
+  draftSaveTimer = setTimeout(() => {
+    draftSaveTimer = null
+    saveDraftMeta()
+  }, 250)
+}
+
+const applyDraftMeta = (meta) => {
+  if (!meta || typeof meta !== 'object') return false
+  if (typeof meta.script === 'string') script.value = meta.script
+  if (typeof meta.scriptLang === 'string' && meta.scriptLang) scriptLang.value = meta.scriptLang
+  if (Array.isArray(meta.tracks) && meta.tracks.length) {
+    tracks.value = meta.tracks.slice(0, 4).map((t) => ({
+      language: t.language || 'zh-TW',
+      label: t.label || langShort(t.language || 'zh-TW'),
+      gender: t.gender === 'male' || t.gender === 'female' || t.gender === 'auto' ? t.gender : 'auto'
+    }))
+  }
+  if (typeof meta.rate === 'number' && Number.isFinite(meta.rate)) {
+    rate.value = Math.min(5, Math.max(-5, Math.round(meta.rate)))
+  }
+  if (typeof meta.volume === 'number' && Number.isFinite(meta.volume)) {
+    volume.value = Math.min(100, Math.max(0, Math.round(meta.volume)))
+  }
+  if (meta.format === 'webm' || meta.format === 'mp4') format.value = meta.format
+  if (meta.orientationMode === 'auto' || meta.orientationMode === 'portrait' || meta.orientationMode === 'landscape') {
+    orientationMode.value = meta.orientationMode
+  }
+  if (typeof meta.filename === 'string') filename.value = meta.filename
+  return true
+}
+
+const restoreDraft = async () => {
+  if (typeof localStorage === 'undefined') {
+    draftHydrated = true
+    return
+  }
+
+  draftRestoring.value = true
+  try {
+    const meta = safeJsonParse(localStorage.getItem(DRAFT_META_KEY) || 'null', null)
+    const hasMeta = applyDraftMeta(meta)
+    let restoredImage = false
+
+    if (meta?.hasImage !== false) {
+      const imageRecord = await readDraftImage()
+      if (imageRecord?.blob) {
+        const file = new File(
+          [imageRecord.blob],
+          imageRecord.name || 'draft-image.png',
+          { type: imageRecord.type || imageRecord.blob.type || 'image/png' }
+        )
+        restoredImage = loadImageFromFile(file, 'draft')
+      }
+    }
+
+    if (hasMeta || restoredImage) {
+      const parts = []
+      if (restoredImage) parts.push('圖片')
+      if (meta?.script?.trim()) parts.push('語音稿')
+      if (parts.length) {
+        draftHint.value = `已還原上次暫存的${parts.join('與')}`
+        status.value = draftHint.value
+      } else if (hasMeta) {
+        draftHint.value = '已還原上次的設定草稿'
+      }
+    }
+  } catch (err) {
+    console.warn('[image-voice] draft restore failed', err)
+  } finally {
+    draftRestoring.value = false
+    draftHydrated = true
+    // Re-save meta so hasImage matches actual restore result
+    saveDraftMeta(Boolean(imageFile.value))
+  }
+}
+
+const clearAllDraft = async () => {
+  // Block auto-save while wiping so watchers / async image clear cannot re-write storage
+  draftRestoring.value = true
+  if (draftSaveTimer) {
+    clearTimeout(draftSaveTimer)
+    draftSaveTimer = null
+  }
+  clearImage({ skipDraftHint: true, skipPersist: true })
+  clearScript({ skipDraftHint: true, skipPersist: true })
+  scriptLang.value = 'zh-TW'
+  tracks.value = [{ language: 'zh-TW', label: '繁中', gender: 'auto' }]
+  rate.value = 0
+  volume.value = 100
+  format.value = 'webm'
+  orientationMode.value = 'auto'
+  filename.value = ''
+  draftHint.value = ''
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(DRAFT_META_KEY)
+  } catch {
+    // ignore
+  }
+  await deleteDraftImage()
+  draftRestoring.value = false
+  status.value = '已清除暫存草稿'
+  redrawPreview()
+}
 
 const lineCount = computed(() => parseScriptLines(script.value).length)
 
@@ -387,25 +705,41 @@ const loadImageFromFile = (file, source = 'upload') => {
     return false
   }
   error.value = ''
+  const seq = ++imageDraftSeq
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value)
+  imageFile.value = file
   const url = URL.createObjectURL(file)
   imagePreviewUrl.value = url
   const img = new Image()
   img.onload = () => {
+    if (seq !== imageDraftSeq) return
     imageEl.value = img
     if (source === 'clipboard') {
       status.value = '已從剪貼簿貼上封面圖片'
     } else if (source === 'drop') {
       status.value = '已載入拖放的封面圖片'
+    } else if (source === 'draft') {
+      status.value = '已還原暫存的封面圖片'
     } else {
       status.value = '已載入封面圖片'
     }
+    if (source !== 'draft') {
+      draftHint.value = '圖片與設定會自動暫存於本機'
+    }
     redrawPreview()
     void runGenderDetection(img)
+    // Persist image draft after successful decode (skip re-write when restoring)
+    if (source !== 'draft' && !draftRestoring.value) {
+      void writeDraftImage(file, seq).then((ok) => {
+        if (ok) saveDraftMeta(true)
+      })
+    }
   }
   img.onerror = () => {
+    if (seq !== imageDraftSeq) return
     error.value = '圖片載入失敗'
     imageEl.value = null
+    imageFile.value = null
     detectedGender.value = null
     genderHint.value = '語音預設男聲；軌道選「自動」時會依封面單一人物選聲'
   }
@@ -509,16 +843,56 @@ const pasteImageFromClipboard = async () => {
   }
 }
 
-const clearImage = () => {
+/** Manual clear from UI (never pass native click event into options). */
+const onClearImageClick = () => {
+  clearImage()
+}
+
+const onClearScriptClick = () => {
+  clearScript()
+}
+
+const clearScript = (opts = {}) => {
+  const options = opts && typeof opts === 'object' && !('isTrusted' in opts) ? opts : {}
+  script.value = ''
+  if (!options.skipDraftHint) {
+    draftHint.value = imageFile.value || imagePreviewUrl.value
+      ? '封面圖片仍暫存於本機（語音稿已清除）'
+      : ''
+    status.value = '已清除語音稿'
+  }
+  // watch will debounce-save meta; flush immediately so switch-tool keeps empty script
+  if (!options.skipPersist && draftHydrated && !draftRestoring.value) {
+    if (draftSaveTimer) {
+      clearTimeout(draftSaveTimer)
+      draftSaveTimer = null
+    }
+    saveDraftMeta()
+  }
+  redrawPreview()
+}
+
+const clearImage = (opts = {}) => {
+  const options = opts && typeof opts === 'object' && !('isTrusted' in opts) ? opts : {}
   genderDetectSeq += 1
+  const seq = ++imageDraftSeq
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value)
   imagePreviewUrl.value = null
   imageEl.value = null
+  imageFile.value = null
   detectedGender.value = null
   genderHint.value = '語音預設男聲；軌道選「自動」時會依封面單一人物選聲'
   detectingGender.value = false
   if (imageInputRef.value) imageInputRef.value.value = ''
-  status.value = '就緒 — 上傳圖片、貼上剪貼簿或輸入語音稿（預設男聲）'
+  if (!options.skipDraftHint) {
+    draftHint.value = script.value?.trim() ? '語音稿仍暫存於本機（圖片已清除）' : ''
+    status.value = '已清除封面圖片'
+  }
+  if (!options.skipPersist) {
+    void deleteDraftImage(seq).then((ok) => {
+      if (ok) saveDraftMeta(false)
+    })
+  }
   redrawPreview()
 }
 
@@ -546,6 +920,15 @@ const redrawPreview = () => {
 watch([script, scriptLang, imageEl, canvasSize], () => {
   redrawPreview()
 }, { deep: true })
+
+// Auto-save text settings / tracks / audio options to localStorage
+watch(
+  [script, scriptLang, tracks, rate, volume, format, orientationMode, filename],
+  () => {
+    scheduleDraftMetaSave()
+  },
+  { deep: true }
+)
 
 const clearResult = () => {
   if (result.value?.localUrl) URL.revokeObjectURL(result.value.localUrl)
@@ -684,11 +1067,18 @@ const handleGenerate = async () => {
 
 onMounted(() => {
   document.addEventListener('paste', onDocumentPaste)
+  void restoreDraft()
 })
 
 onBeforeUnmount(() => {
   aborted.value = true
   document.removeEventListener('paste', onDocumentPaste)
+  if (draftSaveTimer) {
+    clearTimeout(draftSaveTimer)
+    draftSaveTimer = null
+    // Flush latest meta before unmount so switch-tool keeps script
+    saveDraftMeta(Boolean(imageFile.value))
+  }
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value)
   if (result.value?.localUrl) URL.revokeObjectURL(result.value.localUrl)
 })
@@ -757,6 +1147,18 @@ onBeforeUnmount(() => {
   gap: 0.55rem;
   margin-bottom: 0.75rem;
   flex-wrap: wrap;
+}
+
+.ivv-draft-clear {
+  margin-left: auto;
+}
+
+.ivv-card__head-actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
 }
 
 .ivv-step {
@@ -838,6 +1240,31 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
+.ivv-dropzone__clear {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 2;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid color-mix(in oklab, #fff 35%, var(--border-color));
+  border-radius: 999px;
+  background: color-mix(in oklab, #0f172a 72%, transparent);
+  color: #fff;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.ivv-dropzone__clear:hover {
+  background: color-mix(in oklab, #ef4444 85%, #0f172a);
+  border-color: transparent;
+}
+
 .ivv-image-actions {
   display: flex;
   flex-wrap: wrap;
@@ -845,11 +1272,43 @@ onBeforeUnmount(() => {
   margin-top: 0.55rem;
 }
 
+.ivv-script-wrap {
+  position: relative;
+}
+
 .ivv-script {
   resize: vertical;
   min-height: 120px;
   font-family: inherit;
   line-height: 1.5;
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: 2.5rem;
+}
+
+.ivv-script__clear {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 2;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-secondary) 88%, transparent);
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ivv-script__clear:hover {
+  background: color-mix(in oklab, #ef4444 18%, var(--bg-primary));
+  color: #ef4444;
+  border-color: color-mix(in oklab, #ef4444 40%, var(--border-color));
 }
 
 .ivv-hint {

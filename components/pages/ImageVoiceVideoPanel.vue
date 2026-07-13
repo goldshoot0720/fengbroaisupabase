@@ -25,33 +25,55 @@
             <span class="ivv-step">1</span>
             <strong>封面圖片</strong>
           </div>
-          <label
+          <div
+            ref="imageDropzoneRef"
             class="ivv-dropzone"
-            :class="{ 'has-preview': !!imagePreviewUrl }"
+            :class="{ 'has-preview': !!imagePreviewUrl, 'is-focused': dropzoneFocused }"
+            tabindex="0"
+            role="button"
+            aria-label="上傳或從剪貼簿貼上封面圖片"
             @dragover.prevent
             @drop.prevent="onImageDrop"
+            @paste="onImagePaste"
+            @focus="dropzoneFocused = true"
+            @blur="dropzoneFocused = false"
+            @click="openImagePicker"
+            @keydown.enter.prevent="openImagePicker"
+            @keydown.space.prevent="openImagePicker"
           >
             <input
               ref="imageInputRef"
               type="file"
               accept="image/*"
               class="ivv-file-input"
+              tabindex="-1"
               @change="onImagePick"
+              @click.stop
             />
             <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="預覽" class="ivv-dropzone__img" />
             <div v-else class="ivv-dropzone__empty">
-              <span>拖放或點選上傳圖片</span>
-              <small>JPG / PNG / WebP</small>
+              <span>拖放、點選或 Ctrl+V 貼上圖片</span>
+              <small>JPG / PNG / WebP · 支援剪貼簿</small>
             </div>
-          </label>
-          <button
-            v-if="imagePreviewUrl"
-            type="button"
-            class="tool-secondary-btn tool-secondary-btn--compact"
-            @click="clearImage"
-          >
-            清除圖片
-          </button>
+          </div>
+          <div class="ivv-image-actions">
+            <button
+              type="button"
+              class="tool-secondary-btn tool-secondary-btn--compact"
+              :disabled="pastingClipboard"
+              @click="pasteImageFromClipboard"
+            >
+              {{ pastingClipboard ? '讀取中…' : '從剪貼簿貼上' }}
+            </button>
+            <button
+              v-if="imagePreviewUrl"
+              type="button"
+              class="tool-secondary-btn tool-secondary-btn--compact"
+              @click="clearImage"
+            >
+              清除圖片
+            </button>
+          </div>
         </div>
 
         <!-- 2. Script -->
@@ -241,7 +263,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useStorage } from '../../composables/useStorage'
 import { LANG_OPTIONS } from '../../utils/imageVoiceVideo/languages'
 import { parseScriptLines, safeFilename } from '../../utils/imageVoiceVideo/scriptParser'
@@ -253,9 +275,12 @@ const TEMP_FOLDER = 'temp/image-voice-video'
 const { uploadFile } = useStorage()
 
 const imageInputRef = ref(null)
+const imageDropzoneRef = ref(null)
 const canvasRef = ref(null)
 const imagePreviewUrl = ref(null)
 const imageEl = ref(null)
+const dropzoneFocused = ref(false)
+const pastingClipboard = ref(false)
 const script = ref('')
 const scriptLang = ref('zh-TW')
 const tracks = ref([
@@ -266,7 +291,7 @@ const volume = ref(100)
 const format = ref('webm')
 const orientationMode = ref('auto')
 const filename = ref('')
-const status = ref('就緒 — 上傳圖片並輸入語音稿')
+const status = ref('就緒 — 上傳圖片、貼上剪貼簿或輸入語音稿')
 const error = ref('')
 const recording = ref(false)
 const uploading = ref(false)
@@ -305,10 +330,14 @@ const removeTrack = (idx) => {
   tracks.value.splice(idx, 1)
 }
 
-const loadImageFromFile = (file) => {
+const openImagePicker = () => {
+  imageInputRef.value?.click()
+}
+
+const loadImageFromFile = (file, source = 'upload') => {
   if (!file || !file.type?.startsWith('image/')) {
     error.value = '請選擇圖片檔案'
-    return
+    return false
   }
   error.value = ''
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value)
@@ -317,6 +346,13 @@ const loadImageFromFile = (file) => {
   const img = new Image()
   img.onload = () => {
     imageEl.value = img
+    if (source === 'clipboard') {
+      status.value = '已從剪貼簿貼上封面圖片'
+    } else if (source === 'drop') {
+      status.value = '已載入拖放的封面圖片'
+    } else {
+      status.value = '已載入封面圖片'
+    }
     redrawPreview()
   }
   img.onerror = () => {
@@ -324,16 +360,103 @@ const loadImageFromFile = (file) => {
     imageEl.value = null
   }
   img.src = url
+  return true
+}
+
+const fileFromClipboardData = (clipboardData) => {
+  if (!clipboardData) return null
+
+  const items = clipboardData.items
+  if (items?.length) {
+    for (const item of items) {
+      if (item.kind === 'file' && item.type?.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) return file
+      }
+    }
+  }
+
+  const files = clipboardData.files
+  if (files?.length) {
+    for (const file of files) {
+      if (file?.type?.startsWith('image/')) return file
+    }
+  }
+
+  return null
+}
+
+const isEditablePasteTarget = (target) => {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  if (target.isContentEditable) return true
+  return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
 }
 
 const onImagePick = (e) => {
   const file = e.target?.files?.[0]
-  if (file) loadImageFromFile(file)
+  if (file) loadImageFromFile(file, 'upload')
 }
 
 const onImageDrop = (e) => {
   const file = e.dataTransfer?.files?.[0]
-  if (file) loadImageFromFile(file)
+  if (file) loadImageFromFile(file, 'drop')
+}
+
+const onImagePaste = (e) => {
+  const file = fileFromClipboardData(e.clipboardData)
+  if (!file) return
+  e.preventDefault()
+  e.stopPropagation()
+  loadImageFromFile(file, 'clipboard')
+}
+
+/** Panel-wide Ctrl+V: use clipboard image unless user is typing in a field. */
+const onDocumentPaste = (e) => {
+  if (isEditablePasteTarget(e.target)) return
+  const file = fileFromClipboardData(e.clipboardData)
+  if (!file) return
+  e.preventDefault()
+  loadImageFromFile(file, 'clipboard')
+}
+
+const pasteImageFromClipboard = async () => {
+  if (pastingClipboard.value) return
+  error.value = ''
+  pastingClipboard.value = true
+  try {
+    // Prefer async Clipboard API (button click); fall back to focusing dropzone for Ctrl+V.
+    if (navigator.clipboard?.read) {
+      const items = await navigator.clipboard.read()
+      for (const item of items) {
+        const type = item.types.find((t) => t.startsWith('image/'))
+        if (!type) continue
+        const blob = await item.getType(type)
+        const ext = (type.split('/')[1] || 'png').split('+')[0]
+        const file = new File([blob], `clipboard.${ext}`, { type })
+        loadImageFromFile(file, 'clipboard')
+        return
+      }
+      error.value = '剪貼簿中沒有圖片（請先複製一張圖）'
+      return
+    }
+
+    // Older browsers: focus dropzone so user can Ctrl+V
+    imageDropzoneRef.value?.focus()
+    error.value = '此瀏覽器請改用 Ctrl+V 貼到封面區塊'
+  } catch (err) {
+    if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
+      imageDropzoneRef.value?.focus()
+      error.value = '無法直接讀取剪貼簿，請改用 Ctrl+V 貼到封面區塊'
+    } else if (err?.name === 'NotFoundError') {
+      error.value = '剪貼簿中沒有圖片（請先複製一張圖）'
+    } else {
+      error.value = err?.message || '讀取剪貼簿失敗'
+    }
+  } finally {
+    pastingClipboard.value = false
+  }
 }
 
 const clearImage = () => {
@@ -341,6 +464,7 @@ const clearImage = () => {
   imagePreviewUrl.value = null
   imageEl.value = null
   if (imageInputRef.value) imageInputRef.value.value = ''
+  status.value = '就緒 — 上傳圖片、貼上剪貼簿或輸入語音稿'
   redrawPreview()
 }
 
@@ -480,8 +604,13 @@ const handleGenerate = async () => {
   }
 }
 
+onMounted(() => {
+  document.addEventListener('paste', onDocumentPaste)
+})
+
 onBeforeUnmount(() => {
   aborted.value = true
+  document.removeEventListener('paste', onDocumentPaste)
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value)
   if (result.value?.localUrl) URL.revokeObjectURL(result.value.localUrl)
 })
@@ -586,17 +715,31 @@ onBeforeUnmount(() => {
   overflow: hidden;
   background: color-mix(in oklab, var(--bg-secondary) 90%, transparent);
   position: relative;
+  outline: none;
 }
 
 .ivv-dropzone.has-preview {
   border-style: solid;
 }
 
+.ivv-dropzone.is-focused,
+.ivv-dropzone:focus-visible {
+  border-color: var(--accent-color, #3b82f6);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-color, #3b82f6) 22%, transparent);
+}
+
 .ivv-file-input {
   position: absolute;
-  inset: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
   opacity: 0;
-  cursor: pointer;
+  pointer-events: none;
 }
 
 .ivv-dropzone__empty {
@@ -615,6 +758,13 @@ onBeforeUnmount(() => {
   max-height: 220px;
   object-fit: contain;
   pointer-events: none;
+}
+
+.ivv-image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
 }
 
 .ivv-script {

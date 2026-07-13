@@ -278,7 +278,6 @@ import { useRoutines } from '../../composables/useRoutines'
 import { useStorageUsage } from '../../composables/useStorageUsage'
 import { useSubscriptions } from '../../composables/useSubscriptions'
 import { useVideoRecords } from '../../composables/useVideoRecords'
-import { useExpiryEmailNotifications } from '../../composables/useExpiryEmailNotifications'
 import PageContainer from '../layout/PageContainer.vue'
 import BaseCard from '../ui/BaseCard.vue'
 import BaseButton from '../ui/BaseButton.vue'
@@ -321,7 +320,6 @@ const {
   fileCount: storageUsageFileCount,
   refreshStorageUsage
 } = useStorageUsage()
-const { runExpiryEmailNotifications } = useExpiryEmailNotifications()
 
 const tableStats = computed(() => [
   { name: 'subscription', label: '訂閱管理', icon: '💳', count: subscriptions.value.length, page: 'subscription' },
@@ -369,9 +367,6 @@ onMounted(() => {
   loadSubscriptions()
   loadVideos()
   refreshStorageUsage()
-  runExpiryEmailNotifications().catch(error => {
-    console.warn('[DashboardPage] Resend expiry notification failed', error)
-  })
 })
 </script>
 

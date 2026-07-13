@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
+import { SUBSCRIPTION_NOTIFY_WINDOW_DAYS, isWithinNotifyWindow } from '../utils/notificationHelpers'
 
 // 共享狀態（在模組層級定義，所有組件共用）
 const subscriptions = ref([])
@@ -67,18 +68,11 @@ export const useSubscriptions = () => {
     return subscriptions.value.reduce((total, sub) => total + (sub.price || 0), 0)
   })
 
-  // 取得 3 天內即將到期的訂閱（僅續訂中的項目）
-  const getUpcomingSubscriptions = () => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const threeDaysLater = new Date(today)
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3)
-
+  // 取得通知視窗內即將到期的訂閱（僅續訂中的項目）
+  const getUpcomingSubscriptions = (windowDays = SUBSCRIPTION_NOTIFY_WINDOW_DAYS) => {
     return subscriptions.value.filter(sub => {
       if (!sub.nextdate || sub.iscontinue === false) return false
-      const nextDate = new Date(sub.nextdate)
-      nextDate.setHours(0, 0, 0, 0)
-      return nextDate >= today && nextDate <= threeDaysLater
+      return isWithinNotifyWindow(sub.nextdate, windowDays)
     })
   }
 

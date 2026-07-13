@@ -3,22 +3,13 @@
 import { computed } from 'vue'
 import { useSubscriptions } from './useSubscriptions'
 import { useFoods } from './useFoods'
+import { daysUntil, getDayText } from '../utils/notificationHelpers'
 
 export const useDashboard = () => {
   const { subscriptions } = useSubscriptions()
   const { foods } = useFoods()
 
-  // 計算剩餘天數
-  const calculateDaysRemaining = (targetDate) => {
-    if (!targetDate) return null
-    
-    const today = new Date()
-    const target = new Date(targetDate)
-    const diffTime = target - today
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
-    return diffDays
-  }
+  const calculateDaysRemaining = (targetDate) => daysUntil(targetDate)
 
   // 訂閱到期提醒 - 3天和7天內
   const subscriptionAlerts = computed(() => {
@@ -111,10 +102,9 @@ export const useDashboard = () => {
 
   // 格式化剩餘天數顯示
   const formatDaysRemaining = (days) => {
-    if (days === 0) return '今天'
-    if (days === 1) return '明天'
+    if (days === null || days === undefined) return ''
     if (days < 0) return `已過期 ${Math.abs(days)} 天`
-    return `${days} 天後`
+    return getDayText(days)
   }
 
   // 取得優先級顏色

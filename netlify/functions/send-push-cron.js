@@ -3,6 +3,10 @@
 
 import webpush from 'web-push'
 import { createClient } from '@supabase/supabase-js'
+import {
+  SUBSCRIPTION_NOTIFY_WINDOW_DAYS,
+  buildPushPayload
+} from '../../utils/notificationHelpers.js'
 
 const REQUIRED_ENV = [
   'SUPABASE_URL',
@@ -14,10 +18,11 @@ const REQUIRED_ENV = [
 
 const missingEnv = () => REQUIRED_ENV.filter((key) => !process.env[key])
 
-const getDayText = (daysLeft) => {
-  if (daysLeft === 0) return '今天'
-  if (daysLeft === 1) return '明天'
-  return `${daysLeft} 天後`
+const toDateOnlyIso = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 export default async () => {
@@ -41,9 +46,9 @@ export default async () => {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   const limit = new Date(now)
-  limit.setDate(limit.getDate() + 3)
-  const today = now.toISOString().split('T')[0]
-  const limitDate = limit.toISOString().split('T')[0]
+  limit.setDate(limit.getDate() + SUBSCRIPTION_NOTIFY_WINDOW_DAYS)
+  const today = toDateOnlyIso(now)
+  const limitDate = toDateOnlyIso(limit)
 
   const { data: subs, error: subError } = await supabase
     .from('subscription')
@@ -79,18 +84,7 @@ export default async () => {
   let failed = 0
 
   for (const sub of subs) {
-    const date = new Date(sub.nextdate)
-    date.setHours(0, 0, 0, 0)
-    const daysLeft = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    const dayText = getDayText(daysLeft)
-
-    const payload = JSON.stringify({
-      title: '鋒兄訂閱提醒',
-      body: `${sub.name} 將在 ${dayText} 到期（${sub.nextdate}）`,
-      tag: `sub-push-${sub.id}`,
-      url: '/',
-      requireInteraction: true
-    })
+    const payload = JSON.stringify(buildPushPayload(sub))
 
     for (const pushSub of pushSubs) {
       try {

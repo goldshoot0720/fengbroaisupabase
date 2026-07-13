@@ -161,7 +161,6 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useExpiryEmailNotifications } from '../../composables/useExpiryEmailNotifications'
 import { FENG_TUBE_ACTIVE_TOOL_KEY } from '../../utils/fengTubeChannels'
 
 const emit = defineEmits(['navigate'])
@@ -175,7 +174,6 @@ let sleepWarningTimer = null
 
 const TUBE_ALERT_DISMISS_KEY = 'feng-tube-alert-dismissed-date'
 const FINANCE_ALERT_DISMISS_KEY = 'feng-finance-alert-dismissed-date'
-const { runExpiryEmailNotifications } = useExpiryEmailNotifications()
 
 const updateCurrentHour = () => {
   currentHour.value = new Date().getHours()
@@ -246,14 +244,6 @@ const loadFinanceAlert = async () => {
   }
 }
 
-const checkExpiryEmailNotifications = async () => {
-  try {
-    await runExpiryEmailNotifications()
-  } catch (error) {
-    console.warn('[HomePage] Resend expiry notification failed', error)
-  }
-}
-
 const dismissTubeAlert = () => {
   tubeAlertDismissed.value = true
   if (import.meta.client) {
@@ -292,7 +282,6 @@ onMounted(() => {
   }
   loadTubeAlert()
   loadFinanceAlert()
-  checkExpiryEmailNotifications()
 })
 
 onUnmounted(() => {

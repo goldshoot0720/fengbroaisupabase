@@ -1,9 +1,22 @@
 // FengBro AI Supabase custom service worker helpers.
 // Imported by @vite-pwa/nuxt Workbox through nuxt.config.ts.
+// Keep self-contained (no module imports) so Workbox can inject this file as-is.
+// Message / key constants must stay aligned with utils/notificationHelpers.js.
+
+const SW_DB_NAME = 'fengbroai-sw'
+const SW_STORE = 'config'
+const SW_CREDS_KEY = 'supabase-creds'
+const SUB_NOTIFY_DATE_KEY = 'sub-notify-date'
+const PERIODIC_SYNC_TAG = 'check-subscriptions'
+const SUBSCRIPTION_NOTIFY_WINDOW_DAYS = 3
+const NOTIF_ICON = '/pwa-192x192.png'
+const NOTIF_BADGE = '/pwa-192x192.png'
+const SUBSCRIPTION_NOTIF_TITLE = '鋒兄訂閱提醒'
+const DEFAULT_PUSH_TITLE = '鋒兄提醒'
 
 self.addEventListener('push', (event) => {
   let data = {
-    title: '鋒兄提醒',
+    title: DEFAULT_PUSH_TITLE,
     body: '你有新的提醒。',
     url: '/',
     tag: 'fengbro-push'
@@ -18,10 +31,10 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title || '鋒兄提醒', {
+    self.registration.showNotification(data.title || DEFAULT_PUSH_TITLE, {
       body: data.body || '',
-      icon: data.icon || '/pwa-192x192.png',
-      badge: data.badge || '/pwa-192x192.png',
+      icon: data.icon || NOTIF_ICON,
+      badge: data.badge || NOTIF_BADGE,
       tag: data.tag || 'fengbro-push',
       vibrate: data.vibrate || [200, 100, 200],
       requireInteraction: data.requireInteraction !== false,
@@ -49,15 +62,12 @@ self.addEventListener('notificationclick', (event) => {
   )
 })
 
-const DB_NAME = 'fengbroai-sw'
-const STORE = 'config'
-
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1)
+    const req = indexedDB.open(SW_DB_NAME, 1)
     req.onupgradeneeded = (event) => {
       const db = event.target.result
-      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE)
+      if (!db.objectStoreNames.contains(SW_STORE)) db.createObjectStore(SW_STORE)
     }
     req.onsuccess = (event) => resolve(event.target.result)
     req.onerror = () => reject(req.error)
@@ -67,8 +77,8 @@ function openDB() {
 async function getFromDB(key) {
   const db = await openDB()
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readonly')
-    const req = tx.objectStore(STORE).get(key)
+    const tx = db.transaction(SW_STORE, 'readonly')
+    const req = tx.objectStore(SW_STORE).get(key)
     req.onsuccess = (event) => resolve(event.target.result)
     req.onerror = () => reject(req.error)
   })
@@ -77,15 +87,26 @@ async function getFromDB(key) {
 async function setInDB(key, value) {
   const db = await openDB()
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite')
-    const req = tx.objectStore(STORE).put(value, key)
+    const tx = db.transaction(SW_STORE, 'readwrite')
+    const req = tx.objectStore(SW_STORE).put(value, key)
     req.onsuccess = () => resolve()
     req.onerror = () => reject(req.error)
   })
 }
 
+function getDayText(daysLeft) {
+  if (daysLeft === 0) return '今天'
+  if (daysLeft === 1) return '明天'
+  return `${daysLeft} 天後`
+}
+
+function buildSubscriptionExpiryBody(name, nextdate, daysLeft) {
+  const dayText = getDayText(daysLeft)
+  return `${name || '未命名訂閱'} 將在 ${dayText} 到期（${nextdate}）`
+}
+
 self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'check-subscriptions') {
+  if (event.tag === PERIODIC_SYNC_TAG) {
     event.waitUntil(checkSubscriptionExpiry())
   }
 })
@@ -93,10 +114,10 @@ self.addEventListener('periodicsync', (event) => {
 async function checkSubscriptionExpiry() {
   try {
     const today = new Date().toISOString().split('T')[0]
-    const lastNotify = await getFromDB('sub-notify-date')
+    const lastNotify = await getFromDB(SUB_NOTIFY_DATE_KEY)
     if (lastNotify === today) return
 
-    const creds = await getFromDB('supabase-creds')
+    const creds = await getFromDB(SW_CREDS_KEY)
     if (!creds?.url || !creds?.key) return
 
     const res = await fetch(
@@ -114,7 +135,7 @@ async function checkSubscriptionExpiry() {
     const now = new Date()
     now.setHours(0, 0, 0, 0)
     const limit = new Date(now)
-    limit.setDate(limit.getDate() + 3)
+    limit.setDate(limit.getDate() + SUBSCRIPTION_NOTIFY_WINDOW_DAYS)
 
     const upcoming = subs.filter((sub) => {
       const date = new Date(sub.nextdate)
@@ -123,17 +144,16 @@ async function checkSubscriptionExpiry() {
     })
 
     if (upcoming.length === 0) return
-    await setInDB('sub-notify-date', today)
+    await setInDB(SUB_NOTIFY_DATE_KEY, today)
 
     for (const sub of upcoming) {
       const date = new Date(sub.nextdate)
       date.setHours(0, 0, 0, 0)
       const daysLeft = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-      const dayText = daysLeft === 0 ? '今天' : `${daysLeft} 天後`
-      await self.registration.showNotification('鋒兄訂閱提醒', {
-        body: `${sub.name} 將在 ${dayText} 到期（${sub.nextdate}）`,
-        icon: '/pwa-192x192.png',
-        badge: '/pwa-192x192.png',
+      await self.registration.showNotification(SUBSCRIPTION_NOTIF_TITLE, {
+        body: buildSubscriptionExpiryBody(sub.name, sub.nextdate, daysLeft),
+        icon: NOTIF_ICON,
+        badge: NOTIF_BADGE,
         tag: `sub-bg-${sub.id}`,
         vibrate: [200, 100, 200],
         requireInteraction: true,

@@ -336,7 +336,7 @@ import { useNavigation } from '../composables/useNavigation'
 import { useScroll } from '../composables/useScroll'
 import { useToast } from '../composables/useToast'
 import { getSupabaseCredentials } from '../composables/useSettings'
-import { usePushNotification } from '../composables/usePushNotification'
+import { useNotifications } from '../composables/useNotifications'
 import { usePersistentAudioPlayer } from '../composables/usePersistentAudioPlayer'
 import { usePersistentVideoPlayer } from '../composables/usePersistentVideoPlayer'
 
@@ -346,7 +346,7 @@ const foodPageRef = ref(null)
 const bankPageRef = ref(null)
 
 // 使用 composables
-const { subscriptions, totalMonthlyCost, loadSubscriptions, getUpcomingSubscriptions } = useSubscriptions()
+const { subscriptions, totalMonthlyCost, loadSubscriptions } = useSubscriptions()
 const { foods, loadFoods } = useFoods()
 const { isDarkMode, toggleDarkMode, initTheme } = useTheme()
 const { 
@@ -362,7 +362,7 @@ const {
   handleResize 
 } = useNavigation()
 const { warning: toastWarning } = useToast()
-const { subscribe: subscribePush, checkSubscription: checkPushSubscription } = usePushNotification()
+const { bootstrapNotifications } = useNotifications()
 const {
   showScrollButtons,
   showTopButton, 
@@ -521,119 +521,10 @@ onMounted(async () => {
     }
   }
 
-  // 載入初始資料
+  // 載入初始資料後，統一啟動通知流程（toast / 原生 / SW / Web Push / Resend Email）
   await loadSubscriptions()
   loadFoods()
-
-  // 檢查 3 天內即將到期的訂閱並發送通知（每天只通知一次）
-  const today = new Date().toISOString().split('T')[0]
-  const lastNotifyDate = localStorage.getItem('sub-notify-date')
-  const upcoming = getUpcomingSubscriptions()
-
-  if (upcoming.length > 0 && lastNotifyDate !== today) {
-    localStorage.setItem('sub-notify-date', today)
-
-    // 頁面內 toast 通知
-    upcoming.forEach((sub, index) => {
-      const daysLeft = Math.ceil((new Date(sub.nextdate) - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))
-      const dayText = daysLeft === 0 ? '今天' : `${daysLeft} 天後`
-      setTimeout(() => {
-        toastWarning(`「${sub.name}」${dayText}到期（${sub.nextdate}）`, { duration: 8000 })
-      }, index * 500)
-    })
-
-    // 瀏覽器原生通知（透過 Service Worker，支援手機）
-    if ('Notification' in window) {
-      const sendNativeNotifications = async () => {
-        const registration = await navigator.serviceWorker?.ready
-        upcoming.forEach((sub, index) => {
-          const daysLeft = Math.ceil((new Date(sub.nextdate) - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))
-          const dayText = daysLeft === 0 ? '今天' : `${daysLeft} 天後`
-          const notifBody = `「${sub.name}」${dayText}到期（${sub.nextdate}）`
-          setTimeout(() => {
-            if (registration) {
-              registration.showNotification('鋒兄訂閱提醒', {
-                body: notifBody,
-                icon: '/pwa-192x192.png',
-                badge: '/pwa-192x192.png',
-                tag: `sub-${sub.id}`,
-                vibrate: [200, 100, 200],
-                requireInteraction: true
-              })
-            } else {
-              new Notification('鋒兄訂閱提醒', {
-                body: notifBody,
-                icon: '/favicon.ico',
-                tag: `sub-${sub.id}`
-              })
-            }
-          }, index * 800)
-        })
-      }
-
-      if (Notification.permission === 'granted') {
-        sendNativeNotifications()
-      } else if (Notification.permission !== 'denied') {
-        Notification.requestPermission().then(permission => {
-          if (permission === 'granted') {
-            sendNativeNotifications()
-          }
-        })
-      }
-    }
-  }
-
-  // --- PWA 背景同步：儲存 Supabase 憑證到 IndexedDB ---
-  // Service Worker 無法讀取 localStorage，需透過 IndexedDB 傳遞憑證
-  if (import.meta.client && 'indexedDB' in window) {
-    try {
-      const url = creds?.url || config.public.supabaseUrl
-      const key = creds?.key || config.public.supabaseAnonKey
-
-      if (url && key) {
-        const req = indexedDB.open('fengbroai-sw', 1)
-        req.onupgradeneeded = (e) => {
-          if (!e.target.result.objectStoreNames.contains('config')) {
-            e.target.result.createObjectStore('config')
-          }
-        }
-        req.onsuccess = (e) => {
-          const db = e.target.result
-          const tx = db.transaction('config', 'readwrite')
-          tx.objectStore('config').put({ url, key }, 'supabase-creds')
-        }
-      }
-    } catch (e) {
-      console.warn('[PWA] 儲存憑證到 IndexedDB 失敗:', e)
-    }
-  }
-
-  // --- PWA 背景同步：註冊 Periodic Background Sync ---
-  // 支援：Android Chrome（已安裝 PWA）；iOS 目前不支援
-  if (import.meta.client && 'serviceWorker' in navigator) {
-    navigator.serviceWorker.ready.then(async (registration) => {
-      try {
-        if (!('periodicSync' in registration)) return
-        const status = await navigator.permissions.query({ name: 'periodic-background-sync' })
-        if (status.state === 'granted') {
-          await registration.periodicSync.register('check-subscriptions', {
-            minInterval: 24 * 60 * 60 * 1000  // 最少每天一次
-          })
-          console.log('[PWA] 背景訂閱檢查已註冊（每天）')
-        }
-      } catch (e) {
-        console.log('[PWA] Periodic Background Sync 不支援或未授權:', e.message)
-      }
-    }).catch(() => {})
-  }
-
-  // --- Web Push：背景推播訂閱（需先完成 push_subscriptions 表、SERVICE_ROLE_KEY、VAPID 金鑰）---
-  if (import.meta.client && 'serviceWorker' in navigator && 'PushManager' in window) {
-    await checkPushSubscription()
-    subscribePush().catch((error) => {
-      console.warn('[Push] Web Push 訂閱失敗:', error)
-    })
-  }
+  await bootstrapNotifications()
 
   // 初始化主題
   initTheme()

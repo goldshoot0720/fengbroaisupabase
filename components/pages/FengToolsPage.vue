@@ -136,6 +136,241 @@
         </template>
       </section>
 
+      <section v-else-if="activeTool === 'manual'" class="tool-panel">
+        <div class="tool-panel__header">
+          <div>
+            <p class="panel-kicker">手動紀錄</p>
+            <h3>自行輸入商品與價錢，追蹤紀錄與走勢</h3>
+            <p class="tool-subtitle">資料保存在此裝置瀏覽器本機，可隨時新增、刪除與查看價格走勢。</p>
+          </div>
+        </div>
+
+        <div class="manual-block">
+          <div class="manual-block__header">
+            <p class="panel-kicker">商品</p>
+            <h4>新增要追蹤的商品</h4>
+          </div>
+          <div class="tool-input-grid manual-product-form">
+            <label class="tool-field tool-field--wide">
+              <span>商品名稱</span>
+              <input
+                v-model.trim="manualProductForm.name"
+                type="text"
+                class="tool-input"
+                placeholder="例如：iPhone 16 Pro 256G"
+                @keydown.enter.prevent="addManualProduct"
+              />
+            </label>
+            <label class="tool-field">
+              <span>備註（選填）</span>
+              <input
+                v-model.trim="manualProductForm.note"
+                type="text"
+                class="tool-input"
+                placeholder="規格、品牌、連結…"
+                @keydown.enter.prevent="addManualProduct"
+              />
+            </label>
+            <button type="button" class="tool-primary-btn" @click="addManualProduct">
+              新增商品
+            </button>
+          </div>
+          <p v-if="manualProductError" class="tool-error">{{ manualProductError }}</p>
+
+          <div v-if="manualProducts.length === 0" class="chart-empty chart-empty--small">
+            尚未新增商品。先建立商品後，就能開始記錄價錢。
+          </div>
+          <div v-else class="manual-product-list" role="listbox" aria-label="手動紀錄商品清單">
+            <button
+              v-for="product in manualProducts"
+              :key="product.id"
+              type="button"
+              class="manual-product-chip"
+              :class="{ active: selectedManualProductId === product.id }"
+              role="option"
+              :aria-selected="selectedManualProductId === product.id"
+              @click="selectedManualProductId = product.id"
+            >
+              <span class="manual-product-chip__name">{{ product.name }}</span>
+              <small>
+                {{ product.prices.length }} 筆
+                <template v-if="latestManualPrice(product) !== null">
+                  · 最新 {{ formatCurrency(latestManualPrice(product)) }}
+                </template>
+              </small>
+              <span
+                class="manual-product-chip__delete"
+                title="刪除商品"
+                @click.stop="confirmRemoveManualProduct(product.id)"
+              >
+                刪除
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <template v-if="selectedManualProduct">
+          <div class="manual-block">
+            <div class="manual-block__header">
+              <div>
+                <p class="panel-kicker">價錢</p>
+                <h4>為「{{ selectedManualProduct.name }}」新增價錢</h4>
+              </div>
+              <button
+                v-if="selectedManualProduct.note"
+                type="button"
+                class="tool-secondary-btn tool-secondary-btn--compact"
+                disabled
+              >
+                {{ selectedManualProduct.note }}
+              </button>
+            </div>
+
+            <div class="tool-input-grid manual-price-form">
+              <label class="tool-field">
+                <span>價錢（元）</span>
+                <input
+                  v-model.trim="manualPriceForm.price"
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputmode="decimal"
+                  class="tool-input"
+                  placeholder="例如：35900"
+                  @keydown.enter.prevent="addManualPrice"
+                />
+              </label>
+              <label class="tool-field">
+                <span>日期</span>
+                <input
+                  v-model="manualPriceForm.date"
+                  type="date"
+                  class="tool-input"
+                  @keydown.enter.prevent="addManualPrice"
+                />
+              </label>
+              <label class="tool-field">
+                <span>店家／備註（選填）</span>
+                <input
+                  v-model.trim="manualPriceForm.note"
+                  type="text"
+                  class="tool-input"
+                  placeholder="PChome、momo、門市…"
+                  @keydown.enter.prevent="addManualPrice"
+                />
+              </label>
+              <button type="button" class="tool-primary-btn" @click="addManualPrice">
+                新增價錢
+              </button>
+            </div>
+            <p v-if="manualPriceError" class="tool-error">{{ manualPriceError }}</p>
+          </div>
+
+          <div class="stats-grid">
+            <article class="stat-tile">
+              <span>最新價錢</span>
+              <strong>{{ formatCurrency(manualProductStats.latest) }}</strong>
+            </article>
+            <article class="stat-tile">
+              <span>歷史最高</span>
+              <strong>{{ formatCurrency(manualProductStats.high) }}</strong>
+            </article>
+            <article class="stat-tile">
+              <span>歷史最低</span>
+              <strong>{{ formatCurrency(manualProductStats.low) }}</strong>
+            </article>
+            <article class="stat-tile">
+              <span>紀錄筆數</span>
+              <strong>{{ manualProductStats.count }}</strong>
+            </article>
+          </div>
+
+          <div class="chart-shell">
+            <div class="chart-shell__header">
+              <div>
+                <p class="panel-kicker">價格走勢圖</p>
+                <h4>{{ selectedManualProduct.name }}</h4>
+              </div>
+              <p class="chart-caption">依日期排序，至少兩筆才會顯示折線</p>
+            </div>
+
+            <svg
+              v-if="manualChart.points.length > 1"
+              class="price-chart"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              aria-label="手動價格走勢"
+            >
+              <polyline class="chart-area" :points="manualChart.areaPoints" />
+              <polyline class="chart-line" :points="manualChart.points" />
+              <circle
+                v-for="point in manualChart.circles"
+                :key="point.key"
+                class="chart-dot"
+                :cx="point.x"
+                :cy="point.y"
+                r="1.8"
+              />
+            </svg>
+            <div v-else class="chart-empty">
+              {{ manualSortedPrices.length === 0 ? '還沒有價錢紀錄，先新增一筆吧。' : '再新增至少一筆價錢後，這裡會出現走勢圖。' }}
+            </div>
+
+            <div v-if="manualSortedPrices.length > 0" class="chart-legend chart-legend--row">
+              <div
+                v-for="entry in manualSortedPrices"
+                :key="entry.id"
+                class="history-chip"
+              >
+                <span>{{ formatHistoryDate(entry.date) }}</span>
+                <strong>{{ formatCurrency(entry.price) }}</strong>
+                <span v-if="entry.note" class="history-chip__note">{{ entry.note }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="manual-block">
+            <div class="manual-block__header">
+              <div>
+                <p class="panel-kicker">價錢紀錄</p>
+                <h4>完整列表（新到舊）</h4>
+              </div>
+            </div>
+
+            <div v-if="manualSortedPricesDesc.length === 0" class="chart-empty chart-empty--small">
+              尚無紀錄
+            </div>
+            <div v-else class="manual-price-table" role="table" aria-label="價錢紀錄列表">
+              <div class="manual-price-table__head" role="row">
+                <span role="columnheader">日期</span>
+                <span role="columnheader">價錢</span>
+                <span role="columnheader">店家／備註</span>
+                <span role="columnheader">操作</span>
+              </div>
+              <div
+                v-for="entry in manualSortedPricesDesc"
+                :key="entry.id"
+                class="manual-price-table__row"
+                role="row"
+              >
+                <span role="cell">{{ formatManualDate(entry.date) }}</span>
+                <strong role="cell">{{ formatCurrency(entry.price) }}</strong>
+                <span role="cell" class="manual-price-table__note">{{ entry.note || '—' }}</span>
+                <span role="cell">
+                  <button
+                    type="button"
+                    class="tube-delete-btn"
+                    @click="confirmRemoveManualPrice(entry.id)"
+                  >
+                    刪除
+                  </button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </template>
+      </section>
+
       <section v-else-if="activeTool === 'phone'" class="tool-panel">
         <div class="tool-panel__header">
           <div>
@@ -513,6 +748,7 @@ import { FENG_TUBE_ACTIVE_TOOL_KEY, FENG_TUBE_CHANNELS } from '../../utils/fengT
 
 const toolTabs = [
   { value: 'biggo', label: '鋒兄比價', description: '網址或關鍵字查 BigGo 價格區間' },
+  { value: 'manual', label: '手動紀錄', description: '自行輸入商品與價錢、查看走勢' },
   { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信價格比較' },
   { value: 'tube', label: '鋒兄tube', description: '追蹤指定 YouTube 頻道最新影片' },
   { value: 'finance', label: '鋒兄金融', description: '追蹤 CNBC 市場價格與高低標記' },
@@ -551,6 +787,13 @@ const phoneCompareError = ref('')
 const phoneCompareResult = ref(null)
 const phoneCompareHistory = ref([])
 
+const manualProducts = ref([])
+const selectedManualProductId = ref('')
+const manualProductForm = ref({ name: '', note: '' })
+const manualProductError = ref('')
+const manualPriceForm = ref({ price: '', date: '', note: '' })
+const manualPriceError = ref('')
+
 const tubeLoading = ref(false)
 const tubeError = ref('')
 const tubeResult = ref(null)
@@ -569,8 +812,215 @@ const financeResult = ref(null)
 const HISTORY_INTERVAL_DAYS = 7
 const BIGGO_HISTORY_KEY = 'fengbro-tools-biggo-history'
 const PHONE_COMPARE_HISTORY_KEY = 'fengbro-tools-phone-compare-history'
+const MANUAL_PRICE_STORAGE_KEY = 'fengbro-tools-manual-prices'
+const MANUAL_SELECTED_PRODUCT_KEY = 'fengbro-tools-manual-selected-product'
 const TUBE_CHANNELS_STORAGE_KEY = 'fengbro-tools-tube-channels'
 const defaultTubeChannelCount = FENG_TUBE_CHANNELS.length
+
+const createManualId = (prefix) => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}-${crypto.randomUUID()}`
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+const todayDateInputValue = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const normalizeManualPriceEntry = (entry) => {
+  const price = Number(entry?.price)
+  if (!Number.isFinite(price)) return null
+  const date = String(entry?.date || '').trim()
+  if (!date) return null
+  return {
+    id: String(entry?.id || createManualId('price')),
+    price,
+    date,
+    note: String(entry?.note || '').trim(),
+    createdAt: String(entry?.createdAt || new Date().toISOString())
+  }
+}
+
+const normalizeManualProduct = (product) => {
+  const name = String(product?.name || '').trim()
+  if (!name) return null
+  const prices = Array.isArray(product?.prices)
+    ? product.prices.map(normalizeManualPriceEntry).filter(Boolean)
+    : []
+  return {
+    id: String(product?.id || createManualId('product')),
+    name,
+    note: String(product?.note || '').trim(),
+    createdAt: String(product?.createdAt || new Date().toISOString()),
+    prices
+  }
+}
+
+const writeManualProducts = () => {
+  if (!import.meta.client) return
+  localStorage.setItem(MANUAL_PRICE_STORAGE_KEY, JSON.stringify(manualProducts.value))
+  if (selectedManualProductId.value) {
+    localStorage.setItem(MANUAL_SELECTED_PRODUCT_KEY, selectedManualProductId.value)
+  } else {
+    localStorage.removeItem(MANUAL_SELECTED_PRODUCT_KEY)
+  }
+}
+
+const readManualProducts = () => {
+  if (!import.meta.client) return
+  const parsed = safeJsonParse(localStorage.getItem(MANUAL_PRICE_STORAGE_KEY) || '[]', [])
+  const products = Array.isArray(parsed)
+    ? parsed.map(normalizeManualProduct).filter(Boolean)
+    : []
+  manualProducts.value = products
+
+  const savedSelected = localStorage.getItem(MANUAL_SELECTED_PRODUCT_KEY) || ''
+  if (savedSelected && products.some(product => product.id === savedSelected)) {
+    selectedManualProductId.value = savedSelected
+  } else {
+    selectedManualProductId.value = products[0]?.id || ''
+  }
+
+  if (!manualPriceForm.value.date) {
+    manualPriceForm.value.date = todayDateInputValue()
+  }
+}
+
+const latestManualPrice = (product) => {
+  const prices = Array.isArray(product?.prices) ? product.prices : []
+  if (prices.length === 0) return null
+  const sorted = [...prices].sort((a, b) => {
+    const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime()
+    if (dateDiff !== 0) return dateDiff
+    return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+  })
+  return sorted[sorted.length - 1]?.price ?? null
+}
+
+const addManualProduct = () => {
+  const name = String(manualProductForm.value.name || '').trim()
+  if (!name) {
+    manualProductError.value = '請輸入商品名稱。'
+    return
+  }
+
+  const isDuplicate = manualProducts.value.some(
+    product => product.name.toLowerCase() === name.toLowerCase()
+  )
+  if (isDuplicate) {
+    manualProductError.value = '已有相同名稱的商品，請改用其他名稱或直接選取。'
+    return
+  }
+
+  const product = {
+    id: createManualId('product'),
+    name,
+    note: String(manualProductForm.value.note || '').trim(),
+    createdAt: new Date().toISOString(),
+    prices: []
+  }
+
+  manualProducts.value = [product, ...manualProducts.value]
+  selectedManualProductId.value = product.id
+  manualProductForm.value = { name: '', note: '' }
+  manualProductError.value = ''
+  writeManualProducts()
+}
+
+const removeManualProduct = (productId) => {
+  manualProducts.value = manualProducts.value.filter(product => product.id !== productId)
+  if (selectedManualProductId.value === productId) {
+    selectedManualProductId.value = manualProducts.value[0]?.id || ''
+  }
+  writeManualProducts()
+}
+
+const confirmRemoveManualProduct = (productId) => {
+  const product = manualProducts.value.find(item => item.id === productId)
+  const label = product?.name || '這個商品'
+  if (import.meta.client && !window.confirm(`確定刪除「${label}」及其全部價錢紀錄？`)) return
+  removeManualProduct(productId)
+}
+
+const addManualPrice = () => {
+  if (!selectedManualProductId.value) {
+    manualPriceError.value = '請先選擇或新增商品。'
+    return
+  }
+
+  const rawPrice = String(manualPriceForm.value.price ?? '').trim().replace(/,/g, '')
+  const price = Number(rawPrice)
+  if (!rawPrice || !Number.isFinite(price) || price < 0) {
+    manualPriceError.value = '請輸入有效的價錢（0 或正數）。'
+    return
+  }
+
+  const date = String(manualPriceForm.value.date || '').trim() || todayDateInputValue()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    manualPriceError.value = '請選擇有效的日期。'
+    return
+  }
+
+  const entry = {
+    id: createManualId('price'),
+    price,
+    date,
+    note: String(manualPriceForm.value.note || '').trim(),
+    createdAt: new Date().toISOString()
+  }
+
+  manualProducts.value = manualProducts.value.map((product) => {
+    if (product.id !== selectedManualProductId.value) return product
+    return {
+      ...product,
+      prices: [...product.prices, entry]
+    }
+  })
+
+  manualPriceForm.value = {
+    price: '',
+    date: todayDateInputValue(),
+    note: ''
+  }
+  manualPriceError.value = ''
+  writeManualProducts()
+}
+
+const removeManualPrice = (priceId) => {
+  manualProducts.value = manualProducts.value.map((product) => {
+    if (product.id !== selectedManualProductId.value) return product
+    return {
+      ...product,
+      prices: product.prices.filter(entry => entry.id !== priceId)
+    }
+  })
+  writeManualProducts()
+}
+
+const confirmRemoveManualPrice = (priceId) => {
+  if (import.meta.client && !window.confirm('確定刪除這筆價錢紀錄？')) return
+  removeManualPrice(priceId)
+}
+
+const formatManualDate = (value) => {
+  if (!value) return '—'
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split('-')
+    return `${year}/${month}/${day}`
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date)
+}
 
 const safeJsonParse = (value, fallback) => {
   try {

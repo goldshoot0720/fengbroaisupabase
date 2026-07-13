@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netlify Blobs 診斷工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .diagnostic-info {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        .test-title {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 1rem;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .music-test {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            background: white;
+        }
+        .music-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .music-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .test-status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .audio-test {
+            margin-top: 10px;
+        }
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .error-details {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Netlify Blobs 診斷工具</h1>
+        
+        <div class="diagnostic-info">
+            <h3>⚠️ Netlify Blobs 載入失敗診斷</h3>
+            <p>檢查音樂庫 Netlify Blobs 連接和載入問題</p>
+        </div>
+
+        <div class="controls">
+            <button onclick="runFullDiagnostic()" id="diagnosticBtn">🔍 開始完整診斷</button>
+            <button onclick="testSpecificMusic()" id="musicBtn">🎵 測試特定音樂</button>
+            <button onclick="checkNetworkConnectivity()" id="networkBtn">🌐 檢查網路連接</button>
+            <button onclick="clearResults()" id="clearBtn">🗑️ 清除結果</button>
+        </div>
+
+        <div id="diagnosticResults"></div>
+    </div>
+
+    <script>
+        let diagnosticResults = [];
+
+        // 測試音樂列表
+        const testMusic = [
+            {
+                name: '鋒兄的傳奇人生 - 原版',
+                blobKey: '鋒兄的傳奇人生/鋒兄的傳奇人生.mp3',
+                url: '/api/blobs/music/鋒兄的傳奇人生/鋒兄的傳奇人生.mp3'
+            },
+            {
+                name: '鋒兄進化Show🔥 - 原版',
+                blobKey: '鋒兄進化Show🔥/鋒兄進化Show🔥.mp3',
+                url: '/api/blobs/music/鋒兄進化Show🔥/鋒兄進化Show🔥.mp3'
+            },
+            {
+                name: '塗哥水電王子爆紅 - 原版',
+                blobKey: '塗哥水電王子爆紅/塗哥水電王子爆紅.mp3',
+                url: '/api/blobs/music/塗哥水電王子爆紅/塗哥水電王子爆紅.mp3'
+            },
+            {
+                name: '最瞎結婚理由 - 原版',
+                blobKey: '最瞎結婚理由/最瞎結婚理由.mp3',
+                url: '/api/blobs/music/最瞎結婚理由/最瞎結婚理由.mp3'
+            }
+        ];
+
+        // 開始完整診斷
+        async function runFullDiagnostic() {
+            const btn = document.getElementById('diagnosticBtn');
+            const resultsDiv = document.getElementById('diagnosticResults');
+            
+            btn.disabled = true;
+            btn.textContent = '🔄 診斷中...';
+            
+            resultsDiv.innerHTML = '';
+            diagnosticResults = [];
+
+            // 1. 檢查 API 端點可用性
+            await testApiEndpoint();
+            
+            // 2. 檢查環境變數
+            await checkEnvironmentVariables();
+            
+            // 3. 測試音樂載入
+            await testMusicLoading();
+            
+            // 4. 檢查瀏覽器兼容性
+            await checkBrowserCompatibility();
+            
+            // 5. 檢查網路狀態
+            await checkNetworkStatus();
+
+            // 顯示摘要
+            showDiagnosticSummary();
+            
+            btn.disabled = false;
+            btn.textContent = '🔍 開始完整診斷';
+        }
+
+        // 測試 API 端點
+        async function testApiEndpoint() {
+            const section = createTestSection('🌐 API 端點測試');
+            document.getElementById('diagnosticResults').appendChild(section);
+
+            try {
+                const response = await fetch('/api/blobs/music/test', { method: 'HEAD' });
+                
+                if (response.status === 400) {
+                    // 預期的錯誤 (Missing path parameter)
+                    addTestResult(section, 'success', 'API 端點可用', 'API 路由正常響應 (預期的 400 錯誤)');
+                } else {
+                    addTestResult(section, 'warning', `意外的響應: ${response.status}`, response.statusText);
+                }
+            } catch (error) {
+                addTestResult(section, 'error', 'API 端點不可用', error.message);
+            }
+        }
+
+        // 檢查環境變數
+        async function checkEnvironmentVariables() {
+            const section = createTestSection('⚙️ 環境變數檢查');
+            document.getElementById('diagnosticResults').appendChild(section);
+
+            // 這裡我們無法直接檢查服務器端環境變數，但可以檢查配置
+            try {
+                const response = await fetch('/api/blobs/music/鋒兄的傳奇人生/鋒兄的傳奇人生.mp3', { method: 'HEAD' });
+                
+                if (response.ok) {
+                    addTestResult(section, 'success', 'Netlify 配置正確', 'NETLIFY_SITE_ID 和 NETLIFY_AUTH_TOKEN 配置正常');
+                } else if (response.status === 404) {
+                    addTestResult(section, 'error', 'Netlify Blobs 中找不到音樂', '可能是音樂未上傳或配置錯誤');
+                } else if (response.status === 401 || response.status === 403) {
+                    addTestResult(section, 'error', 'Netlify 認證失敗', 'NETLIFY_AUTH_TOKEN 可能無效或過期');
+                } else {
+                    addTestResult(section, 'warning', `HTTP ${response.status}`, response.statusText);
+                }
+            } catch (error) {
+                addTestResult(section, 'error', '無法檢查 Netlify 配置', error.message);
+            }
+        }
+
+        // 測試音樂載入
+        async function testMusicLoading() {
+            const section = createTestSection('🎵 音樂載入測試');
+            document.getElementById('diagnosticResults').appendChild(section);
+
+            for (const music of testMusic) {
+                const musicDiv = createMusicTest(music);
+                section.appendChild(musicDiv);
+                
+                await testSingleMusic(music, musicDiv);
+                
+                // 小延遲避免過快請求
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        // 測試單個音樂
+        async function testSingleMusic(music, musicDiv) {
+            const statusEl = musicDiv.querySelector('.test-status');
+            const audioContainer = musicDiv.querySelector('.audio-test');
+            
+            try {
+                statusEl.textContent = '🔄 測試中';
+                statusEl.className = 'test-status info';
+                
+                // 測試 HEAD 請求
+                const headResponse = await fetch(music.url, { method: 'HEAD' });
+                
+                if (headResponse.ok) {
+                    statusEl.textContent = '✅ 連接成功';
+                    statusEl.className = 'test-status success';
+                    
+                    // 添加音頻播放器測試
+                    const audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.preload = 'metadata';
+                    audio.src = music.url;
+                    
+                    audio.addEventListener('loadeddata', () => {
+                        const successDiv = document.createElement('div');
+                        successDiv.className = 'success';
+                        successDiv.textContent = '✅ 音頻載入成功，可以播放';
+                        audioContainer.appendChild(successDiv);
+                    });
+                    
+                    audio.addEventListener('error', (e) => {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'error';
+                        errorDiv.textContent = `❌ 音頻載入失敗: ${getAudioErrorMessage(audio.error)}`;
+                        audioContainer.appendChild(errorDiv);
+                    });
+                    
+                    audioContainer.appendChild(audio);
+                    
+                    // 添加詳細信息
+                    const details = document.createElement('div');
+                    details.className = 'details';
+                    details.textContent = `
+Content-Type: ${headResponse.headers.get('content-type') || '未知'}
+Content-Length: ${headResponse.headers.get('content-length') || '未知'}
+Cache-Control: ${headResponse.headers.get('cache-control') || '未知'}
+                    `.trim();
+                    audioContainer.appendChild(details);
+                    
+                } else {
+                    throw new Error(`HTTP ${headResponse.status} ${headResponse.statusText}`);
+                }
+                
+            } catch (error) {
+                statusEl.textContent = '❌ 載入失敗';
+                statusEl.className = 'test-status error';
+                
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-details';
+                errorDiv.innerHTML = `
+                    <strong>錯誤:</strong> ${error.message}<br>
+                    <strong>可能原因:</strong><br>
+                    • 音樂未上傳到 Netlify Blobs<br>
+                    • Netlify 認證令牌無效<br>
+                    • 網路連接問題<br>
+                    • API 路由配置錯誤
+                `;
+                audioContainer.appendChild(errorDiv);
+            }
+        }
+
+        // 檢查瀏覽器兼容性
+        async function checkBrowserCompatibility() {
+            const section = createTestSection('🌐 瀏覽器兼容性檢查');
+            document.getElementById('diagnosticResults').appendChild(section);
+
+            // 檢查 Audio API 支援
+            if (typeof Audio !== 'undefined') {
+                addTestResult(section, 'success', 'Audio API 支援', '瀏覽器支援 HTML5 音頻');
+            } else {
+                addTestResult(section, 'error', 'Audio API 不支援', '瀏覽器不支援 HTML5 音頻');
+            }
+
+            // 檢查 Fetch API 支援
+            if (typeof fetch !== 'undefined') {
+                addTestResult(section, 'success', 'Fetch API 支援', '瀏覽器支援現代網路請求');
+            } else {
+                addTestResult(section, 'error', 'Fetch API 不支援', '瀏覽器不支援 Fetch API');
+            }
+
+            // 檢查音頻格式支援
+            const audio = new Audio();
+            const mp3Support = audio.canPlayType('audio/mpeg');
+            
+            if (mp3Support === 'probably' || mp3Support === 'maybe') {
+                addTestResult(section, 'success', 'MP3 格式支援', `支援程度: ${mp3Support}`);
+            } else {
+                addTestResult(section, 'error', 'MP3 格式不支援', '瀏覽器不支援 MP3 格式');
+            }
+        }
+
+        // 檢查網路狀態
+        async function checkNetworkStatus() {
+            const section = createTestSection('📡 網路狀態檢查');
+            document.getElementById('diagnosticResults').appendChild(section);
+
+            // 檢查線上狀態
+            if (navigator.onLine) {
+                addTestResult(section, 'success', '網路連接正常', '瀏覽器檢測到網路連接');
+            } else {
+                addTestResult(section, 'error', '網路連接異常', '瀏覽器檢測到離線狀態');
+            }
+
+            // 檢查連接速度 (簡單測試)
+            const startTime = performance.now();
+            try {
+                await fetch('/', { method: 'HEAD' });
+                const endTime = performance.now();
+                const responseTime = Math.round(endTime - startTime);
+                
+                if (responseTime < 100) {
+                    addTestResult(section, 'success', '連接速度良好', `響應時間: ${responseTime}ms`);
+                } else if (responseTime < 500) {
+                    addTestResult(section, 'warning', '連接速度一般', `響應時間: ${responseTime}ms`);
+                } else {
+                    addTestResult(section, 'warning', '連接速度較慢', `響應時間: ${responseTime}ms`);
+                }
+            } catch (error) {
+                addTestResult(section, 'error', '無法測試連接速度', error.message);
+            }
+        }
+
+        // 測試特定音樂
+        async function testSpecificMusic() {
+            const musicName = prompt('請輸入要測試的音樂 blobKey (例如: 鋒兄的傳奇人生/鋒兄的傳奇人生.mp3):');
+            if (!musicName) return;
+
+            const btn = document.getElementById('musicBtn');
+            btn.disabled = true;
+            btn.textContent = '🔄 測試中...';
+
+            const section = createTestSection(`🎵 測試音樂: ${musicName}`);
+            document.getElementById('diagnosticResults').appendChild(section);
+
+            const url = `/api/blobs/music/${encodeURIComponent(musicName)}`;
+            
+            try {
+                const response = await fetch(url, { method: 'HEAD' });
+                
+                if (response.ok) {
+                    addTestResult(section, 'success', '音樂載入成功', `HTTP ${response.status}`);
+                    
+                    // 添加播放器
+                    const audioDiv = document.createElement('div');
+                    audioDiv.innerHTML = `
+                        <audio controls style="width: 100%; margin-top: 10px;">
+                            <source src="${url}" type="audio/mpeg">
+                            您的瀏覽器不支援音樂播放。
+                        </audio>
+                    `;
+                    section.appendChild(audioDiv);
+                } else {
+                    addTestResult(section, 'error', '音樂載入失敗', `HTTP ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                addTestResult(section, 'error', '請求失敗', error.message);
+            }
+
+            btn.disabled = false;
+            btn.textContent = '🎵 測試特定音樂';
+        }
+
+        // 檢查網路連接
+        async function checkNetworkConnectivity() {
+            const btn = document.getElementById('networkBtn');
+            btn.disabled = true;
+            btn.textContent = '🔄 檢查中...';
+
+            const section = createTestSection('🌐 網路連接檢查');
+            document.getElementById('diagnosticResults').appendChild(section);
+
+            // 測試本地服務器
+            try {
+                const response = await fetch('/', { method: 'HEAD' });
+                addTestResult(section, 'success', '本地服務器連接正常', `HTTP ${response.status}`);
+            } catch (error) {
+                addTestResult(section, 'error', '本地服務器連接失敗', error.message);
+            }
+
+            // 測試 Netlify 連接 (通過我們的 API)
+            try {
+                const response = await fetch('/api/blobs/music/test-connection', { method: 'HEAD' });
+                if (response.status === 400) {
+                    addTestResult(section, 'success', 'Netlify API 連接正常', 'API 路由可達');
+                } else {
+                    addTestResult(section, 'warning', `意外響應: ${response.status}`, response.statusText);
+                }
+            } catch (error) {
+                addTestResult(section, 'error', 'Netlify API 連接失敗', error.message);
+            }
+
+            btn.disabled = false;
+            btn.textContent = '🌐 檢查網路連接';
+        }
+
+        // 創建測試區塊
+        function createTestSection(title) {
+            const section = document.createElement('div');
+            section.className = 'test-section';
+            section.innerHTML = `<div class="test-title">${title}</div>`;
+            return section;
+        }
+
+        // 創建音樂測試項目
+        function createMusicTest(music) {
+            const div = document.createElement('div');
+            div.className = 'music-test';
+            div.innerHTML = `
+                <div class="music-header">
+                    <div class="music-name">${music.name}</div>
+                    <div class="test-status info">等待測試</div>
+                </div>
+                <div class="details">blobKey: ${music.blobKey}</div>
+                <div class="audio-test"></div>
+            `;
+            return div;
+        }
+
+        // 添加測試結果
+        function addTestResult(section, type, title, message) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `status ${type}`;
+            resultDiv.innerHTML = `<strong>${title}</strong><br>${message}`;
+            section.appendChild(resultDiv);
+        }
+
+        // 顯示診斷摘要
+        function showDiagnosticSummary() {
+            const section = createTestSection('📊 診斷摘要');
+            document.getElementById('diagnosticResults').appendChild(section);
+
+            const successCount = document.querySelectorAll('.status.success').length;
+            const errorCount = document.querySelectorAll('.status.error').length;
+            const warningCount = document.querySelectorAll('.status.warning').length;
+            const totalCount = successCount + errorCount + warningCount;
+
+            addTestResult(section, 'info', '測試統計', 
+                `總測試: ${totalCount} | 成功: ${successCount} | 警告: ${warningCount} | 錯誤: ${errorCount}`);
+
+            if (errorCount === 0) {
+                addTestResult(section, 'success', '診斷結果', '所有測試通過，系統運行正常');
+            } else if (errorCount < totalCount / 2) {
+                addTestResult(section, 'warning', '診斷結果', '部分測試失敗，請檢查上述錯誤項目');
+            } else {
+                addTestResult(section, 'error', '診斷結果', '多項測試失敗，系統可能存在嚴重問題');
+            }
+        }
+
+        // 清除結果
+        function clearResults() {
+            document.getElementById('diagnosticResults').innerHTML = '';
+            diagnosticResults = [];
+        }
+
+        // 獲取音頻錯誤訊息
+        function getAudioErrorMessage(error) {
+            if (!error) return '未知錯誤';
+            
+            switch (error.code) {
+                case 1:
+                    return 'MEDIA_ERR_ABORTED - 音頻載入被中止';
+                case 2:
+                    return 'MEDIA_ERR_NETWORK - 網路錯誤';
+                case 3:
+                    return 'MEDIA_ERR_DECODE - 解碼錯誤';
+                case 4:
+                    return 'MEDIA_ERR_SRC_NOT_SUPPORTED - 不支援的格式或來源';
+                default:
+                    return `錯誤代碼: ${error.code}`;
+            }
+        }
+
+        // 頁面載入時顯示基本信息
+        window.onload = function() {
+            console.log('Netlify Blobs 診斷工具已載入');
+            console.log('當前 URL:', window.location.href);
+            console.log('用戶代理:', navigator.userAgent);
+        };
+    </script>
+</body>
+</html>

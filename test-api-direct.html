@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直接 API 測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-item {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .loading { background: #ffeaa7; }
+        .success { background: #55efc4; }
+        .error { background: #fab1a0; }
+    </style>
+</head>
+<body>
+    <h1>🎵 直接 API 測試</h1>
+    
+    <div class="test-item">
+        <h3>測試 1: 鋒兄的傳奇人生（原版）</h3>
+        <p>URL: <code id="url1"></code></p>
+        <audio id="audio1" controls></audio>
+        <div class="status loading" id="status1">⏳ 載入中...</div>
+    </div>
+
+    <script>
+        // 測試音樂
+        const testTrack = {
+            name: '鋒兄的傳奇人生',
+            path: '鋒兄的傳奇人生/鋒兄的傳奇人生.mp3'
+        };
+
+        // 構建 URL
+        const url = `/api/blobs/music/${encodeURIComponent(testTrack.path)}`;
+        document.getElementById('url1').textContent = url;
+
+        // 設置 audio
+        const audio = document.getElementById('audio1');
+        const status = document.getElementById('status1');
+        
+        audio.src = url;
+        
+        audio.addEventListener('loadeddata', () => {
+            status.className = 'status success';
+            status.textContent = '✅ 載入成功！可以播放';
+            console.log('Audio loaded successfully');
+        });
+        
+        audio.addEventListener('error', (e) => {
+            status.className = 'status error';
+            status.textContent = '❌ 載入失敗';
+            console.error('Audio error:', e);
+            console.error('Error code:', audio.error?.code);
+            console.error('Error message:', audio.error?.message);
+        });
+        
+        audio.addEventListener('canplay', () => {
+            console.log('Audio can play');
+        });
+        
+        // 測試直接 fetch
+        console.log('Testing fetch...');
+        fetch(url)
+            .then(response => {
+                console.log('Fetch response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: {
+                        contentType: response.headers.get('content-type'),
+                        contentLength: response.headers.get('content-length')
+                    }
+                });
+                return response.blob();
+            })
+            .then(blob => {
+                console.log('Blob received:', {
+                    size: blob.size,
+                    type: blob.type
+                });
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+            });
+    </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase 連接測試</title>
+</head>
+<body>
+    <h1>Supabase 連接測試</h1>
+    <button onclick="testConnection()">測試連接</button>
+    <div id="result"></div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js'
+        
+        const supabaseUrl = 'https://lgztvgybalhvppkfpwdc.supabase.co'
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnenR2Z3liYWxodnBwa2Zwd2RjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzNDkwMTQsImV4cCI6MjA1OTkyNTAxNH0.JfB6J38LmdlvUwIgkdRmQcBDnv6OzFaA-D27S0ylVnA'
+        
+        const supabase = createClient(supabaseUrl, supabaseKey)
+        
+        window.testConnection = async function() {
+            const resultDiv = document.getElementById('result')
+            resultDiv.innerHTML = '測試中...'
+            
+            try {
+                // 測試基本連接
+                const { data, error } = await supabase
+                    .from('subscription')
+                    .select('count', { count: 'exact', head: true })
+                
+                if (error) {
+                    resultDiv.innerHTML = `<p style="color: red;">錯誤: ${error.message}</p>`
+                } else {
+                    resultDiv.innerHTML = `<p style="color: green;">連接成功！表格存在。</p>`
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<p style="color: red;">連接失敗: ${err.message}</p>`
+            }
+        }
+    </script>
+</body>
+</html>

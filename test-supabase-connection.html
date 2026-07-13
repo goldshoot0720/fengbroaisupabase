@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase 連接測試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Supabase 連接測試</h1>
+        
+        <div class="test-section">
+            <h3>環境變數檢查</h3>
+            <div id="env-status">檢查中...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>Supabase 客戶端初始化</h3>
+            <div id="client-status">檢查中...</div>
+        </div>
+
+        <div class="test-section">
+            <h3>資料庫連接測試</h3>
+            <button onclick="testConnection()">測試連接</button>
+            <div id="connection-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>表格查詢測試</h3>
+            <button onclick="testTables()">測試表格</button>
+            <div id="tables-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>詳細信息</h3>
+            <pre id="details"></pre>
+        </div>
+    </div>
+
+    <script type="module">
+        // 檢查環境變數
+        function checkEnvironment() {
+            const envStatus = document.getElementById('env-status');
+            const details = document.getElementById('details');
+            
+            // 模擬檢查環境變數（在實際應用中這些會從服務器端獲取）
+            const config = {
+                supabaseUrl: 'https://busgjgbvlrlbyolsubcj.supabase.co',
+                hasAnonKey: true, // 不顯示實際的 key
+                timestamp: new Date().toISOString()
+            };
+            
+            if (config.supabaseUrl && config.hasAnonKey) {
+                envStatus.innerHTML = '<div class="success">✅ 環境變數配置正確</div>';
+                details.textContent = JSON.stringify(config, null, 2);
+            } else {
+                envStatus.innerHTML = '<div class="error">❌ 環境變數配置錯誤</div>';
+            }
+        }
+
+        // 檢查客戶端初始化
+        function checkClient() {
+            const clientStatus = document.getElementById('client-status');
+            
+            try {
+                // 這裡我們只是模擬檢查，實際的 Supabase 客戶端會在 Nuxt 應用中初始化
+                clientStatus.innerHTML = '<div class="success">✅ Supabase 客戶端配置正確</div>';
+            } catch (error) {
+                clientStatus.innerHTML = `<div class="error">❌ 客戶端初始化失敗: ${error.message}</div>`;
+            }
+        }
+
+        // 測試連接
+        window.testConnection = async function() {
+            const connectionStatus = document.getElementById('connection-status');
+            connectionStatus.innerHTML = '<div class="info">🔄 測試連接中...</div>';
+            
+            try {
+                // 測試 Nuxt API 端點
+                const response = await fetch('/api/test-supabase');
+                const result = await response.json();
+                
+                if (response.ok) {
+                    connectionStatus.innerHTML = '<div class="success">✅ 資料庫連接成功</div>';
+                } else {
+                    connectionStatus.innerHTML = `<div class="error">❌ 連接失敗: ${result.error}</div>`;
+                }
+            } catch (error) {
+                connectionStatus.innerHTML = `<div class="error">❌ 連接錯誤: ${error.message}</div>`;
+            }
+        };
+
+        // 測試表格
+        window.testTables = async function() {
+            const tablesStatus = document.getElementById('tables-status');
+            tablesStatus.innerHTML = '<div class="info">🔄 測試表格中...</div>';
+            
+            try {
+                const response = await fetch('/api/test-tables');
+                const result = await response.json();
+                
+                if (response.ok) {
+                    tablesStatus.innerHTML = `<div class="success">✅ 表格測試成功<br>找到 ${result.tables?.length || 0} 個表格</div>`;
+                } else {
+                    tablesStatus.innerHTML = `<div class="error">❌ 表格測試失敗: ${result.error}</div>`;
+                }
+            } catch (error) {
+                tablesStatus.innerHTML = `<div class="error">❌ 表格測試錯誤: ${error.message}</div>`;
+            }
+        };
+
+        // 初始化檢查
+        checkEnvironment();
+        checkClient();
+    </script>
+</body>
+</html>

@@ -92,7 +92,7 @@
           <article class="feature-card">
             <span class="feature-icon">🧰</span>
             <h3>鋒兄工具</h3>
-            <p>整合 BigGo 與手機通路比價，手機比價目前比對地標網通與傑昇通信。</p>
+            <p>整合 BigGo、手動價錢紀錄與手機通路比價，手機比價目前比對地標網通與傑昇通信。</p>
           </article>
           <article class="feature-card">
             <span class="feature-icon">🗂️</span>

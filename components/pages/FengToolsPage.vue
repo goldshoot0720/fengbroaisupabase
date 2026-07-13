@@ -1246,6 +1246,36 @@ const biggoSourceNotice = computed(() => {
   return `原始商品頁回應 ${status}，目前改用網址與頁面關鍵字轉查 BigGo。`
 })
 
+const selectedManualProduct = computed(() =>
+  manualProducts.value.find(product => product.id === selectedManualProductId.value) || null
+)
+
+const manualSortedPrices = computed(() => {
+  const prices = selectedManualProduct.value?.prices || []
+  return [...prices].sort((a, b) => {
+    const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime()
+    if (dateDiff !== 0) return dateDiff
+    return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+  })
+})
+
+const manualSortedPricesDesc = computed(() => [...manualSortedPrices.value].reverse())
+
+const manualProductStats = computed(() => {
+  const prices = manualSortedPrices.value.map(entry => Number(entry.price)).filter(Number.isFinite)
+  if (prices.length === 0) {
+    return { latest: null, high: null, low: null, count: 0 }
+  }
+  return {
+    latest: prices[prices.length - 1],
+    high: Math.max(...prices),
+    low: Math.min(...prices),
+    count: prices.length
+  }
+})
+
+const manualChart = computed(() => buildSingleSeriesChart(manualSortedPrices.value, 'price'))
+
 const phoneCompareSeriesKeys = computed(() => {
   if (!phoneCompareResult.value) return []
   return phoneCompareResult.value.comparison.flatMap(item =>
@@ -1635,6 +1665,7 @@ const runFinanceLookup = async () => {
 
 onMounted(() => {
   readTubeChannels()
+  readManualProducts()
   if (activeTool.value === 'tube') runTubeLookup()
   if (activeTool.value === 'finance') runFinanceLookup()
 })
@@ -1652,12 +1683,28 @@ watch(activeTool, (value) => {
 
   emit('update:modelValue', value)
 
+  if (value === 'manual') {
+    readManualProducts()
+    if (!manualPriceForm.value.date) {
+      manualPriceForm.value.date = todayDateInputValue()
+    }
+  }
+
   if (value === 'tube' && !tubeResult.value && !tubeLoading.value) {
     runTubeLookup()
   }
 
   if (value === 'finance' && !financeResult.value && !financeLoading.value) {
     runFinanceLookup()
+  }
+})
+
+watch(selectedManualProductId, (value) => {
+  if (!import.meta.client) return
+  if (value) {
+    localStorage.setItem(MANUAL_SELECTED_PRODUCT_KEY, value)
+  } else {
+    localStorage.removeItem(MANUAL_SELECTED_PRODUCT_KEY)
   }
 })
 
@@ -2531,6 +2578,151 @@ watch(
   color: var(--text-primary);
 }
 
+.history-chip__note {
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+.manual-block {
+  display: grid;
+  gap: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  background: color-mix(in oklab, var(--bg-primary) 88%, var(--bg-secondary));
+  padding: 1rem;
+}
+
+.manual-block__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.manual-block__header h4 {
+  margin: 0.3rem 0 0;
+  font-family: var(--font-display);
+}
+
+.manual-product-form {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+}
+
+.manual-price-form {
+  grid-template-columns: minmax(120px, 0.9fr) minmax(140px, 0.9fr) minmax(0, 1.2fr) auto;
+}
+
+.manual-product-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.manual-product-chip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.15rem 0.55rem;
+  align-items: center;
+  min-width: min(100%, 220px);
+  max-width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--bg-primary);
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.manual-product-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.manual-product-chip.active {
+  border-color: color-mix(in oklab, var(--primary) 45%, var(--border-color));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 28%, transparent);
+}
+
+.manual-product-chip__name {
+  grid-column: 1;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manual-product-chip small {
+  grid-column: 1;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.manual-product-chip__delete {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--danger) 30%, var(--border-color));
+  background: color-mix(in oklab, var(--danger) 8%, var(--bg-primary));
+  color: var(--danger);
+  padding: 0.28rem 0.62rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.manual-price-table {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.manual-price-table__head,
+.manual-price-table__row {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.9fr) minmax(100px, 0.9fr) minmax(0, 1.4fr) auto;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+}
+
+.manual-price-table__head {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: color-mix(in oklab, var(--bg-secondary) 80%, transparent);
+  border: 1px solid var(--border-color);
+}
+
+.manual-price-table__row {
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.manual-price-table__row strong {
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+
+.manual-price-table__note {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manual-price-table__row .tube-delete-btn {
+  border-radius: 999px;
+  padding: 0.28rem 0.62rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .legend-swatch {
   width: 10px;
   height: 10px;
@@ -2548,7 +2740,11 @@ watch(
   .tools-hero,
   .tool-input-grid,
   .tube-channel-list,
-  .tube-manager__form {
+  .tube-manager__form,
+  .manual-product-form,
+  .manual-price-form,
+  .manual-price-table__head,
+  .manual-price-table__row {
     grid-template-columns: 1fr;
   }
 
@@ -2560,6 +2756,20 @@ watch(
   .chart-shell__header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .manual-price-table__head {
+    display: none;
+  }
+
+  .manual-price-table__row {
+    gap: 0.35rem;
+  }
+
+  .manual-price-table__row span[role='cell']:first-child::before {
+    content: '日期 · ';
+    color: var(--text-secondary);
+    font-weight: 600;
   }
 }
 

@@ -91,7 +91,15 @@ export default defineNuxtConfig({
       importScripts: ['/custom-sw.js'],
       runtimeCaching: [
         {
-          urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+          // Only cache safe Supabase GETs. Never intercept Storage uploads/downloads
+          // (POST/PUT/large binary) — that causes "NetworkError when attempting to fetch resource".
+          urlPattern: ({ url, request }) => {
+            if (request.method !== 'GET' && request.method !== 'HEAD') return false
+            if (!/\.supabase\.co$/i.test(url.hostname)) return false
+            // Storage object API must bypass SW (upload / download / multipart).
+            if (url.pathname.includes('/storage/v1/')) return false
+            return true
+          },
           handler: 'NetworkFirst',
           options: {
             cacheName: 'supabase-api-cache',
@@ -100,7 +108,7 @@ export default defineNuxtConfig({
               maxAgeSeconds: 60 * 60 * 24 // 1 day
             },
             cacheableResponse: {
-              statuses: [0, 200]
+              statuses: [200]
             }
           }
         },

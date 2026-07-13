@@ -43,7 +43,21 @@ function requestCanvasFrame(stream) {
   }
 }
 
+/**
+ * Prefer captureStream(0)+requestFrame when available (Chrome) so each paint
+ * is explicitly pushed into the recorded track. Fall back to fixed FPS.
+ */
 function createCanvasStream(canvas) {
+  try {
+    const manual = canvas.captureStream(0)
+    const track = manual.getVideoTracks?.()[0]
+    if (track && typeof track.requestFrame === 'function') {
+      return manual
+    }
+    stopTracks(manual, ['video'])
+  } catch {
+    /* ignore and fall through */
+  }
   return canvas.captureStream(VIDEO_FPS)
 }
 
@@ -90,7 +104,7 @@ export async function recordImageVoiceVideo(opts) {
   let canvasStream = null
   let mixedStream = null
   let recorder = null
-  const resources = { worker: null, workerUrl: null, timer: null }
+  const resources = { worker: null, workerUrl: null, timer: null, interval: null }
 
   try {
     audioContext = new AudioContext()
@@ -248,6 +262,12 @@ export async function recordImageVoiceVideo(opts) {
           clearTimeout(resources.timer)
           resources.timer = null
         }
+        if (resources.interval) {
+          clearInterval(resources.interval)
+          resources.interval = null
+        }
+        try { resources.worker?.postMessage('stop') } catch { /* ignore */ }
+        try { resources.worker?.terminate() } catch { /* ignore */ }
         if (err) reject(err)
         else resolve()
       }
@@ -276,30 +296,58 @@ export async function recordImageVoiceVideo(opts) {
           }
 
           const frameMs = FRAME_INTERVAL_MS
-          const workerCode = `
-            let timer;
-            self.onmessage = e => {
-              if (e.data === 'start') timer = setInterval(() => self.postMessage('tick'), ${frameMs});
-              if (e.data === 'stop')  { clearInterval(timer); self.close(); }
-            };
-          `
-          resources.workerUrl = URL.createObjectURL(new Blob([workerCode], { type: 'text/javascript' }))
-          resources.worker = new Worker(resources.workerUrl)
           const recordWallStart = performance.now()
+          let lastPct = -1
+          let lastPaintAt = 0
 
-          resources.worker.onmessage = () => {
-            const wallElapsed = (performance.now() - recordWallStart) / 1000
-            const audioElapsed = ctx.currentTime - audioStartTime
-            const elapsed = Math.min(totalDuration, Math.max(wallElapsed, audioElapsed, 0))
+          const paintFrame = (force = false) => {
+            const now = performance.now()
+            if (!force && now - lastPaintAt < frameMs * 0.45) return
+            lastPaintAt = now
+            const wallElapsed = (now - recordWallStart) / 1000
+            const audioElapsed = Math.max(0, ctx.currentTime - audioStartTime)
+            // Prefer wall clock so subtitle timeline keeps moving even if AudioContext stalls.
+            const elapsed = Math.min(totalDuration, Math.max(wallElapsed, audioElapsed))
             const pct = Math.min(100, Math.round((elapsed / totalDuration) * 100))
-            onStatus(`正在錄製影片 ${pct}%（請勿切換分頁）…`)
+            if (pct !== lastPct) {
+              lastPct = pct
+              onStatus(`正在錄製影片 ${pct}%（請勿切換分頁）…`)
+            }
             drawFrame(canvas, image, flatSubtitles, elapsed)
             requestCanvasFrame(streamForFrames)
           }
-          resources.worker.postMessage('start')
+
+          // Main-thread interval: reliable when Workers are blocked (CSP / blob).
+          resources.interval = setInterval(() => paintFrame(false), frameMs)
+
+          // Worker keeps ticks coming when the tab is backgrounded (browsers throttle timers).
+          try {
+            const workerCode = `
+              let timer;
+              self.onmessage = e => {
+                if (e.data === 'start') timer = setInterval(() => self.postMessage('tick'), ${frameMs});
+                if (e.data === 'stop')  { clearInterval(timer); self.close(); }
+              };
+            `
+            resources.workerUrl = URL.createObjectURL(new Blob([workerCode], { type: 'text/javascript' }))
+            resources.worker = new Worker(resources.workerUrl)
+            resources.worker.onmessage = () => paintFrame(false)
+            resources.worker.onerror = () => {
+              /* main-thread interval already covers this */
+            }
+            resources.worker.postMessage('start')
+          } catch (e) {
+            console.warn('frame worker unavailable, using main-thread interval only', e)
+          }
+
+          paintFrame(true)
 
           setTimeout(() => {
             try { resources.worker?.postMessage('stop') } catch { /* ignore */ }
+            if (resources.interval) {
+              clearInterval(resources.interval)
+              resources.interval = null
+            }
             drawFrame(canvas, image, flatSubtitles, Math.max(0, totalDuration - 0.01))
             requestCanvasFrame(streamForFrames)
             setTimeout(() => {
@@ -313,17 +361,22 @@ export async function recordImageVoiceVideo(opts) {
               } catch (e) {
                 finish(e instanceof Error ? e : new Error(String(e)))
               }
-            }, 150)
-          }, totalDuration * 1000 + 500)
+            }, 200)
+          }, totalDuration * 1000 + 600)
         }).catch(err => {
           finish(err instanceof Error ? err : new Error(String(err)))
         })
       }
 
       try {
-        rec.start()
+        // timeslice keeps data flowing and reduces "empty blob" / stuck encoder cases
+        rec.start(1000)
       } catch (e) {
-        finish(e instanceof Error ? e : new Error(String(e)))
+        try {
+          rec.start()
+        } catch (e2) {
+          finish(e2 instanceof Error ? e2 : new Error(String(e2)))
+        }
       }
 
       setTimeout(() => {
@@ -354,6 +407,7 @@ export async function recordImageVoiceVideo(opts) {
     return { blob, ext: currentExt, duration: totalDuration }
   } finally {
     if (resources.timer) clearTimeout(resources.timer)
+    if (resources.interval) clearInterval(resources.interval)
     try { resources.worker?.terminate() } catch { /* ignore */ }
     if (resources.workerUrl) URL.revokeObjectURL(resources.workerUrl)
     if (canvasStream) stopTracks(canvasStream)

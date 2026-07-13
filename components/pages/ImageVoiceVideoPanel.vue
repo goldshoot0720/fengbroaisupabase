@@ -345,6 +345,9 @@ const clearImage = () => {
 }
 
 const redrawPreview = () => {
+  // Never repaint the shared canvas while MediaRecorder is capturing it —
+  // that freezes subtitles on the first line / corrupts the recorded video.
+  if (recording.value) return
   const canvas = canvasRef.value
   if (!canvas) return
   const size = canvasSize.value
@@ -435,7 +438,11 @@ const handleGenerate = async () => {
     uploading.value = true
     status.value = '正在上傳暫存至 Supabase Storage…'
 
-    const upload = await uploadFile(file, TEMP_FOLDER)
+    // skipUsageCheck: avoid full-bucket recursive list (often NetworkError on large buckets)
+    const upload = await uploadFile(file, TEMP_FOLDER, null, {
+      skipUsageCheck: true,
+      retries: 3
+    })
     const durationLabel = `${recorded.duration.toFixed(1)} 秒`
 
     if (upload.success) {
@@ -460,7 +467,8 @@ const handleGenerate = async () => {
         uploadNotice: `Storage 上傳失敗（${upload.error || '未知錯誤'}），仍可本機下載。`
       }
       status.value = `影片已生成，但上傳暫存失敗 — 請用本機下載`
-      error.value = upload.error || '上傳失敗'
+      // Soft notice only: video is already usable via local download
+      error.value = ''
     }
   } catch (err) {
     console.error(err)

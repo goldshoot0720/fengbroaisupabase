@@ -61,9 +61,21 @@ export function drawFrame(canvas, image, subtitleLines, elapsed, showAll = false
     ctx.drawImage(image, (W - sw) / 2, (H - sh) / 2, sw, sh)
   }
 
-  const active = showAll
-    ? subtitleLines
-    : subtitleLines.filter(s => elapsed >= s.startAt && elapsed < s.endAt)
+  // Prefer the latest started cue per language so multi-line scripts swap cleanly
+  // even when segment boundaries have tiny timing gaps/overlaps.
+  let active = []
+  if (showAll) {
+    active = subtitleLines
+  } else {
+    const EPS = 0.04
+    const bestByLang = new Map()
+    for (const s of subtitleLines) {
+      if (elapsed + EPS < s.startAt || elapsed >= s.endAt + EPS) continue
+      const prev = bestByLang.get(s.language)
+      if (!prev || s.startAt >= prev.startAt) bestByLang.set(s.language, s)
+    }
+    active = [...bestByLang.values()]
+  }
 
   if (active.length === 0) return
 

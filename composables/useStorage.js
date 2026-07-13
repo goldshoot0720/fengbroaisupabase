@@ -52,14 +52,26 @@ export const useStorage = () => {
     return `${folder}/mp_${shortId}${ext && ext !== 'file' ? `.${ext}` : ''}`
   }
 
-  const getMultipartUploadConfig = (file, folder) => {
-    const isVideoFile = file?.type?.startsWith('video/') || folder === 'video'
-    const isArticleFile = folder === 'article'
+  const isNetworkUploadError = (error) => {
+    const msg = String(error?.message || error || '')
+    return /NetworkError|Failed to fetch|network|Load failed|fetch resource|ECONNRESET|ETIMEDOUT|timeout/i.test(msg)
+  }
 
-    if (isVideoFile && file.size > MULTIPART_VIDEO_THRESHOLD) {
+  const getMultipartUploadConfig = (file, folder) => {
+    const isVideoFile = file?.type?.startsWith('video/') || folder === 'video' || String(folder || '').startsWith('temp/')
+    const isArticleFile = folder === 'article'
+    // Temp generated videos often fail as a single large PUT (SW / proxy / browser limits).
+    const tempVideoThreshold = 8 * 1024 * 1024
+    const threshold = String(folder || '').startsWith('temp/')
+      ? tempVideoThreshold
+      : MULTIPART_VIDEO_THRESHOLD
+
+    if (isVideoFile && file.size > threshold) {
       return {
         type: 'multipart-video',
-        chunkSize: MULTIPART_VIDEO_CHUNK_SIZE
+        chunkSize: String(folder || '').startsWith('temp/')
+          ? 6 * 1024 * 1024
+          : MULTIPART_VIDEO_CHUNK_SIZE
       }
     }
 
@@ -71,6 +83,30 @@ export const useStorage = () => {
     }
 
     return null
+  }
+
+  const sleepMs = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
+  const uploadWithRetry = async (client, bucketName, filePath, file, uploadOptions, retries = 3) => {
+    let lastError = null
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const { data, error } = await client.storage
+          .from(bucketName)
+          .upload(filePath, file, {
+            ...uploadOptions,
+            // Retry may race with a partially completed previous attempt.
+            upsert: attempt > 1 ? true : !!uploadOptions?.upsert
+          })
+        if (error) throw error
+        return data
+      } catch (error) {
+        lastError = error
+        if (!isNetworkUploadError(error) || attempt >= retries) break
+        await sleepMs(400 * attempt)
+      }
+    }
+    throw lastError
   }
 
   const getMultipartReference = (bucketName, filePath, meta = {}) => {
@@ -282,15 +318,18 @@ export const useStorage = () => {
       const chunk = file.slice(start, end)
       const partPath = `${filePath}.part${String(index + 1).padStart(3, '0')}`
 
-      const { error } = await client.storage
-        .from(bucketName)
-        .upload(partPath, chunk, {
+      await uploadWithRetry(
+        client,
+        bucketName,
+        partPath,
+        chunk,
+        {
           cacheControl: '3600',
           upsert: false,
           contentType: 'application/octet-stream'
-        })
-
-      if (error) throw error
+        },
+        3
+      )
 
       const { data: partUrlData } = client.storage
         .from(bucketName)
@@ -339,9 +378,10 @@ export const useStorage = () => {
    * @param {File} file - The file to upload
    * @param {string} folder - Folder name inside bucket (e.g. 'food', 'article')
    * @param {string} customPath - Optional full custom path (overrides folder + auto name)
+   * @param {{ skipUsageCheck?: boolean, retries?: number }} [options]
    * @returns {Promise<{success: boolean, url?: string, path?: string, error?: string}>}
    */
-  const uploadFile = async (file, folder = 'general', customPath = null) => {
+  const uploadFile = async (file, folder = 'general', customPath = null, options = {}) => {
     const client = initSupabase()
     if (!client) return { success: false, error: 'No Supabase client' }
 
@@ -356,7 +396,16 @@ export const useStorage = () => {
       if (probe.error) {
         throw new Error(`Bucket "${bucketName}" not found`)
       }
-      await assertStorageUploadAllowed(client, bucketName, file)
+
+      if (!options.skipUsageCheck) {
+        try {
+          await assertStorageUploadAllowed(client, bucketName, file)
+        } catch (usageError) {
+          // Hard fail only on real quota messages; network blips during usage scan should not block upload.
+          if (String(usageError?.message || '').includes('上傳上限')) throw usageError
+          console.warn('[useStorage] usage check skipped:', usageError)
+        }
+      }
 
       const multipartConfig = getMultipartUploadConfig(file, folder)
       const filePath = multipartConfig
@@ -365,19 +414,25 @@ export const useStorage = () => {
       if (multipartConfig) {
         return await uploadMultipartVideo(client, bucketName, file, filePath, {
           chunkSize: multipartConfig.chunkSize,
-          fallbackType: folder === 'article' ? 'application/octet-stream' : 'video/mp4'
+          fallbackType: folder === 'article'
+            ? 'application/octet-stream'
+            : (file.type || 'video/webm')
         })
       }
 
-      // Upload file
-      const { data, error } = await client.storage
-        .from(bucketName)
-        .upload(filePath, file, {
+      const contentType = file.type || 'application/octet-stream'
+      await uploadWithRetry(
+        client,
+        bucketName,
+        filePath,
+        file,
+        {
           cacheControl: '3600',
-          upsert: false
-        })
-
-      if (error) throw error
+          upsert: false,
+          contentType
+        },
+        options.retries ?? 3
+      )
 
       // Get public URL
       const { data: urlData } = client.storage
@@ -393,9 +448,12 @@ export const useStorage = () => {
       }
     } catch (e) {
       const bucketName = getBucket()
-      const msg = e?.message?.includes('Bucket')
-        ? `Bucket "${bucketName}" not found。請在 Supabase 建立此 bucket，或到設定頁設定正確的 SUPABASE_BUCKET。`
-        : e.message
+      let msg = e?.message || String(e)
+      if (msg.includes('Bucket')) {
+        msg = `Bucket "${bucketName}" not found。請在 Supabase 建立此 bucket，或到設定頁設定正確的 SUPABASE_BUCKET。`
+      } else if (isNetworkUploadError(e)) {
+        msg = `網路上傳失敗（${msg}）。若為 PWA，請重新整理以更新 Service Worker；影片仍可本機下載。`
+      }
       console.error('Upload error:', e)
       return { success: false, error: msg }
     } finally {

@@ -2,7 +2,7 @@ import {
   isSupportedLanguage,
   toSourceCode,
   toTranslateCode
-} from '../../../../utils/imageVoiceVideo/languages'
+} from '~~/utils/imageVoiceVideo/languages.js'
 
 async function translateOne(
   text: string,

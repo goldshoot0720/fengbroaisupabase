@@ -2,7 +2,7 @@ import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts'
 import {
   isSupportedLanguage,
   getVoiceName
-} from '../../../../utils/imageVoiceVideo/languages'
+} from '~~/utils/imageVoiceVideo/languages.js'
 
 const SYNTH_TIMEOUT_MS = 22_000
 const CONNECT_TIMEOUT_MS = 12_000

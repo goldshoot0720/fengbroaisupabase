@@ -167,6 +167,22 @@ export const FENG_FINANCE_INSTRUMENTS = [
     chartSymbol: 'AAPL'
   },
   {
+    id: 'koru',
+    name: 'Direxion Daily MSCI South Korea Bull 3X ETF',
+    symbol: 'KORU',
+    group: 'U.S. ETF',
+    url: 'https://www.cnbc.com/quotes/KORU',
+    chartSymbol: 'KORU'
+  },
+  {
+    id: 'soxl',
+    name: 'Direxion Daily Semiconductor Bull 3X ETF',
+    symbol: 'SOXL',
+    group: 'U.S. ETF',
+    url: 'https://www.cnbc.com/quotes/SOXL',
+    chartSymbol: 'SOXL'
+  },
+  {
     id: 'vix',
     name: 'CBOE Volatility Index',
     symbol: '.VIX',

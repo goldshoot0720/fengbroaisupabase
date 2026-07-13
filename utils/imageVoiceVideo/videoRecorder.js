@@ -1,6 +1,7 @@
 import { fetchTTSBatch, fetchTranslate } from './apiClient'
 import { drawFrame } from './canvasRenderer'
 import { FRAME_INTERVAL_MS, VIDEO_FPS, mediaRecorderBitrateOptions } from './videoQuality'
+import { resolveLineGender } from './personGender'
 
 function chooseMime(fmt) {
   if (typeof MediaRecorder === 'undefined') {
@@ -18,10 +19,6 @@ function chooseMime(fmt) {
   ]
   const found = webmTypes.find(t => MediaRecorder.isTypeSupported(t))
   return { mimeType: found || 'video/webm', ext: 'webm' }
-}
-
-function resolveGender(line, track) {
-  return line.gender || track.gender || 'female'
 }
 
 function stopTracks(stream, kinds) {
@@ -97,6 +94,7 @@ function mirrorToPreview(recordingCanvas, previewCanvas) {
  * @param {number} opts.rate
  * @param {number} opts.volume
  * @param {string} opts.scriptLanguage
+ * @param {'male'|'female'|null} [opts.detectedGender] image auto gender (single person)
  * @param {(msg:string)=>void} [opts.onStatus]
  * @param {()=>boolean} [opts.isAborted]
  * @returns {Promise<{blob:Blob,ext:string,duration:number}>}
@@ -111,6 +109,7 @@ export async function recordImageVoiceVideo(opts) {
     rate = 0,
     volume = 100,
     scriptLanguage = 'zh-TW',
+    detectedGender = null,
     onStatus = () => {},
     isAborted = () => false
   } = opts
@@ -183,7 +182,7 @@ export async function recordImageVoiceVideo(opts) {
       const items = spoken.map((text, i) => ({
         text,
         language: track.language,
-        gender: resolveGender(scriptLines[i], track)
+        gender: resolveLineGender(scriptLines[i], track, detectedGender)
       }))
 
       const abs = await fetchTTSBatch(items, rate, volume, (done, total) => {

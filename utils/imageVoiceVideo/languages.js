@@ -55,8 +55,8 @@ export function toSourceCode(lang) {
   return VOICE_MAP[lang]?.translate ?? lang
 }
 
-export function getVoiceName(language, gender = 'female') {
+export function getVoiceName(language, gender = 'male') {
   const voices = VOICE_MAP[language]
-  if (!voices) return VOICE_MAP['zh-TW'].female
-  return gender === 'male' ? voices.male : voices.female
+  if (!voices) return VOICE_MAP['zh-TW'].male
+  return gender === 'female' ? voices.female : voices.male
 }

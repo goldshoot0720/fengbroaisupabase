@@ -30,7 +30,7 @@ const pages = [
       { id: 'tools:phone', tool: 'phone', name: '手機比價', menuHint: '通路價格' },
       { id: 'tools:tube', tool: 'tube', name: '鋒兄Tube', menuHint: 'YouTube' },
       { id: 'tools:finance', tool: 'finance', name: '鋒兄金融', menuHint: 'CNBC 報價' },
-      { id: 'tools:image-voice', tool: 'image-voice', name: '圖片語音成片', menuHint: '圖片+語音=影片' }
+      { id: 'tools:image-voice', tool: 'image-voice', name: '圖片語音成片', menuHint: '圖片+語音=影片 · 預設男聲' }
     ]
   },
   { id: 'settings', name: '鋒兄設定', icon: '15', title: '鋒兄設定', subtitle: '管理來源、匯入匯出與儲存設定。' },

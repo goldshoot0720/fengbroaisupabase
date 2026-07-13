@@ -745,7 +745,7 @@ const toolTabs = [
   { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信價格比較' },
   { value: 'tube', label: '鋒兄tube', description: '追蹤指定 YouTube 頻道最新影片' },
   { value: 'finance', label: '鋒兄金融', description: '追蹤 CNBC 市場價格與高低標記' },
-  { value: 'image-voice', label: '圖片語音成片', description: '圖片 + 語音稿合成字幕影片' }
+  { value: 'image-voice', label: '圖片語音成片', description: '圖片 + 語音 = 影片（預設男聲／單一人物自動選聲）' }
 ]
 
 const props = defineProps({

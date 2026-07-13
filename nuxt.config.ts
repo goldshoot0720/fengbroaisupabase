@@ -133,6 +133,16 @@ export default defineNuxtConfig({
   // 全域 CSS
   css: ['~/assets/css/variables.css'],
 
+  // face-api is browser-only (used for image voice gender auto-select)
+  vite: {
+    optimizeDeps: {
+      include: ['@vladmandic/face-api']
+    },
+    ssr: {
+      external: ['@vladmandic/face-api']
+    }
+  },
+
   // Netlify 部署配置
   nitro: {
     preset: 'netlify'

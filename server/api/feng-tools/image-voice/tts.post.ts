@@ -101,7 +101,8 @@ function parseItem(raw: unknown, fallbackLang: string, fallbackGender: Gender): 
   const text = String(o.text ?? '').trim()
   if (!text) return null
   const language = String(o.language ?? fallbackLang)
-  const gender: Gender = o.gender === 'male' ? 'male' : fallbackGender
+  const gender: Gender =
+    o.gender === 'male' ? 'male' : o.gender === 'female' ? 'female' : fallbackGender
   return { text, language, gender }
 }
 
@@ -124,7 +125,7 @@ export default defineEventHandler(async (event) => {
 
       const items: TtsItem[] = []
       for (const raw of payload.items) {
-        const item = parseItem(raw, 'zh-TW', 'female')
+        const item = parseItem(raw, 'zh-TW', 'male')
         if (!item) {
           throw createError({ statusCode: 400, statusMessage: 'each item needs non-empty text' })
         }
@@ -177,7 +178,7 @@ export default defineEventHandler(async (event) => {
     // Single mode
     const text = String(payload?.text ?? '').trim()
     const language = String(payload?.language ?? 'zh-TW')
-    const gender: Gender = payload?.gender === 'male' ? 'male' : 'female'
+    const gender: Gender = payload?.gender === 'female' ? 'female' : 'male'
 
     if (!text) throw createError({ statusCode: 400, statusMessage: 'text required' })
     if (text.length > 5000) throw createError({ statusCode: 400, statusMessage: 'text too long' })

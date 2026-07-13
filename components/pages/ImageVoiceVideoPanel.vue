@@ -12,6 +12,7 @@
             rel="noreferrer"
             class="store-card__link"
           >ImageVoiceVideo</a>
+          · 預設男聲；圖片為單一人物時可自動選聲
           · 成品暫存至 Supabase Storage 供下載
         </p>
       </div>
@@ -91,12 +92,12 @@
             </select>
           </label>
           <label class="tool-field tool-field--wide">
-            <span>內容（每行一段；可加「男：」「女：」指定性別）</span>
+            <span>內容（每行一段；可加「男：」「女：」指定該句性別，優先於軌道設定）</span>
             <textarea
               v-model="script"
               class="tool-input ivv-script"
               rows="6"
-              placeholder="女：歡迎來到鋒兄工具&#10;今天帶你把圖片變成有旁白的影片&#10;男：記得先上傳一張封面圖"
+              placeholder="歡迎來到鋒兄工具&#10;今天帶你把圖片變成有旁白的影片&#10;女：這句會強制用女聲"
             />
           </label>
           <p class="ivv-hint">{{ lineCount }} 段台詞</p>
@@ -116,8 +117,9 @@
                 </option>
               </select>
               <select v-model="track.gender" class="tool-input">
-                <option value="female">女聲</option>
+                <option value="auto">自動（依圖片）</option>
                 <option value="male">男聲</option>
+                <option value="female">女聲</option>
               </select>
               <button
                 type="button"
@@ -129,6 +131,7 @@
               </button>
             </div>
           </div>
+          <p v-if="genderHint" class="ivv-hint">{{ genderHint }}</p>
           <button
             type="button"
             class="tool-secondary-btn tool-secondary-btn--compact"
@@ -199,6 +202,10 @@
           </div>
           <p class="ivv-hint">
             {{ canvasSize.width }}×{{ canvasSize.height }} · {{ lineCount }} 段 · {{ tracks.length }} 語
+            · 靜態預覽僅示首句；成片依語音逐句切換字幕
+          </p>
+          <p v-if="tracks.length > 1" class="ivv-hint">
+            多語軌道會同時疊加各語言字幕（每語一句，非重複台詞）
           </p>
         </div>
 
@@ -270,6 +277,11 @@ import { parseScriptLines, safeFilename } from '../../utils/imageVoiceVideo/scri
 import { drawFrame } from '../../utils/imageVoiceVideo/canvasRenderer'
 import { resolveCanvasSize, orientationLabel } from '../../utils/imageVoiceVideo/videoSize'
 import { recordImageVoiceVideo } from '../../utils/imageVoiceVideo/videoRecorder'
+import {
+  DEFAULT_VOICE_GENDER,
+  detectSinglePersonGender,
+  resolveTrackGender
+} from '../../utils/imageVoiceVideo/personGender'
 
 const TEMP_FOLDER = 'temp/image-voice-video'
 const { uploadFile } = useStorage()
@@ -284,19 +296,24 @@ const pastingClipboard = ref(false)
 const script = ref('')
 const scriptLang = ref('zh-TW')
 const tracks = ref([
-  { language: 'zh-TW', label: '繁中', gender: 'female' }
+  { language: 'zh-TW', label: '繁中', gender: 'auto' }
 ])
 const rate = ref(0)
 const volume = ref(100)
 const format = ref('webm')
 const orientationMode = ref('auto')
 const filename = ref('')
-const status = ref('就緒 — 上傳圖片、貼上剪貼簿或輸入語音稿')
+const status = ref('就緒 — 上傳圖片、貼上剪貼簿或輸入語音稿（預設男聲）')
 const error = ref('')
 const recording = ref(false)
 const uploading = ref(false)
 const aborted = ref(false)
 const result = ref(null)
+/** @type {import('vue').Ref<'male'|'female'|null>} */
+const detectedGender = ref(null)
+const genderHint = ref('語音預設男聲；軌道選「自動」時會依封面單一人物選聲')
+const detectingGender = ref(false)
+let genderDetectSeq = 0
 
 const lineCount = computed(() => parseScriptLines(script.value).length)
 
@@ -321,8 +338,38 @@ const addTrack = () => {
   tracks.value.push({
     language: next.value,
     label: next.short,
-    gender: 'female'
+    gender: 'auto'
   })
+}
+
+const effectiveTrackGenders = computed(() =>
+  tracks.value.map((t) => resolveTrackGender(t.gender, detectedGender.value))
+)
+
+const runGenderDetection = async (img) => {
+  const seq = ++genderDetectSeq
+  if (!img) {
+    detectedGender.value = null
+    genderHint.value = '語音預設男聲；軌道選「自動」時會依封面單一人物選聲'
+    return
+  }
+  detectingGender.value = true
+  genderHint.value = '正在分析封面人物…'
+  try {
+    const resultDetect = await detectSinglePersonGender(img)
+    if (seq !== genderDetectSeq) return
+    detectedGender.value = resultDetect.gender
+    genderHint.value = resultDetect.message
+    if (resultDetect.reason === 'single' && resultDetect.gender) {
+      status.value = resultDetect.message
+    }
+  } catch {
+    if (seq !== genderDetectSeq) return
+    detectedGender.value = null
+    genderHint.value = '人臉偵測失敗，使用預設男聲'
+  } finally {
+    if (seq === genderDetectSeq) detectingGender.value = false
+  }
 }
 
 const removeTrack = (idx) => {
@@ -354,10 +401,13 @@ const loadImageFromFile = (file, source = 'upload') => {
       status.value = '已載入封面圖片'
     }
     redrawPreview()
+    void runGenderDetection(img)
   }
   img.onerror = () => {
     error.value = '圖片載入失敗'
     imageEl.value = null
+    detectedGender.value = null
+    genderHint.value = '語音預設男聲；軌道選「自動」時會依封面單一人物選聲'
   }
   img.src = url
   return true
@@ -460,17 +510,21 @@ const pasteImageFromClipboard = async () => {
 }
 
 const clearImage = () => {
+  genderDetectSeq += 1
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value)
   imagePreviewUrl.value = null
   imageEl.value = null
+  detectedGender.value = null
+  genderHint.value = '語音預設男聲；軌道選「自動」時會依封面單一人物選聲'
+  detectingGender.value = false
   if (imageInputRef.value) imageInputRef.value.value = ''
-  status.value = '就緒 — 上傳圖片、貼上剪貼簿或輸入語音稿'
+  status.value = '就緒 — 上傳圖片、貼上剪貼簿或輸入語音稿（預設男聲）'
   redrawPreview()
 }
 
 const redrawPreview = () => {
   // Recording paints onto a detached canvas and only mirrors here.
-  // Avoid overwriting that mirror with the static "show all lines" preview.
+  // Avoid overwriting that mirror with the static layout preview.
   if (recording.value) return
   const canvas = canvasRef.value
   if (!canvas) return
@@ -479,14 +533,14 @@ const redrawPreview = () => {
     canvas.width = size.width
     canvas.height = size.height
   }
+  // Sample only the first line — matching export (one cue at a time).
+  // Never showAll-join every script line with " / " (that looked like duplicate burn-in).
   const lines = parseScriptLines(script.value)
-  const subs = lines.map((l, i) => ({
-    text: l.text,
-    startAt: i,
-    endAt: i + 1,
-    language: scriptLang.value
-  }))
-  drawFrame(canvas, imageEl.value, subs, 0, true)
+  const first = lines[0]
+  const subs = first
+    ? [{ text: first.text, startAt: 0, endAt: 1, language: scriptLang.value }]
+    : []
+  drawFrame(canvas, imageEl.value, subs, 0, false)
 }
 
 watch([script, scriptLang, imageEl, canvasSize], () => {
@@ -536,15 +590,39 @@ const handleGenerate = async () => {
   status.value = '準備生成…'
 
   try {
+    // Ensure auto tracks have a fresh detection if image is ready
+    if (
+      imageEl.value &&
+      tracks.value.some((t) => t.gender === 'auto') &&
+      !detectedGender.value &&
+      !detectingGender.value
+    ) {
+      await runGenderDetection(imageEl.value)
+    }
+    if (detectingGender.value) {
+      status.value = '正在分析封面人物以選擇語音…'
+      // brief wait for in-flight detection (max ~8s)
+      const waitUntil = Date.now() + 8000
+      while (detectingGender.value && Date.now() < waitUntil) {
+        await new Promise((r) => setTimeout(r, 100))
+      }
+    }
+
+    const resolvedTracks = tracks.value.map((t, i) => ({
+      ...t,
+      gender: effectiveTrackGenders.value[i] || DEFAULT_VOICE_GENDER
+    }))
+
     const recorded = await recordImageVoiceVideo({
       scriptLines,
-      tracks: tracks.value.map(t => ({ ...t })),
+      tracks: resolvedTracks,
       image: imageEl.value,
       canvas,
       format: format.value,
       rate: rate.value,
       volume: volume.value,
       scriptLanguage: scriptLang.value,
+      detectedGender: detectedGender.value,
       onStatus: (msg) => { status.value = msg },
       isAborted: () => aborted.value
     })

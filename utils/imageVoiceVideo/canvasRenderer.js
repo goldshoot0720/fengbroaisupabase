@@ -109,16 +109,30 @@ export function drawFrame(canvas, image, subtitleLines, elapsed, showAll = false
   const active = pickActiveSubtitles(subtitleLines, elapsed, showAll)
   if (active.length === 0) return
 
-  const groups = new Map()
+  // One block per language (timed mode already enforces this).
+  // Never join multiple cues with " / " — that looked like every script line
+  // burned in at once (e.g. "第一行 / 第二行 / 第三行").
+  const byLang = new Map()
   for (const s of active) {
-    if (!groups.has(s.language)) groups.set(s.language, [])
-    groups.get(s.language).push(s)
+    const prev = byLang.get(s.language)
+    const start = Number(s.startAt) || 0
+    if (!prev || start >= (Number(prev.startAt) || 0)) {
+      byLang.set(s.language, s)
+    }
   }
+
+  // showAll (static layout only): stack each cue as its own row, bottom-up,
+  // instead of concatenating into one long slash-separated string.
+  const blocks = showAll
+    ? [...active]
+    : [...byLang.values()]
 
   let trackY = H - bottomMargin
 
-  for (const [, subs] of [...groups.entries()].reverse()) {
-    const text = subs.map(s => s.text).join(' / ')
+  for (const s of [...blocks].reverse()) {
+    const text = String(s?.text || '').trim()
+    if (!text) continue
+
     ctx.font = `bold ${fontSize}px ${FONT_FAMILY}`
     const maxTextWidth = W - sidePad * 2
     const lines = wrapText(ctx, text, Math.max(40, maxTextWidth))

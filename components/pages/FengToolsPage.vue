@@ -6,7 +6,7 @@
           <p class="tools-kicker">FENGBRO TOOLKIT</p>
           <h2>鋒兄工具</h2>
           <p class="tools-lead">
-            集中處理網路比價與手機通路價格快照。先看現在，再用每 7 天一次的紀錄回頭看價格走勢。
+            集中處理網路比價、手機通路價格、YouTube、金融觀察，以及圖片加語音生成影片。
           </p>
         </div>
 
@@ -29,7 +29,7 @@
         <div class="tool-panel__header">
           <div>
             <p class="panel-kicker">鋒兄比價</p>
-            <h3>貼上商品網址，抓 BigGo 價格區間</h3>
+            <h3>貼上商品網址或關鍵字，查 BigGo 價格區間</h3>
           </div>
         </div>
 
@@ -41,6 +41,16 @@
               type="url"
               class="tool-input"
               placeholder="https://24h.pchome.com.tw/prod/DRAHGT-A900HAAZH"
+              @keydown.enter.prevent="runBiggoLookup"
+            />
+          </label>
+          <label class="tool-field tool-field--wide">
+            <span>或直接輸入關鍵字</span>
+            <input
+              v-model.trim="biggoForm.keyword"
+              type="text"
+              class="tool-input"
+              placeholder="例如：iPhone 16 Pro 256G"
               @keydown.enter.prevent="runBiggoLookup"
             />
           </label>
@@ -368,6 +378,8 @@
         </div>
       </section>
 
+      <ImageVoiceVideoPanel v-else-if="activeTool === 'image-voice'" />
+
       <section v-else-if="activeTool === 'finance'" class="tool-panel">
         <div class="tool-panel__header">
           <div>
@@ -496,13 +508,15 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
+import ImageVoiceVideoPanel from './ImageVoiceVideoPanel.vue'
 import { FENG_TUBE_ACTIVE_TOOL_KEY, FENG_TUBE_CHANNELS } from '../../utils/fengTubeChannels'
 
 const toolTabs = [
-  { value: 'biggo', label: '鋒兄比價', description: '網址貼上後抓 BigGo 價格區間' },
+  { value: 'biggo', label: '鋒兄比價', description: '網址或關鍵字查 BigGo 價格區間' },
   { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信價格比較' },
   { value: 'tube', label: '鋒兄tube', description: '追蹤指定 YouTube 頻道最新影片' },
-  { value: 'finance', label: '鋒兄金融', description: '追蹤 CNBC 市場價格與高低標記' }
+  { value: 'finance', label: '鋒兄金融', description: '追蹤 CNBC 市場價格與高低標記' },
+  { value: 'image-voice', label: '圖片語音成片', description: '圖片 + 語音稿合成字幕影片' }
 ]
 
 const props = defineProps({
@@ -525,7 +539,7 @@ const currentYearSuffix = String(new Date().getFullYear()).slice(-2)
 const defaultPhoneKeyword = `Samsung S${currentYearSuffix}`
 const phoneComparePlaceholder = `${defaultPhoneKeyword}、Apple iPhone ${currentYearSuffix}、A${currentYearSuffix}`
 
-const biggoForm = ref({ url: '' })
+const biggoForm = ref({ url: '', keyword: '' })
 const biggoLoading = ref(false)
 const biggoError = ref('')
 const biggoResult = ref(null)
@@ -1059,8 +1073,8 @@ const isBestPrice = (sources, source) => {
 }
 
 const runBiggoLookup = async () => {
-  if (!biggoForm.value.url) {
-    biggoError.value = '請先輸入商品網址。'
+  if (!biggoForm.value.url && !biggoForm.value.keyword) {
+    biggoError.value = '請先輸入商品網址或搜尋關鍵字。'
     return
   }
 
@@ -1071,12 +1085,15 @@ const runBiggoLookup = async () => {
   try {
     const response = await $fetch('/api/feng-tools/biggo', {
       method: 'POST',
-      body: { url: biggoForm.value.url }
+      body: {
+        url: biggoForm.value.url || undefined,
+        keyword: biggoForm.value.keyword || undefined
+      }
     })
 
     biggoResult.value = response
     if (Number.isFinite(Number(response.currentPrice))) {
-      const queryKey = normalizeLookupKey(biggoForm.value.url)
+      const queryKey = normalizeLookupKey(biggoForm.value.url || biggoForm.value.keyword)
       biggoHistory.value = updateHistoryEntries(BIGGO_HISTORY_KEY, queryKey, {
         date: new Date().toISOString(),
         currentPrice: response.currentPrice,
@@ -1088,7 +1105,12 @@ const runBiggoLookup = async () => {
     }
   } catch (error) {
     biggoResult.value = null
-    biggoError.value = error?.data?.statusMessage || error?.message || 'BigGo 查詢失敗。'
+    const status = Number(error?.statusCode || error?.status || error?.data?.statusCode || 0)
+    if (status === 429) {
+      biggoError.value = error?.data?.statusMessage || '比價服務暫時忙碌，請稍候再試。'
+    } else {
+      biggoError.value = error?.data?.statusMessage || error?.message || 'BigGo 查詢失敗。'
+    }
   } finally {
     biggoLoading.value = false
   }
@@ -1190,9 +1212,10 @@ watch(activeTool, (value) => {
 })
 
 watch(
-  () => biggoForm.value.url,
-  (value) => {
-    biggoHistory.value = value ? loadHistoryEntries(BIGGO_HISTORY_KEY, normalizeLookupKey(value)) : []
+  () => [biggoForm.value.url, biggoForm.value.keyword],
+  ([url, keyword]) => {
+    const key = url || keyword
+    biggoHistory.value = key ? loadHistoryEntries(BIGGO_HISTORY_KEY, normalizeLookupKey(key)) : []
   },
   { immediate: true }
 )

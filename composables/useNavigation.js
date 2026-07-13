@@ -23,12 +23,13 @@ const pages = [
     menuHint: '（＋比價）',
     icon: '06',
     title: '鋒兄工具',
-    subtitle: '整合 BigGo 與手機通路比價工具。',
+    subtitle: '整合比價、YouTube、金融與圖片語音成片工具。',
     children: [
       { id: 'tools:biggo', tool: 'biggo', name: '鋒兄比價', menuHint: 'BigGo' },
       { id: 'tools:phone', tool: 'phone', name: '手機比價', menuHint: '通路價格' },
       { id: 'tools:tube', tool: 'tube', name: '鋒兄Tube', menuHint: 'YouTube' },
-      { id: 'tools:finance', tool: 'finance', name: '鋒兄金融', menuHint: 'CNBC 報價' }
+      { id: 'tools:finance', tool: 'finance', name: '鋒兄金融', menuHint: 'CNBC 報價' },
+      { id: 'tools:image-voice', tool: 'image-voice', name: '圖片語音成片', menuHint: '圖片+語音=影片' }
     ]
   },
   { id: 'settings', name: '鋒兄設定', icon: '15', title: '鋒兄設定', subtitle: '管理來源、匯入匯出與儲存設定。' },

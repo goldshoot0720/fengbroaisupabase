@@ -2,45 +2,56 @@
 
 :root {
   color-scheme: light;
-  --bg-primary: oklch(0.97 0.01 240);
-  --bg-secondary: oklch(0.995 0.004 240);
-  --bg-tertiary: oklch(0.945 0.012 240);
-  --bg-elevated: color-mix(in oklab, var(--bg-secondary) 86%, white 14%);
+
+  /* ——— Neutrals (canonical product names) ——— */
+  --bg-canvas: oklch(0.97 0.01 240);
+  --bg-surface: oklch(0.995 0.004 240);
+  --bg-muted: oklch(0.945 0.012 240);
+  --bg-inset: oklch(0.93 0.01 240);
+  --bg-elevated: color-mix(in oklab, var(--bg-surface) 86%, white 14%);
+  --surface-product: var(--bg-surface);
+  --surface-brand: var(--bg-surface);
+  --surface-inset: var(--bg-inset);
   --surface-strong: oklch(0.18 0.02 248);
 
   --text-primary: oklch(0.23 0.03 250);
-  --text-secondary: oklch(0.47 0.02 248);
-  --text-muted: oklch(0.62 0.014 248);
+  --text-secondary: oklch(0.40 0.02 248);
+  --text-muted: oklch(0.52 0.014 248);
   --text-inverse: oklch(0.98 0.004 255);
 
-  --border-color: color-mix(in oklab, oklch(0.7 0.015 248) 24%, transparent);
-  --border-strong: color-mix(in oklab, oklch(0.52 0.03 248) 32%, transparent);
-  --shadow: 0 20px 60px rgba(18, 26, 44, 0.08);
-  --shadow-hover: 0 24px 70px rgba(18, 26, 44, 0.14);
-  --shadow-soft: 0 8px 30px rgba(18, 26, 44, 0.06);
+  --border-subtle: color-mix(in oklab, oklch(0.50 0.02 248) 22%, transparent);
+  --border-strong: color-mix(in oklab, oklch(0.42 0.03 248) 32%, transparent);
+  --shadow-border: 0 0 0 1px var(--border-subtle);
 
+  /* ——— Shell ——— */
   --sidebar-bg: linear-gradient(180deg, oklch(0.18 0.022 248) 0%, oklch(0.14 0.02 248) 100%);
   --sidebar-text: var(--text-inverse);
-  --header-bg: color-mix(in oklab, var(--bg-secondary) 88%, white 12%);
+  --header-bg: color-mix(in oklab, var(--bg-surface) 88%, white 12%);
+  --bg-brand-deep: var(--surface-strong);
+  --text-on-brand: var(--text-inverse);
 
-  --primary: oklch(0.6 0.16 250);
-  --primary-hover: oklch(0.54 0.16 250);
-  --primary-light: color-mix(in oklab, var(--primary) 12%, transparent);
+  /* ——— Accent budget ——— */
+  --primary: oklch(0.52 0.16 250);
+  --primary-hover: oklch(0.47 0.16 250);
+  --primary-muted: color-mix(in oklab, var(--primary) 12%, transparent);
+  --primary-light: var(--primary-muted);
   --accent: oklch(0.74 0.12 92);
   --accent-light: color-mix(in oklab, var(--accent) 16%, transparent);
-  --success: oklch(0.7 0.15 150);
-  --success-hover: oklch(0.62 0.15 150);
+
+  --success: oklch(0.48 0.13 150);
+  --success-hover: oklch(0.42 0.13 150);
   --success-light: color-mix(in oklab, var(--success) 14%, transparent);
-  --warning: oklch(0.78 0.16 80);
-  --warning-hover: oklch(0.72 0.16 80);
+  --warning: oklch(0.68 0.14 80);
+  --warning-hover: oklch(0.62 0.14 80);
   --warning-light: color-mix(in oklab, var(--warning) 16%, transparent);
-  --danger: oklch(0.64 0.2 25);
-  --danger-hover: oklch(0.58 0.2 25);
+  --danger: oklch(0.52 0.19 25);
+  --danger-hover: oklch(0.46 0.19 25);
   --danger-light: color-mix(in oklab, var(--danger) 14%, transparent);
-  --info: oklch(0.7 0.12 220);
-  --info-hover: oklch(0.64 0.12 220);
+  --info: oklch(0.50 0.10 220);
+  --info-hover: oklch(0.44 0.10 220);
   --info-light: color-mix(in oklab, var(--info) 14%, transparent);
 
+  /* ——— Spacing ——— */
   --spacing-2xs: 0.25rem;
   --spacing-xs: 0.5rem;
   --spacing-sm: 0.75rem;
@@ -50,26 +61,45 @@
   --spacing-2xl: 3rem;
   --spacing-3xl: 4.5rem;
 
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
+  /* ——— Radius (product-first; cards 12–16px) ——— */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-full: 999px;
+  --card-radius: var(--radius-md);
+  --section-gap: var(--spacing-lg);
 
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-body: 'Manrope', sans-serif;
-  --font-xs: 0.75rem;
-  --font-sm: 0.875rem;
-  --font-md: 1rem;
-  --font-lg: 1.125rem;
-  --font-xl: 1.35rem;
-  --font-2xl: clamp(1.75rem, 1.4rem + 1vw, 2.5rem);
-  --font-3xl: clamp(2.35rem, 1.7rem + 2.2vw, 4.75rem);
+  /* ——— Elevation (resting cards = elevation-0) ——— */
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgba(18, 26, 44, 0.06);
+  --elevation-2: 0 8px 24px rgba(18, 26, 44, 0.10);
+  --elevation-3: 0 16px 40px rgba(18, 26, 44, 0.16);
 
-  --transition-fast: 160ms cubic-bezier(0.22, 1, 0.36, 1);
-  --transition-normal: 260ms cubic-bezier(0.22, 1, 0.36, 1);
-  --transition-slow: 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* ——— Type scale ——— */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --display-lg: clamp(2.25rem, 1.6rem + 2vw, 3.75rem);
+  --display-xl: clamp(2.75rem, 1.8rem + 2.5vw, 4.75rem);
+  --tracking-tight: -0.03em;
+  --leading-tight: 1.15;
+  --leading-body: 1.5;
 
+  /* ——— Motion ——— */
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 140ms;
+  --duration-normal: 220ms;
+  --duration-slow: 360ms;
+
+  /* ——— Z-index ——— */
   --z-dropdown: 100;
   --z-sticky: 200;
   --z-fixed: 500;
@@ -77,31 +107,98 @@
   --z-modal: 1100;
   --z-popover: 1200;
   --z-tooltip: 1300;
+
+  /* ——— Compatibility aliases (live consumers) ——— */
+  --bg-primary: var(--bg-canvas);
+  --bg-secondary: var(--bg-surface);
+  --bg-tertiary: var(--bg-muted);
+  --border-color: var(--border-subtle);
+  --shadow-soft: var(--elevation-1);
+  --shadow: var(--elevation-2);
+  --shadow-hover: var(--elevation-3);
+  --transition-fast: var(--duration-fast) var(--ease-out-expo);
+  --transition-normal: var(--duration-normal) var(--ease-out-expo);
+  --transition-slow: var(--duration-slow) var(--ease-out-expo);
+  --font-xs: var(--text-xs);
+  --font-sm: var(--text-sm);
+  --font-md: var(--text-md);
+  --font-lg: var(--text-lg);
+  --font-xl: var(--text-xl);
+  --font-2xl: var(--text-2xl);
+  /* Intentional: old --font-3xl was a large hero clamp; map to display-lg */
+  --font-3xl: var(--display-lg);
 }
 
 .dark {
   color-scheme: dark;
-  --bg-primary: oklch(0.15 0.02 248);
-  --bg-secondary: oklch(0.19 0.018 248);
-  --bg-tertiary: oklch(0.24 0.018 248);
-  --bg-elevated: color-mix(in oklab, var(--bg-secondary) 88%, white 12%);
+  --bg-canvas: oklch(0.15 0.02 248);
+  --bg-surface: oklch(0.19 0.018 248);
+  --bg-muted: oklch(0.24 0.018 248);
+  --bg-inset: oklch(0.17 0.018 248);
+  --bg-elevated: color-mix(in oklab, var(--bg-surface) 88%, white 12%);
+  --surface-product: var(--bg-surface);
+  --surface-brand: var(--bg-surface);
+  --surface-inset: var(--bg-inset);
   --surface-strong: oklch(0.92 0.01 250);
 
   --text-primary: oklch(0.95 0.01 255);
-  --text-secondary: oklch(0.8 0.015 250);
-  --text-muted: oklch(0.66 0.018 250);
+  --text-secondary: oklch(0.78 0.015 250);
+  --text-muted: oklch(0.64 0.018 250);
   --text-inverse: oklch(0.16 0.02 248);
 
-  --border-color: color-mix(in oklab, oklch(0.72 0.02 248) 22%, transparent);
+  --border-subtle: color-mix(in oklab, oklch(0.78 0.02 248) 16%, transparent);
   --border-strong: color-mix(in oklab, oklch(0.82 0.03 248) 28%, transparent);
-  --shadow: 0 24px 80px rgba(3, 8, 20, 0.35);
-  --shadow-hover: 0 26px 90px rgba(3, 8, 20, 0.45);
-  --shadow-soft: 0 10px 36px rgba(3, 8, 20, 0.22);
+  --shadow-border: 0 0 0 1px var(--border-subtle);
 
   --sidebar-bg: linear-gradient(180deg, oklch(0.13 0.02 248) 0%, oklch(0.11 0.018 248) 100%);
-  --header-bg: color-mix(in oklab, var(--bg-secondary) 92%, white 8%);
+  --header-bg: color-mix(in oklab, var(--bg-surface) 92%, white 8%);
+  --bg-brand-deep: var(--surface-strong);
+  --text-on-brand: var(--text-inverse);
+
   --primary-light: color-mix(in oklab, var(--primary) 20%, transparent);
+  --primary-muted: var(--primary-light);
   --accent-light: color-mix(in oklab, var(--accent) 20%, transparent);
+  --success-light: color-mix(in oklab, var(--success) 20%, transparent);
+  --warning-light: color-mix(in oklab, var(--warning) 20%, transparent);
+  --danger-light: color-mix(in oklab, var(--danger) 20%, transparent);
+  --info-light: color-mix(in oklab, var(--info) 20%, transparent);
+
+  --elevation-1: 0 1px 3px rgba(3, 8, 20, 0.35);
+  --elevation-2: 0 8px 28px rgba(3, 8, 20, 0.45);
+  --elevation-3: 0 20px 48px rgba(3, 8, 20, 0.55);
+
+  /* Aliases re-bound for dark (shadow utilities) */
+  --bg-primary: var(--bg-canvas);
+  --bg-secondary: var(--bg-surface);
+  --bg-tertiary: var(--bg-muted);
+  --border-color: var(--border-subtle);
+  --shadow-soft: var(--elevation-1);
+  --shadow: var(--elevation-2);
+  --shadow-hover: var(--elevation-3);
+}
+
+/* Dual-register hooks (data-register set on main.page-content in PR5) */
+[data-register='product'] {
+  --card-radius: var(--radius-md);
+  --section-gap: var(--spacing-lg);
+  --surface-product: var(--bg-surface);
+}
+
+[data-register='brand'] {
+  --card-radius: var(--radius-xl);
+  --section-gap: var(--spacing-2xl);
+  --surface-brand: var(--bg-surface);
+}
+
+/* Same-element selector: attribute is ON .page-content */
+[data-register='brand'].page-content {
+  background:
+    radial-gradient(
+      circle at top right,
+      color-mix(in oklab, var(--accent) 12%, transparent),
+      transparent 32%
+    ),
+    transparent;
 }
 
 *,
@@ -116,17 +213,15 @@ html {
   font-size: 16px;
   scroll-behavior: smooth;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  background:
-    radial-gradient(circle at top left, color-mix(in oklab, var(--accent) 16%, transparent), transparent 28%),
-    radial-gradient(circle at 85% 12%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 26%),
-    var(--bg-primary);
+  /* Quiet product canvas — dual radial wash removed globally; brand wash via register only */
+  background: var(--bg-canvas);
 }
 
 body {
   font-family: var(--font-body);
   background: transparent;
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: var(--leading-body);
   transition: background-color var(--transition-normal), color var(--transition-normal);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -146,7 +241,8 @@ h4,
 h5,
 h6 {
   font-family: var(--font-display);
-  letter-spacing: -0.03em;
+  letter-spacing: var(--tracking-tight);
+  text-wrap: balance;
 }
 
 * {
@@ -253,6 +349,33 @@ a:hover {
   }
   100% {
     background-position: calc(200px + 100%) 0;
+  }
+}
+
+/* Reduced motion — nuanced: kill decorative motion; keep functional opacity/color transitions */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .page-container,
+  .birthday-easter-egg__piece,
+  .copyright-icon,
+  [data-decorative-motion] {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: color, background-color, border-color, opacity, box-shadow !important;
+  }
+
+  *:hover,
+  *:focus {
+    transform: none !important;
   }
 }
 

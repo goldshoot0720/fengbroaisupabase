@@ -345,8 +345,8 @@ const clearImage = () => {
 }
 
 const redrawPreview = () => {
-  // Never repaint the shared canvas while MediaRecorder is capturing it —
-  // that freezes subtitles on the first line / corrupts the recorded video.
+  // Recording paints onto a detached canvas and only mirrors here.
+  // Avoid overwriting that mirror with the static "show all lines" preview.
   if (recording.value) return
   const canvas = canvasRef.value
   if (!canvas) return

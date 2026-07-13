@@ -18,6 +18,51 @@ function wrapText(ctx, text, maxWidth) {
 }
 
 /**
+ * Pick the active subtitle cue(s) for a given timeline position.
+ * Half-open window [startAt, endAt) per cue; one cue per language.
+ * At segment boundaries the next line wins immediately (later startAt).
+ * @param {Array<{text:string,startAt:number,endAt:number,language:string}>} subtitleLines
+ * @param {number} elapsed seconds
+ * @param {boolean} [showAll=false]
+ */
+export function pickActiveSubtitles(subtitleLines, elapsed, showAll = false) {
+  if (!subtitleLines?.length) return []
+  if (showAll) return subtitleLines
+
+  const t = Number(elapsed) || 0
+  const bestByLang = new Map()
+
+  for (const s of subtitleLines) {
+    const start = Number(s.startAt) || 0
+    const end = Number(s.endAt) || 0
+    // Half-open [start, end). Tiny end grace only for the final paint near exact end.
+    const inWindow = t >= start && t < end
+    const atExactEnd = end > start && Math.abs(t - end) < 1e-4
+    if (!inWindow && !atExactEnd) continue
+
+    const prev = bestByLang.get(s.language)
+    // Later-started cue wins (line 2 over line 1 at the shared boundary)
+    if (!prev || start >= (Number(prev.startAt) || 0)) {
+      bestByLang.set(s.language, s)
+    }
+  }
+
+  // Micro-gap fallback: keep the most recent line that has already started
+  if (bestByLang.size === 0) {
+    for (const s of subtitleLines) {
+      const start = Number(s.startAt) || 0
+      if (start > t) continue
+      const prev = bestByLang.get(s.language)
+      if (!prev || start >= (Number(prev.startAt) || 0)) {
+        bestByLang.set(s.language, s)
+      }
+    }
+  }
+
+  return [...bestByLang.values()]
+}
+
+/**
  * Draw one video frame onto canvas.
  * @param {HTMLCanvasElement} canvas
  * @param {HTMLImageElement|null} image
@@ -61,22 +106,7 @@ export function drawFrame(canvas, image, subtitleLines, elapsed, showAll = false
     ctx.drawImage(image, (W - sw) / 2, (H - sh) / 2, sw, sh)
   }
 
-  // Prefer the latest started cue per language so multi-line scripts swap cleanly
-  // even when segment boundaries have tiny timing gaps/overlaps.
-  let active = []
-  if (showAll) {
-    active = subtitleLines
-  } else {
-    const EPS = 0.04
-    const bestByLang = new Map()
-    for (const s of subtitleLines) {
-      if (elapsed + EPS < s.startAt || elapsed >= s.endAt + EPS) continue
-      const prev = bestByLang.get(s.language)
-      if (!prev || s.startAt >= prev.startAt) bestByLang.set(s.language, s)
-    }
-    active = [...bestByLang.values()]
-  }
-
+  const active = pickActiveSubtitles(subtitleLines, elapsed, showAll)
   if (active.length === 0) return
 
   const groups = new Map()

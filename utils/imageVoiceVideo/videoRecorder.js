@@ -44,21 +44,44 @@ function requestCanvasFrame(stream) {
 }
 
 /**
- * Prefer captureStream(0)+requestFrame when available (Chrome) so each paint
- * is explicitly pushed into the recorded track. Fall back to fixed FPS.
+ * Fixed-FPS capture is more reliable for multi-line subtitle swaps than
+ * captureStream(0)+requestFrame alone (which can stick on the first painted frame
+ * in some Chrome/Edge builds when the source canvas is also Vue-managed).
+ * Still call requestFrame after each paint when available as an extra push.
  */
 function createCanvasStream(canvas) {
-  try {
-    const manual = canvas.captureStream(0)
-    const track = manual.getVideoTracks?.()[0]
-    if (track && typeof track.requestFrame === 'function') {
-      return manual
-    }
-    stopTracks(manual, ['video'])
-  } catch {
-    /* ignore and fall through */
-  }
   return canvas.captureStream(VIDEO_FPS)
+}
+
+/**
+ * Dedicated recording surface, isolated from the Vue preview canvas.
+ * Vue re-binding :width/:height or preview redraws must never clear the
+ * track MediaRecorder is sampling — that freezes subtitles on line 1.
+ */
+function createRecordingCanvas(previewCanvas) {
+  const w = Math.max(2, previewCanvas?.width || 1080)
+  const h = Math.max(2, previewCanvas?.height || 1920)
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  return canvas
+}
+
+function mirrorToPreview(recordingCanvas, previewCanvas) {
+  if (!previewCanvas || previewCanvas === recordingCanvas) return
+  try {
+    if (previewCanvas.width !== recordingCanvas.width) {
+      previewCanvas.width = recordingCanvas.width
+    }
+    if (previewCanvas.height !== recordingCanvas.height) {
+      previewCanvas.height = recordingCanvas.height
+    }
+    const ctx = previewCanvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(recordingCanvas, 0, 0)
+  } catch {
+    /* preview mirror is best-effort only */
+  }
 }
 
 /**
@@ -83,7 +106,7 @@ export async function recordImageVoiceVideo(opts) {
     scriptLines,
     tracks,
     image,
-    canvas,
+    canvas: previewCanvas,
     format = 'webm',
     rate = 0,
     volume = 100,
@@ -94,17 +117,20 @@ export async function recordImageVoiceVideo(opts) {
 
   if (!scriptLines?.length) throw new Error('請輸入語音稿')
   if (!tracks?.length) throw new Error('請至少選擇一種語音語言')
-  if (!canvas) throw new Error('預覽畫布尚未就緒')
+  if (!previewCanvas) throw new Error('預覽畫布尚未就緒')
 
   const { mimeType, ext: initialExt } = chooseMime(format)
   let currentExt = initialExt
+
+  // Record onto a detached canvas so Vue preview reactivity cannot freeze frames.
+  const canvas = createRecordingCanvas(previewCanvas)
 
   let audioContext = null
   let destination = null
   let canvasStream = null
   let mixedStream = null
   let recorder = null
-  const resources = { worker: null, workerUrl: null, timer: null, interval: null }
+  const resources = { worker: null, workerUrl: null, timer: null, interval: null, raf: null }
 
   try {
     audioContext = new AudioContext()
@@ -203,20 +229,26 @@ export async function recordImageVoiceVideo(opts) {
 
     const totalDuration = Math.max(1, segmentDurations.reduce((a, b) => a + b, 0))
 
+    // Build a continuous half-open timeline [start, end) per line so line N+1
+    // always starts exactly when line N ends (audio uses the same segmentStarts).
     let cumTime = 0
     for (let i = 0; i < scriptLines.length; i++) {
+      const startAt = cumTime
+      const endAt = cumTime + segmentDurations[i]
       for (const trackSubs of allSubtitleTracks) {
-        trackSubs[i].startAt = cumTime
-        trackSubs[i].endAt = cumTime + segmentDurations[i]
+        if (!trackSubs[i]) continue
+        trackSubs[i].startAt = startAt
+        trackSubs[i].endAt = endAt
       }
-      cumTime += segmentDurations[i]
+      cumTime = endAt
     }
     const flatSubtitles = allSubtitleTracks.flat()
 
-    // 3. Canvas stream + MediaRecorder
+    // 3. Canvas stream + MediaRecorder (detached recording canvas)
     if (audioContext.state !== 'running') await audioContext.resume()
 
     drawFrame(canvas, image, flatSubtitles, 0)
+    mirrorToPreview(canvas, previewCanvas)
     canvasStream = createCanvasStream(canvas)
     for (let i = 0; i < 3; i++) {
       drawFrame(canvas, image, flatSubtitles, 0)
@@ -252,12 +284,17 @@ export async function recordImageVoiceVideo(opts) {
     const ctx = audioContext
     const rec = recorder
     const streamForFrames = canvasStream
+    // Snapshot timing arrays so paint loop never depends on mutating outer refs oddly
+    const subtitleTimeline = flatSubtitles.map(s => ({
+      text: s.text,
+      startAt: s.startAt,
+      endAt: s.endAt,
+      language: s.language
+    }))
 
     await new Promise((resolve, reject) => {
       let settled = false
-      const finish = (err) => {
-        if (settled) return
-        settled = true
+      const stopPainters = () => {
         if (resources.timer) {
           clearTimeout(resources.timer)
           resources.timer = null
@@ -266,8 +303,18 @@ export async function recordImageVoiceVideo(opts) {
           clearInterval(resources.interval)
           resources.interval = null
         }
+        if (resources.raf != null) {
+          try { cancelAnimationFrame(resources.raf) } catch { /* ignore */ }
+          resources.raf = null
+        }
         try { resources.worker?.postMessage('stop') } catch { /* ignore */ }
         try { resources.worker?.terminate() } catch { /* ignore */ }
+        resources.worker = null
+      }
+      const finish = (err) => {
+        if (settled) return
+        settled = true
+        stopPainters()
         if (err) reject(err)
         else resolve()
       }
@@ -299,28 +346,41 @@ export async function recordImageVoiceVideo(opts) {
           const recordWallStart = performance.now()
           let lastPct = -1
           let lastPaintAt = 0
+          let painting = true
 
           const paintFrame = (force = false) => {
+            if (!painting && !force) return
             const now = performance.now()
-            if (!force && now - lastPaintAt < frameMs * 0.45) return
+            if (!force && now - lastPaintAt < frameMs * 0.4) return
             lastPaintAt = now
             const wallElapsed = (now - recordWallStart) / 1000
             const audioElapsed = Math.max(0, ctx.currentTime - audioStartTime)
             // Prefer wall clock so subtitle timeline keeps moving even if AudioContext stalls.
-            const elapsed = Math.min(totalDuration, Math.max(wallElapsed, audioElapsed))
+            // Never clamp to totalDuration early in a way that freezes last line before audio ends.
+            const elapsed = Math.min(totalDuration - 0.001, Math.max(wallElapsed, audioElapsed, 0))
             const pct = Math.min(100, Math.round((elapsed / totalDuration) * 100))
             if (pct !== lastPct) {
               lastPct = pct
               onStatus(`正在錄製影片 ${pct}%（請勿切換分頁）…`)
             }
-            drawFrame(canvas, image, flatSubtitles, elapsed)
+            drawFrame(canvas, image, subtitleTimeline, elapsed)
             requestCanvasFrame(streamForFrames)
+            // Live preview only — does not feed MediaRecorder
+            mirrorToPreview(canvas, previewCanvas)
           }
 
-          // Main-thread interval: reliable when Workers are blocked (CSP / blob).
+          // rAF: smoothest paints while tab is focused
+          const rafLoop = () => {
+            if (!painting) return
+            paintFrame(false)
+            resources.raf = requestAnimationFrame(rafLoop)
+          }
+          resources.raf = requestAnimationFrame(rafLoop)
+
+          // Main-thread interval: keeps going when rAF is throttled
           resources.interval = setInterval(() => paintFrame(false), frameMs)
 
-          // Worker keeps ticks coming when the tab is backgrounded (browsers throttle timers).
+          // Worker ticks: helps when the tab is backgrounded (browsers throttle timers/rAF)
           try {
             const workerCode = `
               let timer;
@@ -343,13 +403,21 @@ export async function recordImageVoiceVideo(opts) {
           paintFrame(true)
 
           setTimeout(() => {
+            painting = false
             try { resources.worker?.postMessage('stop') } catch { /* ignore */ }
             if (resources.interval) {
               clearInterval(resources.interval)
               resources.interval = null
             }
-            drawFrame(canvas, image, flatSubtitles, Math.max(0, totalDuration - 0.01))
+            if (resources.raf != null) {
+              try { cancelAnimationFrame(resources.raf) } catch { /* ignore */ }
+              resources.raf = null
+            }
+            // Paint final frame on the last subtitle segment
+            const finalT = Math.max(0, totalDuration - 0.05)
+            drawFrame(canvas, image, subtitleTimeline, finalT)
             requestCanvasFrame(streamForFrames)
+            mirrorToPreview(canvas, previewCanvas)
             setTimeout(() => {
               try {
                 if (rec.state === 'recording' || rec.state === 'paused') {
@@ -361,8 +429,8 @@ export async function recordImageVoiceVideo(opts) {
               } catch (e) {
                 finish(e instanceof Error ? e : new Error(String(e)))
               }
-            }, 200)
-          }, totalDuration * 1000 + 600)
+            }, 250)
+          }, totalDuration * 1000 + 700)
         }).catch(err => {
           finish(err instanceof Error ? err : new Error(String(err)))
         })
@@ -370,7 +438,7 @@ export async function recordImageVoiceVideo(opts) {
 
       try {
         // timeslice keeps data flowing and reduces "empty blob" / stuck encoder cases
-        rec.start(1000)
+        rec.start(250)
       } catch (e) {
         try {
           rec.start()
@@ -408,6 +476,9 @@ export async function recordImageVoiceVideo(opts) {
   } finally {
     if (resources.timer) clearTimeout(resources.timer)
     if (resources.interval) clearInterval(resources.interval)
+    if (resources.raf != null) {
+      try { cancelAnimationFrame(resources.raf) } catch { /* ignore */ }
+    }
     try { resources.worker?.terminate() } catch { /* ignore */ }
     if (resources.workerUrl) URL.revokeObjectURL(resources.workerUrl)
     if (canvasStream) stopTracks(canvasStream)

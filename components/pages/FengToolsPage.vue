@@ -1738,8 +1738,8 @@ watch(
 }
 
 .tools-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.95fr);
+  display: flex;
+  flex-direction: column;
   gap: 1.2rem;
   padding: 1.4rem;
 }
@@ -1774,14 +1774,15 @@ watch(
 
 .tools-segments {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 0.8rem;
 }
 
 .tools-segment {
   border: 1px solid var(--border-color);
-  border-radius: 22px;
+  border-radius: 18px;
   background: var(--bg-primary);
-  padding: 1rem 1.05rem;
+  padding: 0.85rem 1.05rem;
   text-align: left;
   cursor: pointer;
   transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
@@ -2733,7 +2734,6 @@ watch(
 .legend-swatch.chart-series-f { background: #0f766e; }
 
 @media (max-width: 960px) {
-  .tools-hero,
   .tool-input-grid,
   .tube-channel-list,
   .tube-manager__form,

@@ -432,30 +432,26 @@ onUnmounted(() => {
 }
 
 .nav-scroll {
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.4rem 0.2rem;
   padding: 0.55rem 1rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.nav-scroll::-webkit-scrollbar {
-  display: none;
 }
 
 .nav-tab {
   flex-shrink: 0;
+  min-width: 0;
   border: 0;
   background: transparent;
   color: var(--text-secondary);
   border-radius: 20px;
-  padding: 0.45rem 0.85rem;
+  padding: 0.45rem 0.2rem;
   cursor: pointer;
   font-size: 0.88rem;
   font-weight: 600;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition:
     background var(--transition-fast),
     color var(--transition-fast),
@@ -478,38 +474,38 @@ onUnmounted(() => {
 .nav-tab-name {
   display: block;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── 子選單列 ── */
 .nav-sub-row {
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.4rem 0.2rem;
   padding: 0.4rem 1rem 0.55rem;
-  overflow-x: auto;
-  scrollbar-width: none;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   background: rgba(255, 255, 255, 0.025);
 }
 
-.nav-sub-row::-webkit-scrollbar {
-  display: none;
-}
-
 .nav-sub-tab {
   flex-shrink: 0;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.45rem;
   border: 0;
   background: transparent;
   color: rgba(255, 255, 255, 0.65);
   border-radius: 14px;
-  padding: 0.35rem 0.7rem;
+  padding: 0.35rem 0.2rem;
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 

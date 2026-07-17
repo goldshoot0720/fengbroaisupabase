@@ -597,6 +597,8 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   background: rgba(8, 12, 22, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 999;
   display: none;
 }
@@ -660,6 +662,7 @@ onUnmounted(() => {
     transform: none;
     width: auto;
     border-radius: 20px;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.25);
   }
   .persistent-audio-bar {
     bottom: calc(0.6rem + env(safe-area-inset-bottom));

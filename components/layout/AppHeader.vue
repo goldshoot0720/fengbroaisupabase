@@ -432,10 +432,16 @@ onUnmounted(() => {
 }
 
 .nav-scroll {
-  display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 0.4rem 0.2rem;
+  display: flex;
+  overflow-x: auto;
+  gap: 0.5rem;
   padding: 0.55rem 1rem;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.nav-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-tab {
@@ -480,12 +486,18 @@ onUnmounted(() => {
 
 /* ── 子選單列 ── */
 .nav-sub-row {
-  display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 0.4rem 0.2rem;
+  display: flex;
+  overflow-x: auto;
+  gap: 0.5rem;
   padding: 0.4rem 1rem 0.55rem;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   background: rgba(255, 255, 255, 0.025);
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.nav-sub-row::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-sub-tab {
@@ -546,6 +558,7 @@ onUnmounted(() => {
     top: 0.4rem;
     border-radius: 22px;
     margin-bottom: 0.65rem;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
   }
   .header-top-row {
     padding: 0.75rem 0.9rem;

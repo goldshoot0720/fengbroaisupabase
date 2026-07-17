@@ -2,8 +2,9 @@
   <div id="app">
     <!-- 整體應用容器 -->
     <div class="app-container">
-      <!-- 側邊欄 -->
+      <!-- 側邊欄（隱藏，已改用頂部導航） -->
       <AppSidebar
+        v-if="false"
         :is-open="sidebarOpen"
         :current-page="currentPage"
         :active-tool="activeTool"
@@ -13,15 +14,19 @@
       />
 
       <!-- 主要內容區 -->
-      <div class="main-content" :class="{ 'sidebar-open': sidebarOpen }">
-        <!-- 頂部標題 -->
+      <div class="main-content">
+        <!-- 頂部導航標題 -->
         <AppHeader
           :title="pageTitle"
           :title-hint="pageTitleHint"
           :subtitle="pageSubtitle"
           :is-dark-mode="isDarkMode"
+          :pages="pages"
+          :current-page="currentPage"
+          :active-tool="activeTool"
           @toggle-sidebar="toggleSidebar"
           @toggle-dark-mode="toggleDarkMode"
+          @navigate="handleSidebarNavigate"
         />
 
         <!-- 頁面內容 -->
@@ -562,23 +567,17 @@ onUnmounted(() => {
 }
 
 .app-container {
-  display: flex;
-  align-items: flex-start;
-  min-height: 100vh;
+  display: block;
   width: min(1720px, 100%);
   margin: 0 auto;
-  gap: clamp(0.75rem, 1vw, 1.25rem);
   padding: clamp(0.65rem, 1vw, 1rem);
 }
 
 .main-content {
-  flex: 1;
-  min-width: 0;
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  transition: margin-left var(--transition-normal);
   min-height: 100vh;
 }
 
@@ -604,15 +603,12 @@ onUnmounted(() => {
 
 /* 響應式設計 */
 @media (min-width: 1200px) {
-  .main-content { margin-left: 0; }
   .page-content { padding: 0.65rem 0.45rem 1.75rem; }
 }
 
 @media (min-width: 769px) and (max-width: 1199px) {
-  .main-content { margin-left: 0; }
   .app-container {
     padding: 0.75rem;
-    gap: 0.75rem;
   }
   .page-content { padding: 0.4rem 0.2rem 8rem; }
   .scroll-buttons { bottom: 9rem; }

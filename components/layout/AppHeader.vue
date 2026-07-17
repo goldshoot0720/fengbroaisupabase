@@ -3,6 +3,9 @@
     <!-- 第一行：品牌 + 右側工具列 -->
     <div class="header-top-row">
       <div class="header-left">
+        <button @click="$emit('toggleSidebar')" class="mobile-menu-btn" type="button" aria-label="選單">
+          <span>Menu</span>
+        </button>
         <div class="brand-lockup">
           <div class="brand-mark">FA</div>
           <div class="brand-copy">
@@ -225,6 +228,10 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+.mobile-menu-btn {
+  display: none;
 }
 
 .brand-mark {
@@ -581,6 +588,28 @@ onUnmounted(() => {
   .nav-tab {
     font-size: 0.8rem;
     padding: 0.4rem 0.7rem;
+  }
+  .top-nav {
+    display: none !important;
+  }
+  .mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    background: color-mix(in oklab, var(--bg-secondary) 88%, transparent);
+    color: var(--text-primary);
+    padding: 0.6rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow-soft);
+    transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+  }
+  .mobile-menu-btn:hover {
+    transform: translateY(-1px);
+    border-color: var(--border-strong);
   }
 }
 

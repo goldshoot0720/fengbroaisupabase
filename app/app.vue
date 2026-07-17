@@ -2,9 +2,8 @@
   <div id="app">
     <!-- 整體應用容器 -->
     <div class="app-container">
-      <!-- 側邊欄（隱藏，已改用頂部導航） -->
+      <!-- 側邊欄（手機版） -->
       <AppSidebar
-        v-if="false"
         :is-open="sidebarOpen"
         :current-page="currentPage"
         :active-tool="activeTool"

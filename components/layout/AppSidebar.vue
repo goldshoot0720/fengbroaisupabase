@@ -273,31 +273,12 @@ defineEmits(['toggle', 'navigate'])
   font-size: 1rem;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 769px) {
   .sidebar {
-    position: sticky;
-    top: 1rem;
-    left: 0;
-    width: 236px;
-    height: calc(100vh - 2rem);
-    box-shadow: none;
-    border-radius: 32px;
-  }
-
-  .sidebar-toggle {
-    display: none;
+    display: none !important;
   }
 }
 
-@media (min-width: 769px) and (max-width: 1199px) {
-  .sidebar {
-    top: 0.75rem;
-    left: calc(-1 * min(260px, 72vw));
-    width: min(260px, 72vw);
-    height: calc(100vh - 1.5rem);
-    border-radius: 0 30px 30px 0;
-  }
-}
 
 @media (max-width: 768px) {
   .sidebar {

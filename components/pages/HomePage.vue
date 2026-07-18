@@ -169,7 +169,7 @@
           <strong class="home-repo-meta__value">{{ linesOfCodeLabel }}</strong>
         </div>
       </div>
-      <p class="home-footer__copyright">鋒兄 © 2026-2027 fengbroprinfo</p>
+      <p class="home-footer__copyright">鋒兄 © 2026-2027 FengBroAI Supabase</p>
     </footer>
   </div>
 </template>

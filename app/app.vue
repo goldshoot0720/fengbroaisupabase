@@ -595,11 +595,17 @@ onUnmounted(() => {
 .mobile-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(8, 12, 22, 0.45);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: color-mix(in oklab, oklch(0.12 0.03 248) 52%, transparent);
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
   z-index: 999;
   display: none;
+  animation: overlayIn 180ms var(--ease-out-expo);
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* 響應式設計 */
@@ -633,78 +639,146 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .mobile-overlay { display: block; }
+
+  #app {
+    background:
+      radial-gradient(circle at 12% -8%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 34%),
+      radial-gradient(circle at 92% 8%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 28%),
+      var(--bg-primary);
+  }
+
   .app-container {
     display: block;
     width: 100%;
-    padding: 0.5rem;
+    max-width: 100%;
+    padding: 0;
   }
+
+  .main-content {
+    overflow: visible;
+    height: auto;
+    min-height: 100dvh;
+    min-height: 100vh;
+    gap: 0;
+  }
+
   .page-content {
-    padding: 0.2rem 0 10rem;
-    padding-bottom: calc(10rem + env(safe-area-inset-bottom));
+    padding:
+      0.55rem
+      max(0.75rem, env(safe-area-inset-left, 0px))
+      calc(7.5rem + env(safe-area-inset-bottom, 0px))
+      max(0.75rem, env(safe-area-inset-right, 0px));
     min-height: auto;
     max-height: none;
     overflow: visible;
   }
-  .main-content {
-    overflow: visible;
-    height: auto;
-    min-height: auto;
-  }
+
   .scroll-buttons {
-    right: 0.85rem;
-    bottom: calc(9rem + env(safe-area-inset-bottom));
+    right: max(0.75rem, env(safe-area-inset-right, 0px));
+    bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.55rem;
   }
+
+  .scroll-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+    font-size: 1rem;
+    border: 1px solid var(--border-color);
+    background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: var(--elevation-2);
+  }
+
   .persistent-audio-bar,
   .persistent-video-bar {
-    left: 0.5rem;
-    right: 0.5rem;
+    left: max(0.55rem, env(safe-area-inset-left, 0px));
+    right: max(0.55rem, env(safe-area-inset-right, 0px));
     transform: none;
     width: auto;
-    border-radius: 20px;
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.25);
+    border-radius: 18px;
+    border: 1px solid var(--border-color);
+    background: color-mix(in oklab, var(--bg-secondary) 94%, transparent);
+    backdrop-filter: blur(18px) saturate(1.1);
+    -webkit-backdrop-filter: blur(18px) saturate(1.1);
+    box-shadow: 0 14px 36px color-mix(in oklab, oklch(0.16 0.03 248) 22%, transparent);
   }
+
   .persistent-audio-bar {
-    bottom: calc(0.6rem + env(safe-area-inset-bottom));
+    bottom: calc(0.55rem + env(safe-area-inset-bottom, 0px));
     grid-template-columns: 1fr;
-    gap: 0.85rem;
-    padding: 0.85rem;
+    gap: 0.7rem;
+    padding: 0.75rem 0.8rem;
   }
+
   .persistent-audio-controls,
   .persistent-video-controls {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
-    gap: 0.65rem;
+    gap: 0.55rem;
   }
+
+  .persistent-audio-btn {
+    min-height: 44px;
+    border-radius: 14px;
+    font-weight: 700;
+  }
+
   .persistent-audio-range,
   .persistent-audio-volume {
     grid-column: 1 / -1;
+    min-height: 40px;
   }
+
   .persistent-video-bar {
-    bottom: calc(11.7rem + env(safe-area-inset-bottom));
+    bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px));
     grid-template-columns: 1fr;
-    gap: 0.85rem;
-    padding: 0.85rem;
+    gap: 0.7rem;
+    padding: 0.75rem 0.8rem;
   }
+
   .persistent-video-preview {
-    max-height: 140px;
+    max-height: 120px;
+    border-radius: 12px;
+  }
+
+  .birthday-easter-egg {
+    margin: 0.5rem max(0.75rem, env(safe-area-inset-left, 0px)) 0;
+    border-radius: 20px;
   }
 }
 
 @media (max-width: 480px) {
   .page-content {
-    padding: 0.15rem 0 11rem;
-    padding-bottom: calc(11rem + env(safe-area-inset-bottom));
-    min-height: auto;
-    max-height: none;
+    padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(7.75rem + env(safe-area-inset-bottom, 0px));
   }
+
   .persistent-audio-copy strong,
   .persistent-video-copy strong {
     font-size: 0.95rem;
   }
+
   .persistent-audio-copy span,
   .persistent-video-copy span {
     font-size: 0.82rem;
+  }
+
+  .scroll-buttons {
+    bottom: calc(6.25rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-overlay {
+    animation: none;
+  }
+
+  .page-content > * {
+    animation: none;
   }
 }
 

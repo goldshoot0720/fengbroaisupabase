@@ -108,6 +108,12 @@
   --z-popover: 1200;
   --z-tooltip: 1300;
 
+  /* ——— Mobile shell ——— */
+  --mobile-header-height: 3.75rem;
+  --mobile-touch: 44px;
+  --mobile-gutter: 0.75rem;
+  --mobile-bottom-chrome: 5.5rem;
+
   /* ——— Compatibility aliases (live consumers) ——— */
   --bg-primary: var(--bg-canvas);
   --bg-secondary: var(--bg-surface);
@@ -127,6 +133,26 @@
   --font-2xl: var(--text-2xl);
   /* Intentional: old --font-3xl was a large hero clamp; map to display-lg */
   --font-3xl: var(--display-lg);
+}
+
+/* Touch-friendly defaults for small screens */
+@media (max-width: 768px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    overscroll-behavior-y: contain;
+  }
+
+  button,
+  [role='button'],
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* avoid iOS zoom on focus */
+  }
 }
 
 .dark {

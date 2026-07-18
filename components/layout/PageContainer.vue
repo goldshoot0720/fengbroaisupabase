@@ -87,29 +87,58 @@ defineProps({
 
 /* 響應式 */
 @media (max-width: 768px) {
-  .page-header {
-    margin-bottom: 1.5rem;
+  .page-container.with-padding {
+    padding: 0;
   }
-  
+
+  .page-header {
+    margin-bottom: 1rem;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
   .page-title {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+
+  .page-icon {
+    font-size: 1.2rem;
   }
 
   .page-actions {
     width: 100%;
     justify-content: flex-start;
     overflow-x: auto;
-    padding-bottom: 0.2rem;
+    gap: 0.55rem;
+    padding-bottom: 0.15rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .page-actions::-webkit-scrollbar {
+    display: none;
   }
 }
 
 @media (max-width: 480px) {
-  .page-title {
-    font-size: 1.3rem;
+  .page-header {
+    margin-bottom: 0.85rem;
   }
-  
+
+  .page-title {
+    font-size: 1.22rem;
+  }
+
   .page-actions {
     justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-container {
+    animation: none;
   }
 }
 </style>

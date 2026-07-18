@@ -1485,14 +1485,61 @@ onBeforeUnmount(() => {
 
 @media (max-width: 720px) {
   .voice-panel {
-    left: 0.75rem;
-    right: 0.75rem;
-    bottom: 0.75rem;
+    left: auto;
+    right: max(0.75rem, env(safe-area-inset-right, 0px));
+    bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+    max-width: min(360px, calc(100vw - 1.5rem));
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .voice-panel.expanded {
+    left: max(0.65rem, env(safe-area-inset-left, 0px));
+    right: max(0.65rem, env(safe-area-inset-right, 0px));
+    max-width: none;
+    align-items: stretch;
+  }
+
+  .voice-toggle {
+    min-width: 48px;
+    min-height: 48px;
+    border-radius: 16px;
+    padding: 0 0.9rem;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: var(--elevation-2);
+    -webkit-tap-highlight-color: transparent;
   }
 
   .voice-card {
-    max-height: min(72vh, 620px);
+    width: 100%;
+    max-height: min(62vh, 560px);
     overflow: auto;
+    border-radius: 20px;
+    padding: 0.9rem;
+    margin-top: 0.55rem;
+    box-shadow: var(--elevation-3);
+  }
+
+  .voice-main,
+  .confirm-btn,
+  .voice-secondary,
+  .cancel-btn,
+  .voice-close {
+    min-height: 44px;
+  }
+
+  .hint-chip {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-toggle.active .voice-dot {
+    animation: none;
   }
 }
 </style>

@@ -3,13 +3,15 @@
     <!-- 第一行：品牌 + 右側工具列 -->
     <div class="header-top-row">
       <div class="header-left">
-        <button @click="$emit('toggleSidebar')" class="mobile-menu-btn" type="button" aria-label="選單">
-          <span>Menu</span>
+        <button @click="$emit('toggleSidebar')" class="mobile-menu-btn" type="button" aria-label="開啟選單">
+          <span class="menu-icon" aria-hidden="true">
+            <i></i><i></i><i></i>
+          </span>
         </button>
         <div class="brand-lockup">
           <div class="brand-mark">FA</div>
           <div class="brand-copy">
-            <p class="brand-kicker">Editorial Console</p>
+            <p class="brand-kicker">Feng Console</p>
             <div class="header-title-row">
               <h1>{{ title }}</h1>
               <span v-if="titleHint" class="title-hint">{{ titleHint }}</span>
@@ -74,9 +76,11 @@
           @click="$emit('toggleDarkMode')"
           class="dark-mode-toggle"
           :title="isDarkMode ? '切換為淺色模式' : '切換為深色模式'"
+          :aria-label="isDarkMode ? '切換為淺色模式' : '切換為深色模式'"
           type="button"
         >
-          <span class="dark-mode-icon">{{ isDarkMode ? 'Light' : 'Dark' }}</span>
+          <span class="dark-mode-icon">{{ isDarkMode ? '☀' : '☾' }}</span>
+          <span class="dark-mode-label">{{ isDarkMode ? 'Light' : 'Dark' }}</span>
         </button>
       </div>
     </div>
@@ -335,7 +339,17 @@ onUnmounted(() => {
 }
 
 .dark-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   padding: 0.7rem 1rem;
+}
+
+.dark-mode-label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
 }
 
 .account-chip,
@@ -562,66 +576,226 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .top-header {
     position: sticky;
-    top: 0.4rem;
-    border-radius: 22px;
-    margin-bottom: 0.65rem;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    top: 0;
+    margin: 0 0 0.75rem;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+    border-bottom: 1px solid var(--border-color);
+    background: color-mix(in oklab, var(--header-bg) 92%, transparent);
+    box-shadow: 0 8px 28px color-mix(in oklab, oklch(0.18 0.03 248) 12%, transparent);
+    backdrop-filter: blur(22px) saturate(1.15);
+    -webkit-backdrop-filter: blur(22px) saturate(1.15);
   }
+
   .header-top-row {
-    padding: 0.75rem 0.9rem;
+    padding:
+      calc(0.65rem + env(safe-area-inset-top, 0px))
+      max(0.85rem, env(safe-area-inset-right, 0px))
+      0.7rem
+      max(0.85rem, env(safe-area-inset-left, 0px));
+    gap: 0.65rem;
+    border-bottom: 0;
   }
+
+  .header-left {
+    gap: 0.55rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .header-right {
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .brand-lockup {
+    gap: 0.55rem;
+    min-width: 0;
+  }
+
   .brand-mark {
-    width: 36px;
-    height: 36px;
-    font-size: 0.7rem;
+    width: 38px;
+    height: 38px;
+    font-size: 0.72rem;
     border-radius: 12px;
+    background: linear-gradient(145deg, color-mix(in oklab, var(--primary) 28%, transparent), color-mix(in oklab, var(--primary) 8%, transparent));
+    border-color: color-mix(in oklab, var(--primary) 22%, var(--border-color));
+    color: var(--primary);
   }
+
+  .brand-copy {
+    min-width: 0;
+  }
+
+  .brand-kicker {
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+  }
+
   .top-header h1 {
-    font-size: clamp(1.1rem, 1rem + 2vw, 1.5rem);
+    font-size: 1.05rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: min(48vw, 11.5rem);
   }
+
+  .title-hint {
+    display: none;
+  }
+
+  .account-btn {
+    min-height: 44px;
+    padding: 0.45rem 0.7rem;
+    gap: 0.4rem;
+  }
+
+  .account-chip {
+    padding: 0.22rem 0.4rem;
+  }
+
   .account-name {
-    max-width: 100px;
-  }
-  .nav-scroll {
-    padding: 0.45rem 0.75rem;
-  }
-  .nav-tab {
+    max-width: 5.5rem;
     font-size: 0.8rem;
-    padding: 0.4rem 0.7rem;
   }
+
+  .dropdown-arrow {
+    display: none;
+  }
+
+  .account-dropdown {
+    min-width: min(88vw, 280px);
+    right: 0;
+    border-radius: 20px;
+    padding: 0.45rem;
+    box-shadow: var(--elevation-3);
+  }
+
+  .account-item {
+    min-height: 48px;
+    border-radius: 14px;
+  }
+
+  .dark-mode-toggle {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 14px;
+  }
+
+  .dark-mode-icon {
+    font-size: 1.05rem;
+    letter-spacing: 0;
+  }
+
+  .dark-mode-label {
+    display: none;
+  }
+
   .top-nav {
     display: none !important;
   }
+
   .mobile-menu-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 0;
+    border-radius: 14px;
     border: 1px solid var(--border-color);
-    background: color-mix(in oklab, var(--bg-secondary) 88%, transparent);
+    background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
     color: var(--text-primary);
-    padding: 0.6rem 0.8rem;
-    font-size: 0.8rem;
-    font-weight: 600;
     cursor: pointer;
-    box-shadow: var(--shadow-soft);
-    transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+    box-shadow: none;
+    transition:
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      transform var(--transition-fast);
+    -webkit-tap-highlight-color: transparent;
   }
-  .mobile-menu-btn:hover {
-    transform: translateY(-1px);
-    border-color: var(--border-strong);
+
+  .mobile-menu-btn:active {
+    transform: scale(0.96);
+    background: var(--primary-muted);
+    border-color: color-mix(in oklab, var(--primary) 28%, var(--border-color));
+  }
+
+  .menu-icon {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 18px;
+  }
+
+  .menu-icon i {
+    display: block;
+    height: 2px;
+    width: 100%;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .menu-icon i:nth-child(2) {
+    width: 70%;
   }
 }
 
 @media (max-width: 480px) {
-  .header-right {
-    gap: 0.45rem;
+  .header-top-row {
+    padding-left: max(0.7rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.7rem, env(safe-area-inset-right, 0px));
   }
+
+  .header-right {
+    gap: 0.35rem;
+  }
+
   .account-name {
     display: none;
   }
+
   .brand-kicker {
     display: none;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .top-header h1 {
+    font-size: 1rem;
+    max-width: min(52vw, 10.5rem);
+  }
+
+  .account-btn {
+    padding: 0.4rem 0.55rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu-btn,
+  .account-btn,
+  .dark-mode-toggle,
+  .nav-tab,
+  .nav-sub-tab {
+    transition: none;
+  }
+
+  .mobile-menu-btn:active,
+  .account-btn:hover,
+  .dark-mode-toggle:hover {
+    transform: none;
   }
 }
 </style>

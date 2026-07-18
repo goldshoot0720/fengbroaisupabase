@@ -447,6 +447,17 @@ const handleSidebarNavigate = (pageId) => {
     return
   }
 
+  // 鋒兄設定/關於 子選單：settings:config → settings，settings:about → about
+  if (typeof pageId === 'string' && pageId.startsWith('settings:')) {
+    const section = pageId.slice('settings:'.length)
+    if (section === 'about') {
+      setCurrentPage('about')
+      return
+    }
+    setCurrentPage('settings')
+    return
+  }
+
   setCurrentPage(pageId)
 }
 const SUPABASE_URL_WARNING_KEY = 'feng-supabase-url-warning'

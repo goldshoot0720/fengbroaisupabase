@@ -80,8 +80,31 @@ const pages = [
       { id: 'tools:image-voice', tool: 'image-voice', name: '圖片語音成片', menuHint: '圖片+語音=影片 · 預設男聲' }
     ]
   },
-  { id: 'settings', name: '鋒兄設定', icon: '15', title: '鋒兄設定', subtitle: '管理來源、匯入匯出與儲存設定。' },
-  { id: 'about', name: '鋒兄關於', icon: '16', title: '鋒兄關於', subtitle: '查看系統說明與目前工作區資訊。' }
+  {
+    id: 'settings',
+    name: '鋒兄設定/關於',
+    icon: '15',
+    title: '鋒兄設定/關於',
+    subtitle: '管理來源設定與系統說明。',
+    children: [
+      {
+        id: 'settings:config',
+        page: 'settings',
+        name: '鋒兄設定',
+        menuHint: '來源與儲存',
+        title: '鋒兄設定',
+        subtitle: '管理來源、匯入匯出與儲存設定。'
+      },
+      {
+        id: 'settings:about',
+        page: 'about',
+        name: '鋒兄關於',
+        menuHint: '系統說明',
+        title: '鋒兄關於',
+        subtitle: '查看系統說明與目前工作區資訊。'
+      }
+    ]
+  }
 ]
 
 /** Resolve top-level or nested child page config by id / child.page */

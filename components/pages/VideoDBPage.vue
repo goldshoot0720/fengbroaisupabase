@@ -826,7 +826,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useVideoRecords } from '../../composables/useVideoRecords'
@@ -1257,7 +1257,51 @@ function getVideoSrc(video) {
 }
 
 function setActiveVideoRef(element) {
-  activeVideoElement.value = element || null
+  // Vue 切換 :key 時會先 ref(null) 再綁新節點；若直接清掉會把新 video 的 ref 洗掉，
+  // 自動連播／切換後播放鈕失效、狀態錯亂。
+  if (element) {
+    activeVideoElement.value = element
+    return
+  }
+  queueMicrotask(() => {
+    const current = activeVideoElement.value
+    if (!current || !current.isConnected) {
+      activeVideoElement.value = null
+    }
+  })
+}
+
+function isActiveWatchElement(element, video = null) {
+  // 已卸載的舊 <video> 事件必須忽略，否則自動連播切換會改寫播放狀態
+  if (!element?.isConnected) return false
+  if (video?.id != null && playingVideoId.value !== video.id) return false
+  const active = activeVideoElement.value
+  // 允許 active 尚未綁定完成時接受剛掛載的 element
+  if (active && active !== element) return false
+  return true
+}
+
+async function tryStartWatchPlayback(element = activeVideoElement.value) {
+  if (!element || !element.isConnected) {
+    watchIsPlaying.value = false
+    watchControlsVisible.value = true
+    return false
+  }
+  try {
+    if (element.ended) {
+      element.currentTime = 0
+    }
+    await element.play()
+    syncWatchUiFromElement(element)
+    return true
+  } catch (error) {
+    // 瀏覽器封鎖無手勢自動播放時，務必顯示中央播放鈕與控制列
+    console.warn('Watch autoplay blocked or failed:', error)
+    watchIsPlaying.value = false
+    watchControlsVisible.value = true
+    clearWatchControlsHideTimer()
+    return false
+  }
 }
 
 function getPersistentVideoMeta(video) {
@@ -1365,7 +1409,7 @@ function scheduleHideWatchControls() {
 }
 
 function syncWatchUiFromElement(element) {
-  if (!element) return
+  if (!element || !isActiveWatchElement(element)) return
   watchIsPlaying.value = !element.paused && !element.ended
   watchCurrentTime.value = element.currentTime || 0
   watchDuration.value = Number.isFinite(element.duration) ? element.duration : 0
@@ -1374,6 +1418,11 @@ function syncWatchUiFromElement(element) {
   watchPlaybackRate.value = element.playbackRate || 1
   if (!element.muted && element.volume > 0) {
     watchLastVolume = element.volume
+  }
+  // 暫停／結束時強制露出控制列與中央播放鈕，避免自動連播切換後「按鈕消失」
+  if (element.paused || element.ended) {
+    watchControlsVisible.value = true
+    clearWatchControlsHideTimer()
   }
 }
 
@@ -1400,6 +1449,22 @@ async function handlePlay(video) {
     }
     // If user switched to another video while resolving, ignore late result.
     if (playingVideoId.value !== video.id) return
+
+    // src 就緒後主動 play：僅靠 autoplay 在切換／blob src 更新時不可靠
+    await nextTick()
+    let element = activeVideoElement.value
+    if (!element || !element.isConnected) {
+      await nextTick()
+      element = activeVideoElement.value
+    }
+    if (element && playingVideoId.value === video.id) {
+      // Vue 已綁 :src；若尚未套上則補上（multipart resolve 後常見）
+      if (src && !element.currentSrc && !element.getAttribute('src')) {
+        element.src = src
+      }
+      await tryStartWatchPlayback(element)
+      syncWatchUiFromElement(element)
+    }
   } catch (error) {
     console.error('影片載入失敗:', error)
     if (playingVideoId.value === video?.id) {
@@ -1411,7 +1476,7 @@ async function handlePlay(video) {
 
 function handleWatchPlay(event, video) {
   const element = event?.target
-  if (!element || !video) return
+  if (!element || !video || !isActiveWatchElement(element, video)) return
   activeVideoElement.value = element
   if (!persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) {
     pausePersistentVideo()
@@ -1423,26 +1488,28 @@ function handleWatchPlay(event, video) {
 }
 
 function handleWatchPause(event, video) {
-  if (!event?.target) return
-  syncWatchUiFromElement(event.target)
+  const element = event?.target
+  if (!element || !isActiveWatchElement(element, video)) return
+  syncWatchUiFromElement(element)
   watchControlsVisible.value = true
   clearWatchControlsHideTimer()
-  if (!persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) return
-  snapshotPersistentVideo(event.target, getPersistentVideoMeta(video), { playing: false })
+  if (!video || !persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) return
+  snapshotPersistentVideo(element, getPersistentVideoMeta(video), { playing: false })
 }
 
 function handleWatchProgress(event, video) {
-  if (!event?.target) return
-  syncWatchUiFromElement(event.target)
-  if (!persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) return
-  snapshotPersistentVideo(event.target, getPersistentVideoMeta(video), {
-    playing: !event.target.paused
+  const element = event?.target
+  if (!element || !isActiveWatchElement(element, video)) return
+  syncWatchUiFromElement(element)
+  if (!video || !persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) return
+  snapshotPersistentVideo(element, getPersistentVideoMeta(video), {
+    playing: !element.paused
   })
 }
 
 function syncWatchVolumeFromElement(event) {
   const element = event?.target || activeVideoElement.value
-  if (!element) return
+  if (!element || !isActiveWatchElement(element, watchingVideo.value)) return
   syncWatchUiFromElement(element)
   const video = watchingVideo.value
   if (!video || !persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) return
@@ -1459,24 +1526,45 @@ async function handleWatchLoaded(event, video) {
   element.muted = watchIsMuted.value
   element.playbackRate = watchPlaybackRate.value || 1
   await restorePersistentVideo(element, getPersistentVideoMeta(video))
+  // 連播切換後若仍暫停（autoplay 沒觸發或被擋），補一次 play；失敗則露出播放鈕
+  if (element.paused && !element.ended && playingVideoId.value === video.id) {
+    await tryStartWatchPlayback(element)
+  }
   syncWatchUiFromElement(element)
   snapshotPersistentVideo(element, getPersistentVideoMeta(video), {
     playing: !element.paused
   })
-  revealWatchControls()
+  if (element.paused || element.ended) {
+    watchControlsVisible.value = true
+    clearWatchControlsHideTimer()
+  } else {
+    revealWatchControls()
+  }
 }
 
 async function toggleWatchPlayback() {
   const element = activeVideoElement.value
-  if (!element) return
+  if (!element || !element.isConnected) {
+    // 切換後 ref 偶發未綁定：再等一幀
+    await nextTick()
+  }
+  const el = activeVideoElement.value
+  if (!el || !el.isConnected) {
+    watchIsPlaying.value = false
+    watchControlsVisible.value = true
+    return
+  }
   try {
-    if (element.paused || element.ended) {
-      await element.play()
+    if (el.paused || el.ended) {
+      await tryStartWatchPlayback(el)
     } else {
-      element.pause()
+      el.pause()
+      syncWatchUiFromElement(el)
     }
   } catch (error) {
     console.warn('Watch playback toggle failed:', error)
+    watchIsPlaying.value = false
+    watchControlsVisible.value = true
   }
   revealWatchControls()
 }
@@ -1574,6 +1662,13 @@ function cancelWatchUpNext() {
   watchUpNextSeconds.value = WATCH_UPNEXT_SECONDS
   watchUpNextProgress.value = 1
   watchControlsVisible.value = true
+  // 取消連播後若目前影片已結束／暫停，同步 UI 以顯示中央播放鈕
+  const element = activeVideoElement.value
+  if (element?.isConnected) {
+    syncWatchUiFromElement(element)
+  } else {
+    watchIsPlaying.value = false
+  }
 }
 
 async function confirmWatchUpNext() {
@@ -1620,6 +1715,8 @@ async function handleWatchEnded() {
     return
   }
   cancelWatchUpNext()
+  // 無下一支時保留中央播放鈕（可重播）
+  watchControlsVisible.value = true
 }
 
 function isTypingTarget(target) {

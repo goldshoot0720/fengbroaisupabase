@@ -587,8 +587,12 @@ export function normalizeFengbroNewsSite(
   };
 }
 
-export function normalizeFengbroNewsSites(input: unknown): FengbroNewsSiteConfig[] {
-  if (!Array.isArray(input)) return DEFAULT_FENGBRO_NEWS_SITES.map((s) => ({ ...s }));
+/**
+ * Normalize an explicit site list only (no default merge).
+ * Use for API requests that already carry the caller's locked/focus subset.
+ */
+export function normalizeFengbroNewsSitesStrict(input: unknown): FengbroNewsSiteConfig[] {
+  if (!Array.isArray(input)) return [];
 
   const seen = new Set<string>();
   const sites: FengbroNewsSiteConfig[] = [];
@@ -601,6 +605,19 @@ export function normalizeFengbroNewsSites(input: unknown): FengbroNewsSiteConfig
     seen.add(key);
     sites.push(site);
   }
+  return sites;
+}
+
+/**
+ * Normalize for client localStorage hydrate: keep user sites, then merge any
+ * newly shipped defaults that older saved lists may lack.
+ * Do **not** use this on the search API — that would force all defaults on every query.
+ */
+export function normalizeFengbroNewsSites(input: unknown): FengbroNewsSiteConfig[] {
+  if (!Array.isArray(input)) return DEFAULT_FENGBRO_NEWS_SITES.map((s) => ({ ...s }));
+
+  const sites = normalizeFengbroNewsSitesStrict(input);
+  const seen = new Set(sites.map((s) => fengbroNewsSiteKey(s)));
 
   // Merge in newly shipped default sources (e.g. YouTube) that older localStorage may lack.
   for (const def of DEFAULT_FENGBRO_NEWS_SITES) {

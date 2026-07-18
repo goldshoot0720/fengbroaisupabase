@@ -7,6 +7,9 @@
 
 [functions]
   directory = "netlify/functions/"
+  # Netlify Pro max synchronous is 26s; Free is 10s.
+  # 鋒兄新聞 scrapes many locked sources — pair with REQUEST_BUDGET_MS in news.ts.
+  timeout = 26
 
 # 訂閱到期 Web Push：每天 09:00 UTC 執行
 [functions."send-push-cron"]

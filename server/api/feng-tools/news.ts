@@ -1,7 +1,7 @@
 import {
   DEFAULT_FENGBRO_NEWS_SITES,
   normalizeDomain,
-  normalizeFengbroNewsSites,
+  normalizeFengbroNewsSitesStrict,
   type FengbroNewsSiteConfig,
 } from '../../../utils/fengbroNewsSites'
 
@@ -16,12 +16,17 @@ const MAX_NEWS_AGE_YEARS = 3;
 const MAX_NEWS_AGE_MS = MAX_NEWS_AGE_YEARS * 365.25 * 24 * 60 * 60 * 1000;
 
 /** Per outbound HTTP request (prevents infinite "搜尋中"). */
-const FETCH_TIMEOUT_MS = 8_000;
-const JINA_TIMEOUT_MS = 10_000;
+const FETCH_TIMEOUT_MS = 5_000;
+const JINA_TIMEOUT_MS = 6_000;
 /** Hard cap per source so one dead site cannot stall the whole search. */
-const SITE_SEARCH_TIMEOUT_MS = 18_000;
+const SITE_SEARCH_TIMEOUT_MS = 7_000;
+/**
+ * Whole-handler budget under Netlify/serverless gateway limits (~26s Pro / ~10s Free).
+ * Leave headroom so we can serialize a partial JSON response before the platform 502/504s.
+ */
+const REQUEST_BUDGET_MS = 20_000;
 /** How many sources to scrape in parallel. */
-const SITE_CONCURRENCY = 5;
+const SITE_CONCURRENCY = 6;
 /** Max list/search URLs tried per generic source (then Google News). */
 const MAX_LIST_URL_TRIES = 2;
 
@@ -421,13 +426,27 @@ async function fetchViaJina(targetHttpsUrl: string) {
   });
 }
 
-/** Run async work over items with a concurrency limit. */
-async function mapPool<T, R>(items: T[], concurrency: number, worker: (item: T, index: number) => Promise<R>): Promise<R[]> {
+/** Run async work over items with a concurrency limit and optional wall-clock deadline. */
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>,
+  opts?: {
+    /** Absolute timestamp (Date.now()) after which remaining items are skipped. */
+    deadlineAt?: number;
+    /** Factory for results of items skipped due to deadline. */
+    onSkip?: (item: T, index: number) => R;
+  }
+): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;
   const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
     while (next < items.length) {
       const i = next++;
+      if (opts?.deadlineAt != null && Date.now() >= opts.deadlineAt && opts.onSkip) {
+        results[i] = opts.onSkip(items[i], i);
+        continue;
+      }
       results[i] = await worker(items[i], i);
     }
   });
@@ -436,6 +455,7 @@ async function mapPool<T, R>(items: T[], concurrency: number, worker: (item: T, 
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => T): Promise<T> {
+  if (ms <= 0) return onTimeout();
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
@@ -1592,16 +1612,27 @@ async function searchSiteInner(site: FengbroNewsSiteConfig, query: string): Prom
   }
 }
 
-async function searchSite(site: FengbroNewsSiteConfig, query: string): Promise<SiteSearchResult> {
+function skippedSiteResult(site: FengbroNewsSiteConfig, reason: string): SiteSearchResult {
+  return {
+    siteId: site.id,
+    siteName: site.name,
+    domain: site.domain,
+    articles: [],
+    error: reason,
+    source: site.homeUrl,
+  };
+}
+
+async function searchSite(
+  site: FengbroNewsSiteConfig,
+  query: string,
+  opts?: { timeoutMs?: number }
+): Promise<SiteSearchResult> {
+  const timeoutMs = Math.max(500, Math.min(SITE_SEARCH_TIMEOUT_MS, opts?.timeoutMs ?? SITE_SEARCH_TIMEOUT_MS));
   try {
-    return await withTimeout(searchSiteInner(site, query), SITE_SEARCH_TIMEOUT_MS, () => ({
-      siteId: site.id,
-      siteName: site.name,
-      domain: site.domain,
-      articles: [] as NewsArticle[],
-      error: `此來源搜尋逾時（>${Math.round(SITE_SEARCH_TIMEOUT_MS / 1000)}s）`,
-      source: site.homeUrl,
-    }));
+    return await withTimeout(searchSiteInner(site, query), timeoutMs, () =>
+      skippedSiteResult(site, `此來源搜尋逾時（>${Math.round(timeoutMs / 1000)}s）`)
+    );
   } catch (error) {
     return {
       siteId: site.id,
@@ -1614,13 +1645,20 @@ async function searchSite(site: FengbroNewsSiteConfig, query: string): Promise<S
 }
 
 function parseSitesFromRequest(query: Record<string, any>, body: unknown): FengbroNewsSiteConfig[] {
+  // Caller-supplied list is authoritative (strict: no re-merge of all defaults).
+  // Re-merging defaults here used to force ~39 sources on every search → Netlify 502/504.
   if (body && typeof body === 'object' && Array.isArray((body as { sites?: unknown }).sites)) {
-    return normalizeFengbroNewsSites((body as { sites: unknown }).sites);
+    const fromBody = normalizeFengbroNewsSitesStrict((body as { sites: unknown }).sites);
+    if (fromBody.length) return fromBody;
   }
   const sitesParam = typeof query.sites === 'string' ? query.sites : '';
   if (sitesParam) {
     try {
-      return normalizeFengbroNewsSites(JSON.parse(sitesParam));
+      const parsed = JSON.parse(sitesParam);
+      if (Array.isArray(parsed)) {
+        const fromQuery = normalizeFengbroNewsSitesStrict(parsed);
+        if (fromQuery.length) return fromQuery;
+      }
     } catch {
       const domains = sitesParam.split(',').map((s) => normalizeDomain(s)).filter(Boolean);
       if (domains.length) {
@@ -1650,8 +1688,37 @@ async function handleSearch(queryParams: Record<string, any>, body: unknown = nu
     throw createError({ statusCode: 400, statusMessage: '沒有鎖定的網站焦點。請先在「網站焦點」鎖定至少一個網站。' });
   }
 
-  // Bounded concurrency: 30+ locked sources must not open 30+ hanging fetches at once
-  const bySiteRaw = await mapPool(sites, SITE_CONCURRENCY, (site) => searchSite(site, query));
+  const startedAt = Date.now();
+  const deadlineAt = startedAt + REQUEST_BUDGET_MS;
+  let skippedForBudget = 0;
+
+  // Bounded concurrency + global budget: 30+ locked sources must not open 30+ hanging
+  // fetches, and must finish before Netlify/serverless gateway kills the handler (502/504).
+  const bySiteRaw = await mapPool(
+    sites,
+    SITE_CONCURRENCY,
+    (site) => {
+      const remaining = deadlineAt - Date.now();
+      if (remaining <= 400) {
+        skippedForBudget += 1;
+        return Promise.resolve(
+          skippedSiteResult(site, `整體搜尋時間已到，略過此來源（預算 ${Math.round(REQUEST_BUDGET_MS / 1000)}s）`)
+        );
+      }
+      // Leave a little buffer so the last in-flight sites can still respond
+      return searchSite(site, query, { timeoutMs: Math.min(SITE_SEARCH_TIMEOUT_MS, remaining - 300) });
+    },
+    {
+      deadlineAt,
+      onSkip: (site) => {
+        skippedForBudget += 1;
+        return skippedSiteResult(
+          site,
+          `整體搜尋時間已到，略過此來源（預算 ${Math.round(REQUEST_BUDGET_MS / 1000)}s）`
+        );
+      },
+    }
+  );
   const bySite = bySiteRaw.map((siteResult) => {
     const before = siteResult.articles.length;
     const articles = filterArticlesByMaxAge(siteResult.articles);
@@ -1692,12 +1759,26 @@ async function handleSearch(queryParams: Record<string, any>, body: unknown = nu
         : `${s.siteName}：標題含「${query}」的文章未找到`
     );
 
+  if (skippedForBudget > 0) {
+    warnings.unshift(
+      `因平台時間限制，有 ${skippedForBudget} 個來源未搜完（已回傳部分結果）。可減少鎖定來源後再試。`
+    );
+  }
+
+  const elapsedMs = Date.now() - startedAt;
+  const searchedCount = sites.length - skippedForBudget;
+
   return {
     query,
     onlyLocked,
     siteCount: sites.length,
+    searchedCount,
+    skippedCount: skippedForBudget,
+    partial: skippedForBudget > 0,
+    elapsedMs,
     resultCount: results.length,
     maxAgeYears: MAX_NEWS_AGE_YEARS,
+    requestBudgetMs: REQUEST_BUDGET_MS,
     fetchedAt: new Date().toISOString(),
     results,
     bySite,

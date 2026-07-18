@@ -183,7 +183,11 @@
           「{{ result.query }}」共 {{ result.resultCount }} 則
           <span class="news-results__meta">
             （焦點 {{ result.siteCount }} 站
-            <template v-if="result.maxAgeYears"> · 近 {{ result.maxAgeYears }} 年</template>）
+            <template v-if="result.partial && result.searchedCount != null">
+              · 已搜 {{ result.searchedCount }}
+            </template>
+            <template v-if="result.maxAgeYears"> · 近 {{ result.maxAgeYears }} 年</template>
+            <template v-if="result.partial"> · 部分結果</template>）
           </span>
         </h4>
 

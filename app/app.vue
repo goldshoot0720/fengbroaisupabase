@@ -179,24 +179,28 @@
       @click="closeSidebar"
     ></div>
 
-    <!-- 滾動按鈕 -->
-    <div class="scroll-buttons">
+    <!-- 滾動按鈕：右下角上/下箭頭 -->
+    <div v-show="showScrollButtons" class="scroll-buttons" aria-label="頁面捲動">
       <button
-        v-show="showScrollButtons && showTopButton"
+        v-show="showTopButton"
+        type="button"
         @click="scrollToTop"
         class="scroll-btn scroll-top"
-        title="回到頂部"
+        title="回到頂端"
+        aria-label="回到頂端"
       >
-        ⬆️
+        ↑
       </button>
-      
+
       <button
-        v-show="showScrollButtons && showBottomButton"
+        v-show="showBottomButton"
+        type="button"
         @click="scrollToBottom"
         class="scroll-btn scroll-bottom"
-        title="跳到底部"
+        title="移到底端"
+        aria-label="移到底端"
       >
-        ⬇️
+        ↓
       </button>
     </div>
 
@@ -310,7 +314,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import DashboardPage from '../components/pages/DashboardPage.vue'
 import SubscriptionPage from '../components/pages/SubscriptionPage.vue'
 import FoodPage from '../components/pages/FoodPage.vue'
@@ -369,12 +373,13 @@ const { warning: toastWarning } = useToast()
 const { bootstrapNotifications } = useNotifications()
 const {
   showScrollButtons,
-  showTopButton, 
-  showBottomButton, 
-  scrollToTop, 
-  scrollToBottom, 
-  setupScrollListener, 
-  removeScrollListener 
+  showTopButton,
+  showBottomButton,
+  scrollToTop,
+  scrollToBottom,
+  handleScroll,
+  setupScrollListener,
+  removeScrollListener
 } = useScroll()
 const {
   currentTrack: persistentAudioTrack,
@@ -581,6 +586,14 @@ onUnmounted(() => {
     window.removeEventListener('resize', handleResize)
     removeScrollListener()
   }
+})
+
+// 切換頁面後內容高度會變，重新判斷是否顯示捲動箭頭
+watch(currentPage, async () => {
+  if (!import.meta.client) return
+  await nextTick()
+  handleScroll()
+  setTimeout(handleScroll, 300)
 })
 </script>
 
@@ -823,12 +836,17 @@ onUnmounted(() => {
 /* 滾動按鈕 */
 .scroll-buttons {
   position: fixed;
-  right: 2rem;
-  bottom: 7.5rem;
+  right: max(1rem, env(safe-area-inset-right, 0px));
+  bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
   z-index: var(--z-fixed);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.65rem;
+  pointer-events: none;
+}
+
+.scroll-buttons .scroll-btn {
+  pointer-events: auto;
 }
 
 .persistent-audio-bar {
@@ -1095,33 +1113,41 @@ onUnmounted(() => {
 }
 
 .scroll-btn {
-  width: 50px;
-  height: 50px;
-  border: none;
-  border-radius: var(--radius-full);
+  width: 48px;
+  height: 48px;
+  border: 1px solid color-mix(in oklab, var(--primary) 28%, var(--border-color));
+  border-radius: 16px;
   cursor: pointer;
-  font-size: 1.5rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-lg);
-  transition: all var(--transition-bounce);
-  backdrop-filter: blur(10px);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .scroll-btn:hover {
-  transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px color-mix(in oklab, oklch(0.18 0.03 248) 18%, transparent);
+}
+
+.scroll-btn:active {
+  transform: scale(0.96);
 }
 
 .scroll-top {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  background: color-mix(in oklab, var(--primary) 88%, black 8%);
   color: white;
 }
 
 .scroll-bottom {
-  background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
-  color: white;
+  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
+  color: var(--text-primary);
+  border-color: var(--border-color);
 }
 
 /* 開發模式調試資訊 */

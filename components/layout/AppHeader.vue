@@ -497,9 +497,20 @@ onUnmounted(() => {
 }
 
 .nav-tab.active {
-  background: linear-gradient(135deg, rgba(93, 122, 255, 0.28), rgba(255, 255, 255, 0.08));
+  background: transparent;
   color: var(--text-primary);
-  box-shadow: inset 0 0 0 1px rgba(174, 189, 255, 0.3);
+  box-shadow: none;
+}
+
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0.2rem;
+  right: 0.2rem;
+  bottom: 0.15rem;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 75%, transparent);
 }
 
 .nav-tab-name {
@@ -526,6 +537,7 @@ onUnmounted(() => {
 }
 
 .nav-sub-tab {
+  position: relative;
   flex-shrink: 0;
   min-width: 0;
   display: inline-flex;
@@ -553,9 +565,20 @@ onUnmounted(() => {
 }
 
 .nav-sub-tab.active {
-  background: rgba(93, 122, 255, 0.22);
+  background: transparent;
   color: #fff;
-  box-shadow: inset 0 0 0 1px rgba(174, 189, 255, 0.25);
+  box-shadow: none;
+}
+
+.nav-sub-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0.15rem;
+  right: 0.15rem;
+  bottom: 0.1rem;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 70%, transparent);
 }
 
 .nav-sub-hint {

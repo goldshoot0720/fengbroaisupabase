@@ -3,16 +3,24 @@
     <div class="common-page">
       <!-- 操作區 -->
       <div class="actions-bar">
-        <div class="search-box">
-          <input 
-            v-model="searchQuery" 
-            type="text" 
-            class="search-input" 
+        <div class="search-box search-area">
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="search-input"
             placeholder="篩選 例如 GitHub Gmail 或 example@example.com"
+            @keyup.enter="commitSearchHistory()"
+            @blur="commitSearchHistory()"
           >
           <div v-if="searchQuery.trim()" class="search-result-info">
             符合 {{ filteredAccounts.length }} 筆資料
           </div>
+          <RecentSearchChips
+            :terms="recentSearches"
+            @apply="applyRecentSearch"
+            @remove="removeRecentSearch"
+            @clear="clearRecentSearches"
+          />
         </div>
         <div class="action-buttons">
           <div class="csv-actions">
@@ -294,6 +302,8 @@
 import { ref, onMounted, reactive, computed } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import { useCommonAccounts } from '../../composables/useCommonAccounts'
+import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import RecentSearchChips from '../ui/RecentSearchChips.vue'
 
 const {
   accounts,
@@ -310,6 +320,13 @@ const {
 const showModal = ref(false)
 const isEditing = ref(false)
 const searchQuery = ref('')
+const {
+  recentSearches,
+  commitSearchHistory,
+  applyRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} = useRecentSearchHistory('fengbro-common-search-history', searchQuery)
 const selectedSiteFilter = ref(null)
 const errorMessage = ref('')
 
@@ -870,9 +887,9 @@ useHead({
 }
 
 .search-box {
-  flex: 1;
+  flex: 1 1 320px;
   min-width: 250px;
-  max-width: 400px;
+  max-width: 480px;
   position: relative;
 }
 

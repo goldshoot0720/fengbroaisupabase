@@ -11,29 +11,12 @@
           @keyup.enter="commitSearchHistory()"
           @blur="commitSearchHistory()"
         />
-        <div v-if="recentSearches.length > 0" class="recent-searches" aria-label="最近搜尋紀錄">
-          <span class="recent-label">最近搜尋</span>
-          <span
-            v-for="term in recentSearches"
-            :key="term"
-            class="recent-chip"
-          >
-            <button type="button" class="recent-chip-text" @click="applyRecentSearch(term)">
-              {{ term }}
-            </button>
-            <button
-              type="button"
-              class="recent-chip-remove"
-              :aria-label="`移除搜尋紀錄 ${term}`"
-              @click="removeRecentSearch(term)"
-            >
-              X
-            </button>
-          </span>
-          <button type="button" class="recent-clear" @click="clearRecentSearches">
-            清除
-          </button>
-        </div>
+        <RecentSearchChips
+          :terms="recentSearches"
+          @apply="applyRecentSearch"
+          @remove="removeRecentSearch"
+          @clear="clearRecentSearches"
+        />
       </div>
       <div class="date-filters">
         <select v-model="selectedYear" class="date-filter-select">
@@ -378,20 +361,26 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useSubscriptions } from '../../composables/useSubscriptions'
 import { useFormatters } from '../../composables/useFormatters'
 import { useCommonAccounts } from '../../composables/useCommonAccounts'
+import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import RecentSearchChips from '../ui/RecentSearchChips.vue'
 
 const searchQuery = ref('')
-const recentSearches = ref([])
 const renewFilter = ref('all')
 const selectedYear = ref('')
 const selectedMonth = ref('')
 const EMPTY_MONTH_FILTER = 'none'
-const SUBSCRIPTION_SEARCH_HISTORY_KEY = 'fengbro-subscription-search-history'
-const SEARCH_HISTORY_LIMIT = 37
-let searchHistoryTimer = null
+
+const {
+  recentSearches,
+  commitSearchHistory,
+  applyRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} = useRecentSearchHistory('fengbro-subscription-search-history', searchQuery)
 
 const {
   subscriptions,
@@ -409,87 +398,6 @@ const {
 } = useSubscriptions()
 
 const { formatDate, getDateClass } = useFormatters()
-
-const normalizeSearchTerm = (value) => {
-  // DOM Event from @blur / @keyup must not be coerced (→ "[object FocusEvent]")
-  if (value == null || typeof value === 'object') return ''
-  return String(value).trim().replace(/\s+/g, ' ')
-}
-
-const isValidSearchHistoryTerm = (term) => {
-  if (!term) return false
-  // Drop corrupted entries already saved from Event objects
-  if (/^\[object\s+\w+\]$/i.test(term)) return false
-  return true
-}
-
-const loadRecentSearches = () => {
-  if (typeof localStorage === 'undefined') return
-
-  try {
-    const parsed = JSON.parse(localStorage.getItem(SUBSCRIPTION_SEARCH_HISTORY_KEY) || '[]')
-    recentSearches.value = Array.isArray(parsed)
-      ? [...new Set(parsed.map(normalizeSearchTerm).filter(isValidSearchHistoryTerm))].slice(
-          0,
-          SEARCH_HISTORY_LIMIT
-        )
-      : []
-    // Rewrite storage if we stripped bad "[object FocusEvent]" entries
-    persistRecentSearches()
-  } catch {
-    recentSearches.value = []
-  }
-}
-
-const persistRecentSearches = () => {
-  if (typeof localStorage === 'undefined') return
-  localStorage.setItem(SUBSCRIPTION_SEARCH_HISTORY_KEY, JSON.stringify(recentSearches.value))
-}
-
-const commitSearchHistory = (value) => {
-  // Prefer explicit string; ignore Event args from template handlers without ()
-  const raw = typeof value === 'string' || typeof value === 'number' ? value : searchQuery.value
-  const term = normalizeSearchTerm(raw)
-  if (!isValidSearchHistoryTerm(term)) return
-
-  recentSearches.value = [
-    term,
-    ...recentSearches.value.filter(item => item !== term)
-  ].slice(0, SEARCH_HISTORY_LIMIT)
-  persistRecentSearches()
-}
-
-const applyRecentSearch = (term) => {
-  searchQuery.value = term
-  commitSearchHistory(term)
-}
-
-const clearRecentSearches = () => {
-  recentSearches.value = []
-  if (typeof localStorage !== 'undefined') {
-    localStorage.removeItem(SUBSCRIPTION_SEARCH_HISTORY_KEY)
-  }
-}
-
-const removeRecentSearch = (term) => {
-  recentSearches.value = recentSearches.value.filter(item => item !== term)
-  persistRecentSearches()
-}
-
-watch(searchQuery, (value) => {
-  if (typeof window === 'undefined') return
-
-  if (searchHistoryTimer) {
-    clearTimeout(searchHistoryTimer)
-  }
-
-  const term = normalizeSearchTerm(value)
-  if (!term) return
-
-  searchHistoryTimer = setTimeout(() => {
-    commitSearchHistory(term)
-  }, 900)
-})
 
 const formatDaysUntil = (dateString) => {
   if (!dateString) return '-'
@@ -869,15 +777,8 @@ const accountNames = computed(() => {
 })
 
 onMounted(() => {
-  loadRecentSearches()
   loadSubscriptions()
   loadCommonAccounts()
-})
-
-onBeforeUnmount(() => {
-  if (searchHistoryTimer) {
-    clearTimeout(searchHistoryTimer)
-  }
 })
 
 // 格式化日期為 ISO 8601 (Appwrite 格式)
@@ -1018,86 +919,6 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .search-input:focus {
   outline: none;
   border-color: #3498db;
-}
-
-.recent-searches {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.5rem;
-}
-
-.recent-label {
-  color: #7f8c8d;
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.recent-clear {
-  border: 1px solid #dfe5ec;
-  border-radius: 999px;
-  background: #fff;
-  color: #2c3e50;
-  cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 600;
-  line-height: 1.2;
-  padding: 0.35rem 0.7rem;
-  transition: all 0.2s;
-}
-
-.recent-chip {
-  display: inline-flex;
-  align-items: center;
-  overflow: hidden;
-  border: 1px solid #dfe5ec;
-  border-radius: 999px;
-  background: #fff;
-  transition: all 0.2s;
-}
-
-.recent-chip:hover {
-  border-color: #3498db;
-  color: #2477b3;
-  transform: translateY(-1px);
-}
-
-.recent-chip-text,
-.recent-chip-remove {
-  border: 0;
-  background: transparent;
-  color: #2c3e50;
-  cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.recent-chip-text {
-  padding: 0.35rem 0.25rem 0.35rem 0.7rem;
-}
-
-.recent-chip-remove {
-  padding: 0.35rem 0.65rem 0.35rem 0.35rem;
-  color: #95a5a6;
-}
-
-.recent-chip-text:hover {
-  color: #2477b3;
-}
-
-.recent-chip-remove:hover {
-  color: #e74c3c;
-}
-
-.recent-clear {
-  color: #95a5a6;
-}
-
-.recent-clear:hover {
-  border-color: #f5576c;
-  color: #e74c3c;
 }
 
 .date-filters {
@@ -1720,10 +1541,6 @@ defineExpose({ subscriptions, totalMonthlyCost })
   .search-area {
     flex-basis: 100%;
     min-width: 0;
-  }
-
-  .recent-searches {
-    gap: 0.35rem;
   }
 
   .filter-buttons,

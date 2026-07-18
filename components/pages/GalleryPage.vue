@@ -3,9 +3,24 @@
     <div class="gallery-page">
       <!-- 操作區 -->
       <div class="actions-bar">
-        <div class="search-box">
-          <span class="icon">🔍</span>
-          <input v-model="searchQuery" type="text" placeholder="搜尋圖片名稱..." class="search-input">
+        <div class="search-area">
+          <div class="search-box">
+            <span class="icon">🔍</span>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜尋圖片名稱..."
+              class="search-input"
+              @keyup.enter="commitSearchHistory()"
+              @blur="commitSearchHistory()"
+            >
+          </div>
+          <RecentSearchChips
+            :terms="recentSearches"
+            @apply="applyRecentSearch"
+            @remove="removeRecentSearch"
+            @clear="clearRecentSearches"
+          />
         </div>
         <div class="action-buttons">
           <div class="csv-actions">
@@ -450,6 +465,8 @@ import { useStorage } from '../../composables/useStorage'
 import { getSupabaseBucket } from '../../composables/useSettings'
 import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
 import { useSelectionSet } from '../../composables/useSelectionSet'
+import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import RecentSearchChips from '../ui/RecentSearchChips.vue'
 
 const {
   images,
@@ -466,6 +483,13 @@ const {
 const showModal = ref(false)
 const isEditing = ref(false)
 const searchQuery = ref('')
+const {
+  recentSearches,
+  commitSearchHistory,
+  applyRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} = useRecentSearchHistory('fengbro-gallery-search-history', searchQuery)
 const viewMode = ref('card')
 const sortMode = ref('created-desc')
 const imageSizeMap = ref({})
@@ -1742,9 +1766,13 @@ useHead({
   border-color: #fcd34d;
 }
 
-.search-box {
-  flex: 1;
+.search-area {
+  flex: 1 1 320px;
   min-width: 250px;
+}
+
+.search-box {
+  width: 100%;
   position: relative;
   display: flex;
   align-items: center;

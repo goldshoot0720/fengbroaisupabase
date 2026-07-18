@@ -6,12 +6,22 @@
       </div>
 
       <div class="actions-bar">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="搜尋音樂名稱..."
-          class="search-input"
-        />
+        <div class="search-area">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜尋音樂名稱..."
+            class="search-input"
+            @keyup.enter="commitSearchHistory()"
+            @blur="commitSearchHistory()"
+          />
+          <RecentSearchChips
+            :terms="recentSearches"
+            @apply="applyRecentSearch"
+            @remove="removeRecentSearch"
+            @clear="clearRecentSearches"
+          />
+        </div>
         <div class="csv-actions">
           <button @click="exportToZIP" class="btn-export">匯出 ZIP</button>
           <label class="btn-import">
@@ -480,6 +490,8 @@ import PageContainer from '../layout/PageContainer.vue'
 import { useMusicRecords } from '../../composables/useMusicRecords'
 import { useStorage } from '../../composables/useStorage'
 import { usePersistentAudioPlayer } from '../../composables/usePersistentAudioPlayer'
+import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import RecentSearchChips from '../ui/RecentSearchChips.vue'
 
 useHead({
   title: '鋒兄音樂 - 鋒兄AI Supabase'
@@ -566,6 +578,13 @@ const saveInlineEdit = async () => {
 }
 
 const searchQuery = ref('')
+const {
+  recentSearches,
+  commitSearchHistory,
+  applyRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} = useRecentSearchHistory('fengbro-music-search-history', searchQuery)
 const showModal = ref(false)
 const editingMusic = ref(null)
 const audioFileInput = ref(null)
@@ -1576,8 +1595,13 @@ onBeforeUnmount(async () => {
   flex-wrap: wrap;
 }
 
+.search-area {
+  flex: 1 1 320px;
+  min-width: 260px;
+}
+
 .search-input {
-  flex: 1;
+  width: 100%;
   min-width: 200px;
   padding: 0.75rem 1rem;
   border: 2px solid #e0e0e0;

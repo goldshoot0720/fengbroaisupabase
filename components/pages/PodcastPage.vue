@@ -8,12 +8,20 @@
 
       <!-- Actions Bar -->
       <div class="actions-bar">
-        <div class="search-box">
+        <div class="search-box search-area">
           <input
             v-model="searchQuery"
             type="text"
             placeholder="搜尋播客名稱..."
             class="search-input"
+            @keyup.enter="commitSearchHistory()"
+            @blur="commitSearchHistory()"
+          />
+          <RecentSearchChips
+            :terms="recentSearches"
+            @apply="applyRecentSearch"
+            @remove="removeRecentSearch"
+            @clear="clearRecentSearches"
           />
         </div>
         <div class="csv-actions">
@@ -421,6 +429,8 @@ import PageContainer from '../layout/PageContainer.vue'
 import { usePodcasts } from '../../composables/usePodcasts'
 import { useStorage } from '../../composables/useStorage'
 import { usePersistentAudioPlayer } from '../../composables/usePersistentAudioPlayer'
+import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import RecentSearchChips from '../ui/RecentSearchChips.vue'
 
 // Set page title
 useHead({
@@ -440,6 +450,13 @@ const {
 
 // State
 const searchQuery = ref('')
+const {
+  recentSearches,
+  commitSearchHistory,
+  applyRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} = useRecentSearchHistory('fengbro-podcast-search-history', searchQuery)
 const showModal = ref(false)
 const isEditMode = ref(false)
 const currentPodcast = ref(null)

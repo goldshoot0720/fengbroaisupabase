@@ -5,12 +5,22 @@
 
       <!-- Actions Bar -->
       <div class="actions-bar">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="搜尋影片名稱..."
-          class="search-input"
-        />
+        <div class="search-area">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="搜尋影片名稱..."
+            class="search-input"
+            @keyup.enter="commitSearchHistory()"
+            @blur="commitSearchHistory()"
+          />
+          <RecentSearchChips
+            :terms="recentSearches"
+            @apply="applyRecentSearch"
+            @remove="removeRecentSearch"
+            @clear="clearRecentSearches"
+          />
+        </div>
         <div class="csv-actions">
           <div class="view-switcher" role="group" aria-label="影片顯示風格">
             <button
@@ -519,6 +529,8 @@ import PageContainer from '../layout/PageContainer.vue'
 import { useVideoRecords } from '../../composables/useVideoRecords'
 import { useStorage } from '../../composables/useStorage'
 import { usePersistentVideoPlayer } from '../../composables/usePersistentVideoPlayer'
+import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import RecentSearchChips from '../ui/RecentSearchChips.vue'
 
 useHead({
   title: '鋒兄影片 - 鋒兄AI Supabase'
@@ -537,6 +549,13 @@ const {
 
 // Search
 const searchQuery = ref('')
+const {
+  recentSearches,
+  commitSearchHistory,
+  applyRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} = useRecentSearchHistory('fengbro-video-search-history', searchQuery)
 const VIDEO_DISPLAY_MODE_KEY = 'feng-video-display-mode'
 const videoDisplayMode = ref('youtube')
 const videoLayoutMode = ref('card')
@@ -1860,8 +1879,13 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
+.search-area {
+  flex: 1 1 320px;
+  min-width: 260px;
+}
+
 .search-input {
-  flex: 1;
+  width: 100%;
   min-width: 200px;
   padding: 0.6rem 1rem;
   border: 2px solid #e5e7eb;

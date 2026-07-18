@@ -8,12 +8,20 @@
 
       <!-- Actions Bar -->
       <div class="actions-bar">
-        <div class="search-group">
+        <div class="search-group search-area">
           <input
             v-model="searchQuery"
             type="text"
             placeholder="搜尋文件名稱..."
             class="search-input"
+            @keyup.enter="commitSearchHistory()"
+            @blur="commitSearchHistory()"
+          />
+          <RecentSearchChips
+            :terms="recentSearches"
+            @apply="applyRecentSearch"
+            @remove="removeRecentSearch"
+            @clear="clearRecentSearches"
           />
         </div>
 
@@ -500,6 +508,8 @@ import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useDocuments } from '../../composables/useDocuments'
 import { useStorage } from '../../composables/useStorage'
+import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import RecentSearchChips from '../ui/RecentSearchChips.vue'
 
 // SEO
 useHead({
@@ -520,6 +530,13 @@ const {
 
 // Search & Filter
 const searchQuery = ref('')
+const {
+  recentSearches,
+  commitSearchHistory,
+  applyRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} = useRecentSearchHistory('fengbro-document-search-history', searchQuery)
 const filterCategory = ref('')
 const DOCUMENT_VIEW_MODE_KEY = 'feng-document-view-mode'
 const documentViewMode = ref('card')

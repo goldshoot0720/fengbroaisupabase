@@ -2,12 +2,22 @@
   <div class="food-management">
     <!-- 操作列 -->
     <div class="actions-bar">
-      <input
-        v-model="searchQuery"
-        type="text"
-        class="search-input"
-        placeholder="搜尋食品..."
-      />
+      <div class="search-area">
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="search-input"
+          placeholder="搜尋食品..."
+          @keyup.enter="commitSearchHistory()"
+          @blur="commitSearchHistory()"
+        />
+        <RecentSearchChips
+          :terms="recentSearches"
+          @apply="applyRecentSearch"
+          @remove="removeRecentSearch"
+          @clear="clearRecentSearches"
+        />
+      </div>
       <div class="date-filters" aria-label="食品年月篩選">
         <select v-model="selectedYear" class="date-filter-select">
           <option value="">全部年份</option>
@@ -299,8 +309,17 @@ import { ref, computed, onMounted } from 'vue'
 import { useFoods } from '../../composables/useFoods'
 import { useFormatters } from '../../composables/useFormatters'
 import { useStorage } from '../../composables/useStorage'
+import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import RecentSearchChips from '../ui/RecentSearchChips.vue'
 
 const searchQuery = ref('')
+const {
+  recentSearches,
+  commitSearchHistory,
+  applyRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} = useRecentSearchHistory('fengbro-food-search-history', searchQuery)
 const selectedYear = ref('')
 const selectedMonth = ref('')
 const previewImage = ref(null)
@@ -795,8 +814,13 @@ defineExpose({ foods, expiringFoods })
   align-items: center;
 }
 
+.search-area {
+  flex: 1 1 320px;
+  min-width: 260px;
+}
+
 .search-input {
-  flex: 1;
+  width: 100%;
   min-width: 200px;
   padding: 0.75rem 1rem;
   border: 2px solid #e0e0e0;

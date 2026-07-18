@@ -3,9 +3,24 @@
     <div class="note-page">
       <!-- 搜尋列 -->
       <div class="actions-bar">
-        <div class="search-box">
-          <span class="icon">🔍</span>
-          <input v-model="searchQuery" type="text" placeholder="搜尋筆記標題或內容..." class="search-input">
+        <div class="search-area">
+          <div class="search-box">
+            <span class="icon">🔍</span>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜尋筆記標題或內容..."
+              class="search-input"
+              @keyup.enter="commitSearchHistory()"
+              @blur="commitSearchHistory()"
+            >
+          </div>
+          <RecentSearchChips
+            :terms="recentSearches"
+            @apply="applyRecentSearch"
+            @remove="removeRecentSearch"
+            @clear="clearRecentSearches"
+          />
         </div>
         <select v-model="selectedCategoryFilter" class="category-filter-select">
           <option value="">全部分類</option>
@@ -435,6 +450,8 @@ import { ref, onMounted, reactive, computed } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import { useArticles } from '../../composables/useArticles'
 import { useStorage } from '../../composables/useStorage'
+import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import RecentSearchChips from '../ui/RecentSearchChips.vue'
 
 const {
   articles,
@@ -465,6 +482,13 @@ const emptyForm = () => ({
 
 // 狀態
 const searchQuery = ref('')
+const {
+  recentSearches,
+  commitSearchHistory,
+  applyRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} = useRecentSearchHistory('fengbro-note-search-history', searchQuery)
 const selectedCategoryFilter = ref('')
 const ATTACHMENT_FILTER_VALUE = '__with_attachments__'
 const PINNED_CATEGORY = '置頂'
@@ -1623,9 +1647,13 @@ useHead({
   border-color: #fcd34d;
 }
 
-.search-box {
-  flex: 1;
+.search-area {
+  flex: 1 1 320px;
   min-width: 250px;
+}
+
+.search-box {
+  width: 100%;
   position: relative;
   display: flex;
   align-items: center;

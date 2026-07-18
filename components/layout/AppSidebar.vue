@@ -28,7 +28,7 @@
             class="nav-btn"
             type="button"
           >
-            <span class="nav-index" aria-hidden="true">{{ page.icon }}</span>
+            <span class="nav-index" aria-hidden="true">{{ page.glyph || page.icon }}</span>
             <span class="nav-copy">
               <span class="nav-name">{{ page.name }}</span>
               <span v-if="page.menuHint" class="nav-hint">{{ page.menuHint }}</span>
@@ -45,6 +45,7 @@
                 class="nav-child-btn"
                 type="button"
               >
+                <span v-if="child.glyph" class="nav-child-glyph" aria-hidden="true">{{ child.glyph }}</span>
                 <span class="nav-child-name">{{ child.name }}</span>
                 <span v-if="child.menuHint" class="nav-child-hint">{{ child.menuHint }}</span>
               </button>
@@ -221,9 +222,10 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
   display: grid;
   place-items: center;
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
+  line-height: 1;
   color: rgba(255, 255, 255, 0.88);
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -271,9 +273,17 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
   background: transparent;
   border-radius: 14px;
   padding: 0.48rem 0.6rem;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.nav-child-glyph {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  line-height: 1;
 }
 
 .nav-child-btn:hover {
@@ -290,7 +300,6 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
 
 .nav-child-name,
 .nav-child-hint {
-  display: block;
   text-align: left;
 }
 
@@ -298,10 +307,10 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
   font-weight: 700;
   font-size: 0.82rem;
   line-height: 1.2;
+  min-width: 0;
 }
 
 .nav-child-hint {
-  margin-top: 0.12rem;
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.66rem;
   line-height: 1.2;

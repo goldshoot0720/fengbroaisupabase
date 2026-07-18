@@ -96,6 +96,7 @@
           class="nav-tab"
           type="button"
         >
+          <span v-if="page.glyph" class="nav-tab-glyph" aria-hidden="true">{{ page.glyph }}</span>
           <span class="nav-tab-name">{{ page.name }}</span>
         </button>
       </div>
@@ -113,6 +114,7 @@
           class="nav-sub-tab"
           type="button"
         >
+          <span v-if="child.glyph" class="nav-sub-glyph" aria-hidden="true">{{ child.glyph }}</span>
           <span>{{ child.name }}</span>
           <span v-if="child.menuHint" class="nav-sub-hint">{{ child.menuHint }}</span>
         </button>
@@ -477,11 +479,15 @@ onUnmounted(() => {
 .nav-tab {
   flex-shrink: 0;
   min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   border: 0;
   background: transparent;
   color: var(--text-secondary);
   border-radius: 20px;
-  padding: 0.45rem 0.2rem;
+  padding: 0.45rem 0.55rem;
   cursor: pointer;
   font-size: 0.88rem;
   font-weight: 600;
@@ -493,6 +499,12 @@ onUnmounted(() => {
     color var(--transition-fast),
     transform var(--transition-fast);
   position: relative;
+}
+
+.nav-tab-glyph {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+  line-height: 1;
 }
 
 .nav-tab:hover {
@@ -523,6 +535,7 @@ onUnmounted(() => {
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 /* ── 子選單列 ── */
@@ -548,12 +561,12 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
   border: 0;
   background: transparent;
   color: var(--text-secondary);
   border-radius: 14px;
-  padding: 0.35rem 0.2rem;
+  padding: 0.35rem 0.55rem;
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 600;
@@ -561,6 +574,12 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.nav-sub-glyph {
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  line-height: 1;
 }
 
 .nav-sub-tab:hover {

@@ -291,8 +291,6 @@
                   @play="handleTrackPlay($event, getActiveItem(group))"
                   @pause="handleTrackPause($event, getActiveItem(group))"
                   @timeupdate="handleTrackProgress($event, getActiveItem(group))"
-                  @loadedmetadata="handleTrackProgress($event, getActiveItem(group))"
-                  @volumechange="handleTrackProgress($event, getActiveItem(group))"
                 ></audio>
               </div>
             </div>
@@ -500,7 +498,8 @@ const {
   pauseGlobal,
   snapshotFromElement,
   takeoverFromElement,
-  restoreToElement
+  restoreToElement,
+  releaseLocalSession
 } = usePersistentAudioPlayer()
 
 // 行內編輯
@@ -830,11 +829,16 @@ const handleTrackPlay = async (event, music) => {
 }
 
 const handleTrackPause = (event, music) => {
+  // Only sync pause for the active session — ignore pauseOthers side-effects
+  // and never open the floating bar from a non-active track.
+  if (!persistentTrack.value || persistentTrack.value.id !== music.id) return
   snapshotFromElement(event.target, getTrackMeta(music), { playing: false })
 }
 
 const handleTrackProgress = (event, music) => {
-  snapshotFromElement(event.target, getTrackMeta(music))
+  // Avoid loadedmetadata / unrelated tracks setting a floating session.
+  if (!persistentTrack.value || persistentTrack.value.id !== music.id) return
+  snapshotFromElement(event.target, getTrackMeta(music), { playing: !event.target.paused })
 }
 
 // 歌詞展開/收合
@@ -1449,13 +1453,16 @@ onMounted(() => {
 
 onBeforeUnmount(async () => {
   const activeEntry = Array.from(audioElementRefs.entries()).find(([, element]) => element && !element.paused && !element.ended)
-  if (!activeEntry) return
-
-  const [musicId, element] = activeEntry
-  const activeMusic = musics.value.find((music) => music.id === musicId)
-  if (!activeMusic) return
-
-  await takeoverFromElement(element, getTrackMeta(activeMusic))
+  if (activeEntry) {
+    const [musicId, element] = activeEntry
+    const activeMusic = musics.value.find((music) => music.id === musicId)
+    if (activeMusic) {
+      await takeoverFromElement(element, getTrackMeta(activeMusic))
+      return
+    }
+  }
+  // Not actively playing: drop local session so the bar does not pop up after leave.
+  releaseLocalSession()
 })
 </script>
 

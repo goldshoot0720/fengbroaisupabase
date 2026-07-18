@@ -205,7 +205,7 @@
     </div>
 
     <!-- Toast 通知容器 -->
-    <div v-if="persistentAudioTrack" class="persistent-audio-bar">
+    <div v-if="showPersistentAudioPlayer" class="persistent-audio-bar">
       <div class="persistent-audio-copy">
         <p class="persistent-audio-kicker">Now Playing</p>
         <strong>{{ persistentAudioTrack.name }}</strong>
@@ -387,6 +387,7 @@ const {
   currentTime: persistentAudioTime,
   duration: persistentAudioDuration,
   volume: persistentAudioVolume,
+  showPersistentPlayer: showPersistentAudioPlayer,
   resumeGlobal,
   pauseGlobal,
   stopGlobal,

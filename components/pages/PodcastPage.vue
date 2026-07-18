@@ -218,8 +218,6 @@
                 @play="handlePodcastPlay($event, podcast)"
                 @pause="handlePodcastPause($event, podcast)"
                 @timeupdate="handlePodcastProgress($event, podcast)"
-                @loadedmetadata="handlePodcastProgress($event, podcast)"
-                @volumechange="handlePodcastProgress($event, podcast)"
               ></audio>
             </div>
 
@@ -436,7 +434,8 @@ const {
   snapshotFromElement,
   pauseGlobal,
   takeoverFromElement,
-  restoreToElement
+  restoreToElement,
+  releaseLocalSession
 } = usePersistentAudioPlayer()
 
 // State
@@ -650,6 +649,8 @@ const handlePodcastPause = (event, podcast) => {
   const element = event?.target
   const track = getPodcastTrackMeta(podcast)
   if (!element || !track) return
+  // Only sync pause for the active session — ignore pauseOthers side-effects.
+  if (!persistentAudioTrack.value || persistentAudioTrack.value.id !== track.id) return
   snapshotFromElement(element, track, { playing: false })
 }
 
@@ -657,6 +658,8 @@ const handlePodcastProgress = (event, podcast) => {
   const element = event?.target
   const track = getPodcastTrackMeta(podcast)
   if (!element || !track) return
+  // Avoid non-active tracks / metadata events opening a floating session.
+  if (!persistentAudioTrack.value || persistentAudioTrack.value.id !== track.id) return
   snapshotFromElement(element, track, { playing: !element.paused })
 }
 
@@ -1182,9 +1185,11 @@ onBeforeUnmount(async () => {
     const track = getPodcastTrackMeta(podcast)
     if (track?.src) {
       await takeoverFromElement(element, track)
-      break
+      return
     }
   }
+  // Not actively playing: drop local session so the bar does not pop up after leave.
+  releaseLocalSession()
 })
 </script>
 

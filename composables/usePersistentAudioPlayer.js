@@ -1,10 +1,12 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const currentTrack = ref(null)
 const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const volume = ref(1)
+/** True while a page-local <audio> owns playback (hide floating bar). */
+const isLocalBound = ref(false)
 
 let audio = null
 let activeElement = null
@@ -16,6 +18,7 @@ const isUsableElement = (element) => {
 const getPlaybackElement = () => {
   if (isUsableElement(activeElement)) return activeElement
   activeElement = null
+  isLocalBound.value = false
   return ensureAudio()
 }
 
@@ -57,6 +60,7 @@ const snapshotFromElement = (element, track, options = {}) => {
   if (!element || !track) return
 
   activeElement = element
+  isLocalBound.value = true
 
   currentTrack.value = {
     id: track.id,
@@ -105,6 +109,21 @@ const stopGlobal = () => {
   instance.removeAttribute('src')
   instance.load()
   activeElement = null
+  isLocalBound.value = false
+  currentTrack.value = null
+  currentTime.value = 0
+  duration.value = 0
+  isPlaying.value = false
+}
+
+/**
+ * Leave a page without handing off playback (not playing / already paused).
+ * Clears local session so the floating bar does not appear for no reason.
+ */
+const releaseLocalSession = () => {
+  if (!isLocalBound.value) return
+  activeElement = null
+  isLocalBound.value = false
   currentTrack.value = null
   currentTime.value = 0
   duration.value = 0
@@ -149,6 +168,7 @@ const takeoverFromElement = async (element, track) => {
   try {
     await instance.play()
     activeElement = null
+    isLocalBound.value = false
   } catch (error) {
     console.warn('Persistent audio takeover failed:', error)
   }
@@ -162,6 +182,7 @@ const restoreToElement = async (element, track) => {
   if (!instance) return false
 
   activeElement = element
+  isLocalBound.value = true
   element.currentTime = currentTime.value || 0
   element.volume = volume.value
 
@@ -179,6 +200,11 @@ const restoreToElement = async (element, track) => {
   return true
 }
 
+/** Floating bar only when global Audio owns the session (not page-local controls). */
+const showPersistentPlayer = computed(
+  () => Boolean(currentTrack.value) && !isLocalBound.value
+)
+
 export const usePersistentAudioPlayer = () => {
   ensureAudio()
 
@@ -188,10 +214,13 @@ export const usePersistentAudioPlayer = () => {
     currentTime,
     duration,
     volume,
+    isLocalBound,
+    showPersistentPlayer,
     snapshotFromElement,
     pauseGlobal,
     resumeGlobal,
     stopGlobal,
+    releaseLocalSession,
     seekGlobal,
     setGlobalVolume,
     takeoverFromElement,

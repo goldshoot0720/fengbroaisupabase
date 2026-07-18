@@ -22,12 +22,13 @@ CREATE INDEX IF NOT EXISTS idx_image_category ON public.image(category);
 CREATE INDEX IF NOT EXISTS idx_image_created_at ON public.image(created_at);
 CREATE INDEX IF NOT EXISTS idx_image_hash ON public.image(hash);
 
--- Enable Row Level Security (optional - currently disabled for testing)
--- ALTER TABLE public.image ENABLE ROW LEVEL SECURITY;
-
--- Create policy to allow all operations (when RLS is enabled)
--- CREATE POLICY "Allow all operations on image" ON public.image
--- FOR ALL USING (true) WITH CHECK (true);
+-- Row Level Security：個人站允許 anon 讀寫（前端用 anon key）
+ALTER TABLE public.image ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all operations on image" ON public.image;
+CREATE POLICY "Allow all operations on image" ON public.image
+  FOR ALL TO public
+  USING (true)
+  WITH CHECK (true);
 
 -- Verify table structure
 SELECT 

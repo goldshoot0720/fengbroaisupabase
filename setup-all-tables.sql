@@ -26,6 +26,14 @@ CREATE INDEX IF NOT EXISTS idx_image_category ON public.image(category);
 CREATE INDEX IF NOT EXISTS idx_image_created_at ON public.image(created_at);
 CREATE INDEX IF NOT EXISTS idx_image_hash ON public.image(hash);
 
+-- image 表 RLS：個人站允許 anon 讀寫
+ALTER TABLE public.image ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all operations on image" ON public.image;
+CREATE POLICY "Allow all operations on image" ON public.image
+  FOR ALL TO public
+  USING (true)
+  WITH CHECK (true);
+
 -- =====================================================
 -- 2. VIDEO 表（影片庫）
 -- =====================================================

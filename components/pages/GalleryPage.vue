@@ -2320,8 +2320,8 @@ useHead({
 
 .btn-upload {
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #ffc078 0%, #ffab4a 100%);
+  color: #5c3a0a;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -2332,7 +2332,7 @@ useHead({
 
 .btn-upload:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(255, 171, 74, 0.45);
 }
 
 .btn-upload:disabled {
@@ -2467,13 +2467,14 @@ useHead({
 .btn-inline-upload {
   display: inline-block;
   padding: 0.3rem 0.75rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #ffc078 0%, #ffab4a 100%);
+  color: #5c3a0a;
   border-radius: 4px;
   font-size: 0.8rem;
   cursor: pointer;
   transition: opacity 0.2s;
   white-space: nowrap;
+  font-weight: 600;
 }
 
 .btn-inline-upload.disabled {

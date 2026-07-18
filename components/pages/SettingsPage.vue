@@ -19,8 +19,8 @@
                   <span class="account-badge" v-if="acc.id === activeAccountId">當前</span>
                   <span class="account-title">supabase-{{ acc.friendlyName || 'unnamed' }}</span>
                   <span class="account-url">{{ acc.supabaseUrl ? acc.supabaseUrl.replace('https://', '').replace('.supabase.co', '') : '未設定' }}</span>
-                  <span v-if="acc.bucket || acc.friendlyName" class="account-bucket">
-                    📦 {{ acc.bucket || acc.friendlyName }}
+                  <span class="account-bucket">
+                    📦 {{ acc.bucket || resolveSupabaseBucket() }}
                   </span>
                 </div>
                 <div class="account-card-actions">
@@ -93,8 +93,10 @@
                   :placeholder="bucketPlaceholder"
                 >
                 <span class="form-hint">
-                  Storage bucket 名稱。本專案慣例為<strong>帳號名</strong>（如 goldshoot0720、abuhg17）。
-                  留空時：帳號名 → Netlify 環境變數（`SUPABASE_BUCKET` / `NUXT_PUBLIC_SUPABASE_BUCKET`）→ 最後才是 `uploads`。
+                  Storage bucket 名稱。
+                  <strong>留空時預設使用 Netlify 環境變數</strong>
+                  <code>SUPABASE_BUCKET</code>（或 <code>NUXT_PUBLIC_SUPABASE_BUCKET</code>）；
+                  有填才覆寫該帳號專用 bucket。
                 </span>
               </div>
             </div>
@@ -544,20 +546,26 @@
                 <li>勾選 <strong>Public bucket</strong>（公開存取）</li>
                 <li>點擊 <strong>Create bucket</strong></li>
               </ol>
-              <p class="modal-hint" style="margin-top: 1rem;">在 SQL Editor 執行以下指令（建立 Bucket + RLS 政策）：</p>
-              <pre class="sql-code">-- 1. 建立 Bucket
+              <p class="modal-hint" style="margin-top: 1rem;">在 SQL Editor 執行以下指令（建立 Bucket + RLS 政策）。若出現 <code>new row violates row-level security policy</code>，多半是缺這些政策：</p>
+              <pre class="sql-code">-- 1. 建立 / 公開 Bucket
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('{{ currentBucketName }}', '{{ currentBucketName }}', true);
+VALUES ('{{ currentBucketName }}', '{{ currentBucketName }}', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
 
--- 2. 設定存取政策（允許上傳、讀取、更新、刪除）
-CREATE POLICY "Allow public upload" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id = '{{ currentBucketName }}');
-CREATE POLICY "Allow public read" ON storage.objects
-  FOR SELECT USING (bucket_id = '{{ currentBucketName }}');
-CREATE POLICY "Allow public update" ON storage.objects
-  FOR UPDATE USING (bucket_id = '{{ currentBucketName }}');
-CREATE POLICY "Allow public delete" ON storage.objects
-  FOR DELETE USING (bucket_id = '{{ currentBucketName }}');</pre>
+-- 2. 存取政策（名稱含 bucket，避免多帳號政策衝突）
+DROP POLICY IF EXISTS "Allow public upload on {{ currentBucketName }}" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public read on {{ currentBucketName }}" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public update on {{ currentBucketName }}" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public delete on {{ currentBucketName }}" ON storage.objects;
+
+CREATE POLICY "Allow public upload on {{ currentBucketName }}" ON storage.objects
+  FOR INSERT TO public WITH CHECK (bucket_id = '{{ currentBucketName }}');
+CREATE POLICY "Allow public read on {{ currentBucketName }}" ON storage.objects
+  FOR SELECT TO public USING (bucket_id = '{{ currentBucketName }}');
+CREATE POLICY "Allow public update on {{ currentBucketName }}" ON storage.objects
+  FOR UPDATE TO public USING (bucket_id = '{{ currentBucketName }}') WITH CHECK (bucket_id = '{{ currentBucketName }}');
+CREATE POLICY "Allow public delete on {{ currentBucketName }}" ON storage.objects
+  FOR DELETE TO public USING (bucket_id = '{{ currentBucketName }}');</pre>
             </div>
             <div class="modal-footer">
               <button class="btn-secondary" @click="showBucketHelp = false">關閉</button>
@@ -706,13 +714,15 @@ const loadAccountToForm = (acc) => {
   friendlyName.value = acc.friendlyName
   supabaseUrl.value = acc.supabaseUrl
   supabaseAnonKey.value = acc.supabaseAnonKey
-  // 舊帳號若誤存 "uploads" 但帳號名不同，表單預填帳號名
+  // 舊帳號若誤存 "uploads" 且 env 有真 bucket，表單留空以走 Netlify SUPABASE_BUCKET
   const savedBucket = String(acc.bucket || '').trim()
-  const name = String(acc.friendlyName || '').trim()
-  bucketName.value =
-    savedBucket && !(savedBucket === 'uploads' && name && name !== 'uploads')
-      ? savedBucket
-      : (name || savedBucket)
+  let envBucket = ''
+  try {
+    envBucket = String(useRuntimeConfig().public?.supabaseBucket || '').trim()
+  } catch { /* ignore */ }
+  const staleUploads =
+    savedBucket === 'uploads' && envBucket && envBucket !== 'uploads'
+  bucketName.value = staleUploads ? '' : savedBucket
   syncResendPairsFromAccount(acc)
   resendFromEmail.value = acc.resendFromEmail || 'FengBro AI <onboarding@resend.dev>'
 }
@@ -825,14 +835,20 @@ const showBucketHelp = ref(false)
 const currentBucketName = computed(() => {
   const fromForm = String(bucketName.value || '').trim()
   if (fromForm) return fromForm
-  const fromName = String(friendlyName.value || '').trim()
-  if (fromName) return fromName
   return resolveSupabaseBucket()
 })
 
 const bucketPlaceholder = computed(() => {
-  const name = String(friendlyName.value || '').trim()
-  return name || '帳號名，例如 goldshoot0720'
+  // 未填寫時預設用 Netlify SUPABASE_BUCKET / NUXT_PUBLIC_SUPABASE_BUCKET
+  const fromEnv = (() => {
+    try {
+      return String(useRuntimeConfig().public?.supabaseBucket || '').trim()
+    } catch {
+      return ''
+    }
+  })()
+  if (fromEnv && fromEnv !== 'uploads') return `預設：${fromEnv}（Netlify SUPABASE_BUCKET）`
+  return '預設使用 Netlify SUPABASE_BUCKET'
 })
 const systemVersion = computed(() => `v${packageJson.version || '未設定'}`)
 const nuxtVersion = computed(() => packageJson.dependencies?.nuxt || '未設定')
@@ -1310,19 +1326,25 @@ const copyAllTableSql = async () => {
 
 const copyBucketSql = async () => {
   const bkt = currentBucketName.value
-  const sql = `-- 1. 建立 Bucket
+  const sql = `-- 1. 建立 / 公開 Bucket
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('${bkt}', '${bkt}', true);
+VALUES ('${bkt}', '${bkt}', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
 
--- 2. 設定存取政策
-CREATE POLICY "Allow public upload" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id = '${bkt}');
-CREATE POLICY "Allow public read" ON storage.objects
-  FOR SELECT USING (bucket_id = '${bkt}');
-CREATE POLICY "Allow public update" ON storage.objects
-  FOR UPDATE USING (bucket_id = '${bkt}');
-CREATE POLICY "Allow public delete" ON storage.objects
-  FOR DELETE USING (bucket_id = '${bkt}');`
+-- 2. 存取政策（名稱含 bucket，避免多帳號政策衝突）
+DROP POLICY IF EXISTS "Allow public upload on ${bkt}" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public read on ${bkt}" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public update on ${bkt}" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public delete on ${bkt}" ON storage.objects;
+
+CREATE POLICY "Allow public upload on ${bkt}" ON storage.objects
+  FOR INSERT TO public WITH CHECK (bucket_id = '${bkt}');
+CREATE POLICY "Allow public read on ${bkt}" ON storage.objects
+  FOR SELECT TO public USING (bucket_id = '${bkt}');
+CREATE POLICY "Allow public update on ${bkt}" ON storage.objects
+  FOR UPDATE TO public USING (bucket_id = '${bkt}') WITH CHECK (bucket_id = '${bkt}');
+CREATE POLICY "Allow public delete on ${bkt}" ON storage.objects
+  FOR DELETE TO public USING (bucket_id = '${bkt}');`
   try {
     await navigator.clipboard.writeText(sql)
     alert('SQL 已複製到剪貼簿！')
@@ -1583,13 +1605,13 @@ const handleSave = () => {
   }
 
   if (editingAccountId.value) {
-    // 更新現有帳號；bucket 空白時用帳號名（慣例 goldshoot0720 / abuhg17），勿硬寫 uploads
+    // 更新現有帳號；bucket 空白 → 使用 Netlify SUPABASE_BUCKET（resolveSupabaseBucket）
     const name = String(friendlyName.value || '').trim()
     updateAccount(editingAccountId.value, {
       friendlyName: name,
       supabaseUrl: supabaseUrl.value,
       supabaseAnonKey: supabaseAnonKey.value,
-      bucket: String(bucketName.value || '').trim() || name,
+      bucket: String(bucketName.value || '').trim(),
       ...currentResendPayload(),
       resendFromEmail: resendFromEmail.value || 'FengBro AI <onboarding@resend.dev>'
     })

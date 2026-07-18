@@ -441,7 +441,9 @@ export const useStorage = () => {
       const bucketName = getBucket()
       let msg = e?.message || String(e)
       if (msg.includes('Bucket')) {
-        msg = `Bucket "${bucketName}" not found。本專案 bucket 通常等於帳號名（如 goldshoot0720）。請到設定頁確認帳號名／SUPABASE_BUCKET，並在 Supabase Storage 建立同名 public bucket；或設定 Netlify 的 SUPABASE_BUCKET / NUXT_PUBLIC_SUPABASE_BUCKET 後重新部署。`
+        msg = `Bucket "${bucketName}" not found。預設 bucket 來自 Netlify 環境變數 SUPABASE_BUCKET（或 NUXT_PUBLIC_SUPABASE_BUCKET）；也可在設定頁覆寫。請在 Supabase Storage 建立同名 public bucket 後重新部署／重新整理。`
+      } else if (/row-level security|RLS|violates row-level/i.test(msg)) {
+        msg = `Storage RLS 拒絕上傳（bucket「${bucketName}」，預設來自 Netlify SUPABASE_BUCKET）。請到 Supabase → SQL Editor 執行 fix-storage-rls.sql（把 YOUR_BUCKET 改成 ${bucketName}），或到系統設定 → Storage 建立說明複製政策 SQL。原始錯誤：${msg}`
       } else if (isNetworkUploadError(e)) {
         msg = `網路上傳失敗（${msg}）。若為 PWA，請重新整理以更新 Service Worker；影片仍可本機下載。`
       }

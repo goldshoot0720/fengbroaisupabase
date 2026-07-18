@@ -59,7 +59,7 @@ NETLIFY_SITE_ID=...
 NETLIFY_AUTH_TOKEN=...
 ```
 
-Storage bucket 解析順序：設定頁明確的 `SUPABASE_BUCKET` → **帳號友善名稱**（慣例與 bucket 同名，如 `goldshoot0720`、`abuhg17`）→ 環境變數 → 預設 `uploads`。
+Storage bucket 解析順序：設定頁明確的 bucket 欄位 → **Netlify / 環境變數 `SUPABASE_BUCKET`（或 `NUXT_PUBLIC_SUPABASE_BUCKET`）** → 帳號友善名稱（舊資料）→ 預設 `uploads`。
 
 ### 3. 資料庫
 

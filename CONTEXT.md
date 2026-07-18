@@ -2,7 +2,7 @@
 
 ## Supabase accounts & Storage bucket
 
-Multi-account settings store friendly names like `goldshoot0720` / `abuhg17`. **Storage bucket names follow the account name** (not a shared generic `uploads` per person). Resolution: explicit `bucket` field → `friendlyName` → env (`SUPABASE_BUCKET` / `NUXT_PUBLIC_SUPABASE_BUCKET`) → legacy `uploads`. See `resolveSupabaseBucket` in `composables/useSettings.js`.
+Multi-account settings store friendly names like `goldshoot0720` / `abuhg17`. **Default Storage bucket comes from Netlify env `SUPABASE_BUCKET`** (or `NUXT_PUBLIC_SUPABASE_BUCKET`). Resolution: explicit settings `bucket` field → env default → `friendlyName` (legacy) → `uploads`. See `resolveSupabaseBucket` in `composables/useSettings.js`.
 
 ## Bank workflow module
 

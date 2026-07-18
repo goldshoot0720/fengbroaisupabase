@@ -176,8 +176,8 @@ export function normalizeBucketName(value) {
 }
 
 /**
- * Explicit bucket from active settings account only (not friendlyName, not env).
- * Empty → null so resolveSupabaseBucket can apply account-name convention + env.
+ * Explicit bucket from active settings account only (not env).
+ * Empty → null so resolveSupabaseBucket can fall back to Netlify SUPABASE_BUCKET.
  */
 export function getSupabaseBucket() {
   loadAccountsFromStorage()
@@ -186,38 +186,45 @@ export function getSupabaseBucket() {
 }
 
 /**
+ * Read default bucket from Nuxt public runtimeConfig
+ * (Netlify env: SUPABASE_BUCKET / NUXT_PUBLIC_SUPABASE_BUCKET).
+ */
+export function getEnvSupabaseBucket() {
+  try {
+    const config = useRuntimeConfig()
+    return normalizeBucketName(config.public?.supabaseBucket)
+  } catch {
+    return null
+  }
+}
+
+/**
  * Resolve Storage bucket.
- * Convention in this product: bucket is usually the account friendly name
- * (e.g. goldshoot0720, abuhg17), not a generic "uploads".
  *
  * Order:
- * 1. settings account.bucket (explicit; see legacy note below)
- * 2. settings account.friendlyName (same as account name / 帳號名)
- * 3. Nuxt public runtimeConfig (Netlify SUPABASE_BUCKET / NUXT_PUBLIC_SUPABASE_BUCKET)
- * 4. legacy default "uploads"
+ * 1. settings account.bucket（設定頁明確填寫）
+ * 2. Netlify / env 預設：SUPABASE_BUCKET 或 NUXT_PUBLIC_SUPABASE_BUCKET
+ * 3. settings account.friendlyName（舊資料相容）
+ * 4. legacy "uploads"
  *
- * Legacy: older UI saved empty bucket as the literal string "uploads".
- * When friendlyName is a real account id, prefer that over a stale "uploads".
+ * Legacy: older UI may have saved bucket as the literal "uploads".
+ * Prefer env (or friendlyName) over that stale value when available.
  */
 export function resolveSupabaseBucket() {
   loadAccountsFromStorage()
   const acc = accounts.value.find(a => a.id === activeAccountId.value)
 
   const explicit = normalizeBucketName(acc?.bucket)
+  const fromEnv = getEnvSupabaseBucket()
   const fromAccountName = normalizeBucketName(acc?.friendlyName)
+
   const explicitIsStaleUploads =
-    explicit === 'uploads' && fromAccountName && fromAccountName !== 'uploads'
+    explicit === 'uploads' &&
+    ((fromEnv && fromEnv !== 'uploads') || (fromAccountName && fromAccountName !== 'uploads'))
 
   if (explicit && !explicitIsStaleUploads) return explicit
+  if (fromEnv) return fromEnv
   if (fromAccountName) return fromAccountName
-
-  try {
-    const config = useRuntimeConfig()
-    const fromEnv = normalizeBucketName(config.public?.supabaseBucket)
-    if (fromEnv) return fromEnv
-  } catch {
-    // outside Nuxt context
-  }
   return 'uploads'
 }
 
@@ -300,8 +307,8 @@ export function useSettings() {
 
   const addAccount = (account) => {
     const name = String(account.friendlyName || '').trim()
-    // Convention: bucket name is usually the account name when not set explicitly
-    const bucketValue = String(account.bucket || '').trim() || name
+    // Empty bucket → resolveSupabaseBucket 會用 Netlify SUPABASE_BUCKET
+    const bucketValue = String(account.bucket || '').trim()
     const newAccount = {
       id: generateId(),
       friendlyName: name,
@@ -323,7 +330,8 @@ export function useSettings() {
     if (index !== -1) {
       const next = { ...accounts.value[index], ...updates }
       const name = String(next.friendlyName || '').trim()
-      const bucketValue = String(next.bucket || '').trim() || name
+      // Empty bucket → resolveSupabaseBucket 會用 Netlify SUPABASE_BUCKET
+      const bucketValue = String(next.bucket || '').trim()
       next.friendlyName = name
       next.bucket = bucketValue
       accounts.value[index] = next
@@ -364,8 +372,8 @@ export function useSettings() {
     const name = tempFriendlyName.value.trim()
     const url = tempSupabaseUrl.value.trim()
     const key = tempSupabaseAnonKey.value.trim()
-    // Empty bucket → account name (product convention: goldshoot0720 / abuhg17)
-    const bkt = tempBucket.value.trim() || name
+    // Empty bucket → Netlify SUPABASE_BUCKET (via resolveSupabaseBucket)
+    const bkt = tempBucket.value.trim()
     const resendPayload = currentResendPayload()
     const hasResendPair = Object.entries(resendPayload).some(([keyName, value]) =>
       (keyName.startsWith('resendApiKey') || keyName.startsWith('resendToEmail')) && value

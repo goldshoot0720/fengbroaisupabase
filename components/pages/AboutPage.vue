@@ -71,7 +71,7 @@
         <div class="features-grid">
           <article class="feature-card">
             <span class="feature-icon">📝</span>
-            <h3>鋒兄筆記</h3>
+            <h3>鋒兄筆記/文件</h3>
             <p>支援分類篩選、置頂、附件篩選與快速整理工作筆記。</p>
           </article>
           <article class="feature-card">

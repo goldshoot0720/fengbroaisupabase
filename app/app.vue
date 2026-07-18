@@ -425,6 +425,17 @@ const handleSidebarNavigate = (pageId) => {
     }
   }
 
+  // 鋒兄筆記/文件 子選單：note:notes → note，note:document → document
+  if (typeof pageId === 'string' && pageId.startsWith('note:')) {
+    const section = pageId.slice('note:'.length)
+    if (section === 'document') {
+      setCurrentPage('document')
+      return
+    }
+    setCurrentPage('note')
+    return
+  }
+
   setCurrentPage(pageId)
 }
 const SUPABASE_URL_WARNING_KEY = 'feng-supabase-url-warning'

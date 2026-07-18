@@ -92,7 +92,7 @@
           v-for="page in pages"
           :key="page.id"
           @click="handleNavigate(page)"
-          :class="{ active: currentPage === page.id }"
+          :class="{ active: isParentActive(page) }"
           class="nav-tab"
           type="button"
         >
@@ -109,7 +109,7 @@
           v-for="child in activeParent.children"
           :key="child.id"
           @click="$emit('navigate', child.id)"
-          :class="{ active: activeTool === child.tool }"
+          :class="{ active: isChildActive(activeParent, child) }"
           class="nav-sub-tab"
           type="button"
         >
@@ -124,6 +124,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useSettings } from '../../composables/useSettings'
+import { isNavChildActive, isNavParentActive } from '../../composables/useNavigation'
 import { useRouter } from 'vue-router'
 
 const props = defineProps({
@@ -144,8 +145,11 @@ const { displayName, accounts, activeAccountId, switchAccount, clearSettings, lo
 const showDropdown = ref(false)
 const switcherRef = ref(null)
 
+const isParentActive = (page) => isNavParentActive(page, props.currentPage, props.activeTool)
+const isChildActive = (page, child) => isNavChildActive(page, child, props.currentPage, props.activeTool)
+
 const activeParent = computed(() =>
-  props.pages.find(p => p.id === props.currentPage && p.children?.length)
+  props.pages.find((page) => isNavParentActive(page, props.currentPage, props.activeTool) && page.children?.length)
 )
 
 const handleNavigate = (page) => {

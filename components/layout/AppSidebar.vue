@@ -24,7 +24,7 @@
         <li v-for="page in pages" :key="page.id">
           <button
             @click="$emit('navigate', page.id)"
-            :class="{ active: currentPage === page.id }"
+            :class="{ active: isParentActive(page) }"
             class="nav-btn"
             type="button"
           >
@@ -35,13 +35,13 @@
             </span>
           </button>
           <ul
-            v-if="page.children?.length && (currentPage === page.id || page.id === 'tools')"
+            v-if="page.children?.length && isParentExpanded(page)"
             class="nav-children"
           >
             <li v-for="child in page.children" :key="child.id">
               <button
                 @click="$emit('navigate', child.id)"
-                :class="{ active: currentPage === page.id && activeTool === child.tool }"
+                :class="{ active: isChildActive(page, child) }"
                 class="nav-child-btn"
                 type="button"
               >
@@ -63,7 +63,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { isNavChildActive, isNavParentActive, isNavParentExpanded } from '../../composables/useNavigation'
+
+const props = defineProps({
   isOpen: { type: Boolean, default: false },
   currentPage: { type: String, default: 'home' },
   activeTool: { type: String, default: 'biggo' },
@@ -71,6 +73,10 @@ defineProps({
 })
 
 defineEmits(['toggle', 'navigate'])
+
+const isParentActive = (page) => isNavParentActive(page, props.currentPage, props.activeTool)
+const isParentExpanded = (page) => isNavParentExpanded(page, props.currentPage)
+const isChildActive = (page, child) => isNavChildActive(page, child, props.currentPage, props.activeTool)
 </script>
 
 <style scoped>

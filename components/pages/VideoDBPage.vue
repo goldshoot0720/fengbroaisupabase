@@ -47,8 +47,8 @@
           >
             {{ theaterMode ? '退出劇場' : '劇場模式' }}
           </button>
-          <p class="watch-hotkeys" title="空白/K 播放暫停 · ←→ 快轉 · ↑↓ 音量 · M 靜音 · F 全螢幕 · T 劇場 · N 下一支 · Esc 返回">
-            快捷鍵：空白 播放 · F 全螢幕 · N 下一支 · Esc 返回
+          <p class="watch-hotkeys" title="空白/K 播放暫停 · ←→ 上一支/下一支 · Shift+←→ 快轉 · ↑↓ 音量 · M 靜音 · F 全螢幕 · T 劇場 · P/N 上一/下一 · Esc 返回">
+            快捷鍵：空白 播放 · ←→ 上一/下一 · F 全螢幕 · Esc 返回
           </p>
         </header>
 
@@ -92,7 +92,7 @@
               </div>
 
               <button
-                v-else-if="!watchIsPlaying && !watchUpNextActive"
+                v-else-if="!watchIsPlaying"
                 type="button"
                 class="watch-center-play"
                 aria-label="播放"
@@ -101,34 +101,26 @@
                 ▶
               </button>
 
-              <!-- 播完倒數連播 -->
-              <div
-                v-if="watchUpNextActive && nextRelatedVideo"
-                class="watch-upnext"
-                role="dialog"
-                aria-label="即將播放下一支"
-                @click.stop
+              <button
+                type="button"
+                class="watch-skip-edge watch-skip-edge--prev"
+                :disabled="!prevRelatedVideo"
+                aria-label="上一支"
+                title="上一支 (←)"
+                @click.stop="playPrevRelated"
               >
-                <p class="watch-upnext-kicker">接下來</p>
-                <strong class="watch-upnext-title">{{ nextRelatedVideo.name || '未命名' }}</strong>
-                <p class="watch-upnext-count">
-                  <span class="watch-upnext-num">{{ watchUpNextSeconds }}</span> 秒後自動播放
-                </p>
-                <div class="watch-upnext-actions">
-                  <button type="button" class="watch-upnext-btn watch-upnext-btn--primary" @click="confirmWatchUpNext">
-                    立即播放
-                  </button>
-                  <button type="button" class="watch-upnext-btn" @click="cancelWatchUpNext">
-                    取消
-                  </button>
-                </div>
-                <div class="watch-upnext-bar" aria-hidden="true">
-                  <div
-                    class="watch-upnext-bar-fill"
-                    :style="{ transform: `scaleX(${watchUpNextProgress})` }"
-                  ></div>
-                </div>
-              </div>
+                ‹
+              </button>
+              <button
+                type="button"
+                class="watch-skip-edge watch-skip-edge--next"
+                :disabled="!nextRelatedVideo"
+                aria-label="下一支"
+                title="下一支 (→)"
+                @click.stop="playNextRelated"
+              >
+                ›
+              </button>
 
               <div class="watch-chrome" @click.stop>
                 <div class="watch-progress-block">
@@ -150,6 +142,16 @@
                     <button
                       type="button"
                       class="watch-ctrl-btn"
+                      :disabled="!prevRelatedVideo"
+                      aria-label="上一支"
+                      title="上一支 (←)"
+                      @click="playPrevRelated"
+                    >
+                      ⏮
+                    </button>
+                    <button
+                      type="button"
+                      class="watch-ctrl-btn"
                       :aria-label="watchIsPlaying ? '暫停' : '播放'"
                       @click="toggleWatchPlayback"
                     >
@@ -160,7 +162,7 @@
                       class="watch-ctrl-btn"
                       :disabled="!nextRelatedVideo"
                       aria-label="下一支"
-                      title="下一支"
+                      title="下一支 (→)"
                       @click="playNextRelated"
                     >
                       ⏭
@@ -937,13 +939,7 @@ const watchPlaybackRate = ref(1)
 const watchIsFullscreen = ref(false)
 const watchControlsVisible = ref(true)
 const watchSpeedOptions = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
-const WATCH_UPNEXT_SECONDS = 5
-const watchUpNextActive = ref(false)
-const watchUpNextSeconds = ref(WATCH_UPNEXT_SECONDS)
-const watchUpNextProgress = ref(1)
 let watchControlsHideTimer = null
-let watchUpNextTimer = null
-let watchUpNextStartedAt = 0
 let watchLastVolume = 1
 
 const watchingVideo = computed(() => {
@@ -1433,7 +1429,6 @@ async function handlePlay(video) {
       pausePersistentVideo()
     }
     // Enter watch stage immediately so the shell is visible while multipart resolves.
-    cancelWatchUpNext()
     playingVideoId.value = video.id
     theaterMode.value = false
     watchControlsVisible.value = true
@@ -1649,74 +1644,28 @@ function handleFullscreenChange() {
   watchIsFullscreen.value = document.fullscreenElement === watchPlayerShellRef.value
 }
 
-function clearWatchUpNextTimer() {
-  if (watchUpNextTimer) {
-    clearInterval(watchUpNextTimer)
-    watchUpNextTimer = null
-  }
-}
-
-function cancelWatchUpNext() {
-  clearWatchUpNextTimer()
-  watchUpNextActive.value = false
-  watchUpNextSeconds.value = WATCH_UPNEXT_SECONDS
-  watchUpNextProgress.value = 1
-  watchControlsVisible.value = true
-  // 取消連播後若目前影片已結束／暫停，同步 UI 以顯示中央播放鈕
-  const element = activeVideoElement.value
-  if (element?.isConnected) {
-    syncWatchUiFromElement(element)
-  } else {
-    watchIsPlaying.value = false
-  }
-}
-
-async function confirmWatchUpNext() {
-  const next = nextRelatedVideo.value
-  cancelWatchUpNext()
-  if (next) await handlePlay(next)
-}
-
-function startWatchUpNextCountdown() {
-  if (!nextRelatedVideo.value) return
-  clearWatchUpNextTimer()
-  watchUpNextActive.value = true
-  watchUpNextSeconds.value = WATCH_UPNEXT_SECONDS
-  watchUpNextProgress.value = 1
-  watchUpNextStartedAt = Date.now()
-  watchControlsVisible.value = true
-  clearWatchControlsHideTimer()
-
-  watchUpNextTimer = setInterval(() => {
-    const elapsed = (Date.now() - watchUpNextStartedAt) / 1000
-    const remaining = Math.max(0, WATCH_UPNEXT_SECONDS - elapsed)
-    watchUpNextSeconds.value = Math.ceil(remaining)
-    watchUpNextProgress.value = Math.max(0, remaining / WATCH_UPNEXT_SECONDS)
-    if (remaining <= 0) {
-      clearWatchUpNextTimer()
-      confirmWatchUpNext()
-    }
-  }, 100)
-}
-
 async function playNextRelated() {
   const next = nextRelatedVideo.value
   if (!next) return
-  cancelWatchUpNext()
   await handlePlay(next)
+}
+
+async function playPrevRelated() {
+  const prev = prevRelatedVideo.value
+  if (!prev) return
+  await handlePlay(prev)
 }
 
 async function handleWatchEnded() {
   watchIsPlaying.value = false
   watchControlsVisible.value = true
   clearWatchControlsHideTimer()
+  // 播完直接連播下一支，不再倒數 5 秒
   if (nextRelatedVideo.value) {
-    startWatchUpNextCountdown()
+    await playNextRelated()
     return
   }
-  cancelWatchUpNext()
   // 無下一支時保留中央播放鈕（可重播）
-  watchControlsVisible.value = true
 }
 
 function isTypingTarget(target) {
@@ -1736,20 +1685,6 @@ function handleWatchKeydown(event) {
 
   const key = event.key
   const lower = key.toLowerCase()
-
-  // Up-next overlay has priority over normal player shortcuts.
-  if (watchUpNextActive.value) {
-    if (key === 'Escape') {
-      event.preventDefault()
-      cancelWatchUpNext()
-      return
-    }
-    if (key === 'Enter' || lower === 'n' || key === ' ' || lower === 'k') {
-      event.preventDefault()
-      confirmWatchUpNext()
-      return
-    }
-  }
 
   if (key === ' ' || lower === 'k') {
     event.preventDefault()
@@ -1773,12 +1708,22 @@ function handleWatchKeydown(event) {
   }
   if (key === 'ArrowRight') {
     event.preventDefault()
-    seekWatchVideo((activeVideoElement.value?.currentTime || 0) + 5)
+    // Shift+→ 快轉 5 秒；單純 → 下一支
+    if (event.shiftKey) {
+      seekWatchVideo((activeVideoElement.value?.currentTime || 0) + 5)
+    } else {
+      playNextRelated()
+    }
     return
   }
   if (key === 'ArrowLeft') {
     event.preventDefault()
-    seekWatchVideo((activeVideoElement.value?.currentTime || 0) - 5)
+    // Shift+← 倒轉 5 秒；單純 ← 上一支
+    if (event.shiftKey) {
+      seekWatchVideo((activeVideoElement.value?.currentTime || 0) - 5)
+    } else {
+      playPrevRelated()
+    }
     return
   }
   if (key === 'ArrowUp') {
@@ -1801,6 +1746,11 @@ function handleWatchKeydown(event) {
   if (lower === 'n') {
     event.preventDefault()
     playNextRelated()
+    return
+  }
+  if (lower === 'p') {
+    event.preventDefault()
+    playPrevRelated()
   }
 }
 
@@ -1808,7 +1758,6 @@ async function exitWatchStage({ continuePlaying = true } = {}) {
   const element = activeVideoElement.value
   const video = watchingVideo.value
   theaterMode.value = false
-  cancelWatchUpNext()
   clearWatchControlsHideTimer()
 
   if (import.meta.client && document.fullscreenElement === watchPlayerShellRef.value) {
@@ -1852,7 +1801,6 @@ async function stopWatchAndClose() {
   }
   stopPersistentVideo()
   theaterMode.value = false
-  cancelWatchUpNext()
   clearWatchControlsHideTimer()
   playingVideoId.value = null
   activeVideoElement.value = null
@@ -2079,7 +2027,26 @@ const relatedVideos = computed(() => {
   return [...sameCategory, ...rest]
 })
 
-const nextRelatedVideo = computed(() => relatedVideos.value[0] || null)
+/** 目前篩選結果中可播放的清單順序，供上一支／下一支／連播使用 */
+const playlistVideos = computed(() => filteredVideos.value.filter((video) => video.file))
+
+const currentPlaylistIndex = computed(() => {
+  const current = watchingVideo.value
+  if (!current) return -1
+  return playlistVideos.value.findIndex((video) => video.id === current.id)
+})
+
+const nextRelatedVideo = computed(() => {
+  const idx = currentPlaylistIndex.value
+  if (idx < 0) return null
+  return playlistVideos.value[idx + 1] || null
+})
+
+const prevRelatedVideo = computed(() => {
+  const idx = currentPlaylistIndex.value
+  if (idx <= 0) return null
+  return playlistVideos.value[idx - 1] || null
+})
 
 function getVideoLayoutClass(videoId) {
   if (videoLayoutMode.value === 'card') return 'video-card--card'
@@ -2700,7 +2667,6 @@ watch(videos, async () => {
 
 onBeforeUnmount(() => {
   clearWatchControlsHideTimer()
-  cancelWatchUpNext()
 
   if (import.meta.client) {
     window.removeEventListener('keydown', handleWatchKeydown)
@@ -4115,118 +4081,59 @@ onBeforeUnmount(() => {
   outline-offset: 3px;
 }
 
-.watch-upnext {
+.watch-skip-edge {
   position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-end;
-  gap: 0.35rem;
-  padding: 1.25rem 1.15rem 1.35rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in oklab, oklch(0.12 0.02 248) 18%, transparent) 0%,
-      color-mix(in oklab, oklch(0.10 0.02 248) 88%, transparent) 100%
-    );
-  color: var(--text-inverse);
+  top: 50%;
+  z-index: 3;
+  transform: translateY(-50%);
+  width: 2.75rem;
+  height: 2.75rem;
+  border: none;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, oklch(0.12 0.02 248) 55%, transparent);
+  color: white;
+  font-size: 1.75rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-fast) var(--ease-out-expo),
+    background-color var(--duration-fast) ease,
+    transform var(--duration-fast) var(--ease-out-expo);
+}
+
+.watch-player-shell.is-controls-visible .watch-skip-edge:not(:disabled),
+.watch-player-shell:hover .watch-skip-edge:not(:disabled) {
+  opacity: 1;
   pointer-events: auto;
 }
 
-.watch-upnext-kicker {
-  margin: 0;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: color-mix(in oklab, white 72%, transparent);
+.watch-skip-edge--prev {
+  left: 0.65rem;
 }
 
-.watch-upnext-title {
-  font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.35rem);
-  font-weight: 750;
-  line-height: 1.3;
-  max-width: 36rem;
-  text-wrap: balance;
+.watch-skip-edge--next {
+  right: 0.65rem;
 }
 
-.watch-upnext-count {
-  margin: 0.15rem 0 0.35rem;
-  font-size: 0.9rem;
-  color: color-mix(in oklab, white 82%, transparent);
+.watch-skip-edge:hover:not(:disabled) {
+  background: color-mix(in oklab, oklch(0.12 0.02 248) 78%, transparent);
+  transform: translateY(-50%) scale(1.06);
 }
 
-.watch-upnext-num {
-  display: inline-grid;
-  place-items: center;
-  min-width: 1.5rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: white;
-}
-
-.watch-upnext-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.55rem;
-}
-
-.watch-upnext-btn {
-  appearance: none;
-  border: 1px solid color-mix(in oklab, white 24%, transparent);
-  background: color-mix(in oklab, white 10%, transparent);
-  color: white;
-  border-radius: var(--radius-md);
-  padding: 0.55rem 0.95rem;
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color var(--duration-fast) ease;
-}
-
-.watch-upnext-btn:hover {
-  background: color-mix(in oklab, white 18%, transparent);
-}
-
-.watch-upnext-btn:focus-visible {
+.watch-skip-edge:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.watch-upnext-btn--primary {
-  background: var(--primary);
-  border-color: transparent;
-}
-
-.watch-upnext-btn--primary:hover {
-  background: var(--primary-hover);
-}
-
-.watch-upnext-bar {
-  width: min(100%, 28rem);
-  height: 4px;
-  border-radius: var(--radius-full);
-  background: color-mix(in oklab, white 18%, transparent);
-  overflow: hidden;
-}
-
-.watch-upnext-bar-fill {
-  height: 100%;
-  width: 100%;
-  transform-origin: left center;
-  background: linear-gradient(90deg, var(--primary), color-mix(in oklab, var(--primary) 60%, var(--accent)));
-  transition: transform 100ms linear;
-}
-
-.watch-stage--bilibili .watch-upnext-bar-fill {
-  background: linear-gradient(
-    90deg,
-    var(--primary),
-    color-mix(in oklab, var(--primary) 55%, var(--accent) 45%)
-  );
+.watch-skip-edge:disabled {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .watch-chrome {

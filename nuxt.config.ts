@@ -1,4 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { getRepoStats } from './utils/repoStats.js'
+
+const repoStats = getRepoStats()
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
@@ -172,7 +176,10 @@ export default defineNuxtConfig({
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       supabaseBucket: process.env.SUPABASE_BUCKET || 'uploads',
       NETLIFY_SITE_ID: process.env.NETLIFY_SITE_ID,
-      vapidPublicKey: process.env.NUXT_PUBLIC_VAPID_PUBLIC_KEY || ''
+      vapidPublicKey: process.env.NUXT_PUBLIC_VAPID_PUBLIC_KEY || '',
+      // Build-time repo meta for 鋒兄首頁 footer
+      lastUpdateDate: repoStats.lastUpdateDate,
+      linesOfCode: repoStats.linesOfCode
     }
   }
 })

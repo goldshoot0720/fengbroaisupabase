@@ -156,6 +156,21 @@
         </button>
       </div>
     </section>
+
+    <footer class="home-footer" aria-label="頁尾資訊">
+      <div class="home-repo-meta">
+        <div class="home-repo-meta__item">
+          <span class="home-repo-meta__label">上次更新日期</span>
+          <strong class="home-repo-meta__value">{{ lastUpdateDateLabel }}</strong>
+        </div>
+        <div class="home-repo-meta__divider" aria-hidden="true"></div>
+        <div class="home-repo-meta__item">
+          <span class="home-repo-meta__label">程式碼行</span>
+          <strong class="home-repo-meta__value">{{ linesOfCodeLabel }}</strong>
+        </div>
+      </div>
+      <p class="home-footer__copyright">鋒兄 © 2026-2027 fengbroprinfo</p>
+    </footer>
   </div>
 </template>
 
@@ -164,6 +179,20 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { FENG_TUBE_ACTIVE_TOOL_KEY } from '../../utils/fengTubeChannels'
 
 const emit = defineEmits(['navigate'])
+const runtimeConfig = useRuntimeConfig()
+
+const lastUpdateDateLabel = computed(() => {
+  const raw = runtimeConfig.public?.lastUpdateDate
+  if (typeof raw !== 'string' || !raw) return '—'
+  // Prefer ISO date (YYYY-MM-DD) from build; show as-is for zh-TW readability.
+  return raw.slice(0, 10)
+})
+
+const linesOfCodeLabel = computed(() => {
+  const n = Number(runtimeConfig.public?.linesOfCode)
+  if (!Number.isFinite(n) || n <= 0) return '—'
+  return n.toLocaleString('zh-TW')
+})
 
 const currentHour = ref(null)
 const tubeAlertVideos = ref([])
@@ -779,6 +808,65 @@ const channels = [
   grid-template-columns: 1fr;
 }
 
+.home-footer {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+  padding-bottom: 0.2rem;
+}
+
+.home-repo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem 1.4rem;
+  width: 100%;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  background: color-mix(in oklab, var(--bg-secondary) 90%, transparent);
+  box-shadow: var(--shadow-soft);
+  color: var(--text-secondary);
+}
+
+.home-repo-meta__item {
+  display: grid;
+  gap: 0.2rem;
+  text-align: center;
+  min-width: 8rem;
+}
+
+.home-repo-meta__label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.home-repo-meta__value {
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-repo-meta__divider {
+  width: 1px;
+  height: 2rem;
+  background: var(--border-color);
+}
+
+.home-footer__copyright {
+  margin: 0;
+  padding: 0.55rem 1rem;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
 @media (min-width: 769px) and (max-width: 1180px) {
   .hero-grid,
   .feature-layout,
@@ -865,9 +953,29 @@ const channels = [
   .channel-card {
     border-radius: 20px;
   }
+
+  .home-repo-meta {
+    border-radius: 18px;
+  }
 }
 
 @media (max-width: 640px) {
+  .home-repo-meta {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.95rem;
+  }
+
+  .home-repo-meta__divider {
+    width: 40%;
+    height: 1px;
+  }
+
+  .home-footer__copyright {
+    font-size: 0.82rem;
+    letter-spacing: 0.06em;
+  }
+
   .sleep-warning {
     flex-direction: column;
     gap: 0.2rem;

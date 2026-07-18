@@ -464,21 +464,16 @@ onUnmounted(() => {
 }
 
 .nav-scroll {
-  display: flex;
-  overflow-x: auto;
-  gap: 0.5rem;
+  /* Desktop: max 10 items per row; extra items wrap to the next row */
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.35rem 0.5rem;
   padding: 0.55rem 1rem;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.nav-scroll::-webkit-scrollbar {
-  display: none;
 }
 
 .nav-tab {
-  flex-shrink: 0;
   min-width: 0;
+  width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -487,7 +482,7 @@ onUnmounted(() => {
   background: transparent;
   color: var(--text-secondary);
   border-radius: 20px;
-  padding: 0.45rem 0.55rem;
+  padding: 0.45rem 0.4rem;
   cursor: pointer;
   font-size: 0.88rem;
   font-weight: 600;
@@ -612,6 +607,24 @@ onUnmounted(() => {
 }
 
 /* ── 響應式 ── */
+/* Desktop only: fewer columns when width is tight, still max 10 */
+@media (max-width: 1280px) and (min-width: 769px) {
+  .nav-scroll {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) and (min-width: 769px) {
+  .nav-scroll {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .nav-tab {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.3rem;
+  }
+}
+
 @media (max-width: 1120px) {
   .signal-card {
     display: none;

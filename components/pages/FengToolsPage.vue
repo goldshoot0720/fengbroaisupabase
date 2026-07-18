@@ -743,7 +743,7 @@ import FengbroNewsPanel from './FengbroNewsPanel.vue'
 import { FENG_TUBE_ACTIVE_TOOL_KEY, FENG_TUBE_CHANNELS } from '../../utils/fengTubeChannels'
 
 const toolTabs = [
-  { value: 'biggo', label: '鋒兄比價', description: '網址或關鍵字查 BigGo 價格區間' },
+  { value: 'biggo', label: '鋒兄比價', description: '(比價紀錄)' },
   { value: 'manual', label: '手動紀錄', description: '自行輸入商品與價錢、查看走勢' },
   { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信價格比較' },
   { value: 'tube', label: '鋒兄tube', description: '追蹤指定 YouTube 頻道最新影片' },

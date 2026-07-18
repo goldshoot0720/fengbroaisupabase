@@ -71,7 +71,7 @@ const pages = [
     title: '鋒兄工具',
     subtitle: '整合比價、YouTube、金融、新聞與圖片語音成片工具。',
     children: [
-      { id: 'tools:biggo', tool: 'biggo', name: '鋒兄比價', menuHint: 'BigGo' },
+      { id: 'tools:biggo', tool: 'biggo', name: '鋒兄比價', menuHint: '(比價紀錄)' },
       { id: 'tools:manual', tool: 'manual', name: '手動紀錄', menuHint: '自訂價錢' },
       { id: 'tools:phone', tool: 'phone', name: '手機比價', menuHint: '通路價格' },
       { id: 'tools:tube', tool: 'tube', name: '鋒兄Tube', menuHint: 'YouTube' },

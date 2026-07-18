@@ -436,6 +436,17 @@ const handleSidebarNavigate = (pageId) => {
     return
   }
 
+  // 鋒兄音樂/播客 子選單：music:tracks → music，music:podcast → podcast
+  if (typeof pageId === 'string' && pageId.startsWith('music:')) {
+    const section = pageId.slice('music:'.length)
+    if (section === 'podcast') {
+      setCurrentPage('podcast')
+      return
+    }
+    setCurrentPage('music')
+    return
+  }
+
   setCurrentPage(pageId)
 }
 const SUPABASE_URL_WARNING_KEY = 'feng-supabase-url-warning'

@@ -36,8 +36,31 @@ const pages = [
   { id: 'common', name: '鋒兄常用', icon: '07', title: '鋒兄常用', subtitle: '集中整理常用帳號、備註與附加資訊。' },
   { id: 'gallery', name: '鋒兄圖片', icon: '08', title: '鋒兄圖片', subtitle: '管理圖片素材與封面檔案。' },
   { id: 'video', name: '鋒兄影片', icon: '09', title: '鋒兄影片', subtitle: '管理影片檔、封面、分類與參考資料。' },
-  { id: 'music', name: '鋒兄音樂', icon: '10', title: '鋒兄音樂', subtitle: '整理音樂作品、封面、歌詞與音檔。' },
-  { id: 'podcast', name: '鋒兄播客', icon: '12', title: '鋒兄播客', subtitle: '整理播客音檔、封面與備註。' },
+  {
+    id: 'music',
+    name: '鋒兄音樂/播客',
+    icon: '10',
+    title: '鋒兄音樂/播客',
+    subtitle: '整理音樂作品、播客音檔、封面與歌詞。',
+    children: [
+      {
+        id: 'music:tracks',
+        page: 'music',
+        name: '鋒兄音樂',
+        menuHint: '作品與歌詞',
+        title: '鋒兄音樂',
+        subtitle: '整理音樂作品、封面、歌詞與音檔。'
+      },
+      {
+        id: 'music:podcast',
+        page: 'podcast',
+        name: '鋒兄播客',
+        menuHint: '節目與音檔',
+        title: '鋒兄播客',
+        subtitle: '整理播客音檔、封面與備註。'
+      }
+    ]
+  },
   { id: 'bank', name: '鋒兄銀行', menuHint: '( +電子票證)', icon: '13', title: '鋒兄銀行 (+電子票證)', subtitle: '整理存款、提款、轉帳與卡片資訊。' },
   { id: 'routine', name: '鋒兄例行', icon: '14', title: '鋒兄例行', subtitle: '記錄固定流程、連結與最近執行日期。' },
   {

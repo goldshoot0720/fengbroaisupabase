@@ -1,20 +1,11 @@
 import { computed, ref } from 'vue'
-import { getSupabaseBucket } from './useSettings'
+import { resolveSupabaseBucket } from './useSettings'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 
 const ONE_GB_BYTES = 1024 * 1024 * 1024
 const STORAGE_UPLOAD_LIMIT_BYTES = 900 * 1024 * 1024
 
-const getBucketName = () => {
-  const fromSettings = getSupabaseBucket()
-  if (fromSettings) return fromSettings
-  try {
-    const config = useRuntimeConfig()
-    return config.public.supabaseBucket || 'uploads'
-  } catch {
-    return 'uploads'
-  }
-}
+const getBucketName = () => resolveSupabaseBucket()
 
 const formatBytes = (bytes = 0) => {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'

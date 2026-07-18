@@ -1,6 +1,328 @@
 <template>
   <PageContainer>
-    <div class="video-page" :class="`mode-${videoDisplayMode}`">
+    <div
+      class="video-page"
+      :class="[
+        `mode-${videoDisplayMode}`,
+        { 'is-watching': Boolean(watchingVideo) }
+      ]"
+    >
+      <!-- ── Watch Stage（YouTube / Bilibili 雙模式主舞台）── -->
+      <section
+        v-if="watchingVideo"
+        class="watch-stage"
+        :class="[
+          `watch-stage--${videoDisplayMode}`,
+          { 'watch-stage--theater': theaterMode }
+        ]"
+        aria-label="影片播放"
+      >
+        <header class="watch-toolbar">
+          <button type="button" class="watch-back-btn" @click="exitWatchStage()">
+            ← 返回影片庫
+          </button>
+          <div class="view-switcher" role="group" aria-label="播放版型">
+            <button
+              type="button"
+              class="view-switch-btn"
+              :class="{ active: videoDisplayMode === 'youtube' }"
+              @click="setVideoDisplayMode('youtube')"
+            >
+              YouTube
+            </button>
+            <button
+              type="button"
+              class="view-switch-btn"
+              :class="{ active: videoDisplayMode === 'bilibili' }"
+              @click="setVideoDisplayMode('bilibili')"
+            >
+              Bilibili
+            </button>
+          </div>
+          <button
+            type="button"
+            class="watch-theater-btn"
+            :aria-pressed="theaterMode"
+            @click="theaterMode = !theaterMode"
+          >
+            {{ theaterMode ? '退出劇場' : '劇場模式' }}
+          </button>
+          <p class="watch-hotkeys" title="空白/K 播放暫停 · ←→ 快轉 · ↑↓ 音量 · M 靜音 · F 全螢幕 · T 劇場 · N 下一支 · Esc 返回">
+            快捷鍵：空白 播放 · F 全螢幕 · N 下一支 · Esc 返回
+          </p>
+        </header>
+
+        <div class="watch-layout">
+          <div class="watch-primary">
+            <div
+              ref="watchPlayerShellRef"
+              class="watch-player-shell"
+              :class="{
+                'is-controls-visible': watchControlsVisible || !watchIsPlaying,
+                'is-fullscreen': watchIsFullscreen
+              }"
+              @mousemove="revealWatchControls"
+              @mouseleave="scheduleHideWatchControls"
+              @pointerdown="revealWatchControls"
+            >
+              <video
+                :key="watchingVideo.id"
+                :ref="setActiveVideoRef"
+                :src="getVideoSrc(watchingVideo)"
+                autoplay
+                playsinline
+                class="watch-player"
+                @click="toggleWatchPlayback"
+                @dblclick="toggleWatchFullscreen"
+                @play="handleWatchPlay($event, watchingVideo)"
+                @pause="handleWatchPause($event, watchingVideo)"
+                @timeupdate="handleWatchProgress($event, watchingVideo)"
+                @loadedmetadata="handleWatchLoaded($event, watchingVideo)"
+                @volumechange="syncWatchVolumeFromElement"
+                @ended="handleWatchEnded"
+                @error="handleInlineVideoError($event, watchingVideo)"
+              ></video>
+
+              <div
+                v-if="resolvingVideoIds.has(watchingVideo.id) || !getVideoSrc(watchingVideo)"
+                class="watch-player-loading"
+                role="status"
+              >
+                影片準備中…
+              </div>
+
+              <button
+                v-else-if="!watchIsPlaying && !watchUpNextActive"
+                type="button"
+                class="watch-center-play"
+                aria-label="播放"
+                @click="toggleWatchPlayback"
+              >
+                ▶
+              </button>
+
+              <!-- 播完倒數連播 -->
+              <div
+                v-if="watchUpNextActive && nextRelatedVideo"
+                class="watch-upnext"
+                role="dialog"
+                aria-label="即將播放下一支"
+                @click.stop
+              >
+                <p class="watch-upnext-kicker">接下來</p>
+                <strong class="watch-upnext-title">{{ nextRelatedVideo.name || '未命名' }}</strong>
+                <p class="watch-upnext-count">
+                  <span class="watch-upnext-num">{{ watchUpNextSeconds }}</span> 秒後自動播放
+                </p>
+                <div class="watch-upnext-actions">
+                  <button type="button" class="watch-upnext-btn watch-upnext-btn--primary" @click="confirmWatchUpNext">
+                    立即播放
+                  </button>
+                  <button type="button" class="watch-upnext-btn" @click="cancelWatchUpNext">
+                    取消
+                  </button>
+                </div>
+                <div class="watch-upnext-bar" aria-hidden="true">
+                  <div
+                    class="watch-upnext-bar-fill"
+                    :style="{ transform: `scaleX(${watchUpNextProgress})` }"
+                  ></div>
+                </div>
+              </div>
+
+              <div class="watch-chrome" @click.stop>
+                <div class="watch-progress-block">
+                  <input
+                    class="watch-progress"
+                    type="range"
+                    min="0"
+                    :max="Math.max(watchDuration, 0.1)"
+                    step="0.1"
+                    :value="watchCurrentTime"
+                    :aria-valuetext="`${formatWatchTime(watchCurrentTime)} / ${formatWatchTime(watchDuration)}`"
+                    aria-label="播放進度"
+                    @input="seekWatchVideo($event.target.value)"
+                  />
+                </div>
+
+                <div class="watch-chrome-row">
+                  <div class="watch-chrome-left">
+                    <button
+                      type="button"
+                      class="watch-ctrl-btn"
+                      :aria-label="watchIsPlaying ? '暫停' : '播放'"
+                      @click="toggleWatchPlayback"
+                    >
+                      {{ watchIsPlaying ? '❚❚' : '▶' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="watch-ctrl-btn"
+                      :disabled="!nextRelatedVideo"
+                      aria-label="下一支"
+                      title="下一支"
+                      @click="playNextRelated"
+                    >
+                      ⏭
+                    </button>
+                    <span class="watch-time">
+                      {{ formatWatchTime(watchCurrentTime) }}
+                      <span class="watch-time-sep">/</span>
+                      {{ formatWatchTime(watchDuration) }}
+                    </span>
+                  </div>
+
+                  <div class="watch-chrome-right">
+                    <label class="watch-volume" title="音量">
+                      <button
+                        type="button"
+                        class="watch-ctrl-btn watch-ctrl-btn--compact"
+                        :aria-label="watchIsMuted || watchVolume === 0 ? '取消靜音' : '靜音'"
+                        @click="toggleWatchMute"
+                      >
+                        {{ watchIsMuted || watchVolume === 0 ? '🔇' : watchVolume < 0.45 ? '🔉' : '🔊' }}
+                      </button>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        :value="watchIsMuted ? 0 : watchVolume"
+                        aria-label="音量"
+                        @input="setWatchVolume($event.target.value)"
+                      />
+                    </label>
+
+                    <label class="watch-speed">
+                      <span class="sr-only">播放速度</span>
+                      <select
+                        :value="watchPlaybackRate"
+                        aria-label="播放速度"
+                        @change="setWatchPlaybackRate($event.target.value)"
+                      >
+                        <option v-for="rate in watchSpeedOptions" :key="rate" :value="rate">
+                          {{ rate }}x
+                        </option>
+                      </select>
+                    </label>
+
+                    <button
+                      type="button"
+                      class="watch-ctrl-btn"
+                      :aria-pressed="theaterMode"
+                      :title="theaterMode ? '退出劇場' : '劇場模式'"
+                      @click="theaterMode = !theaterMode"
+                    >
+                      {{ theaterMode ? '▦' : '▭' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="watch-ctrl-btn"
+                      :aria-label="watchIsFullscreen ? '退出全螢幕' : '全螢幕'"
+                      :title="watchIsFullscreen ? '退出全螢幕 (F)' : '全螢幕 (F)'"
+                      @click="toggleWatchFullscreen"
+                    >
+                      {{ watchIsFullscreen ? '⤓' : '⤢' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="watch-info">
+              <div v-if="videoDisplayMode === 'bilibili'" class="watch-avatar" aria-hidden="true">鋒</div>
+              <div class="watch-info-copy">
+                <h1 class="watch-title">{{ watchingVideo.name || '未命名' }}</h1>
+                <div class="watch-meta-row">
+                  <span v-if="watchingVideo.category" class="category-chip">{{ watchingVideo.category }}</span>
+                  <span v-if="watchingVideo.filetype" class="filetype-chip">{{ watchingVideo.filetype.toUpperCase() }}</span>
+                  <span v-if="watchingVideo.ref" class="meta-ref" :title="watchingVideo.ref">🔗 參考</span>
+                  <span v-if="videoCache.has(watchingVideo.id)" class="cache-chip">已快取</span>
+                </div>
+                <div v-if="videoDisplayMode === 'bilibili'" class="bilibili-stats watch-stats">
+                  <span>{{ watchingVideo.filetype ? watchingVideo.filetype.toUpperCase() : 'VIDEO' }}</span>
+                  <span>{{ watchingVideo.category || '鋒兄頻道' }}</span>
+                </div>
+                <p v-if="watchingVideo.note" class="watch-desc">{{ watchingVideo.note }}</p>
+              </div>
+              <div class="watch-actions">
+                <button
+                  type="button"
+                  class="watch-action-btn"
+                  :disabled="downloadingVideoId === watchingVideo.id"
+                  @click="downloadVideo(watchingVideo)"
+                >
+                  {{ downloadingVideoId === watchingVideo.id ? '下載中…' : '下載' }}
+                </button>
+                <button
+                  v-if="videoCache.has(watchingVideo.id)"
+                  type="button"
+                  class="watch-action-btn watch-action-btn--muted"
+                  @click="uncacheVideo(watchingVideo.id)"
+                >
+                  清除快取
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="watch-action-btn"
+                  :disabled="cachingVideoId === watchingVideo.id"
+                  @click="cacheVideo(watchingVideo)"
+                >
+                  {{ cachingVideoId === watchingVideo.id ? '快取中…' : '快取' }}
+                </button>
+                <button type="button" class="watch-action-btn watch-action-btn--muted" @click="editFromWatch(watchingVideo)">
+                  編輯
+                </button>
+                <button type="button" class="watch-action-btn watch-action-btn--danger" @click="stopWatchAndClose()">
+                  關閉
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <aside v-if="!theaterMode" class="watch-related" :aria-label="videoDisplayMode === 'bilibili' ? '相關推薦' : '接下來'">
+            <h2 class="watch-related-title">
+              {{ videoDisplayMode === 'bilibili' ? '相關推薦' : '接下來' }}
+            </h2>
+            <p v-if="relatedVideos.length === 0" class="watch-related-empty">沒有其他可播放影片</p>
+            <button
+              v-for="item in relatedVideos"
+              :key="item.id"
+              type="button"
+              class="watch-related-item"
+              :class="{ 'is-active': playingVideoId === item.id }"
+              @click="handlePlay(item)"
+              @mouseenter="warmThumbnail(item)"
+            >
+              <div class="watch-related-thumb">
+                <img
+                  v-if="item.cover"
+                  :src="resolveMediaUrl(item.cover)"
+                  :alt="item.name || '影片封面'"
+                  loading="lazy"
+                />
+                <video
+                  v-else-if="item.file && canRenderVideoThumbnail(item)"
+                  :src="getThumbnailVideoSrc(item)"
+                  preload="metadata"
+                  muted
+                  playsinline
+                  @loadedmetadata="seekThumbnailFrame"
+                ></video>
+                <span v-else class="watch-related-placeholder">▶</span>
+                <span v-if="item.filetype" class="watch-related-type">{{ item.filetype.toUpperCase() }}</span>
+              </div>
+              <div class="watch-related-copy">
+                <strong>{{ item.name || '未命名' }}</strong>
+                <span>{{ item.category || '未分類' }}</span>
+              </div>
+            </button>
+          </aside>
+        </div>
+      </section>
+
+      <template v-else>
       <h1 class="page-title">鋒兄影片</h1>
 
       <!-- Actions Bar -->
@@ -280,27 +602,9 @@
             </div>
           </template>
 
-          <!-- YouTube/Bilibili 風格顯示模式 -->
+          <!-- YouTube/Bilibili 風格顯示模式（點擊進觀看主舞台） -->
           <template v-else>
-            <!-- 播放模式 -->
-            <div v-if="playingVideoId === video.id && video.file" class="player-wrapper">
-              <video
-                :ref="setActiveVideoRef"
-                :src="getVideoSrc(video)"
-                controls
-                autoplay
-                class="active-player"
-                @play="handleInlineVideoPlay($event, video)"
-                @pause="handleInlineVideoPause($event, video)"
-                @timeupdate="handleInlineVideoProgress($event, video)"
-                @loadedmetadata="handleInlineVideoProgress($event, video)"
-                @volumechange="handleInlineVideoProgress($event, video)"
-                @error="handleInlineVideoError($event, video)"
-              ></video>
-              <button @click.stop="playingVideoId = null" class="close-player-btn" title="關閉播放">✕</button>
-            </div>
-            <!-- 縮圖區域 -->
-            <div v-else class="thumbnail-wrapper" @click="handlePlay(video)" @mouseenter="warmThumbnail(video)">
+            <div class="thumbnail-wrapper" @click="handlePlay(video)" @mouseenter="warmThumbnail(video)">
               <input v-if="batchMode" type="checkbox" :checked="selectedIds.has(video.id)" @click.stop="toggleSelection(video.id)" class="batch-checkbox" />
               <template v-if="video.cover">
                 <img :src="resolveMediaUrl(video.cover)" :alt="video.name" class="thumbnail-img" />
@@ -318,7 +622,6 @@
               <div v-else class="thumbnail-placeholder">
                 <span class="placeholder-icon">🎬</span>
               </div>
-              <!-- 播放按鈕覆蓋層 -->
               <div
                 v-if="video.file"
                 class="play-overlay"
@@ -326,7 +629,6 @@
               >
                 <span class="play-btn">{{ resolvingVideoIds.has(video.id) ? '...' : '▶' }}</span>
               </div>
-              <!-- 類型標籤 -->
               <span v-if="video.filetype" class="filetype-tag">{{ video.filetype.toUpperCase() }}</span>
             </div>
 
@@ -360,6 +662,7 @@
           </template>
         </div>
       </div>
+      </template>
 
       <!-- Add/Edit Modal -->
       <div v-if="showModal" class="modal-overlay" @click="closeModal">
@@ -592,7 +895,9 @@ const {
   getSnapshot: snapshotPersistentVideo,
   takeoverFromElement: takeoverPersistentVideo,
   restoreToElement: restorePersistentVideo,
-  pauseGlobal: pausePersistentVideo
+  pauseGlobal: pausePersistentVideo,
+  releaseLocalSession: releasePersistentVideoLocal,
+  stopGlobal: stopPersistentVideo
 } = usePersistentVideoPlayer()
 const coverUploading = ref(false)
 const activeVideoUploadProgress = computed(() => {
@@ -618,9 +923,33 @@ const formData = ref({
   cover: ''
 })
 
-// Video player state
+// Video player state (Watch Stage)
 const playingVideoId = ref(null)
 const activeVideoElement = ref(null)
+const theaterMode = ref(false)
+const watchPlayerShellRef = ref(null)
+const watchIsPlaying = ref(false)
+const watchCurrentTime = ref(0)
+const watchDuration = ref(0)
+const watchVolume = ref(1)
+const watchIsMuted = ref(false)
+const watchPlaybackRate = ref(1)
+const watchIsFullscreen = ref(false)
+const watchControlsVisible = ref(true)
+const watchSpeedOptions = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+const WATCH_UPNEXT_SECONDS = 5
+const watchUpNextActive = ref(false)
+const watchUpNextSeconds = ref(WATCH_UPNEXT_SECONDS)
+const watchUpNextProgress = ref(1)
+let watchControlsHideTimer = null
+let watchUpNextTimer = null
+let watchUpNextStartedAt = 0
+let watchLastVolume = 1
+
+const watchingVideo = computed(() => {
+  if (!playingVideoId.value) return null
+  return videos.value.find((video) => video.id === playingVideoId.value) || null
+})
 
 // Video caching state
 const videoCache = ref(new Map()) // id -> { blobUrl, size, fileRef }
@@ -1001,21 +1330,445 @@ async function downloadVideo(video) {
   }
 }
 
+function formatWatchTime(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function clearWatchControlsHideTimer() {
+  if (watchControlsHideTimer) {
+    clearTimeout(watchControlsHideTimer)
+    watchControlsHideTimer = null
+  }
+}
+
+function revealWatchControls() {
+  watchControlsVisible.value = true
+  scheduleHideWatchControls()
+}
+
+function scheduleHideWatchControls() {
+  clearWatchControlsHideTimer()
+  if (!watchIsPlaying.value) {
+    watchControlsVisible.value = true
+    return
+  }
+  watchControlsHideTimer = setTimeout(() => {
+    watchControlsVisible.value = false
+  }, 2400)
+}
+
+function syncWatchUiFromElement(element) {
+  if (!element) return
+  watchIsPlaying.value = !element.paused && !element.ended
+  watchCurrentTime.value = element.currentTime || 0
+  watchDuration.value = Number.isFinite(element.duration) ? element.duration : 0
+  watchVolume.value = element.volume ?? 1
+  watchIsMuted.value = Boolean(element.muted)
+  watchPlaybackRate.value = element.playbackRate || 1
+  if (!element.muted && element.volume > 0) {
+    watchLastVolume = element.volume
+  }
+}
+
 async function handlePlay(video) {
   if (!video?.file || batchMode.value) return
   try {
+    if (!persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) {
+      pausePersistentVideo()
+    }
+    // Enter watch stage immediately so the shell is visible while multipart resolves.
+    cancelWatchUpNext()
+    playingVideoId.value = video.id
+    theaterMode.value = false
+    watchControlsVisible.value = true
+    watchCurrentTime.value = 0
+    watchDuration.value = 0
+    watchIsPlaying.value = false
+    if (import.meta.client) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
     const src = await ensureResolvedVideoSource(video)
     if (!src) {
       throw new Error('影片仍在準備中，請稍後再試')
     }
-    if (!persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) {
-      pausePersistentVideo()
-    }
-    playingVideoId.value = video.id
+    // If user switched to another video while resolving, ignore late result.
+    if (playingVideoId.value !== video.id) return
   } catch (error) {
     console.error('影片載入失敗:', error)
+    if (playingVideoId.value === video?.id) {
+      playingVideoId.value = null
+    }
     alert('影片載入失敗: ' + error.message)
   }
+}
+
+function handleWatchPlay(event, video) {
+  const element = event?.target
+  if (!element || !video) return
+  activeVideoElement.value = element
+  if (!persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) {
+    pausePersistentVideo()
+  }
+  element.playbackRate = watchPlaybackRate.value || 1
+  syncWatchUiFromElement(element)
+  snapshotPersistentVideo(element, getPersistentVideoMeta(video), { playing: true })
+  scheduleHideWatchControls()
+}
+
+function handleWatchPause(event, video) {
+  if (!event?.target) return
+  syncWatchUiFromElement(event.target)
+  watchControlsVisible.value = true
+  clearWatchControlsHideTimer()
+  if (!persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) return
+  snapshotPersistentVideo(event.target, getPersistentVideoMeta(video), { playing: false })
+}
+
+function handleWatchProgress(event, video) {
+  if (!event?.target) return
+  syncWatchUiFromElement(event.target)
+  if (!persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) return
+  snapshotPersistentVideo(event.target, getPersistentVideoMeta(video), {
+    playing: !event.target.paused
+  })
+}
+
+function syncWatchVolumeFromElement(event) {
+  const element = event?.target || activeVideoElement.value
+  if (!element) return
+  syncWatchUiFromElement(element)
+  const video = watchingVideo.value
+  if (!video || !persistentVideoTrack.value || persistentVideoTrack.value.id !== video.id) return
+  snapshotPersistentVideo(element, getPersistentVideoMeta(video), {
+    playing: !element.paused
+  })
+}
+
+async function handleWatchLoaded(event, video) {
+  const element = event?.target
+  if (!element || !video || playingVideoId.value !== video.id) return
+  activeVideoElement.value = element
+  element.volume = watchVolume.value
+  element.muted = watchIsMuted.value
+  element.playbackRate = watchPlaybackRate.value || 1
+  await restorePersistentVideo(element, getPersistentVideoMeta(video))
+  syncWatchUiFromElement(element)
+  snapshotPersistentVideo(element, getPersistentVideoMeta(video), {
+    playing: !element.paused
+  })
+  revealWatchControls()
+}
+
+async function toggleWatchPlayback() {
+  const element = activeVideoElement.value
+  if (!element) return
+  try {
+    if (element.paused || element.ended) {
+      await element.play()
+    } else {
+      element.pause()
+    }
+  } catch (error) {
+    console.warn('Watch playback toggle failed:', error)
+  }
+  revealWatchControls()
+}
+
+function seekWatchVideo(time) {
+  const element = activeVideoElement.value
+  if (!element) return
+  const next = Number(time)
+  if (!Number.isFinite(next)) return
+  element.currentTime = Math.min(Math.max(next, 0), element.duration || next)
+  watchCurrentTime.value = element.currentTime
+  const video = watchingVideo.value
+  if (video) {
+    snapshotPersistentVideo(element, getPersistentVideoMeta(video), {
+      playing: !element.paused
+    })
+  }
+  revealWatchControls()
+}
+
+function setWatchVolume(value) {
+  const element = activeVideoElement.value
+  const normalized = Math.min(1, Math.max(0, Number(value) || 0))
+  watchVolume.value = normalized
+  watchIsMuted.value = normalized === 0
+  if (normalized > 0) watchLastVolume = normalized
+  if (element) {
+    element.volume = normalized
+    element.muted = normalized === 0
+  }
+  revealWatchControls()
+}
+
+function toggleWatchMute() {
+  const element = activeVideoElement.value
+  if (!element) {
+    watchIsMuted.value = !watchIsMuted.value
+    return
+  }
+  if (element.muted || element.volume === 0) {
+    const restore = watchLastVolume > 0 ? watchLastVolume : 1
+    element.muted = false
+    element.volume = restore
+    watchIsMuted.value = false
+    watchVolume.value = restore
+  } else {
+    watchLastVolume = element.volume || watchLastVolume || 1
+    element.muted = true
+    watchIsMuted.value = true
+  }
+  syncWatchUiFromElement(element)
+  revealWatchControls()
+}
+
+function setWatchPlaybackRate(rate) {
+  const next = Number(rate) || 1
+  watchPlaybackRate.value = next
+  const element = activeVideoElement.value
+  if (element) element.playbackRate = next
+  revealWatchControls()
+}
+
+async function toggleWatchFullscreen() {
+  if (!import.meta.client) return
+  const shell = watchPlayerShellRef.value
+  if (!shell) return
+
+  try {
+    if (document.fullscreenElement === shell) {
+      await document.exitFullscreen()
+    } else if (shell.requestFullscreen) {
+      await shell.requestFullscreen()
+    }
+  } catch (error) {
+    console.warn('Fullscreen toggle failed:', error)
+  }
+  revealWatchControls()
+}
+
+function handleFullscreenChange() {
+  if (!import.meta.client) return
+  watchIsFullscreen.value = document.fullscreenElement === watchPlayerShellRef.value
+}
+
+function clearWatchUpNextTimer() {
+  if (watchUpNextTimer) {
+    clearInterval(watchUpNextTimer)
+    watchUpNextTimer = null
+  }
+}
+
+function cancelWatchUpNext() {
+  clearWatchUpNextTimer()
+  watchUpNextActive.value = false
+  watchUpNextSeconds.value = WATCH_UPNEXT_SECONDS
+  watchUpNextProgress.value = 1
+  watchControlsVisible.value = true
+}
+
+async function confirmWatchUpNext() {
+  const next = nextRelatedVideo.value
+  cancelWatchUpNext()
+  if (next) await handlePlay(next)
+}
+
+function startWatchUpNextCountdown() {
+  if (!nextRelatedVideo.value) return
+  clearWatchUpNextTimer()
+  watchUpNextActive.value = true
+  watchUpNextSeconds.value = WATCH_UPNEXT_SECONDS
+  watchUpNextProgress.value = 1
+  watchUpNextStartedAt = Date.now()
+  watchControlsVisible.value = true
+  clearWatchControlsHideTimer()
+
+  watchUpNextTimer = setInterval(() => {
+    const elapsed = (Date.now() - watchUpNextStartedAt) / 1000
+    const remaining = Math.max(0, WATCH_UPNEXT_SECONDS - elapsed)
+    watchUpNextSeconds.value = Math.ceil(remaining)
+    watchUpNextProgress.value = Math.max(0, remaining / WATCH_UPNEXT_SECONDS)
+    if (remaining <= 0) {
+      clearWatchUpNextTimer()
+      confirmWatchUpNext()
+    }
+  }, 100)
+}
+
+async function playNextRelated() {
+  const next = nextRelatedVideo.value
+  if (!next) return
+  cancelWatchUpNext()
+  await handlePlay(next)
+}
+
+async function handleWatchEnded() {
+  watchIsPlaying.value = false
+  watchControlsVisible.value = true
+  clearWatchControlsHideTimer()
+  if (nextRelatedVideo.value) {
+    startWatchUpNextCountdown()
+    return
+  }
+  cancelWatchUpNext()
+}
+
+function isTypingTarget(target) {
+  if (!target || !(target instanceof Element)) return false
+  const tag = target.tagName
+  return (
+    tag === 'INPUT' ||
+    tag === 'TEXTAREA' ||
+    tag === 'SELECT' ||
+    target.isContentEditable
+  )
+}
+
+function handleWatchKeydown(event) {
+  if (!watchingVideo.value) return
+  if (isTypingTarget(event.target)) return
+
+  const key = event.key
+  const lower = key.toLowerCase()
+
+  // Up-next overlay has priority over normal player shortcuts.
+  if (watchUpNextActive.value) {
+    if (key === 'Escape') {
+      event.preventDefault()
+      cancelWatchUpNext()
+      return
+    }
+    if (key === 'Enter' || lower === 'n' || key === ' ' || lower === 'k') {
+      event.preventDefault()
+      confirmWatchUpNext()
+      return
+    }
+  }
+
+  if (key === ' ' || lower === 'k') {
+    event.preventDefault()
+    toggleWatchPlayback()
+    return
+  }
+  if (lower === 'f') {
+    event.preventDefault()
+    toggleWatchFullscreen()
+    return
+  }
+  if (lower === 't') {
+    event.preventDefault()
+    theaterMode.value = !theaterMode.value
+    return
+  }
+  if (lower === 'm') {
+    event.preventDefault()
+    toggleWatchMute()
+    return
+  }
+  if (key === 'ArrowRight') {
+    event.preventDefault()
+    seekWatchVideo((activeVideoElement.value?.currentTime || 0) + 5)
+    return
+  }
+  if (key === 'ArrowLeft') {
+    event.preventDefault()
+    seekWatchVideo((activeVideoElement.value?.currentTime || 0) - 5)
+    return
+  }
+  if (key === 'ArrowUp') {
+    event.preventDefault()
+    setWatchVolume(Math.min(1, (watchIsMuted.value ? 0 : watchVolume.value) + 0.05))
+    return
+  }
+  if (key === 'ArrowDown') {
+    event.preventDefault()
+    setWatchVolume(Math.max(0, (watchIsMuted.value ? 0 : watchVolume.value) - 0.05))
+    return
+  }
+  if (key === 'Escape' && !watchIsFullscreen.value) {
+    // Leave watch stage only when not in browser fullscreen
+    // (fullscreen Escape is handled by the browser first).
+    event.preventDefault()
+    exitWatchStage()
+    return
+  }
+  if (lower === 'n') {
+    event.preventDefault()
+    playNextRelated()
+  }
+}
+
+async function exitWatchStage({ continuePlaying = true } = {}) {
+  const element = activeVideoElement.value
+  const video = watchingVideo.value
+  theaterMode.value = false
+  cancelWatchUpNext()
+  clearWatchControlsHideTimer()
+
+  if (import.meta.client && document.fullscreenElement === watchPlayerShellRef.value) {
+    try {
+      await document.exitFullscreen()
+    } catch {
+      // ignore
+    }
+  }
+
+  if (continuePlaying && element && video && !element.paused && getVideoSrc(video)) {
+    await takeoverPersistentVideo(element, getPersistentVideoMeta(video))
+  } else if (element && video && !element.paused) {
+    element.pause()
+    releasePersistentVideoLocal()
+  } else {
+    releasePersistentVideoLocal()
+  }
+
+  playingVideoId.value = null
+  activeVideoElement.value = null
+  watchIsPlaying.value = false
+  watchCurrentTime.value = 0
+  watchDuration.value = 0
+  watchIsFullscreen.value = false
+  watchControlsVisible.value = true
+}
+
+async function stopWatchAndClose() {
+  const element = activeVideoElement.value
+  if (element) {
+    element.pause()
+    element.currentTime = 0
+  }
+  if (import.meta.client && document.fullscreenElement === watchPlayerShellRef.value) {
+    try {
+      await document.exitFullscreen()
+    } catch {
+      // ignore
+    }
+  }
+  stopPersistentVideo()
+  theaterMode.value = false
+  cancelWatchUpNext()
+  clearWatchControlsHideTimer()
+  playingVideoId.value = null
+  activeVideoElement.value = null
+  watchIsPlaying.value = false
+  watchCurrentTime.value = 0
+  watchDuration.value = 0
+  watchIsFullscreen.value = false
+  watchControlsVisible.value = true
+}
+
+async function editFromWatch(video) {
+  await exitWatchStage({ continuePlaying: true })
+  startInlineEdit(video)
 }
 
 async function handleInlineVideoError(event, video) {
@@ -1034,7 +1787,7 @@ async function handleInlineVideoError(event, video) {
     }
     await videoEl.play().catch(() => {})
   } catch (error) {
-    console.error('敶梁?頛憭望?:', error)
+    console.error('影片載入失敗:', error)
   }
 }
 
@@ -1215,6 +1968,21 @@ const filteredVideos = computed(() => {
     video.name?.toLowerCase().includes(query)
   )
 })
+
+const relatedVideos = computed(() => {
+  const current = watchingVideo.value
+  if (!current) return []
+  const pool = filteredVideos.value.filter((video) => video.id !== current.id && video.file)
+  const sameCategory = pool.filter(
+    (video) => current.category && video.category && video.category === current.category
+  )
+  const rest = pool.filter(
+    (video) => !current.category || !video.category || video.category !== current.category
+  )
+  return [...sameCategory, ...rest]
+})
+
+const nextRelatedVideo = computed(() => relatedVideos.value[0] || null)
 
 function getVideoLayoutClass(videoId) {
   if (videoLayoutMode.value === 'card') return 'video-card--card'
@@ -1822,6 +2590,11 @@ onMounted(() => {
     await loadVideos()
     await hydratePersistedVideoCache()
   })()
+
+  if (import.meta.client) {
+    window.addEventListener('keydown', handleWatchKeydown)
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+  }
 })
 
 watch(videos, async () => {
@@ -1829,10 +2602,23 @@ watch(videos, async () => {
 })
 
 onBeforeUnmount(() => {
+  clearWatchControlsHideTimer()
+  cancelWatchUpNext()
+
+  if (import.meta.client) {
+    window.removeEventListener('keydown', handleWatchKeydown)
+    document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    if (document.fullscreenElement === watchPlayerShellRef.value) {
+      document.exitFullscreen().catch(() => {})
+    }
+  }
+
   if (activeVideoElement.value && playingVideoId.value) {
     const activeVideo = videos.value.find((video) => video.id === playingVideoId.value)
-    if (activeVideo) {
+    if (activeVideo && activeVideoElement.value && !activeVideoElement.value.paused) {
       takeoverPersistentVideo(activeVideoElement.value, getPersistentVideoMeta(activeVideo))
+    } else {
+      releasePersistentVideoLocal()
     }
   }
 
@@ -3062,5 +3848,880 @@ onBeforeUnmount(() => {
     min-height: 320px;
     max-height: 520px;
   }
+}
+
+/* ── Watch Stage ── */
+.watch-stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  animation: fadeIn 0.25s var(--ease-out-expo, ease-out);
+}
+
+.watch-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.watch-back-btn,
+.watch-theater-btn {
+  appearance: none;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: var(--text-sm, 0.875rem);
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.watch-back-btn:hover,
+.watch-theater-btn:hover {
+  background: var(--bg-muted);
+  border-color: var(--border-strong);
+}
+
+.watch-back-btn:focus-visible,
+.watch-theater-btn:focus-visible,
+.watch-action-btn:focus-visible,
+.watch-related-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.watch-theater-btn {
+  margin-left: auto;
+}
+
+.watch-theater-btn[aria-pressed='true'] {
+  background: var(--primary-muted);
+  border-color: color-mix(in oklab, var(--primary) 40%, transparent);
+  color: var(--primary);
+}
+
+.watch-hotkeys {
+  margin: 0;
+  width: 100%;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+@media (min-width: 901px) {
+  .watch-hotkeys {
+    width: auto;
+    margin-left: 0;
+  }
+}
+
+.watch-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+  gap: var(--spacing-lg);
+  align-items: start;
+}
+
+.watch-stage--theater .watch-layout {
+  grid-template-columns: 1fr;
+}
+
+.watch-primary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-width: 0;
+}
+
+.watch-player-shell {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: oklch(0.12 0.02 248);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--elevation-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.watch-player-shell.is-fullscreen {
+  aspect-ratio: auto;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  min-height: 100%;
+  border-radius: 0;
+}
+
+.watch-stage--bilibili .watch-player-shell:not(.is-fullscreen) {
+  aspect-ratio: 16 / 9;
+  min-height: clamp(280px, 48vw, 560px);
+}
+
+.watch-stage--theater .watch-player-shell:not(.is-fullscreen) {
+  max-height: min(82vh, 920px);
+  aspect-ratio: auto;
+  min-height: min(56vh, 720px);
+}
+
+.watch-player {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background: #000;
+}
+
+.watch-player-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, oklch(0.12 0.02 248) 72%, transparent);
+  color: var(--text-inverse);
+  font-weight: 600;
+  font-size: var(--text-sm, 0.875rem);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.watch-center-play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 72px;
+  height: 72px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--primary) 88%, black 12%);
+  color: var(--text-inverse);
+  font-size: 1.5rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: var(--elevation-3);
+  transition: transform var(--duration-fast) var(--ease-out-expo), opacity var(--duration-fast) var(--ease-out-expo);
+}
+
+.watch-center-play:hover {
+  transform: scale(1.06);
+}
+
+.watch-center-play:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.watch-upnext {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  padding: 1.25rem 1.15rem 1.35rem;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, oklch(0.12 0.02 248) 18%, transparent) 0%,
+      color-mix(in oklab, oklch(0.10 0.02 248) 88%, transparent) 100%
+    );
+  color: var(--text-inverse);
+  pointer-events: auto;
+}
+
+.watch-upnext-kicker {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: color-mix(in oklab, white 72%, transparent);
+}
+
+.watch-upnext-title {
+  font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.35rem);
+  font-weight: 750;
+  line-height: 1.3;
+  max-width: 36rem;
+  text-wrap: balance;
+}
+
+.watch-upnext-count {
+  margin: 0.15rem 0 0.35rem;
+  font-size: 0.9rem;
+  color: color-mix(in oklab, white 82%, transparent);
+}
+
+.watch-upnext-num {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: white;
+}
+
+.watch-upnext-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.watch-upnext-btn {
+  appearance: none;
+  border: 1px solid color-mix(in oklab, white 24%, transparent);
+  background: color-mix(in oklab, white 10%, transparent);
+  color: white;
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.95rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease;
+}
+
+.watch-upnext-btn:hover {
+  background: color-mix(in oklab, white 18%, transparent);
+}
+
+.watch-upnext-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.watch-upnext-btn--primary {
+  background: var(--primary);
+  border-color: transparent;
+}
+
+.watch-upnext-btn--primary:hover {
+  background: var(--primary-hover);
+}
+
+.watch-upnext-bar {
+  width: min(100%, 28rem);
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, white 18%, transparent);
+  overflow: hidden;
+}
+
+.watch-upnext-bar-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--primary), color-mix(in oklab, var(--primary) 60%, var(--accent)));
+  transition: transform 100ms linear;
+}
+
+.watch-stage--bilibili .watch-upnext-bar-fill {
+  background: linear-gradient(
+    90deg,
+    var(--primary),
+    color-mix(in oklab, var(--primary) 55%, var(--accent) 45%)
+  );
+}
+
+.watch-chrome {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  padding: 2.25rem 0.75rem 0.55rem;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in oklab, oklch(0.12 0.02 248) 55%, transparent) 42%,
+    color-mix(in oklab, oklch(0.10 0.02 248) 92%, transparent) 100%
+  );
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition:
+    opacity var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-fast) var(--ease-out-expo);
+}
+
+.watch-player-shell.is-controls-visible .watch-chrome,
+.watch-player-shell:focus-within .watch-chrome {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.watch-progress-block {
+  padding: 0 0.35rem 0.35rem;
+}
+
+.watch-progress {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, white 22%, transparent);
+  outline: none;
+  cursor: pointer;
+}
+
+.watch-stage--bilibili .watch-progress {
+  height: 4px;
+  background: color-mix(in oklab, white 18%, transparent);
+}
+
+.watch-progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.watch-stage--bilibili .watch-progress::-webkit-slider-thumb {
+  background: color-mix(in oklab, var(--primary) 70%, var(--accent) 30%);
+}
+
+.watch-progress::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid white;
+  cursor: pointer;
+}
+
+.watch-progress::-moz-range-track {
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, white 22%, transparent);
+}
+
+.watch-chrome-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0 0.15rem 0.15rem;
+}
+
+.watch-chrome-left,
+.watch-chrome-right {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.watch-chrome-right {
+  margin-left: auto;
+}
+
+.watch-ctrl-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease;
+}
+
+.watch-ctrl-btn:hover:not(:disabled) {
+  background: color-mix(in oklab, white 14%, transparent);
+}
+
+.watch-ctrl-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.watch-ctrl-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.watch-ctrl-btn--compact {
+  width: 32px;
+}
+
+.watch-time {
+  color: color-mix(in oklab, white 92%, transparent);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  padding: 0 0.25rem;
+  white-space: nowrap;
+}
+
+.watch-time-sep {
+  opacity: 0.55;
+  margin: 0 0.15rem;
+}
+
+.watch-volume {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  color: white;
+}
+
+.watch-volume input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 72px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, white 24%, transparent);
+  outline: none;
+  cursor: pointer;
+}
+
+.watch-volume input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+}
+
+.watch-volume input[type='range']::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+}
+
+.watch-speed select {
+  appearance: none;
+  border: 1px solid color-mix(in oklab, white 22%, transparent);
+  background: color-mix(in oklab, oklch(0.18 0.02 248) 70%, transparent);
+  color: white;
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.45rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.watch-speed select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.watch-info {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.watch-stage--bilibili .watch-info {
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'avatar copy'
+    'actions actions';
+}
+
+.watch-stage--youtube .watch-avatar {
+  display: none;
+}
+
+.watch-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, var(--primary), color-mix(in oklab, var(--primary) 55%, oklch(0.35 0.08 280)));
+  color: var(--text-inverse);
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+  grid-area: avatar;
+  align-self: start;
+}
+
+.watch-stage--bilibili .watch-info-copy {
+  grid-area: copy;
+}
+
+.watch-stage--bilibili .watch-actions {
+  grid-area: actions;
+}
+
+.watch-info-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.watch-title {
+  margin: 0;
+  font-family: var(--font-body, inherit);
+  font-size: clamp(1.15rem, 1rem + 0.6vw, 1.5rem);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+.watch-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.filetype-chip,
+.cache-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+}
+
+.cache-chip {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.watch-stats {
+  margin-top: 0.15rem;
+}
+
+.watch-desc {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm, 0.875rem);
+  line-height: 1.55;
+  max-width: 75ch;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.watch-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 0.15rem;
+}
+
+.watch-action-btn {
+  appearance: none;
+  border: 1px solid var(--border-subtle);
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.85rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, opacity 150ms ease;
+}
+
+.watch-action-btn:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.watch-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.watch-action-btn--muted {
+  background: var(--bg-muted);
+  color: var(--text-primary);
+}
+
+.watch-action-btn--muted:hover:not(:disabled) {
+  background: var(--bg-inset);
+}
+
+.watch-action-btn--danger {
+  background: var(--danger-light);
+  color: var(--danger);
+  border-color: transparent;
+  margin-left: auto;
+}
+
+.watch-action-btn--danger:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--danger) 22%, transparent);
+}
+
+.watch-related {
+  position: sticky;
+  top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-height: calc(100vh - 5rem);
+  overflow: auto;
+  padding: var(--spacing-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.watch-stage--bilibili .watch-related {
+  gap: 0.4rem;
+  padding: 0.55rem;
+}
+
+.watch-related-title {
+  margin: 0 0 0.15rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.watch-related-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  padding: 0.5rem 0.15rem;
+}
+
+.watch-related-item {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  width: 100%;
+  padding: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.watch-stage--bilibili .watch-related-item {
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 0.5rem;
+  padding: 0.3rem;
+}
+
+.watch-related-item:hover {
+  background: var(--bg-muted);
+}
+
+.watch-related-item.is-active {
+  background: var(--primary-muted);
+  border-color: color-mix(in oklab, var(--primary) 28%, transparent);
+}
+
+.watch-related-thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  background: var(--bg-inset);
+}
+
+.watch-related-thumb img,
+.watch-related-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.watch-related-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.watch-related-type {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: color-mix(in oklab, oklch(0.15 0.02 248) 72%, transparent);
+  color: var(--text-inverse);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.watch-related-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-top: 0.1rem;
+}
+
+.watch-related-copy strong {
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.watch-stage--bilibili .watch-related-copy strong {
+  -webkit-line-clamp: 2;
+  font-size: 0.8125rem;
+}
+
+.watch-related-copy span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.watch-stage--bilibili .watch-related-item:hover .watch-related-copy strong {
+  color: var(--primary);
+}
+
+@media (max-width: 1100px) {
+  .watch-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+  }
+}
+
+@media (max-width: 900px) {
+  .watch-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .watch-related {
+    position: static;
+    max-height: none;
+  }
+
+  .watch-related-item {
+    grid-template-columns: 132px minmax(0, 1fr);
+  }
+
+  .watch-theater-btn {
+    margin-left: 0;
+  }
+
+  .watch-toolbar {
+    gap: 0.5rem;
+  }
+
+  .watch-action-btn--danger {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .watch-related-item {
+    grid-template-columns: 108px minmax(0, 1fr);
+  }
+
+  .watch-info {
+    padding: var(--spacing-sm);
+  }
+
+  .watch-player-shell {
+    border-radius: var(--radius-sm);
+  }
+
+  .watch-volume input[type='range'] {
+    width: 52px;
+  }
+
+  .watch-center-play {
+    width: 60px;
+    height: 60px;
+    font-size: 1.25rem;
+  }
+
+  .watch-chrome {
+    padding-top: 1.5rem;
+  }
+
+  .watch-time {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .watch-volume input[type='range'] {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .watch-stage {
+    animation: none;
+  }
+
+  .watch-chrome,
+  .watch-center-play {
+    transition: none;
+  }
+}
+
+:global(.dark) .watch-player-shell {
+  box-shadow: var(--elevation-2);
+}
+
+:global(.dark) .watch-related-item:hover {
+  background: var(--bg-muted);
 }
 </style>

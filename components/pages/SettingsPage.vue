@@ -19,7 +19,9 @@
                   <span class="account-badge" v-if="acc.id === activeAccountId">當前</span>
                   <span class="account-title">supabase-{{ acc.friendlyName || 'unnamed' }}</span>
                   <span class="account-url">{{ acc.supabaseUrl ? acc.supabaseUrl.replace('https://', '').replace('.supabase.co', '') : '未設定' }}</span>
-                  <span v-if="acc.bucket" class="account-bucket">📦 {{ acc.bucket }}</span>
+                  <span v-if="acc.bucket || acc.friendlyName" class="account-bucket">
+                    📦 {{ acc.bucket || acc.friendlyName }}
+                  </span>
                 </div>
                 <div class="account-card-actions">
                   <button 
@@ -42,16 +44,16 @@
           </div>
           <div class="section-body">
             <div class="form-row">
-              <label for="friendlyName">友善使用者名稱</label>
+              <label for="friendlyName">友善使用者名稱（帳號名）</label>
               <div class="form-field">
                 <input
                   id="friendlyName"
                   v-model="friendlyName"
                   type="text"
                   class="form-input"
-                  placeholder="請輸入您的名稱"
+                  placeholder="例如 goldshoot0720、abuhg17"
                 >
-                <span class="form-hint">此名稱將顯示於系統介面中</span>
+                <span class="form-hint">顯示名稱；通常也當作 Storage bucket 名稱</span>
               </div>
             </div>
             <div class="form-row">
@@ -88,9 +90,12 @@
                   v-model="bucketName"
                   type="text"
                   class="form-input"
-                  placeholder="uploads"
+                  :placeholder="bucketPlaceholder"
                 >
-                <span class="form-hint">Storage Bucket 名稱（預設 uploads）</span>
+                <span class="form-hint">
+                  Storage bucket 名稱。本專案慣例為<strong>帳號名</strong>（如 goldshoot0720、abuhg17）。
+                  留空時：帳號名 → Netlify 環境變數（`SUPABASE_BUCKET` / `NUXT_PUBLIC_SUPABASE_BUCKET`）→ 最後才是 `uploads`。
+                </span>
               </div>
             </div>
           </div>
@@ -570,7 +575,7 @@ CREATE POLICY "Allow public delete" ON storage.objects
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
-import { useSettings } from '../../composables/useSettings'
+import { useSettings, resolveSupabaseBucket } from '../../composables/useSettings'
 import { useNotifications } from '../../composables/useNotifications'
 import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
 import packageJson from '../../package.json'
@@ -701,7 +706,13 @@ const loadAccountToForm = (acc) => {
   friendlyName.value = acc.friendlyName
   supabaseUrl.value = acc.supabaseUrl
   supabaseAnonKey.value = acc.supabaseAnonKey
-  bucketName.value = acc.bucket || ''
+  // 舊帳號若誤存 "uploads" 但帳號名不同，表單預填帳號名
+  const savedBucket = String(acc.bucket || '').trim()
+  const name = String(acc.friendlyName || '').trim()
+  bucketName.value =
+    savedBucket && !(savedBucket === 'uploads' && name && name !== 'uploads')
+      ? savedBucket
+      : (name || savedBucket)
   syncResendPairsFromAccount(acc)
   resendFromEmail.value = acc.resendFromEmail || 'FengBro AI <onboarding@resend.dev>'
 }
@@ -811,7 +822,18 @@ const connectionStatus = ref('') // 連線狀態訊息
 const bucketExists = ref(false)
 const bucketChecking = ref(false)
 const showBucketHelp = ref(false)
-const currentBucketName = computed(() => bucketName.value || useRuntimeConfig().public.supabaseBucket || 'uploads')
+const currentBucketName = computed(() => {
+  const fromForm = String(bucketName.value || '').trim()
+  if (fromForm) return fromForm
+  const fromName = String(friendlyName.value || '').trim()
+  if (fromName) return fromName
+  return resolveSupabaseBucket()
+})
+
+const bucketPlaceholder = computed(() => {
+  const name = String(friendlyName.value || '').trim()
+  return name || '帳號名，例如 goldshoot0720'
+})
 const systemVersion = computed(() => `v${packageJson.version || '未設定'}`)
 const nuxtVersion = computed(() => packageJson.dependencies?.nuxt || '未設定')
 const vueVersion = computed(() => packageJson.dependencies?.vue || '未設定')
@@ -1169,7 +1191,7 @@ const checkAllTables = async () => {
     
     // 檢查 Storage Bucket（透過列出檔案來偵測，避免 anon key 無權讀取 buckets 表）
     bucketChecking.value = true
-    const bkt = bucketName.value || useRuntimeConfig().public.supabaseBucket || 'uploads'
+    const bkt = String(bucketName.value || '').trim() || resolveSupabaseBucket()
     try {
       const bucketRes = await fetch(
         `${url}/storage/v1/object/list/${bkt}`,
@@ -1561,12 +1583,13 @@ const handleSave = () => {
   }
 
   if (editingAccountId.value) {
-    // 更新現有帳號
+    // 更新現有帳號；bucket 空白時用帳號名（慣例 goldshoot0720 / abuhg17），勿硬寫 uploads
+    const name = String(friendlyName.value || '').trim()
     updateAccount(editingAccountId.value, {
-      friendlyName: friendlyName.value,
+      friendlyName: name,
       supabaseUrl: supabaseUrl.value,
       supabaseAnonKey: supabaseAnonKey.value,
-      bucket: bucketName.value || 'uploads',
+      bucket: String(bucketName.value || '').trim() || name,
       ...currentResendPayload(),
       resendFromEmail: resendFromEmail.value || 'FengBro AI <onboarding@resend.dev>'
     })

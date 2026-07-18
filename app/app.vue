@@ -251,50 +251,86 @@
       </div>
     </div>
 
-    <div v-if="persistentVideoTrack" class="persistent-video-bar">
-      <video class="persistent-video-preview" :src="persistentVideoTrack.src" autoplay muted playsinline></video>
+    <div
+      v-if="showPersistentVideoPlayer && persistentVideoTrack"
+      class="persistent-video-bar"
+      role="region"
+      aria-label="影片迷你播放器"
+    >
+      <div class="persistent-video-thumb">
+        <video
+          class="persistent-video-preview"
+          :src="persistentVideoTrack.src"
+          autoplay
+          muted
+          playsinline
+          loop
+        ></video>
+        <button
+          type="button"
+          class="persistent-video-thumb-play"
+          :aria-label="persistentVideoPlaying ? '暫停' : '播放'"
+          @click="persistentVideoPlaying ? pausePersistentVideo() : resumePersistentVideo()"
+        >
+          {{ persistentVideoPlaying ? '❚❚' : '▶' }}
+        </button>
+      </div>
 
-      <div class="persistent-video-copy">
-        <p class="persistent-audio-kicker">Now Watching</p>
-        <strong>{{ persistentVideoTrack.name }}</strong>
-        <span>{{ persistentVideoTrack.meta || '鋒兄影片' }}</span>
+      <div class="persistent-video-main">
+        <div class="persistent-video-copy">
+          <p class="persistent-video-kicker">正在觀看</p>
+          <strong>{{ persistentVideoTrack.name }}</strong>
+          <span>{{ persistentVideoTrack.meta || '鋒兄影片' }}</span>
+        </div>
+
+        <div class="persistent-video-progress-row">
+          <span class="persistent-video-time">{{ formatAudioTime(persistentVideoTime) }}</span>
+          <input
+            class="persistent-video-progress"
+            type="range"
+            min="0"
+            :max="Math.max(persistentVideoDuration, 1)"
+            step="0.1"
+            :value="persistentVideoTime"
+            :aria-valuetext="`${formatAudioTime(persistentVideoTime)} / ${formatAudioTime(persistentVideoDuration)}`"
+            aria-label="播放進度"
+            @input="seekPersistentVideo($event.target.value)"
+          />
+          <span class="persistent-video-time">{{ formatAudioTime(persistentVideoDuration) }}</span>
+        </div>
       </div>
 
       <div class="persistent-video-controls">
         <button
           type="button"
-          class="persistent-audio-btn"
+          class="persistent-video-btn"
+          :aria-label="persistentVideoPlaying ? '暫停' : '播放'"
           @click="persistentVideoPlaying ? pausePersistentVideo() : resumePersistentVideo()"
         >
-          {{ persistentVideoPlaying ? 'Pause' : 'Play' }}
+          {{ persistentVideoPlaying ? '❚❚' : '▶' }}
         </button>
 
-        <label class="persistent-audio-range">
-          <span>{{ formatAudioTime(persistentVideoTime) }}</span>
-          <input
-            type="range"
-            min="0"
-            :max="Math.max(persistentVideoDuration, 1)"
-            :value="persistentVideoTime"
-            @input="seekPersistentVideo($event.target.value)"
-          />
-          <span>{{ formatAudioTime(persistentVideoDuration) }}</span>
-        </label>
-
-        <label class="persistent-audio-volume">
-          <span>Vol</span>
+        <label class="persistent-video-volume" title="音量">
+          <span class="sr-only">音量</span>
+          <span aria-hidden="true">{{ persistentVideoVolume === 0 ? '🔇' : persistentVideoVolume < 0.45 ? '🔉' : '🔊' }}</span>
           <input
             type="range"
             min="0"
             max="1"
             step="0.01"
             :value="persistentVideoVolume"
+            aria-label="音量"
             @input="setPersistentVideoVolume($event.target.value)"
           />
         </label>
 
-        <button type="button" class="persistent-audio-btn persistent-audio-btn-close" @click="stopPersistentVideo()">
-          Close
+        <button
+          type="button"
+          class="persistent-video-btn persistent-video-btn-close"
+          aria-label="關閉迷你播放器"
+          @click="stopPersistentVideo()"
+        >
+          ✕
         </button>
       </div>
     </div>
@@ -400,6 +436,7 @@ const {
   currentTime: persistentVideoTime,
   duration: persistentVideoDuration,
   volume: persistentVideoVolume,
+  showPersistentPlayer: showPersistentVideoPlayer,
   resumeGlobal: resumePersistentVideo,
   pauseGlobal: pausePersistentVideo,
   stopGlobal: stopPersistentVideo,
@@ -674,12 +711,11 @@ watch(currentPage, async () => {
   .persistent-audio-bar {
     grid-template-columns: 1fr;
   }
-  .persistent-audio-controls,
-  .persistent-video-controls {
+  .persistent-audio-controls {
     flex-wrap: wrap;
   }
   .persistent-video-bar {
-    grid-template-columns: 140px 1fr;
+    grid-template-columns: 120px minmax(0, 1fr) auto;
     bottom: 8rem;
   }
 }
@@ -759,8 +795,7 @@ watch(currentPage, async () => {
     padding: 0.75rem 0.8rem;
   }
 
-  .persistent-audio-controls,
-  .persistent-video-controls {
+  .persistent-audio-controls {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
@@ -781,14 +816,32 @@ watch(currentPage, async () => {
 
   .persistent-video-bar {
     bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px));
-    grid-template-columns: 1fr;
-    gap: 0.7rem;
-    padding: 0.75rem 0.8rem;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 0.65rem 0.75rem;
+    padding: 0.7rem 0.75rem;
   }
 
-  .persistent-video-preview {
-    max-height: 120px;
-    border-radius: 12px;
+  .persistent-video-main {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .persistent-video-thumb {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .persistent-video-controls {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .persistent-video-thumb-play {
+    opacity: 1;
+  }
+
+  .persistent-video-volume input[type='range'] {
+    width: 64px;
   }
 
   .birthday-easter-egg {
@@ -941,30 +994,84 @@ watch(currentPage, async () => {
   left: 50%;
   bottom: 7.25rem;
   transform: translateX(-50%);
-  width: min(1120px, calc(100vw - 2rem));
+  width: min(960px, calc(100vw - 2rem));
   display: grid;
-  grid-template-columns: 180px minmax(180px, 240px) 1fr;
-  gap: 1rem;
+  grid-template-columns: 148px minmax(0, 1fr) auto;
+  gap: 0.85rem 1rem;
   align-items: center;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 24px;
-  background: color-mix(in oklab, var(--bg-secondary) 90%, transparent);
-  backdrop-filter: blur(18px);
-  box-shadow: var(--shadow);
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--bg-surface) 92%, transparent);
+  backdrop-filter: blur(18px) saturate(1.05);
+  -webkit-backdrop-filter: blur(18px) saturate(1.05);
+  box-shadow: var(--elevation-3);
   z-index: calc(var(--z-fixed) + 1);
+}
+
+.persistent-video-thumb {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: oklch(0.12 0.02 248);
+  aspect-ratio: 16 / 9;
 }
 
 .persistent-video-preview {
   width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 16px;
+  height: 100%;
+  display: block;
   object-fit: cover;
   background: #000;
 }
 
+.persistent-video-thumb-play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--primary) 88%, black 12%);
+  color: var(--text-inverse);
+  font-size: 0.85rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out-expo);
+}
+
+.persistent-video-thumb:hover .persistent-video-thumb-play,
+.persistent-video-thumb:focus-within .persistent-video-thumb-play {
+  opacity: 1;
+}
+
+.persistent-video-thumb-play:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.persistent-video-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
 .persistent-video-copy {
   min-width: 0;
+}
+
+.persistent-video-kicker {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  letter-spacing: 0.02em;
 }
 
 .persistent-video-copy strong,
@@ -973,9 +1080,11 @@ watch(currentPage, async () => {
 }
 
 .persistent-video-copy strong {
-  margin-top: 0.18rem;
-  font-family: var(--font-display);
-  font-size: 1rem;
+  margin-top: 0.1rem;
+  font-family: var(--font-body);
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -983,14 +1092,154 @@ watch(currentPage, async () => {
 
 .persistent-video-copy span {
   color: var(--text-secondary);
-  font-size: 0.88rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.persistent-video-progress-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.persistent-video-time {
+  font-size: 0.72rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.persistent-video-progress {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--bg-inset);
+  outline: none;
+  cursor: pointer;
+}
+
+.persistent-video-progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--bg-surface);
+  box-shadow: var(--elevation-1);
+  cursor: pointer;
+}
+
+.persistent-video-progress::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--bg-surface);
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
 }
 
 .persistent-video-controls {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.45rem;
   min-width: 0;
+}
+
+.persistent-video-btn {
+  appearance: none;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-muted);
+  color: var(--text-primary);
+  min-width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+
+.persistent-video-btn:hover {
+  background: var(--bg-inset);
+  border-color: var(--border-strong);
+}
+
+.persistent-video-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.persistent-video-btn-close {
+  background: var(--danger-light);
+  color: var(--danger);
+  border-color: transparent;
+}
+
+.persistent-video-btn-close:hover {
+  background: color-mix(in oklab, var(--danger) 22%, transparent);
+}
+
+.persistent-video-volume {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.persistent-video-volume input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 72px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--bg-inset);
+  outline: none;
+  cursor: pointer;
+}
+
+.persistent-video-volume input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+}
+
+.persistent-video-volume input[type='range']::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .birthday-easter-egg {
@@ -1186,9 +1435,27 @@ watch(currentPage, async () => {
 
 @media (max-width: 480px) {
   .scroll-btn { width: 40px; height: 40px; font-size: 1rem; }
-  .persistent-audio-controls,
-  .persistent-video-controls {
+  .persistent-audio-controls {
     grid-template-columns: 1fr;
+  }
+
+  .persistent-video-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .persistent-video-thumb,
+  .persistent-video-main,
+  .persistent-video-controls {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .persistent-video-thumb {
+    max-width: 180px;
+  }
+
+  .persistent-video-volume input[type='range'] {
+    width: 56px;
   }
 }
 </style>

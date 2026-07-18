@@ -43,6 +43,8 @@ cp .env.example .env
 SUPABASE_URL=你的_supabase_項目_url
 SUPABASE_ANON_KEY=你的_supabase_匿名_key
 SUPABASE_BUCKET=uploads
+# Netlify 建議同步設定（runtime 覆寫 public config）
+NUXT_PUBLIC_SUPABASE_BUCKET=uploads
 ```
 
 選用（推播 / Email / Blobs）：
@@ -56,6 +58,8 @@ RESEND_API_KEY=...
 NETLIFY_SITE_ID=...
 NETLIFY_AUTH_TOKEN=...
 ```
+
+Storage bucket 解析順序：設定頁明確的 `SUPABASE_BUCKET` → **帳號友善名稱**（慣例與 bucket 同名，如 `goldshoot0720`、`abuhg17`）→ 環境變數 → 預設 `uploads`。
 
 ### 3. 資料庫
 

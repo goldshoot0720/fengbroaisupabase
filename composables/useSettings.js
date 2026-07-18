@@ -169,12 +169,56 @@ export function getSupabaseCredentials() {
   return null
 }
 
+/** Trim bucket / account name; empty string → null */
+export function normalizeBucketName(value) {
+  const name = String(value ?? '').trim()
+  return name || null
+}
+
+/**
+ * Explicit bucket from active settings account only (not friendlyName, not env).
+ * Empty → null so resolveSupabaseBucket can apply account-name convention + env.
+ */
 export function getSupabaseBucket() {
   loadAccountsFromStorage()
   const acc = accounts.value.find(a => a.id === activeAccountId.value)
-  if (acc?.bucket) return acc.bucket
-  if (acc) return 'uploads'
-  return null
+  return normalizeBucketName(acc?.bucket)
+}
+
+/**
+ * Resolve Storage bucket.
+ * Convention in this product: bucket is usually the account friendly name
+ * (e.g. goldshoot0720, abuhg17), not a generic "uploads".
+ *
+ * Order:
+ * 1. settings account.bucket (explicit; see legacy note below)
+ * 2. settings account.friendlyName (same as account name / 帳號名)
+ * 3. Nuxt public runtimeConfig (Netlify SUPABASE_BUCKET / NUXT_PUBLIC_SUPABASE_BUCKET)
+ * 4. legacy default "uploads"
+ *
+ * Legacy: older UI saved empty bucket as the literal string "uploads".
+ * When friendlyName is a real account id, prefer that over a stale "uploads".
+ */
+export function resolveSupabaseBucket() {
+  loadAccountsFromStorage()
+  const acc = accounts.value.find(a => a.id === activeAccountId.value)
+
+  const explicit = normalizeBucketName(acc?.bucket)
+  const fromAccountName = normalizeBucketName(acc?.friendlyName)
+  const explicitIsStaleUploads =
+    explicit === 'uploads' && fromAccountName && fromAccountName !== 'uploads'
+
+  if (explicit && !explicitIsStaleUploads) return explicit
+  if (fromAccountName) return fromAccountName
+
+  try {
+    const config = useRuntimeConfig()
+    const fromEnv = normalizeBucketName(config.public?.supabaseBucket)
+    if (fromEnv) return fromEnv
+  } catch {
+    // outside Nuxt context
+  }
+  return 'uploads'
 }
 
 export function getResendNotificationSettings() {
@@ -255,12 +299,15 @@ export function useSettings() {
   }
 
   const addAccount = (account) => {
+    const name = String(account.friendlyName || '').trim()
+    // Convention: bucket name is usually the account name when not set explicitly
+    const bucketValue = String(account.bucket || '').trim() || name
     const newAccount = {
       id: generateId(),
-      friendlyName: account.friendlyName || '',
+      friendlyName: name,
       supabaseUrl: account.supabaseUrl || '',
       supabaseAnonKey: account.supabaseAnonKey || '',
-      bucket: account.bucket || '',
+      bucket: bucketValue,
       ...buildResendPayload(account)
     }
     accounts.value.push(newAccount)
@@ -274,7 +321,12 @@ export function useSettings() {
   const updateAccount = (id, updates) => {
     const index = accounts.value.findIndex(acc => acc.id === id)
     if (index !== -1) {
-      accounts.value[index] = { ...accounts.value[index], ...updates }
+      const next = { ...accounts.value[index], ...updates }
+      const name = String(next.friendlyName || '').trim()
+      const bucketValue = String(next.bucket || '').trim() || name
+      next.friendlyName = name
+      next.bucket = bucketValue
+      accounts.value[index] = next
       saveAccounts()
       return { success: true }
     }
@@ -312,7 +364,8 @@ export function useSettings() {
     const name = tempFriendlyName.value.trim()
     const url = tempSupabaseUrl.value.trim()
     const key = tempSupabaseAnonKey.value.trim()
-    const bkt = tempBucket.value.trim()
+    // Empty bucket → account name (product convention: goldshoot0720 / abuhg17)
+    const bkt = tempBucket.value.trim() || name
     const resendPayload = currentResendPayload()
     const hasResendPair = Object.entries(resendPayload).some(([keyName, value]) =>
       (keyName.startsWith('resendApiKey') || keyName.startsWith('resendToEmail')) && value

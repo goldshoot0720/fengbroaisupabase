@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { getSupabaseBucket } from './useSettings'
+import { resolveSupabaseBucket } from './useSettings'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 import { STORAGE_UPLOAD_LIMIT_BYTES, formatBytes, useStorageUsage } from './useStorageUsage'
 
@@ -10,17 +10,8 @@ const MULTIPART_ARTICLE_CHUNK_SIZE = 25 * 1024 * 1024
 const MULTIPART_MANIFEST_SUFFIX = '.manifest.json'
 const MULTIPART_REFERENCE_PREFIX = 'supabase-multipart://'
 
-// 取得 bucket 名稱：localStorage 帳號 → .env → 預設 'uploads'
-const getBucket = () => {
-  const fromSettings = getSupabaseBucket()
-  if (fromSettings) return fromSettings
-  try {
-    const config = useRuntimeConfig()
-    return config.public.supabaseBucket || 'uploads'
-  } catch {
-    return 'uploads'
-  }
-}
+// 取得 bucket：明確 bucket → 帳號名（goldshoot0720 等）→ env → 預設 uploads
+const getBucket = () => resolveSupabaseBucket()
 
 const multipartManifestCache = new Map()
 
@@ -450,7 +441,7 @@ export const useStorage = () => {
       const bucketName = getBucket()
       let msg = e?.message || String(e)
       if (msg.includes('Bucket')) {
-        msg = `Bucket "${bucketName}" not found。請在 Supabase 建立此 bucket，或到設定頁設定正確的 SUPABASE_BUCKET。`
+        msg = `Bucket "${bucketName}" not found。本專案 bucket 通常等於帳號名（如 goldshoot0720）。請到設定頁確認帳號名／SUPABASE_BUCKET，並在 Supabase Storage 建立同名 public bucket；或設定 Netlify 的 SUPABASE_BUCKET / NUXT_PUBLIC_SUPABASE_BUCKET 後重新部署。`
       } else if (isNetworkUploadError(e)) {
         msg = `網路上傳失敗（${msg}）。若為 PWA，請重新整理以更新 Service Worker；影片仍可本機下載。`
       }

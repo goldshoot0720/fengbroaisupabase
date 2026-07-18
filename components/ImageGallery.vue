@@ -287,7 +287,7 @@ onUnmounted(() => {
 }
 
 .gallery-grid--grid {
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 
 .gallery-grid--list {
@@ -314,20 +314,30 @@ onUnmounted(() => {
 }
 
 .thumb-wrap {
-  background: #f1f5f9;
+  background:
+    linear-gradient(45deg, color-mix(in oklab, var(--border-color, #e2e8f0) 55%, transparent) 25%, transparent 25%),
+    linear-gradient(-45deg, color-mix(in oklab, var(--border-color, #e2e8f0) 55%, transparent) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, color-mix(in oklab, var(--border-color, #e2e8f0) 55%, transparent) 75%),
+    linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--border-color, #e2e8f0) 55%, transparent) 75%);
+  background-size: 14px 14px;
+  background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+  background-color: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary, #fff) 12%);
   aspect-ratio: 4 / 3;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .gallery-grid--list .thumb-wrap {
   aspect-ratio: auto;
-  min-height: 120px;
+  min-height: 140px;
 }
 
 .thumb {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 

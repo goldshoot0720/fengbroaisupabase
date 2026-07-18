@@ -163,9 +163,27 @@
               </span>
             </div>
             <div v-if="addSelectedFiles.length > 0" class="inline-selected-files">
-              <span v-for="file in addSelectedFiles" :key="file.name + file.size" class="selected-file-chip">
-                {{ file.name }} · {{ formatBytes(file.size) }}
-              </span>
+              <article
+                v-for="(item, index) in addSelectedPreviews"
+                :key="item.key"
+                class="selected-file-card"
+              >
+                <div class="selected-file-thumb">
+                  <img :src="item.previewUrl" :alt="item.file.name" class="selected-file-img" />
+                </div>
+                <div class="selected-file-meta">
+                  <span class="selected-file-name" :title="item.file.name">{{ item.file.name }}</span>
+                  <span class="selected-file-size">{{ formatBytes(item.file.size) }}</span>
+                </div>
+                <button
+                  type="button"
+                  class="btn-inline-remove selected-file-remove"
+                  title="移除此圖"
+                  @click="removeAddSelectedFile(index)"
+                >
+                  ✕
+                </button>
+              </article>
             </div>
             <div v-else-if="addForm.file" class="inline-img-preview-wrap">
               <img :src="resolveMediaUrl(addForm.file)" class="inline-img-preview" alt="預覽" />
@@ -462,7 +480,7 @@ import { ref, onMounted, onUnmounted, reactive, computed } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import { useImages } from '../../composables/useImages'
 import { useStorage } from '../../composables/useStorage'
-import { getSupabaseBucket } from '../../composables/useSettings'
+import { resolveSupabaseBucket } from '../../composables/useSettings'
 import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
 import { useSelectionSet } from '../../composables/useSelectionSet'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
@@ -683,16 +701,7 @@ const {
 const coverUploading = ref(false)
 const coverUploadProgress = ref(0)
 
-const getBucketName = () => {
-  const fromSettings = getSupabaseBucket()
-  if (fromSettings) return fromSettings
-  try {
-    const config = useRuntimeConfig()
-    return config.public.supabaseBucket || 'uploads'
-  } catch {
-    return 'uploads'
-  }
-}
+const getBucketName = () => resolveSupabaseBucket()
 
 const formatBytes = (bytes = 0) => {
   const amount = Number(bytes)
@@ -795,6 +804,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  revokeAddSelectedPreviewUrls()
   if (import.meta.client) {
     window.removeEventListener('keydown', handleLightboxKeydown)
     document.body.style.overflow = ''
@@ -863,6 +873,51 @@ const isAddingInline = ref(false)
 const addForm = reactive({ name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
 const addUploading = ref(false)
 const addSelectedFiles = ref([])
+const addSelectedPreviewUrls = ref([])
+
+const revokeAddSelectedPreviewUrls = () => {
+  for (const url of addSelectedPreviewUrls.value) {
+    if (url) URL.revokeObjectURL(url)
+  }
+  addSelectedPreviewUrls.value = []
+}
+
+const setAddSelectedFiles = (files = []) => {
+  revokeAddSelectedPreviewUrls()
+  addSelectedFiles.value = files
+  addSelectedPreviewUrls.value = files.map((file) => {
+    try {
+      return URL.createObjectURL(file)
+    } catch {
+      return ''
+    }
+  })
+}
+
+const addSelectedPreviews = computed(() =>
+  addSelectedFiles.value.map((file, index) => ({
+    file,
+    previewUrl: addSelectedPreviewUrls.value[index] || '',
+    key: `${file.name}-${file.size}-${file.lastModified || index}`
+  }))
+)
+
+const removeAddSelectedFile = (index) => {
+  const nextFiles = [...addSelectedFiles.value]
+  const nextUrls = [...addSelectedPreviewUrls.value]
+  const [removedUrl] = nextUrls.splice(index, 1)
+  nextFiles.splice(index, 1)
+  if (removedUrl) URL.revokeObjectURL(removedUrl)
+  addSelectedFiles.value = nextFiles
+  addSelectedPreviewUrls.value = nextUrls
+  if (nextFiles.length === 1) {
+    if (!addForm.name) addForm.name = getFileBaseName(nextFiles[0].name)
+    if (!addForm.filetype) addForm.filetype = getFileExtension(nextFiles[0].name)
+  } else if (nextFiles.length === 0) {
+    addForm.name = ''
+    addForm.filetype = ''
+  }
+}
 
 // 行內編輯
 const editingId = ref(null)
@@ -938,7 +993,7 @@ const uploadGalleryFileWithStatus = async (file, folder, index = 1, total = 1, s
 
 const resetAddForm = () => {
   Object.assign(addForm, { name: '', file: '', filetype: '', note: '', ref: '', category: '', hash: '', cover: '' })
-  addSelectedFiles.value = []
+  setAddSelectedFiles([])
 }
 
 const openInlineAdd = () => {
@@ -951,13 +1006,13 @@ const cancelInlineAdd = () => {
 }
 
 const clearAddSelectedFiles = () => {
-  addSelectedFiles.value = []
+  setAddSelectedFiles([])
 }
 
 const handleAddImageUpload = (event) => {
   const files = Array.from(event.target.files || [])
   if (files.length === 0) return
-  addSelectedFiles.value = files
+  setAddSelectedFiles(files)
   addForm.file = ''
   if (files.length === 1) {
     if (!addForm.name) addForm.name = getFileBaseName(files[0].name)
@@ -1631,11 +1686,18 @@ useHead({
 
 .lightbox-image {
   max-width: 100%;
-  max-height: min(72vh, 820px);
+  max-height: min(82vh, 960px);
   object-fit: contain;
   border-radius: 12px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-  background: #0f172a;
+  background:
+    linear-gradient(45deg, rgba(148, 163, 184, 0.2) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(148, 163, 184, 0.2) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(148, 163, 184, 0.2) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(148, 163, 184, 0.2) 75%);
+  background-size: 18px 18px;
+  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+  background-color: #0f172a;
 }
 
 .lightbox-meta {
@@ -1806,7 +1868,7 @@ useHead({
 }
 
 .images-container--card {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 
 .images-container--list {
@@ -1845,13 +1907,22 @@ useHead({
 }
 
 .image-card--card .card-image-wrapper {
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 4 / 3;
+  min-height: 200px;
+  background:
+    linear-gradient(45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
+    linear-gradient(-45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%),
+    linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-color: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
 }
 
 .image-card--card .card-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .images-container--hybrid .image-card--card {
@@ -1881,14 +1952,19 @@ useHead({
   grid-row: 1 / span 4;
   margin-top: 0;
   width: 100%;
-  max-width: 240px;
+  max-width: 280px;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .image-card--list .card-image {
   aspect-ratio: 4 / 3;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
 }
 
 .image-header {
@@ -1937,7 +2013,7 @@ useHead({
 .image-name {
   font-size: 1.3rem;
   font-weight: 700;
-  color: #333;
+  color: var(--text-primary, #1f2937);
   margin: 0 0 0.75rem 0;
   line-height: 1.4;
   overflow: hidden;
@@ -1956,14 +2032,14 @@ useHead({
 
 .detail-label {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--text-secondary, #666);
   font-weight: 500;
   display: block;
   margin-bottom: 0.25rem;
 }
 
 .detail-value {
-  color: #333;
+  color: var(--text-primary, #1f2937);
   font-size: 0.95rem;
   line-height: 1.5;
   margin: 0;
@@ -1974,14 +2050,14 @@ useHead({
   margin-bottom: 0.75rem;
   border-radius: 8px;
   overflow: hidden;
-  background: #f8fafc;
+  background: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
 }
 
 .card-image {
   width: 100%;
   height: auto;
   max-height: none;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
   border-radius: 8px;
   cursor: pointer;
@@ -2276,15 +2352,19 @@ useHead({
   gap: 1rem;
   margin: 0.75rem 0;
   padding: 0.75rem;
-  background: #f8f9fa;
+  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
 }
 
 .preview-image {
-  max-width: 150px;
-  max-height: 100px;
+  max-width: min(100%, 320px);
+  max-height: 240px;
+  width: auto;
+  height: auto;
   border-radius: 6px;
-  object-fit: cover;
+  object-fit: contain;
+  background: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -2418,37 +2498,101 @@ useHead({
 }
 
 .inline-selected-files {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.25rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
-.selected-file-chip {
-  display: inline-flex;
+.selected-file-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--bg-secondary) 94%, transparent);
+  min-width: 0;
+}
+
+.selected-file-thumb {
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  background:
+    linear-gradient(45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
+    linear-gradient(-45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%),
+    linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%);
+  background-size: 14px 14px;
+  background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+  background-color: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
+  display: flex;
   align-items: center;
-  max-width: 100%;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  background: #eef6ff;
-  color: #245b99;
-  font-size: 0.78rem;
-  line-height: 1.3;
-  word-break: break-all;
+  justify-content: center;
+}
+
+.selected-file-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.selected-file-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  padding-right: 1.5rem;
+}
+
+.selected-file-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-file-size {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #64748b);
+}
+
+.selected-file-remove {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  background: color-mix(in oklab, var(--bg-secondary) 88%, transparent);
 }
 
 .inline-img-preview-wrap {
   width: 100%;
-  border-radius: 6px;
+  border-radius: 10px;
   overflow: hidden;
-  background: #f8f9fa;
-  margin-bottom: 0.25rem;
+  background:
+    linear-gradient(45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
+    linear-gradient(-45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%),
+    linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-color: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
+  margin-bottom: 0.35rem;
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
 }
 
 .inline-img-preview {
   width: 100%;
-  max-height: 160px;
-  object-fit: cover;
+  max-height: min(48vh, 360px);
+  object-fit: contain;
   display: block;
   border-radius: 6px;
 }
@@ -2456,11 +2600,10 @@ useHead({
 .btn-icon.save:hover {
   background: #ecfdf5;
 }
-</style>
 
 @media (max-width: 960px) {
   .images-container--card {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   }
 
   .images-container--hybrid {
@@ -2476,6 +2619,14 @@ useHead({
 @media (max-width: 720px) {
   .images-container--card {
     grid-template-columns: 1fr;
+  }
+
+  .selected-file-thumb {
+    min-height: 140px;
+  }
+
+  .inline-img-preview {
+    max-height: min(42vh, 280px);
   }
 
   .summary-right,
@@ -2506,3 +2657,4 @@ useHead({
     grid-row: auto;
   }
 }
+</style>

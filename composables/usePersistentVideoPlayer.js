@@ -1,12 +1,26 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const currentVideo = ref(null)
 const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const volume = ref(1)
+/** True while a page-local <video> owns playback (hide floating bar). */
+const isLocalBound = ref(false)
 
 let video = null
+let activeElement = null
+
+const isUsableElement = (element) => {
+  return Boolean(element && element.isConnected && typeof element.play === 'function')
+}
+
+const getPlaybackElement = () => {
+  if (isUsableElement(activeElement)) return activeElement
+  activeElement = null
+  isLocalBound.value = false
+  return ensureVideo()
+}
 
 const ensureVideo = () => {
   if (!import.meta.client) return null
@@ -46,6 +60,9 @@ const ensureVideo = () => {
 const getSnapshot = (element, track, options = {}) => {
   if (!element || !track) return
 
+  activeElement = element
+  isLocalBound.value = true
+
   currentVideo.value = {
     id: track.id,
     name: track.name || '未命名影片',
@@ -64,14 +81,17 @@ const getSnapshot = (element, track, options = {}) => {
 }
 
 const pauseGlobal = () => {
-  const instance = ensureVideo()
+  const instance = getPlaybackElement()
   if (!instance) return
   instance.pause()
 }
 
 const resumeGlobal = async () => {
-  const instance = ensureVideo()
+  const instance = getPlaybackElement()
   if (!instance || !currentVideo.value?.src) return
+  if (!instance.src && instance === video) {
+    instance.src = currentVideo.value.src
+  }
   try {
     await instance.play()
   } catch (error) {
@@ -82,9 +102,29 @@ const resumeGlobal = async () => {
 const stopGlobal = () => {
   const instance = ensureVideo()
   if (!instance) return
+  if (isUsableElement(activeElement)) {
+    activeElement.pause()
+    activeElement.currentTime = 0
+  }
   instance.pause()
   instance.removeAttribute('src')
   instance.load()
+  activeElement = null
+  isLocalBound.value = false
+  currentVideo.value = null
+  currentTime.value = 0
+  duration.value = 0
+  isPlaying.value = false
+}
+
+/**
+ * Leave a page without handing off playback (not playing / already paused).
+ * Clears local session so the floating bar does not appear for no reason.
+ */
+const releaseLocalSession = () => {
+  if (!isLocalBound.value) return
+  activeElement = null
+  isLocalBound.value = false
   currentVideo.value = null
   currentTime.value = 0
   duration.value = 0
@@ -92,17 +132,22 @@ const stopGlobal = () => {
 }
 
 const seekGlobal = (time) => {
-  const instance = ensureVideo()
+  const instance = getPlaybackElement()
   if (!instance) return
   instance.currentTime = Number(time) || 0
   currentTime.value = instance.currentTime
 }
 
 const setGlobalVolume = (nextVolume) => {
-  const instance = ensureVideo()
-  if (!instance) return
   const normalized = Math.min(1, Math.max(0, Number(nextVolume) || 0))
-  instance.volume = normalized
+  const instance = getPlaybackElement()
+  if (instance) {
+    instance.volume = normalized
+  }
+  const hiddenVideo = ensureVideo()
+  if (hiddenVideo && hiddenVideo !== instance) {
+    hiddenVideo.volume = normalized
+  }
   volume.value = normalized
 }
 
@@ -122,6 +167,8 @@ const takeoverFromElement = async (element, track) => {
 
   try {
     await instance.play()
+    activeElement = null
+    isLocalBound.value = false
   } catch (error) {
     console.warn('Persistent video takeover failed:', error)
   }
@@ -134,6 +181,8 @@ const restoreToElement = async (element, track) => {
   const instance = ensureVideo()
   if (!instance) return false
 
+  activeElement = element
+  isLocalBound.value = true
   element.currentTime = currentTime.value || 0
   element.volume = volume.value
 
@@ -151,6 +200,11 @@ const restoreToElement = async (element, track) => {
   return true
 }
 
+/** Floating bar only when global video owns the session (not page-local controls). */
+const showPersistentPlayer = computed(
+  () => Boolean(currentVideo.value) && !isLocalBound.value
+)
+
 export const usePersistentVideoPlayer = () => {
   ensureVideo()
 
@@ -160,10 +214,13 @@ export const usePersistentVideoPlayer = () => {
     currentTime,
     duration,
     volume,
+    isLocalBound,
+    showPersistentPlayer,
     getSnapshot,
     pauseGlobal,
     resumeGlobal,
     stopGlobal,
+    releaseLocalSession,
     seekGlobal,
     setGlobalVolume,
     takeoverFromElement,

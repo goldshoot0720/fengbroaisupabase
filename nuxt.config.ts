@@ -174,7 +174,12 @@ export default defineNuxtConfig({
     public: {
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-      supabaseBucket: process.env.SUPABASE_BUCKET || 'uploads',
+      // Build: SUPABASE_BUCKET or NUXT_PUBLIC_SUPABASE_BUCKET
+      // Runtime override (Nitro): NUXT_PUBLIC_SUPABASE_BUCKET
+      supabaseBucket:
+        process.env.NUXT_PUBLIC_SUPABASE_BUCKET ||
+        process.env.SUPABASE_BUCKET ||
+        'uploads',
       NETLIFY_SITE_ID: process.env.NETLIFY_SITE_ID,
       vapidPublicKey: process.env.NUXT_PUBLIC_VAPID_PUBLIC_KEY || '',
       // Build-time repo meta for 鋒兄首頁 / 鋒兄關於

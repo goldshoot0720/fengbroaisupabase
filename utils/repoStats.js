@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join } from 'node:path'
 
+// Build/docs/agent/static — not product app source.
 const SKIP_DIRS = new Set([
   '.agents',
   '.git',
@@ -13,10 +14,12 @@ const SKIP_DIRS = new Set([
   'docs',
   'node_modules',
   'public',
-  'face-api-models'
+  'face-api-models',
+  // Maintenance / upload helpers — not shipped product UI/API.
+  'scripts'
 ])
 
-// Product source only — not agent skills, lockfiles, or long-form docs.
+// Product source only — Vue app, composables, server API, utils, CSS.
 const CODE_EXTS = new Set([
   '.ts',
   '.js',
@@ -30,7 +33,9 @@ const CODE_EXTS = new Set([
 const SKIP_FILES = new Set([
   'package-lock.json',
   'deno.lock',
-  'skills-lock.json'
+  'skills-lock.json',
+  // One-off maintenance scripts at repo root.
+  'fix-duplicates.cjs'
 ])
 
 /**
@@ -79,7 +84,8 @@ function walkCodeFiles(dir, files = []) {
 }
 
 /**
- * Count non-empty source lines under the repo root (excludes node_modules/dist/etc).
+ * Count non-empty product source lines under the repo root.
+ * Excludes node_modules/dist/docs/public/scripts and blank lines.
  */
 export function countLinesOfCode(rootDir = process.cwd()) {
   const files = walkCodeFiles(rootDir)

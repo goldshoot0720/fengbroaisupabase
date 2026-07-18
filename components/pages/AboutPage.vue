@@ -57,7 +57,7 @@
           </div>
           <div class="stat-card">
             <span class="stat-value">{{ linesOfCodeLabel }}</span>
-            <span class="stat-label">程式碼行（非空白）</span>
+            <span class="stat-label">產品程式碼行</span>
           </div>
         </div>
         <div class="tech-stack">

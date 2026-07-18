@@ -222,7 +222,7 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.4rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .header-left,
@@ -246,8 +246,13 @@ onUnmounted(() => {
   width: 40px;
   height: 40px;
   border-radius: 14px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--primary) 22%, transparent),
+    color-mix(in oklab, var(--primary) 6%, transparent)
+  );
+  border: 1px solid color-mix(in oklab, var(--primary) 20%, var(--border-color));
+  color: var(--primary);
   display: grid;
   place-items: center;
   font-family: var(--font-display);
@@ -491,7 +496,7 @@ onUnmounted(() => {
 }
 
 .nav-tab:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
   color: var(--text-primary);
   transform: translateY(-1px);
 }
@@ -526,8 +531,8 @@ onUnmounted(() => {
   overflow-x: auto;
   gap: 0.5rem;
   padding: 0.4rem 1rem 0.55rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(255, 255, 255, 0.025);
+  border-top: 1px solid var(--border-color);
+  background: color-mix(in oklab, var(--bg-muted) 55%, transparent);
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -546,7 +551,7 @@ onUnmounted(() => {
   gap: 0.45rem;
   border: 0;
   background: transparent;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-secondary);
   border-radius: 14px;
   padding: 0.35rem 0.2rem;
   cursor: pointer;
@@ -559,14 +564,14 @@ onUnmounted(() => {
 }
 
 .nav-sub-tab:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff;
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  color: var(--text-primary);
   transform: translateY(-1px);
 }
 
 .nav-sub-tab.active {
   background: transparent;
-  color: #fff;
+  color: var(--text-primary);
   box-shadow: none;
 }
 
@@ -582,7 +587,7 @@ onUnmounted(() => {
 }
 
 .nav-sub-hint {
-  opacity: 0.55;
+  color: var(--text-muted);
   font-size: 0.72rem;
   font-weight: 400;
 }

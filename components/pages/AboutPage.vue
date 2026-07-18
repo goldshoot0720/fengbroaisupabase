@@ -52,8 +52,12 @@
             <span class="stat-label">Vue 版本號</span>
           </div>
           <div class="stat-card">
-            <span class="stat-value">2026/07/13</span>
+            <span class="stat-value">{{ lastUpdateDateLabel }}</span>
             <span class="stat-label">本次更新</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ linesOfCodeLabel }}</span>
+            <span class="stat-label">程式碼行（非空白）</span>
           </div>
         </div>
         <div class="tech-stack">
@@ -199,9 +203,26 @@ import { computed } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import packageJson from '../../package.json'
 
+const runtimeConfig = useRuntimeConfig()
+
 const systemVersion = computed(() => `v${packageJson.version || '未設定'}`)
 const nuxtVersion = computed(() => packageJson.dependencies?.nuxt || '未設定')
 const vueVersion = computed(() => packageJson.dependencies?.vue || '未設定')
+
+/** Same build-time source as 鋒兄首頁 footer (utils/repoStats.js). */
+const lastUpdateDateLabel = computed(() => {
+  const raw = runtimeConfig.public?.lastUpdateDate
+  if (typeof raw !== 'string' || !raw) return '—'
+  const iso = raw.slice(0, 10)
+  // Display as YYYY/MM/DD to match prior about-page style.
+  return iso.replaceAll('-', '/')
+})
+
+const linesOfCodeLabel = computed(() => {
+  const n = Number(runtimeConfig.public?.linesOfCode)
+  if (!Number.isFinite(n) || n <= 0) return '—'
+  return n.toLocaleString('zh-TW')
+})
 
 useHead({
   title: '鋒兄關於 - 鋒兄 AI Supabase'

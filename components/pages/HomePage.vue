@@ -165,7 +165,7 @@
         </div>
         <div class="home-repo-meta__divider" aria-hidden="true"></div>
         <div class="home-repo-meta__item">
-          <span class="home-repo-meta__label">程式碼行</span>
+          <span class="home-repo-meta__label">程式碼行（非空白）</span>
           <strong class="home-repo-meta__value">{{ linesOfCodeLabel }}</strong>
         </div>
       </div>

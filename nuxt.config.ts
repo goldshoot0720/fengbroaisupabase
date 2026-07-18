@@ -177,7 +177,7 @@ export default defineNuxtConfig({
       supabaseBucket: process.env.SUPABASE_BUCKET || 'uploads',
       NETLIFY_SITE_ID: process.env.NETLIFY_SITE_ID,
       vapidPublicKey: process.env.NUXT_PUBLIC_VAPID_PUBLIC_KEY || '',
-      // Build-time repo meta for 鋒兄首頁 footer
+      // Build-time repo meta for 鋒兄首頁 / 鋒兄關於
       lastUpdateDate: repoStats.lastUpdateDate,
       linesOfCode: repoStats.linesOfCode
     }

@@ -19,7 +19,6 @@ const pages = [
         id: 'note:notes',
         page: 'note',
         name: '鋒兄筆記',
-        menuHint: '靈感與紀錄',
         title: '鋒兄筆記',
         subtitle: '整理靈感、會議紀錄、讀書筆記與附件。'
       },
@@ -27,7 +26,6 @@ const pages = [
         id: 'note:document',
         page: 'document',
         name: '鋒兄文件',
-        menuHint: '結構化文件',
         title: '鋒兄文件',
         subtitle: '管理結構化文件與工作紀錄。'
       }
@@ -47,7 +45,6 @@ const pages = [
         id: 'music:tracks',
         page: 'music',
         name: '鋒兄音樂',
-        menuHint: '作品與歌詞',
         title: '鋒兄音樂',
         subtitle: '整理音樂作品、封面、歌詞與音檔。'
       },
@@ -55,7 +52,6 @@ const pages = [
         id: 'music:podcast',
         page: 'podcast',
         name: '鋒兄播客',
-        menuHint: '節目與音檔',
         title: '鋒兄播客',
         subtitle: '整理播客音檔、封面與備註。'
       }
@@ -71,13 +67,13 @@ const pages = [
     title: '鋒兄工具',
     subtitle: '整合比價、YouTube、金融、新聞與圖片語音成片工具。',
     children: [
-      { id: 'tools:biggo', tool: 'biggo', name: '鋒兄比價', menuHint: '(比價紀錄)' },
-      { id: 'tools:manual', tool: 'manual', name: '手動紀錄', menuHint: '自訂價錢' },
-      { id: 'tools:phone', tool: 'phone', name: '手機比價', menuHint: '通路價格' },
-      { id: 'tools:tube', tool: 'tube', name: '鋒兄Tube', menuHint: 'YouTube' },
-      { id: 'tools:finance', tool: 'finance', name: '鋒兄金融', menuHint: 'CNBC 報價' },
-      { id: 'tools:news', tool: 'news', name: '鋒兄新聞', menuHint: '鎖定網站焦點' },
-      { id: 'tools:image-voice', tool: 'image-voice', name: '圖片語音成片', menuHint: '圖片+語音=影片 · 預設男聲' }
+      { id: 'tools:biggo', tool: 'biggo', name: '鋒兄比價' },
+      { id: 'tools:manual', tool: 'manual', name: '手動紀錄' },
+      { id: 'tools:phone', tool: 'phone', name: '手機比價' },
+      { id: 'tools:tube', tool: 'tube', name: '鋒兄Tube' },
+      { id: 'tools:finance', tool: 'finance', name: '鋒兄金融' },
+      { id: 'tools:news', tool: 'news', name: '鋒兄新聞' },
+      { id: 'tools:image-voice', tool: 'image-voice', name: '圖片語音成片' }
     ]
   },
   {
@@ -91,7 +87,6 @@ const pages = [
         id: 'settings:config',
         page: 'settings',
         name: '鋒兄設定',
-        menuHint: '來源與儲存',
         title: '鋒兄設定',
         subtitle: '管理來源、匯入匯出與儲存設定。'
       },
@@ -99,7 +94,6 @@ const pages = [
         id: 'settings:about',
         page: 'about',
         name: '鋒兄關於',
-        menuHint: '系統說明',
         title: '鋒兄關於',
         subtitle: '查看系統說明與目前工作區資訊。'
       }
@@ -110,19 +104,22 @@ const pages = [
 /** Resolve top-level or nested child page config by id / child.page */
 const findPageConfig = (pageId) => {
   for (const page of pages) {
-    if (page.id === pageId) return page
-    if (!page.children?.length) continue
-    const child = page.children.find(
-      (item) => item.id === pageId || item.page === pageId
-    )
-    if (child) {
-      return {
-        ...page,
-        title: child.title || child.name || page.title,
-        titleHint: child.titleHint || '',
-        subtitle: child.subtitle || child.menuHint || page.subtitle
+    if (page.children?.length) {
+      // Prefer leaf title when pageId matches a child (e.g. note → 鋒兄筆記,
+      // not parent 鋒兄筆記/文件). Parent id often equals the default child's page.
+      const child = page.children.find(
+        (item) => item.id === pageId || item.page === pageId
+      )
+      if (child) {
+        return {
+          ...page,
+          title: child.title || child.name || page.title,
+          titleHint: child.titleHint || '',
+          subtitle: child.subtitle || child.menuHint || page.subtitle
+        }
       }
     }
+    if (page.id === pageId) return page
   }
   return pages[0]
 }

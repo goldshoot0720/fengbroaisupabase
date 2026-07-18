@@ -408,7 +408,7 @@ const isDevelopment = computed(() => false) // 設為 true 以啟用滾動調試
 const placeholderPages = {}
 const placeholderConfig = computed(() => placeholderPages[currentPage.value] || null)
 const TOOL_STORAGE_KEY = 'feng-tools-active-tool'
-const TOOL_KEYS = ['biggo', 'manual', 'phone', 'tube', 'finance', 'image-voice']
+const TOOL_KEYS = ['biggo', 'manual', 'phone', 'tube', 'finance', 'news', 'image-voice']
 const readStoredTool = () => {
   if (typeof localStorage === 'undefined') return 'biggo'
   const saved = localStorage.getItem(TOOL_STORAGE_KEY)

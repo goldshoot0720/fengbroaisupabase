@@ -6,7 +6,7 @@
           <p class="tools-kicker">FENGBRO TOOLKIT</p>
           <h2>鋒兄工具</h2>
           <p class="tools-lead">
-            集中處理網路比價、手機通路價格、YouTube、金融觀察，以及圖片加語音生成影片。
+            集中處理網路比價、手機通路價格、YouTube、金融觀察、鎖定網站新聞搜尋，以及圖片加語音生成影片。
           </p>
         </div>
 
@@ -606,6 +606,8 @@
         </div>
       </section>
 
+      <FengbroNewsPanel v-else-if="activeTool === 'news'" />
+
       <ImageVoiceVideoPanel v-else-if="activeTool === 'image-voice'" />
 
       <section v-else-if="activeTool === 'finance'" class="tool-panel">
@@ -737,6 +739,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import ImageVoiceVideoPanel from './ImageVoiceVideoPanel.vue'
+import FengbroNewsPanel from './FengbroNewsPanel.vue'
 import { FENG_TUBE_ACTIVE_TOOL_KEY, FENG_TUBE_CHANNELS } from '../../utils/fengTubeChannels'
 
 const toolTabs = [
@@ -745,6 +748,7 @@ const toolTabs = [
   { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信價格比較' },
   { value: 'tube', label: '鋒兄tube', description: '追蹤指定 YouTube 頻道最新影片' },
   { value: 'finance', label: '鋒兄金融', description: '追蹤 CNBC 市場價格與高低標記' },
+  { value: 'news', label: '鋒兄新聞', description: '鎖定網站焦點，標題關鍵字搜尋' },
   { value: 'image-voice', label: '圖片語音成片', description: '圖片 + 語音 = 影片（預設男聲／單一人物自動選聲）' }
 ]
 

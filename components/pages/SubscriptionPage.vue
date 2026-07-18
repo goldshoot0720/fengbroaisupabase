@@ -8,8 +8,8 @@
           type="text"
           class="search-input"
           placeholder="搜尋訂閱..."
-          @keyup.enter="commitSearchHistory"
-          @blur="commitSearchHistory"
+          @keyup.enter="commitSearchHistory()"
+          @blur="commitSearchHistory()"
         />
         <div v-if="recentSearches.length > 0" class="recent-searches" aria-label="最近搜尋紀錄">
           <span class="recent-label">最近搜尋</span>
@@ -410,7 +410,18 @@ const {
 
 const { formatDate, getDateClass } = useFormatters()
 
-const normalizeSearchTerm = (value) => String(value || '').trim().replace(/\s+/g, ' ')
+const normalizeSearchTerm = (value) => {
+  // DOM Event from @blur / @keyup must not be coerced (→ "[object FocusEvent]")
+  if (value == null || typeof value === 'object') return ''
+  return String(value).trim().replace(/\s+/g, ' ')
+}
+
+const isValidSearchHistoryTerm = (term) => {
+  if (!term) return false
+  // Drop corrupted entries already saved from Event objects
+  if (/^\[object\s+\w+\]$/i.test(term)) return false
+  return true
+}
 
 const loadRecentSearches = () => {
   if (typeof localStorage === 'undefined') return
@@ -418,8 +429,13 @@ const loadRecentSearches = () => {
   try {
     const parsed = JSON.parse(localStorage.getItem(SUBSCRIPTION_SEARCH_HISTORY_KEY) || '[]')
     recentSearches.value = Array.isArray(parsed)
-      ? [...new Set(parsed.map(normalizeSearchTerm).filter(Boolean))].slice(0, SEARCH_HISTORY_LIMIT)
+      ? [...new Set(parsed.map(normalizeSearchTerm).filter(isValidSearchHistoryTerm))].slice(
+          0,
+          SEARCH_HISTORY_LIMIT
+        )
       : []
+    // Rewrite storage if we stripped bad "[object FocusEvent]" entries
+    persistRecentSearches()
   } catch {
     recentSearches.value = []
   }
@@ -430,9 +446,11 @@ const persistRecentSearches = () => {
   localStorage.setItem(SUBSCRIPTION_SEARCH_HISTORY_KEY, JSON.stringify(recentSearches.value))
 }
 
-const commitSearchHistory = (value = searchQuery.value) => {
-  const term = normalizeSearchTerm(value)
-  if (!term) return
+const commitSearchHistory = (value) => {
+  // Prefer explicit string; ignore Event args from template handlers without ()
+  const raw = typeof value === 'string' || typeof value === 'number' ? value : searchQuery.value
+  const term = normalizeSearchTerm(raw)
+  if (!isValidSearchHistoryTerm(term)) return
 
   recentSearches.value = [
     term,

@@ -9,20 +9,6 @@
             集中處理網路比價、手機通路價格、YouTube、金融觀察、鎖定網站新聞搜尋，以及圖片加語音生成影片。
           </p>
         </div>
-
-        <div class="tools-segments" role="tablist" aria-label="鋒兄工具分頁">
-          <button
-            v-for="tab in toolTabs"
-            :key="tab.value"
-            type="button"
-            class="tools-segment"
-            :class="{ active: activeTool === tab.value }"
-            @click="activeTool = tab.value"
-          >
-            <span class="tools-segment__label">{{ tab.label }}</span>
-            <span class="tools-segment__desc">{{ tab.description }}</span>
-          </button>
-        </div>
       </section>
 
       <section v-if="activeTool === 'biggo'" class="tool-panel">
@@ -615,10 +601,92 @@
           <div>
             <p class="panel-kicker">鋒兄金融</p>
             <h3>金融市場觀察</h3>
+            <p class="tool-notice tool-notice--inline">
+              地區：韓國／日本／台灣／美國／其他 · KOSPI 交易中每分鐘更新
+              <span v-if="kospiLiveOpen" class="finance-live-pill">即時</span>
+            </p>
           </div>
           <button type="button" class="tool-primary-btn tool-primary-btn--compact" :disabled="financeLoading" @click="runFinanceLookup">
             {{ financeLoading ? '更新中...' : '重新整理' }}
           </button>
+        </div>
+
+        <div class="finance-controls">
+          <details class="finance-watchlist">
+            <summary>預設追蹤清單（{{ selectedDefaultInstrumentIds.length }} / {{ financeDefaultInstruments.length }}）</summary>
+            <div class="finance-watchlist__body">
+              <div class="finance-watchlist__actions">
+                <select class="tool-input" :disabled="deletedDefaultInstruments.length === 0" @change="addDefaultInstrument($event.target.value); $event.target.value = ''">
+                  <option value="">{{ deletedDefaultInstruments.length ? '加回預設標的' : '預設標的已全數啟用' }}</option>
+                  <option v-for="item in deletedDefaultInstruments" :key="item.id" :value="item.id">
+                    {{ item.name }} ({{ item.symbol }})
+                  </option>
+                </select>
+                <button type="button" class="tool-secondary-btn" @click="resetDefaultInstruments">重設預設</button>
+              </div>
+              <div class="finance-chip-row">
+                <span v-for="item in selectedDefaultInstruments" :key="item.id" class="finance-chip">
+                  <strong>{{ item.name }}</strong>
+                  <span>{{ item.symbol }}</span>
+                  <button type="button" class="finance-chip__btn" :aria-label="`刪除 ${item.name}`" @click="removeDefaultInstrument(item.id)">×</button>
+                </span>
+              </div>
+            </div>
+          </details>
+
+          <div class="finance-custom-form" :class="{ 'finance-custom-form--editing': financeEditingCustomKey }">
+            <p class="store-card__name">{{ financeEditingCustomKey ? '編輯指數或股票' : '新增指數或股票' }}</p>
+            <p class="tool-notice tool-notice--inline">可貼 Yahoo 奇摩／CNBC 網址或代號（如 2330.TW、.SOX）；台股會自動辨識。</p>
+            <div class="finance-custom-form__grid">
+              <label>
+                <span>代稱</span>
+                <input v-model="financeCustomDraft.name" class="tool-input" placeholder="例如：台積電" @keydown.enter.prevent="saveCustomFinanceInstrument" />
+              </label>
+              <label>
+                <span>網址或代號</span>
+                <input
+                  :value="financeCustomDraft.urlOrSymbol"
+                  class="tool-input"
+                  placeholder="https://tw.stock.yahoo.com/quote/2330.TW 或 2330.TW"
+                  @input="onFinanceCustomUrlInput($event.target.value)"
+                  @keydown.enter.prevent="saveCustomFinanceInstrument"
+                />
+              </label>
+              <label>
+                <span>來源</span>
+                <select v-model="financeCustomDraft.provider" class="tool-input" :disabled="isFinanceQuoteUrl(financeCustomDraft.urlOrSymbol)">
+                  <option value="cnbc">CNBC</option>
+                  <option value="yahoo">{{ isTaiwanYahooStockSource(financeCustomDraft.urlOrSymbol) ? 'Yahoo 奇摩' : 'Yahoo' }}</option>
+                </select>
+              </label>
+              <label>
+                <span>分類</span>
+                <select v-model="financeCustomDraft.group" class="tool-input">
+                  <option v-for="group in FINANCE_CUSTOM_GROUPS" :key="group" :value="group">{{ FINANCE_GROUP_LABELS[group] }}</option>
+                </select>
+              </label>
+              <div class="finance-custom-form__actions">
+                <button type="button" class="tool-primary-btn tool-primary-btn--compact" @click="saveCustomFinanceInstrument">
+                  {{ financeEditingCustomKey ? '儲存' : '新增' }}
+                </button>
+                <button v-if="financeEditingCustomKey" type="button" class="tool-secondary-btn" @click="cancelEditCustomFinanceInstrument">取消</button>
+              </div>
+            </div>
+            <div v-if="financeCustomInstruments.length" class="finance-chip-row">
+              <span
+                v-for="item in financeCustomInstruments"
+                :key="getCustomFinanceInstrumentKey(item)"
+                class="finance-chip"
+                :class="{ 'finance-chip--active': financeEditingCustomKey === getCustomFinanceInstrumentKey(item) }"
+              >
+                <strong>{{ item.name }}</strong>
+                <span>{{ item.provider.toUpperCase() }}: {{ item.symbol }}</span>
+                <span>{{ FINANCE_GROUP_LABELS[item.group] || item.group }}</span>
+                <button type="button" class="finance-chip__btn" @click="editCustomFinanceInstrument(item)">編輯</button>
+                <button type="button" class="finance-chip__btn" @click="deleteCustomFinanceInstrument(item)">×</button>
+              </span>
+            </div>
+          </div>
         </div>
 
         <p v-if="financeError" class="tool-error">{{ financeError }}</p>
@@ -627,108 +695,269 @@
           資料來源：{{ financeResult.source }}，更新時間 {{ formatTubeDate(financeResult.fetchedAt) }}。
         </p>
 
-        <div class="finance-grid">
-          <article
-            v-for="item in financeItems"
-            :key="item.id"
-            class="finance-card"
-            :class="{
-              'finance-card--high': item.status === 'new-high',
-              'finance-card--low': item.status === 'new-low'
-            }"
-          >
-            <div class="finance-card__header">
-              <div>
-                <p class="store-card__name">{{ item.group }} / {{ item.symbol }}</p>
-                <h4>
-                  {{ item.name }}
-                  <span v-if="item.labelAlias" class="finance-alias">{{ item.labelAlias }}</span>
-                </h4>
-              </div>
-              <span v-if="item.status === 'new-high'" class="finance-status finance-status--high">{{ item.statusLabel || '創新高' }}</span>
-              <span v-else-if="item.status === 'new-low'" class="finance-status finance-status--low">創新低</span>
-            </div>
-
-            <img
-              v-if="item.image"
-              class="finance-card__image"
-              :src="item.image"
-              :alt="`${item.name} image`"
-              loading="lazy"
-            />
-            <strong class="finance-price">{{ item.lastLabel }}</strong>
-            <p v-if="item.error" class="tool-error">{{ item.error }}</p>
-            <div v-else class="finance-meta-row">
-              <span>
-                漲跌
-                <strong :class="financeChangeClass(item.change)">
-                  {{ formatFinanceChange(item.change, item.changePercent) }}
-                </strong>
-              </span>
-              <span>
-                {{ item.highLabel || '52週高' }}
-                <strong>{{ formatFinanceNumber(item.week52High) }}</strong>
-              </span>
-              <span>
-                {{ item.lowLabel || '52週低' }}
-                <strong>{{ formatFinanceNumber(item.week52Low) }}</strong>
-              </span>
-            </div>
-
-            <div class="finance-history-list">
-              <details
-                v-for="range in item.historyRanges"
-                :key="`${item.id}-${range.key}`"
-                class="finance-history"
-                :open="range.key === '1y'"
-              >
-                <summary class="finance-history__header">
-                  <span>{{ range.label }}</span>
-                  <span class="finance-history__stats">
-                    <strong v-if="range.points?.length">{{ range.points.length }} 筆</strong>
-                    <strong
-                      v-if="range.summary?.label"
-                      :class="financeChangeClass(range.summary.change)"
-                    >
-                      {{ range.summary.label }}
-                    </strong>
-                  </span>
-                </summary>
-                <svg
-                  v-if="range.chart.points"
-                  class="finance-history-chart"
-                  viewBox="0 0 100 100"
-                  preserveAspectRatio="none"
-                  :aria-label="`${item.name} ${range.label}`"
+        <div v-if="financeFeaturedQuotes.length" id="fengbro-finance-featured" class="finance-featured">
+          <p class="panel-kicker">精選焦點 · 同時並排</p>
+          <div class="finance-featured__grid">
+            <article
+              v-for="(item, idx) in financeFeaturedQuotes"
+              :key="`featured-${item.id}`"
+              class="finance-card finance-card--featured"
+              :class="[
+                financeFeaturedMeta[item.id]?.cardClass,
+                {
+                  'finance-card--high': item.recordTag === 'new-high' || item.isThresholdAlert,
+                  'finance-card--low': item.recordTag === 'new-low'
+                }
+              ]"
+            >
+              <p class="finance-featured__index">BLOCK {{ idx + 1 }}</p>
+              <p class="store-card__name">{{ financeFeaturedMeta[item.id]?.subtitle || item.symbol }}</p>
+              <h4>{{ financeFeaturedMeta[item.id]?.title || getFinanceQuoteTitle(item) }}</h4>
+              <div class="finance-badge-row">
+                <span v-if="item.localLabel" class="finance-badge">{{ item.localLabel }}</span>
+                <span v-if="item.id === 'kospi'" class="finance-badge" :class="kospiLiveOpen ? 'finance-badge--live' : ''">
+                  {{ kospiLiveOpen ? (kospiLiveRefreshing ? '即時更新中…' : '即時 · 每分鐘') : '休市' }}
+                </span>
+                <span
+                  v-for="level in (item.referenceLevels || [])"
+                  :key="`${item.id}-ref-${level.value}`"
+                  class="finance-badge"
+                  :class="{ 'finance-badge--danger': isReferenceBroken(item, level) }"
                 >
-                  <polyline class="finance-history-area" :points="range.chart.areaPoints" />
-                  <polyline class="finance-history-line" :points="range.chart.points" />
-                  <circle
-                    v-for="point in range.chart.circles"
-                    :key="point.key"
-                    class="finance-history-dot"
-                    :cx="point.x"
-                    :cy="point.y"
-                    r="1.5"
+                  {{ level.label }}
+                </span>
+              </div>
+              <div v-if="getFinanceImageUrls(item).length" class="finance-carousel">
+                <img
+                  :src="getFinanceImageUrls(item)[financeImageIndex[item.id] || 0] || getFinanceImageUrls(item)[0]"
+                  :alt="`${item.name} image`"
+                  class="finance-card__image"
+                  loading="lazy"
+                  @click="advanceFinanceImage(item.id)"
+                />
+                <div v-if="getFinanceImageUrls(item).length > 1" class="finance-carousel__dots">
+                  <button
+                    v-for="(url, dotIndex) in getFinanceImageUrls(item)"
+                    :key="url"
+                    type="button"
+                    class="finance-carousel__dot"
+                    :class="{ 'finance-carousel__dot--active': (financeImageIndex[item.id] || 0) === dotIndex }"
+                    :aria-label="`第 ${dotIndex + 1} 張`"
+                    @click="setFinanceImageIndex(item.id, dotIndex)"
                   />
-                </svg>
-                <div v-else class="finance-history-empty">暫無{{ range.label }}資料</div>
-              </details>
-            </div>
+                </div>
+              </div>
+              <strong class="finance-price">{{ formatFinanceNumber(item.price) }}</strong>
+              <div class="finance-meta-row">
+                <span>漲跌 <strong :class="financeChangeClass(item.change)">{{ formatFinanceChange(item.change, item.changePercent) }}</strong></span>
+                <span>52週高 <strong>{{ formatFinanceNumber(item.high52) }}</strong></span>
+                <span>52週低 <strong>{{ formatFinanceNumber(item.low52) }}</strong></span>
+              </div>
+              <div class="finance-history-list">
+                <details
+                  v-for="range in item.historyRanges"
+                  :key="`featured-${item.id}-${range.key}`"
+                  class="finance-history"
+                  :open="range.key === '1y'"
+                >
+                  <summary class="finance-history__header">
+                    <span>{{ range.label }}</span>
+                    <span class="finance-history__stats">
+                      <strong v-if="range.summary?.label" :class="financeChangeClass(range.summary.change)">{{ range.summary.label }}</strong>
+                    </span>
+                  </summary>
+                  <svg
+                    v-if="range.chart?.points"
+                    class="finance-history-chart"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                  >
+                    <polyline class="finance-history-area" :points="range.chart.areaPoints" />
+                    <polyline class="finance-history-line" :points="range.chart.points" />
+                    <line
+                      v-for="refLine in range.chart.referenceLines || []"
+                      :key="refLine.key"
+                      class="finance-history-ref"
+                      :class="{ 'finance-history-ref--danger': refLine.broken }"
+                      x1="0"
+                      x2="100"
+                      :y1="refLine.y"
+                      :y2="refLine.y"
+                    />
+                  </svg>
+                  <div v-else class="finance-history-empty">暫無{{ range.label }}資料</div>
+                </details>
+              </div>
+              <div class="finance-link-row">
+                <a :href="item.sourceUrl" target="_blank" rel="noreferrer" class="store-card__link">查看 {{ getFinanceSourceLabel(item) }}</a>
+              </div>
+            </article>
+          </div>
+        </div>
 
-            <div class="finance-link-row">
-              <a :href="item.url" target="_blank" rel="noreferrer" class="store-card__link">查看 {{ item.source || 'CNBC' }}</a>
-              <a
-                v-if="item.youtubeUrl"
-                :href="item.youtubeUrl"
-                target="_blank"
-                rel="noreferrer"
-                class="store-card__link store-card__link--youtube"
-              >
-                查看 YouTube
-              </a>
-            </div>
-          </article>
+        <nav v-if="financeGroupedQuotes.length" class="finance-group-nav">
+          <a v-if="financeFeaturedQuotes.length" href="#fengbro-finance-featured" class="finance-group-nav__link finance-group-nav__link--featured">精選焦點</a>
+          <a
+            v-for="group in financeGroupedQuotes"
+            :key="group.group"
+            :href="`#fengbro-finance-${group.group}`"
+            class="finance-group-nav__link"
+          >
+            {{ FINANCE_GROUP_LABELS[group.group] || group.group }}
+            <span>{{ group.quotes.length }}</span>
+          </a>
+        </nav>
+
+        <div v-for="group in financeGroupedQuotes" :id="`fengbro-finance-${group.group}`" :key="group.group" class="finance-group">
+          <h4 class="finance-group__title">{{ FINANCE_GROUP_LABELS[group.group] || group.group }}</h4>
+          <div class="finance-grid">
+            <article
+              v-for="item in group.quotes"
+              :key="item.id"
+              class="finance-card"
+              :class="{
+                'finance-card--high': item.recordTag === 'new-high' || item.isThresholdAlert,
+                'finance-card--low': item.recordTag === 'new-low'
+              }"
+            >
+              <div class="finance-card__header">
+                <div>
+                  <p class="store-card__name">{{ getFinanceSourceLabel(item) }} / {{ item.symbol }}</p>
+                  <h4>
+                    {{ getFinanceQuoteTitle(item) }}
+                    <span v-if="item.localLabel" class="finance-alias">{{ item.localLabel }}</span>
+                  </h4>
+                </div>
+                <span v-if="item.recordTag === 'new-high' || item.isThresholdAlert" class="finance-status finance-status--high">
+                  {{ item.isThresholdAlert ? '突破門檻' : '創新高' }}
+                </span>
+                <span v-else-if="item.recordTag === 'new-low'" class="finance-status finance-status--low">創新低</span>
+              </div>
+
+              <div v-if="getFinanceImageUrls(item).length" class="finance-carousel">
+                <img
+                  :src="getFinanceImageUrls(item)[financeImageIndex[item.id] || 0] || getFinanceImageUrls(item)[0]"
+                  :alt="`${item.name} image`"
+                  class="finance-card__image"
+                  loading="lazy"
+                  @click="advanceFinanceImage(item.id)"
+                />
+              </div>
+
+              <strong class="finance-price">{{ formatFinanceNumber(item.price) }}</strong>
+              <p v-if="item.error" class="tool-error">{{ item.error }}</p>
+              <div v-else class="finance-meta-row">
+                <span>
+                  漲跌
+                  <strong :class="financeChangeClass(item.change)">
+                    {{ formatFinanceChange(item.change, item.changePercent) }}
+                  </strong>
+                </span>
+                <span>
+                  52週高
+                  <strong>{{ formatFinanceNumber(item.high52) }}</strong>
+                </span>
+                <span>
+                  52週低
+                  <strong>{{ formatFinanceNumber(item.low52) }}</strong>
+                </span>
+              </div>
+
+              <div v-if="(item.referenceLevels || []).length" class="finance-badge-row">
+                <span
+                  v-for="level in item.referenceLevels"
+                  :key="`${item.id}-gref-${level.value}`"
+                  class="finance-badge"
+                  :class="{ 'finance-badge--danger': isReferenceBroken(item, level) }"
+                >
+                  {{ level.label }}
+                </span>
+              </div>
+
+              <div class="finance-history-list">
+                <details
+                  v-for="range in item.historyRanges"
+                  :key="`${item.id}-${range.key}`"
+                  class="finance-history"
+                  :open="range.key === '1y'"
+                >
+                  <summary class="finance-history__header">
+                    <span>{{ range.label }}</span>
+                    <span class="finance-history__stats">
+                      <strong v-if="range.points?.length">{{ range.points.length }} 筆</strong>
+                      <strong
+                        v-if="range.summary?.label"
+                        :class="financeChangeClass(range.summary.change)"
+                      >
+                        {{ range.summary.label }}
+                      </strong>
+                    </span>
+                  </summary>
+                  <svg
+                    v-if="range.chart?.points"
+                    class="finance-history-chart"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    :aria-label="`${item.name} ${range.label}`"
+                  >
+                    <polyline class="finance-history-area" :points="range.chart.areaPoints" />
+                    <polyline class="finance-history-line" :points="range.chart.points" />
+                    <line
+                      v-for="refLine in range.chart.referenceLines || []"
+                      :key="refLine.key"
+                      class="finance-history-ref"
+                      :class="{ 'finance-history-ref--danger': refLine.broken }"
+                      x1="0"
+                      x2="100"
+                      :y1="refLine.y"
+                      :y2="refLine.y"
+                    />
+                    <circle
+                      v-for="point in range.chart.circles"
+                      :key="point.key"
+                      class="finance-history-dot"
+                      :cx="point.x"
+                      :cy="point.y"
+                      r="1.5"
+                    />
+                  </svg>
+                  <div v-else class="finance-history-empty">暫無{{ range.label }}資料</div>
+                </details>
+              </div>
+
+              <div class="finance-link-row">
+                <a :href="item.sourceUrl" target="_blank" rel="noreferrer" class="store-card__link">查看 {{ getFinanceSourceLabel(item) }}</a>
+                <a
+                  v-if="item.youtubeUrl"
+                  :href="item.youtubeUrl"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="store-card__link store-card__link--youtube"
+                >
+                  {{ item.youtubeLabel || '查看 YouTube' }}
+                </a>
+                <a
+                  v-if="item.bilibiliUrl"
+                  :href="item.bilibiliUrl"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="store-card__link"
+                >
+                  查看 Bilibili
+                </a>
+                <a
+                  v-for="link in (item.relatedLinks || [])"
+                  :key="`${item.id}-${link.url}`"
+                  :href="link.url"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="store-card__link"
+                >
+                  {{ link.label }}
+                </a>
+              </div>
+            </article>
+          </div>
         </div>
       </section>
     </div>
@@ -736,21 +965,33 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import ImageVoiceVideoPanel from './ImageVoiceVideoPanel.vue'
 import FengbroNewsPanel from './FengbroNewsPanel.vue'
-import { FENG_TUBE_ACTIVE_TOOL_KEY, FENG_TUBE_CHANNELS } from '../../utils/fengTubeChannels'
+import {
+  FENG_TUBE_ACTIVE_TOOL_KEY,
+  FENG_TUBE_CHANNELS,
+  stripRemovedFengTubeChannels
+} from '../../utils/fengTubeChannels'
+import { FENG_FINANCE_DEFAULT_INSTRUMENTS } from '../../utils/fengFinanceInstruments'
+import {
+  FINANCE_CUSTOM_GROUPS,
+  FINANCE_GROUP_LABELS,
+  buildCustomFinanceInstrumentFromDraft,
+  createEmptyCustomFinanceDraft,
+  draftFromCustomFinanceInstrument,
+  getCustomFinanceInstrumentKey,
+  guessFinanceGroup,
+  isFinanceQuoteUrl,
+  isTaiwanYahooStockSource,
+  normalizeCustomFinanceInstrument,
+  parseFinanceQuoteInput
+} from '../../utils/fengbroFinanceCustom'
+import { isKospiMarketOpen, KOSPI_LIVE_POLL_MS } from '../../utils/kospiMarketHours'
 
-const toolTabs = [
-  { value: 'biggo', label: '鋒兄比價', description: '(比價紀錄)' },
-  { value: 'manual', label: '手動紀錄', description: '自行輸入商品與價錢、查看走勢' },
-  { value: 'phone', label: '手機比價', description: '地標網通與傑昇通信價格比較' },
-  { value: 'tube', label: '鋒兄tube', description: '追蹤指定 YouTube 頻道最新影片' },
-  { value: 'finance', label: '鋒兄金融', description: '追蹤 CNBC 市場價格與高低標記' },
-  { value: 'news', label: '鋒兄新聞', description: '鎖定網站焦點，標題關鍵字搜尋' },
-  { value: 'image-voice', label: '圖片語音成片', description: '圖片 + 語音 = 影片（預設男聲／單一人物自動選聲）' }
-]
+/** Valid tool keys — selection is driven by the top nav (useNavigation tools children). */
+const VALID_TOOLS = ['biggo', 'manual', 'phone', 'tube', 'finance', 'news', 'image-voice']
 
 const props = defineProps({
   modelValue: { type: String, default: '' }
@@ -758,7 +999,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const isValidTool = (value) => toolTabs.some(tab => tab.value === value)
+const isValidTool = (value) => VALID_TOOLS.includes(value)
 
 const readInitialTool = () => {
   if (!import.meta.client) return 'biggo'
@@ -805,6 +1046,20 @@ const tubeEditFormError = ref('')
 const financeLoading = ref(false)
 const financeError = ref('')
 const financeResult = ref(null)
+const financeDefaultInstruments = FENG_FINANCE_DEFAULT_INSTRUMENTS
+const FINANCE_DEFAULT_IDS_KEY = 'fengbro.tools.finance.defaultInstrumentIds'
+const FINANCE_CUSTOM_INSTRUMENTS_KEY = 'fengbro.tools.finance.customInstruments'
+const selectedDefaultInstrumentIds = ref(financeDefaultInstruments.map((item) => item.id))
+const financeCustomInstruments = ref([])
+const financeCustomDraft = ref(createEmptyCustomFinanceDraft())
+const financeEditingCustomKey = ref(null)
+const financeImageIndex = ref({})
+const kospiLiveOpen = ref(false)
+const kospiLiveRefreshing = ref(false)
+let kospiLiveTimer = null
+let financeImageTimer = null
+let financeNameResolveTimer = null
+const financeAutofilledName = ref('')
 
 const HISTORY_INTERVAL_DAYS = 7
 const BIGGO_HISTORY_KEY = 'fengbro-tools-biggo-history'
@@ -813,6 +1068,28 @@ const MANUAL_PRICE_STORAGE_KEY = 'fengbro-tools-manual-prices'
 const MANUAL_SELECTED_PRODUCT_KEY = 'fengbro-tools-manual-selected-product'
 const TUBE_CHANNELS_STORAGE_KEY = 'fengbro-tools-tube-channels'
 const defaultTubeChannelCount = FENG_TUBE_CHANNELS.length
+const FINANCE_HISTORY_RANGE_LABELS = {
+  '1y': '最近一年走勢',
+  '3y': '最近三年走勢'
+}
+const FINANCE_FEATURED_IDS = ['kospi', 'nikkei-225', 'phlx-semiconductor']
+const financeFeaturedMeta = {
+  kospi: {
+    title: 'KOSPI Index',
+    subtitle: '韓國綜合指數 코스피 · 6000點以上不再製作AI圖片與AI影片',
+    cardClass: 'finance-card--kospi'
+  },
+  'nikkei-225': {
+    title: 'Nikkei 225 Index',
+    subtitle: '日經平均指數 日経平均株価',
+    cardClass: 'finance-card--nikkei'
+  },
+  'phlx-semiconductor': {
+    title: '費城半導體指數',
+    subtitle: 'Philadelphia Semiconductor · SOX',
+    cardClass: 'finance-card--sox'
+  }
+}
 
 const createManualId = (prefix) => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -1774,49 +2051,6 @@ watch(
   color: var(--text-secondary);
   line-height: 1.75;
   max-width: 58ch;
-}
-
-.tools-segments {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.8rem;
-}
-
-.tools-segment {
-  border: 1px solid var(--border-color);
-  border-radius: 18px;
-  background: var(--bg-primary);
-  padding: 0.85rem 1.05rem;
-  text-align: left;
-  cursor: pointer;
-  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.tools-segment:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-soft);
-}
-
-.tools-segment.active {
-  border-color: color-mix(in oklab, var(--primary) 42%, var(--border-color));
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 28%, transparent);
-}
-
-.tools-segment__label,
-.tools-segment__desc {
-  display: block;
-}
-
-.tools-segment__label {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.tools-segment__desc {
-  margin-top: 0.35rem;
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-  line-height: 1.55;
 }
 
 .tool-panel {

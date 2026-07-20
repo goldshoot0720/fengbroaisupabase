@@ -91,7 +91,10 @@ export default defineNuxtConfig({
     },
     workbox: {
       navigateFallback: '/',
-      globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
+      // Finance showcase images are multi-MB; keep them out of SW precache.
+      globPatterns: ['**/*.{js,css,html,svg,ico,woff2}', 'pwa-*.png', 'favicon*.png', 'apple-touch-icon.png'],
+      globIgnores: ['**/finance/**'],
+      maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       importScripts: ['/custom-sw.js'],
       runtimeCaching: [
         {

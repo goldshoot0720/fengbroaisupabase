@@ -1378,7 +1378,7 @@ const financeChangeClass = (change) => {
 
 const buildFinanceRangeSummary = (points) => {
   const values = (points || [])
-    .map(point => Number(point?.value))
+    .map(point => Number(point?.value ?? point?.price))
     .filter(value => Number.isFinite(value))
 
   if (values.length < 2) {
@@ -1398,6 +1398,145 @@ const buildFinanceRangeSummary = (points) => {
     change,
     percent,
     label: formatFinanceRangeChange(change, percent)
+  }
+}
+
+const getFinanceImageUrls = (quote) => {
+  const urls = (quote?.imageUrls || []).filter((url) => typeof url === 'string' && url.trim())
+  if (urls.length) return Array.from(new Set(urls))
+  if (quote?.imageUrl) return [quote.imageUrl]
+  if (quote?.image) return [quote.image]
+  return []
+}
+
+const getFinanceSourceLabel = (quote) => {
+  const source = (quote?.sourceUrl || quote?.url || '').toLowerCase()
+  if (source.includes('multpl.com') || quote?.provider === 'multpl' || quote?.id === 'shiller-pe') return 'Multpl'
+  if (quote?.provider === 'mis' || quote?.id === 'otc' || source.includes('tpex.org.tw') || source.includes('mis.twse.com.tw')) {
+    return '櫃買中心 / MIS'
+  }
+  if (isTaiwanYahooStockSource(quote?.sourceUrl) || source.includes('tw.stock.yahoo.com')) return 'Yahoo 奇摩'
+  if (source.includes('yahoo') || quote?.provider === 'yahoo') return 'Yahoo'
+  if (quote?.provider === 'taifex' || source.includes('taifex.com.tw')) return '期交所'
+  if (source.includes('investing.com')) return 'Investing'
+  return 'CNBC'
+}
+
+const getFinanceQuoteTitle = (quote) => {
+  const name = (quote?.name || '').trim()
+  const displayName = (quote?.displayName || '').trim()
+  const symbol = (quote?.symbol || '').trim()
+  const nameIsTicker = !name || name.toUpperCase() === symbol.toUpperCase()
+  if (!nameIsTicker) return name
+  if (displayName && displayName.toUpperCase() !== symbol.toUpperCase()) return displayName
+  return name || displayName || symbol
+}
+
+const isReferenceBroken = (quote, level) => {
+  if (typeof quote?.price !== 'number' || typeof level?.value !== 'number' || !(level.value > 0)) return false
+  return quote.price < level.value
+}
+
+const buildFinanceHistoryChart = (points, quote = null) => {
+  const priced = (points || [])
+    .map((entry) => {
+      const value = Number(entry?.value ?? entry?.price)
+      if (!Number.isFinite(value)) return null
+      return { date: entry.date, value, price: value }
+    })
+    .filter(Boolean)
+
+  if (priced.length < 2) {
+    return { points: '', areaPoints: '', circles: [], referenceLines: [] }
+  }
+
+  let min = Math.min(...priced.map((p) => p.value))
+  let max = Math.max(...priced.map((p) => p.value))
+  if (quote?.id === 'kospi') {
+    if (typeof quote.low52 === 'number') min = Math.min(min, quote.low52)
+    if (typeof quote.high52 === 'number') max = Math.max(max, quote.high52)
+  }
+  for (const level of quote?.referenceLevels || []) {
+    if (typeof level.value === 'number' && Number.isFinite(level.value)) {
+      min = Math.min(min, level.value)
+      max = Math.max(max, level.value)
+    }
+  }
+
+  const domain = Math.max(max - min, Math.max(1, max * 0.02))
+  const domainMin = min - domain * 0.1
+  const domainMax = max + domain * 0.1
+  const adjusted = Math.max(domainMax - domainMin, 1)
+
+  const circles = priced.map((entry, index) => {
+    const x = priced.length === 1 ? 50 : (index / (priced.length - 1)) * 92 + 4
+    const y = 96 - ((entry.value - domainMin) / adjusted) * 72 - 6
+    return { key: `${entry.date}-${index}`, x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) }
+  })
+
+  const chartPoints = circles.map((point) => `${point.x},${point.y}`).join(' ')
+  const referenceLines = (quote?.referenceLevels || [])
+    .filter((level) => typeof level.value === 'number' && Number.isFinite(level.value))
+    .map((level) => {
+      const y = 96 - ((level.value - domainMin) / adjusted) * 72 - 6
+      return {
+        key: `${level.value}`,
+        y: Number(y.toFixed(2)),
+        broken: isReferenceBroken(quote, level)
+      }
+    })
+
+  return {
+    points: chartPoints,
+    areaPoints: `4,96 ${chartPoints} 96,96`,
+    circles,
+    referenceLines
+  }
+}
+
+const normalizeFinanceQuote = (quote) => {
+  const historyMap = quote?.historyRanges && !Array.isArray(quote.historyRanges)
+    ? quote.historyRanges
+    : null
+
+  const historyRanges = historyMap
+    ? Object.entries(historyMap).map(([key, points]) => {
+        const normalizedPoints = (points || []).map((point) => ({
+          date: point.date,
+          value: Number(point.price ?? point.value),
+          price: Number(point.price ?? point.value),
+          label: formatFinanceNumber(point.price ?? point.value)
+        }))
+        return {
+          key,
+          label: FINANCE_HISTORY_RANGE_LABELS[key] || key,
+          points: normalizedPoints,
+          chart: buildFinanceHistoryChart(normalizedPoints, quote),
+          summary: buildFinanceRangeSummary(normalizedPoints)
+        }
+      })
+    : (Array.isArray(quote?.historyRanges) ? quote.historyRanges : []).map((range) => {
+        const points = (range.points || []).map((point) => ({
+          ...point,
+          value: Number(point.value ?? point.price),
+          price: Number(point.price ?? point.value)
+        }))
+        return {
+          ...range,
+          points,
+          chart: buildFinanceHistoryChart(points, quote),
+          summary: buildFinanceRangeSummary(points)
+        }
+      })
+
+  return {
+    ...quote,
+    sourceUrl: quote.sourceUrl || quote.url || '',
+    price: quote.price ?? quote.last ?? null,
+    high52: quote.high52 ?? quote.week52High ?? null,
+    low52: quote.low52 ?? quote.week52Low ?? null,
+    recordTag: quote.recordTag || quote.status || null,
+    historyRanges
   }
 }
 
@@ -1586,24 +1725,288 @@ const tubeChannels = computed(() => {
 })
 const tubeNewVideos = computed(() => tubeResult.value?.newVideos || [])
 const tubeChannelCount = computed(() => tubeUserChannels.value.length)
-const financeItems = computed(() => {
-  const items = financeResult.value?.items || []
-  return items.map((item) => {
-    const historyRanges = Array.isArray(item.historyRanges)
-      ? item.historyRanges
-      : [{ key: '5y', label: '最近五年走勢', years: 5, points: item.history || [] }]
-
-    return {
-      ...item,
-      historyRanges: historyRanges.map(range => ({
-        ...range,
-        points: range.points || [],
-        chart: buildSingleSeriesChart(range.points || [], 'value'),
-        summary: buildFinanceRangeSummary(range.points || [])
-      }))
-    }
-  })
+const financeQuotes = computed(() => {
+  const raw = financeResult.value?.quotes || financeResult.value?.items || []
+  return raw.map(normalizeFinanceQuote)
 })
+
+const financeFeaturedQuotes = computed(() =>
+  FINANCE_FEATURED_IDS
+    .map((id) => financeQuotes.value.find((quote) => quote.id === id))
+    .filter(Boolean)
+)
+
+const financeGroupedQuotes = computed(() => {
+  const order = ['korea', 'japan', 'taiwan', 'us', 'other']
+  return order
+    .map((group) => ({
+      group,
+      quotes: financeQuotes.value
+        .filter((quote) => quote.group === group)
+        .sort((left, right) => (Number(right.price) || -Infinity) - (Number(left.price) || -Infinity))
+    }))
+    .filter((item) => item.quotes.length > 0)
+})
+
+const selectedDefaultInstruments = computed(() =>
+  financeDefaultInstruments.filter((item) => selectedDefaultInstrumentIds.value.includes(item.id))
+)
+
+const deletedDefaultInstruments = computed(() =>
+  financeDefaultInstruments.filter((item) => !selectedDefaultInstrumentIds.value.includes(item.id))
+)
+
+const persistFinanceWatchlist = () => {
+  if (!import.meta.client) return
+  localStorage.setItem(FINANCE_DEFAULT_IDS_KEY, JSON.stringify(selectedDefaultInstrumentIds.value))
+  localStorage.setItem(FINANCE_CUSTOM_INSTRUMENTS_KEY, JSON.stringify(financeCustomInstruments.value))
+}
+
+const readFinanceWatchlist = () => {
+  if (!import.meta.client) return
+  const defaultIds = safeJsonParse(localStorage.getItem(FINANCE_DEFAULT_IDS_KEY) || 'null', null)
+  if (Array.isArray(defaultIds)) {
+    const allowed = new Set(financeDefaultInstruments.map((item) => item.id))
+    const next = defaultIds.map((id) => String(id)).filter((id) => allowed.has(id))
+    if (next.length) selectedDefaultInstrumentIds.value = next
+  }
+  const custom = safeJsonParse(localStorage.getItem(FINANCE_CUSTOM_INSTRUMENTS_KEY) || '[]', [])
+  if (Array.isArray(custom)) {
+    financeCustomInstruments.value = custom
+      .map((item) => normalizeCustomFinanceInstrument(item))
+      .filter(Boolean)
+  }
+}
+
+const addDefaultInstrument = (id) => {
+  if (!id || selectedDefaultInstrumentIds.value.includes(id)) return
+  selectedDefaultInstrumentIds.value = [...selectedDefaultInstrumentIds.value, id]
+  persistFinanceWatchlist()
+  runFinanceLookup()
+}
+
+const removeDefaultInstrument = (id) => {
+  selectedDefaultInstrumentIds.value = selectedDefaultInstrumentIds.value.filter((item) => item !== id)
+  persistFinanceWatchlist()
+  runFinanceLookup()
+}
+
+const resetDefaultInstruments = () => {
+  selectedDefaultInstrumentIds.value = financeDefaultInstruments.map((item) => item.id)
+  persistFinanceWatchlist()
+  runFinanceLookup()
+}
+
+const onFinanceCustomUrlInput = (value) => {
+  const urlOrSymbol = value
+  const parsed = parseFinanceQuoteInput(urlOrSymbol)
+  if (parsed && isFinanceQuoteUrl(urlOrSymbol)) {
+    financeCustomDraft.value = {
+      ...financeCustomDraft.value,
+      urlOrSymbol,
+      provider: parsed.provider,
+      group: guessFinanceGroup(parsed.symbol, {
+        sourceUrl: parsed.sourceUrl,
+        marketHint: parsed.marketHint
+      })
+    }
+    scheduleFinanceNameResolve()
+    return
+  }
+  if (parsed && !isFinanceQuoteUrl(urlOrSymbol)) {
+    const bareGroup = guessFinanceGroup(parsed.symbol)
+    financeCustomDraft.value = {
+      ...financeCustomDraft.value,
+      urlOrSymbol,
+      provider: parsed.provider,
+      ...(bareGroup !== 'us' ? { group: bareGroup } : {})
+    }
+    scheduleFinanceNameResolve()
+    return
+  }
+  financeCustomDraft.value = { ...financeCustomDraft.value, urlOrSymbol }
+}
+
+const scheduleFinanceNameResolve = () => {
+  if (financeNameResolveTimer) window.clearTimeout(financeNameResolveTimer)
+  financeNameResolveTimer = window.setTimeout(async () => {
+    const parsed = parseFinanceQuoteInput(financeCustomDraft.value.urlOrSymbol)
+    if (!parsed) return
+    const currentName = financeCustomDraft.value.name.trim()
+    const canAutofill =
+      !currentName ||
+      currentName === parsed.symbol ||
+      currentName === financeAutofilledName.value
+    if (!canAutofill) return
+    try {
+      const data = await $fetch('/api/feng-tools/finance/resolve-name', {
+        query: {
+          symbol: parsed.symbol,
+          provider: parsed.provider,
+          ...(parsed.sourceUrl ? { url: parsed.sourceUrl } : {})
+        }
+      })
+      const resolved = String(data?.name || '').trim()
+      if (!resolved || resolved === parsed.symbol) return
+      const latestParsed = parseFinanceQuoteInput(financeCustomDraft.value.urlOrSymbol)
+      if (!latestParsed || latestParsed.symbol !== parsed.symbol) return
+      const latestName = financeCustomDraft.value.name.trim()
+      const stillCan =
+        !latestName ||
+        latestName === parsed.symbol ||
+        latestName === financeAutofilledName.value
+      if (!stillCan) return
+      financeAutofilledName.value = resolved
+      financeCustomDraft.value = {
+        ...financeCustomDraft.value,
+        name: resolved.slice(0, 80)
+      }
+    } catch {
+      // ignore resolve failures
+    }
+  }, 350)
+}
+
+const saveCustomFinanceInstrument = () => {
+  const next = buildCustomFinanceInstrumentFromDraft(financeCustomDraft.value)
+  if (!next) {
+    financeError.value = '請輸入有效的網址或代號。'
+    return
+  }
+  const key = getCustomFinanceInstrumentKey(next)
+  const existingIndex = financeCustomInstruments.value.findIndex(
+    (item) => getCustomFinanceInstrumentKey(item) === (financeEditingCustomKey.value || key)
+  )
+  if (financeEditingCustomKey.value && existingIndex >= 0) {
+    const copy = [...financeCustomInstruments.value]
+    copy[existingIndex] = next
+    financeCustomInstruments.value = copy
+  } else if (existingIndex >= 0) {
+    const copy = [...financeCustomInstruments.value]
+    copy[existingIndex] = next
+    financeCustomInstruments.value = copy
+  } else {
+    financeCustomInstruments.value = [...financeCustomInstruments.value, next]
+  }
+  financeEditingCustomKey.value = null
+  financeCustomDraft.value = createEmptyCustomFinanceDraft()
+  financeAutofilledName.value = ''
+  persistFinanceWatchlist()
+  runFinanceLookup()
+}
+
+const editCustomFinanceInstrument = (instrument) => {
+  financeEditingCustomKey.value = getCustomFinanceInstrumentKey(instrument)
+  financeCustomDraft.value = draftFromCustomFinanceInstrument(instrument)
+  financeAutofilledName.value = instrument.name
+}
+
+const cancelEditCustomFinanceInstrument = () => {
+  financeEditingCustomKey.value = null
+  financeCustomDraft.value = createEmptyCustomFinanceDraft()
+  financeAutofilledName.value = ''
+}
+
+const deleteCustomFinanceInstrument = (instrument) => {
+  const key = getCustomFinanceInstrumentKey(instrument)
+  financeCustomInstruments.value = financeCustomInstruments.value.filter(
+    (item) => getCustomFinanceInstrumentKey(item) !== key
+  )
+  if (financeEditingCustomKey.value === key) cancelEditCustomFinanceInstrument()
+  persistFinanceWatchlist()
+  runFinanceLookup()
+}
+
+const setFinanceImageIndex = (id, index) => {
+  financeImageIndex.value = { ...financeImageIndex.value, [id]: index }
+}
+
+const advanceFinanceImage = (id) => {
+  const quote = financeQuotes.value.find((item) => item.id === id)
+  const urls = getFinanceImageUrls(quote)
+  if (urls.length <= 1) return
+  const current = financeImageIndex.value[id] || 0
+  setFinanceImageIndex(id, (current + 1) % urls.length)
+}
+
+const stopFinanceImageCarousel = () => {
+  if (financeImageTimer) {
+    window.clearInterval(financeImageTimer)
+    financeImageTimer = null
+  }
+}
+
+const startFinanceImageCarousel = () => {
+  stopFinanceImageCarousel()
+  if (!import.meta.client) return
+  financeImageTimer = window.setInterval(() => {
+    for (const quote of financeQuotes.value) {
+      const urls = getFinanceImageUrls(quote)
+      if (urls.length > 1) advanceFinanceImage(quote.id)
+    }
+  }, 4500)
+}
+
+const stopKospiLivePoll = () => {
+  if (kospiLiveTimer) {
+    window.clearInterval(kospiLiveTimer)
+    kospiLiveTimer = null
+  }
+  kospiLiveOpen.value = false
+  kospiLiveRefreshing.value = false
+}
+
+const pollKospiLive = async () => {
+  if (!isKospiMarketOpen()) {
+    kospiLiveOpen.value = false
+    return
+  }
+  kospiLiveOpen.value = true
+  if (!financeResult.value || financeLoading.value) return
+  kospiLiveRefreshing.value = true
+  try {
+    const data = await $fetch('/api/feng-tools/finance', {
+      query: {
+        defaults: JSON.stringify(['kospi']),
+        custom: JSON.stringify([]),
+        skipHistory: '1'
+      }
+    })
+    const live = (data?.quotes || []).find((quote) => quote.id === 'kospi')
+    if (!live || !financeResult.value?.quotes) return
+    financeResult.value = {
+      ...financeResult.value,
+      fetchedAt: data.fetchedAt || financeResult.value.fetchedAt,
+      quotes: financeResult.value.quotes.map((quote) =>
+        quote.id === 'kospi'
+          ? {
+              ...quote,
+              price: live.price,
+              change: live.change,
+              changePercent: live.changePercent,
+              lastUpdated: live.lastUpdated,
+              high52: live.high52 ?? quote.high52,
+              low52: live.low52 ?? quote.low52,
+              recordTag: live.recordTag ?? quote.recordTag,
+              isThresholdAlert: live.isThresholdAlert ?? quote.isThresholdAlert
+            }
+          : quote
+      )
+    }
+  } catch {
+    // keep last full load
+  } finally {
+    kospiLiveRefreshing.value = false
+  }
+}
+
+const startKospiLivePoll = () => {
+  stopKospiLivePoll()
+  if (!import.meta.client) return
+  kospiLiveOpen.value = isKospiMarketOpen()
+  if (!kospiLiveOpen.value) return
+  kospiLiveTimer = window.setInterval(pollKospiLive, KOSPI_LIVE_POLL_MS)
+}
 
 const normalizeTubeChannels = (channels) => {
   if (!Array.isArray(channels)) return []
@@ -1630,11 +2033,17 @@ const writeTubeChannels = () => {
 const readTubeChannels = () => {
   if (!import.meta.client) return
   const savedValue = localStorage.getItem(TUBE_CHANNELS_STORAGE_KEY)
-  if (savedValue === null) return
+  if (savedValue === null) {
+    tubeUserChannels.value = normalizeTubeChannels(FENG_TUBE_CHANNELS)
+    return
+  }
 
   const parsedChannels = safeJsonParse(savedValue, [])
   if (Array.isArray(parsedChannels)) {
-    tubeUserChannels.value = normalizeTubeChannels(parsedChannels)
+    const normalized = normalizeTubeChannels(parsedChannels)
+    const stripped = stripRemovedFengTubeChannels(normalized)
+    tubeUserChannels.value = stripped
+    if (stripped.length !== normalized.length) writeTubeChannels()
   }
 }
 
@@ -1809,7 +2218,7 @@ const saveTubeChannelEdit = async (channelId) => {
 }
 
 const resetTubeChannels = () => {
-  if (import.meta.client && !window.confirm('確定還原為預設 20 個頻道？目前自訂清單會被覆蓋。')) return
+  if (import.meta.client && !window.confirm('確定清空為產品預設（空清單）？目前自訂頻道會被覆蓋。')) return
   tubeUserChannels.value = FENG_TUBE_CHANNELS.map(channel => ({ ...channel }))
   tubeChannelFormError.value = ''
   cancelTubeChannelEdit()
@@ -1932,7 +2341,14 @@ const runFinanceLookup = async () => {
   financeError.value = ''
 
   try {
-    financeResult.value = await $fetch('/api/feng-tools/finance')
+    financeResult.value = await $fetch('/api/feng-tools/finance', {
+      query: {
+        defaults: JSON.stringify(selectedDefaultInstrumentIds.value),
+        custom: JSON.stringify(financeCustomInstruments.value)
+      }
+    })
+    startFinanceImageCarousel()
+    startKospiLivePoll()
   } catch (error) {
     financeError.value = error?.data?.statusMessage || error?.message || '鋒兄金融更新失敗'
   } finally {
@@ -1943,8 +2359,15 @@ const runFinanceLookup = async () => {
 onMounted(() => {
   readTubeChannels()
   readManualProducts()
+  readFinanceWatchlist()
   if (activeTool.value === 'tube') runTubeLookup()
   if (activeTool.value === 'finance') runFinanceLookup()
+})
+
+onUnmounted(() => {
+  stopKospiLivePoll()
+  stopFinanceImageCarousel()
+  if (financeNameResolveTimer) window.clearTimeout(financeNameResolveTimer)
 })
 
 watch(() => props.modelValue, (value) => {
@@ -1971,8 +2394,15 @@ watch(activeTool, (value) => {
     runTubeLookup()
   }
 
-  if (value === 'finance' && !financeResult.value && !financeLoading.value) {
-    runFinanceLookup()
+  if (value === 'finance') {
+    if (!financeResult.value && !financeLoading.value) runFinanceLookup()
+    else {
+      startFinanceImageCarousel()
+      startKospiLivePoll()
+    }
+  } else {
+    stopKospiLivePoll()
+    stopFinanceImageCarousel()
   }
 })
 
@@ -2390,6 +2820,289 @@ watch(
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
+}
+
+.tool-notice--inline {
+  margin: 0.35rem 0 0;
+}
+
+.finance-live-pill {
+  display: inline-flex;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.finance-controls {
+  display: grid;
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.finance-watchlist,
+.finance-custom-form {
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--bg-primary) 88%, var(--bg-secondary));
+  padding: 0.9rem 1rem;
+}
+
+.finance-watchlist summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.finance-watchlist__body {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.finance-watchlist__actions,
+.finance-custom-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.finance-custom-form--editing {
+  border-color: color-mix(in oklab, #f59e0b 45%, var(--border-color));
+  background: color-mix(in oklab, #fffbeb 70%, var(--bg-primary));
+}
+
+.finance-custom-form__grid {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(180px, 1.4fr) minmax(100px, 0.7fr) minmax(100px, 0.7fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+  margin-top: 0.65rem;
+}
+
+.finance-custom-form__grid label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.tool-input {
+  width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 0.45rem 0.7rem;
+  font: inherit;
+}
+
+.tool-secondary-btn {
+  min-height: 2.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 0.4rem 0.85rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.finance-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+
+.finance-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: color-mix(in oklab, #ecfdf5 70%, var(--bg-primary));
+  padding: 0.28rem 0.65rem;
+  font-size: 0.78rem;
+}
+
+.finance-chip--active {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.finance-chip__btn {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0 0.15rem;
+}
+
+.finance-featured {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.finance-featured__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.9rem;
+}
+
+.finance-card--featured {
+  position: relative;
+}
+
+.finance-card--kospi {
+  border-color: #7dd3fc;
+  background: linear-gradient(135deg, rgba(224, 242, 254, 0.9), color-mix(in oklab, var(--bg-primary) 92%, transparent));
+}
+
+.finance-card--nikkei {
+  border-color: #fda4af;
+  background: linear-gradient(135deg, rgba(255, 228, 230, 0.9), color-mix(in oklab, var(--bg-primary) 92%, transparent));
+}
+
+.finance-card--sox {
+  border-color: #c4b5fd;
+  background: linear-gradient(135deg, rgba(237, 233, 254, 0.9), color-mix(in oklab, var(--bg-primary) 92%, transparent));
+}
+
+.finance-featured__index {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.95rem;
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  opacity: 0.45;
+}
+
+.finance-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.55rem;
+}
+
+.finance-badge {
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, #6366f1 25%, var(--border-color));
+  background: color-mix(in oklab, #eef2ff 80%, transparent);
+  color: #4338ca;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.18rem 0.55rem;
+}
+
+.finance-badge--live {
+  border-color: #7dd3fc;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.finance-badge--danger {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.finance-carousel {
+  position: relative;
+}
+
+.finance-carousel__dots {
+  position: absolute;
+  left: 50%;
+  bottom: 0.55rem;
+  display: flex;
+  gap: 0.3rem;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 999px;
+  padding: 0.25rem 0.4rem;
+}
+
+.finance-carousel__dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  padding: 0;
+}
+
+.finance-carousel__dot--active {
+  width: 0.95rem;
+  background: #fff;
+}
+
+.finance-group-nav {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 0.2rem 0 0.85rem;
+}
+
+.finance-group-nav__link {
+  flex: 0 0 auto;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.35rem 0.7rem;
+}
+
+.finance-group-nav__link span {
+  margin-left: 0.25rem;
+  color: var(--text-secondary);
+}
+
+.finance-group-nav__link--featured {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.finance-group {
+  scroll-margin-top: 5rem;
+  margin-bottom: 1.25rem;
+}
+
+.finance-group__title {
+  margin: 0 0 0.7rem;
+  font-size: 1.05rem;
+}
+
+.finance-history-ref {
+  stroke: #f59e0b;
+  stroke-width: 1.4;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.finance-history-ref--danger {
+  stroke: #dc2626;
+}
+
+@media (max-width: 900px) {
+  .finance-custom-form__grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .store-card__link--youtube {

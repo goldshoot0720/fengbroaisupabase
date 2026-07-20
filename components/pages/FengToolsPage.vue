@@ -611,84 +611,6 @@
           </button>
         </div>
 
-        <div class="finance-controls">
-          <details class="finance-watchlist">
-            <summary>預設追蹤清單（{{ selectedDefaultInstrumentIds.length }} / {{ financeDefaultInstruments.length }}）</summary>
-            <div class="finance-watchlist__body">
-              <div class="finance-watchlist__actions">
-                <select class="tool-input" :disabled="deletedDefaultInstruments.length === 0" @change="addDefaultInstrument($event.target.value); $event.target.value = ''">
-                  <option value="">{{ deletedDefaultInstruments.length ? '加回預設標的' : '預設標的已全數啟用' }}</option>
-                  <option v-for="item in deletedDefaultInstruments" :key="item.id" :value="item.id">
-                    {{ item.name }} ({{ item.symbol }})
-                  </option>
-                </select>
-                <button type="button" class="tool-secondary-btn" @click="resetDefaultInstruments">重設預設</button>
-              </div>
-              <div class="finance-chip-row">
-                <span v-for="item in selectedDefaultInstruments" :key="item.id" class="finance-chip">
-                  <strong>{{ item.name }}</strong>
-                  <span>{{ item.symbol }}</span>
-                  <button type="button" class="finance-chip__btn" :aria-label="`刪除 ${item.name}`" @click="removeDefaultInstrument(item.id)">×</button>
-                </span>
-              </div>
-            </div>
-          </details>
-
-          <div class="finance-custom-form" :class="{ 'finance-custom-form--editing': financeEditingCustomKey }">
-            <p class="store-card__name">{{ financeEditingCustomKey ? '編輯指數或股票' : '新增指數或股票' }}</p>
-            <p class="tool-notice tool-notice--inline">可貼 Yahoo 奇摩／CNBC 網址或代號（如 2330.TW、.SOX）；台股會自動辨識。</p>
-            <div class="finance-custom-form__grid">
-              <label>
-                <span>代稱</span>
-                <input v-model="financeCustomDraft.name" class="tool-input" placeholder="例如：台積電" @keydown.enter.prevent="saveCustomFinanceInstrument" />
-              </label>
-              <label>
-                <span>網址或代號</span>
-                <input
-                  :value="financeCustomDraft.urlOrSymbol"
-                  class="tool-input"
-                  placeholder="https://tw.stock.yahoo.com/quote/2330.TW 或 2330.TW"
-                  @input="onFinanceCustomUrlInput($event.target.value)"
-                  @keydown.enter.prevent="saveCustomFinanceInstrument"
-                />
-              </label>
-              <label>
-                <span>來源</span>
-                <select v-model="financeCustomDraft.provider" class="tool-input" :disabled="isFinanceQuoteUrl(financeCustomDraft.urlOrSymbol)">
-                  <option value="cnbc">CNBC</option>
-                  <option value="yahoo">{{ isTaiwanYahooStockSource(financeCustomDraft.urlOrSymbol) ? 'Yahoo 奇摩' : 'Yahoo' }}</option>
-                </select>
-              </label>
-              <label>
-                <span>分類</span>
-                <select v-model="financeCustomDraft.group" class="tool-input">
-                  <option v-for="group in FINANCE_CUSTOM_GROUPS" :key="group" :value="group">{{ FINANCE_GROUP_LABELS[group] }}</option>
-                </select>
-              </label>
-              <div class="finance-custom-form__actions">
-                <button type="button" class="tool-primary-btn tool-primary-btn--compact" @click="saveCustomFinanceInstrument">
-                  {{ financeEditingCustomKey ? '儲存' : '新增' }}
-                </button>
-                <button v-if="financeEditingCustomKey" type="button" class="tool-secondary-btn" @click="cancelEditCustomFinanceInstrument">取消</button>
-              </div>
-            </div>
-            <div v-if="financeCustomInstruments.length" class="finance-chip-row">
-              <span
-                v-for="item in financeCustomInstruments"
-                :key="getCustomFinanceInstrumentKey(item)"
-                class="finance-chip"
-                :class="{ 'finance-chip--active': financeEditingCustomKey === getCustomFinanceInstrumentKey(item) }"
-              >
-                <strong>{{ item.name }}</strong>
-                <span>{{ item.provider.toUpperCase() }}: {{ item.symbol }}</span>
-                <span>{{ FINANCE_GROUP_LABELS[item.group] || item.group }}</span>
-                <button type="button" class="finance-chip__btn" @click="editCustomFinanceInstrument(item)">編輯</button>
-                <button type="button" class="finance-chip__btn" @click="deleteCustomFinanceInstrument(item)">×</button>
-              </span>
-            </div>
-          </div>
-        </div>
-
         <p v-if="financeError" class="tool-error">{{ financeError }}</p>
         <p v-else-if="financeLoading && !financeResult" class="tool-notice">正在整理指數、商品、利率、加密貨幣與台韓股。</p>
         <p v-else-if="financeResult" class="tool-notice">
@@ -957,6 +879,84 @@
                 </a>
               </div>
             </article>
+          </div>
+        </div>
+
+        <div class="finance-controls">
+          <details class="finance-watchlist">
+            <summary>預設追蹤清單（{{ selectedDefaultInstrumentIds.length }} / {{ financeDefaultInstruments.length }}）</summary>
+            <div class="finance-watchlist__body">
+              <div class="finance-watchlist__actions">
+                <select class="tool-input" :disabled="deletedDefaultInstruments.length === 0" @change="addDefaultInstrument($event.target.value); $event.target.value = ''">
+                  <option value="">{{ deletedDefaultInstruments.length ? '加回預設標的' : '預設標的已全數啟用' }}</option>
+                  <option v-for="item in deletedDefaultInstruments" :key="item.id" :value="item.id">
+                    {{ item.name }} ({{ item.symbol }})
+                  </option>
+                </select>
+                <button type="button" class="tool-secondary-btn" @click="resetDefaultInstruments">重設預設</button>
+              </div>
+              <div class="finance-chip-row">
+                <span v-for="item in selectedDefaultInstruments" :key="item.id" class="finance-chip">
+                  <strong>{{ item.name }}</strong>
+                  <span>{{ item.symbol }}</span>
+                  <button type="button" class="finance-chip__btn" :aria-label="`刪除 ${item.name}`" @click="removeDefaultInstrument(item.id)">×</button>
+                </span>
+              </div>
+            </div>
+          </details>
+
+          <div class="finance-custom-form" :class="{ 'finance-custom-form--editing': financeEditingCustomKey }">
+            <p class="store-card__name">{{ financeEditingCustomKey ? '編輯指數或股票' : '新增指數或股票' }}</p>
+            <p class="tool-notice tool-notice--inline">可貼 Yahoo 奇摩／CNBC 網址或代號（如 2330.TW、.SOX）；台股會自動辨識。</p>
+            <div class="finance-custom-form__grid">
+              <label>
+                <span>代稱</span>
+                <input v-model="financeCustomDraft.name" class="tool-input" placeholder="例如：台積電" @keydown.enter.prevent="saveCustomFinanceInstrument" />
+              </label>
+              <label>
+                <span>網址或代號</span>
+                <input
+                  :value="financeCustomDraft.urlOrSymbol"
+                  class="tool-input"
+                  placeholder="https://tw.stock.yahoo.com/quote/2330.TW 或 2330.TW"
+                  @input="onFinanceCustomUrlInput($event.target.value)"
+                  @keydown.enter.prevent="saveCustomFinanceInstrument"
+                />
+              </label>
+              <label>
+                <span>來源</span>
+                <select v-model="financeCustomDraft.provider" class="tool-input" :disabled="isFinanceQuoteUrl(financeCustomDraft.urlOrSymbol)">
+                  <option value="cnbc">CNBC</option>
+                  <option value="yahoo">{{ isTaiwanYahooStockSource(financeCustomDraft.urlOrSymbol) ? 'Yahoo 奇摩' : 'Yahoo' }}</option>
+                </select>
+              </label>
+              <label>
+                <span>分類</span>
+                <select v-model="financeCustomDraft.group" class="tool-input">
+                  <option v-for="group in FINANCE_CUSTOM_GROUPS" :key="group" :value="group">{{ FINANCE_GROUP_LABELS[group] }}</option>
+                </select>
+              </label>
+              <div class="finance-custom-form__actions">
+                <button type="button" class="tool-primary-btn tool-primary-btn--compact" @click="saveCustomFinanceInstrument">
+                  {{ financeEditingCustomKey ? '儲存' : '新增' }}
+                </button>
+                <button v-if="financeEditingCustomKey" type="button" class="tool-secondary-btn" @click="cancelEditCustomFinanceInstrument">取消</button>
+              </div>
+            </div>
+            <div v-if="financeCustomInstruments.length" class="finance-chip-row">
+              <span
+                v-for="item in financeCustomInstruments"
+                :key="getCustomFinanceInstrumentKey(item)"
+                class="finance-chip"
+                :class="{ 'finance-chip--active': financeEditingCustomKey === getCustomFinanceInstrumentKey(item) }"
+              >
+                <strong>{{ item.name }}</strong>
+                <span>{{ item.provider.toUpperCase() }}: {{ item.symbol }}</span>
+                <span>{{ FINANCE_GROUP_LABELS[item.group] || item.group }}</span>
+                <button type="button" class="finance-chip__btn" @click="editCustomFinanceInstrument(item)">編輯</button>
+                <button type="button" class="finance-chip__btn" @click="deleteCustomFinanceInstrument(item)">×</button>
+              </span>
+            </div>
           </div>
         </div>
       </section>

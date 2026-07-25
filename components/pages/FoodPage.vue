@@ -86,8 +86,36 @@
         >
           刪除選中 ({{ selectedIds.length }})
         </button>
-        <span v-if="expiringFoods.length > 0" class="expiry-warning">{{ expiringFoods.length }} 項即將到期</span>
+        <button
+          v-if="expiringFoods.length > 0"
+          type="button"
+          class="expiry-warning expiry-warning-btn"
+          :class="{ active: showExpiringOnly }"
+          :title="showExpiringOnly ? '顯示全部食品' : '只顯示 7 天內即將到期的項目'"
+          @click="toggleExpiringOnly"
+        >
+          {{ expiringFoods.length }} 項即將到期{{ showExpiringOnly ? '（篩選中）' : '' }}
+        </button>
       </div>
+    </div>
+
+    <!-- 即將到期明細（避免只剩「N 項」沒有名稱） -->
+    <div v-if="showExpiringOnly && expiringFoods.length > 0" class="expiring-detail-panel" aria-live="polite">
+      <div class="expiring-detail-header">
+        <strong>7 天內到期（{{ expiringFoods.length }}）</strong>
+        <button type="button" class="expiring-detail-clear" @click="showExpiringOnly = false">清除篩選</button>
+      </div>
+      <ul class="expiring-detail-list">
+        <li v-for="food in expiringFoods" :key="food.id">
+          <span class="expiring-detail-name">{{ food.name || '未命名' }}</span>
+          <span class="expiring-detail-meta">
+            {{ formatRemainingDate(food.todate) }}
+            <template v-if="food.todate"> · {{ formatDate(food.todate) }}</template>
+            <template v-if="food.amount != null && food.amount !== ''"> · 數量 {{ food.amount }}</template>
+            <template v-if="food.shop"> · {{ food.shop }}</template>
+          </span>
+        </li>
+      </ul>
     </div>
 
     <!-- 食物表格 -->
@@ -323,6 +351,11 @@ const {
 const selectedYear = ref('')
 const selectedMonth = ref('')
 const previewImage = ref(null)
+const showExpiringOnly = ref(false)
+
+const toggleExpiringOnly = () => {
+  showExpiringOnly.value = !showExpiringOnly.value
+}
 
 const {
   foods,
@@ -630,8 +663,13 @@ const filteredFoods = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   const year = selectedYear.value
   const month = selectedMonth.value
+  const expiringIds = showExpiringOnly.value
+    ? new Set(expiringFoods.value.map((food) => food.id))
+    : null
 
   return sortedFoods.value.filter((food) => {
+    if (expiringIds && !expiringIds.has(food.id)) return false
+
     const matchesSearch = !q ||
       (food.name || '').toLowerCase().includes(q) ||
       (food.shop || '').toLowerCase().includes(q)
@@ -1006,6 +1044,93 @@ defineExpose({ foods, expiringFoods })
 .expiry-warning {
   color: #e74c3c;
   font-weight: 700;
+}
+
+.expiry-warning-btn {
+  appearance: none;
+  border: 1px solid rgba(231, 76, 60, 0.35);
+  background: rgba(231, 76, 60, 0.08);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.3;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.expiry-warning-btn:hover {
+  background: rgba(231, 76, 60, 0.14);
+  border-color: rgba(231, 76, 60, 0.55);
+}
+
+.expiry-warning-btn.active {
+  background: rgba(231, 76, 60, 0.18);
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.15);
+}
+
+.expiring-detail-panel {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(231, 76, 60, 0.25);
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.06) 0%, rgba(243, 156, 18, 0.06) 100%);
+}
+
+.expiring-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+  color: #c0392b;
+  font-size: 0.95rem;
+}
+
+.expiring-detail-clear {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.expiring-detail-clear:hover {
+  color: #333;
+}
+
+.expiring-detail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.expiring-detail-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.expiring-detail-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.expiring-detail-meta {
+  color: #666;
+  font-size: 0.88rem;
 }
 
 .loading,

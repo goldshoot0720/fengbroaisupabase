@@ -51,16 +51,21 @@ export const useFoods = () => {
     return supabase
   }
 
-  // 計算屬性：即將到期的食物（7天內）
+  // 計算屬性：即將到期的食物（7天內，依到期日由近到遠）
   const expiringFoods = computed(() => {
     const today = new Date()
+    today.setHours(0, 0, 0, 0)
     const sevenDaysLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-    
-    return foods.value.filter(food => {
-      if (!food.todate) return false
-      const toDate = new Date(food.todate)
-      return toDate <= sevenDaysLater && toDate >= today
-    })
+
+    return foods.value
+      .filter((food) => {
+        if (!food.todate) return false
+        const toDate = new Date(food.todate)
+        if (Number.isNaN(toDate.getTime())) return false
+        toDate.setHours(0, 0, 0, 0)
+        return toDate <= sevenDaysLater && toDate >= today
+      })
+      .sort((a, b) => new Date(a.todate) - new Date(b.todate))
   })
 
   // 計算屬性：排序後的食物（按到期日）

@@ -24,6 +24,7 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
+    "@huggingface/transformers": "^4.2.0",
     "@netlify/blobs": "^8.2.0",
     "@nuxtjs/supabase": "^2.0.3",
     "@supabase/supabase-js": "^2.87.1",

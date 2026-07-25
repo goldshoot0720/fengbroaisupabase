@@ -1,6 +1,7 @@
 /**
  * Script-based subtitle helpers (plain text / SRT / VTT).
- * Ported from https://github.com/huang1988pioneer/VideoMerge (without Whisper).
+ * Ported from https://github.com/huang1988pioneer/VideoMerge.
+ * Whisper ASR lives in ./whisper.js
  */
 
 function formatTimestamp(sec, style) {

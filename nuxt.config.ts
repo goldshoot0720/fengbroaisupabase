@@ -140,14 +140,23 @@ export default defineNuxtConfig({
   // 全域 CSS
   css: ['~/assets/css/variables.css'],
 
-  // face-api / ffmpeg.wasm are browser-only (image-voice gender + video merge)
+  // face-api / ffmpeg.wasm / transformers (Whisper) are browser-only
   vite: {
     optimizeDeps: {
       include: ['@vladmandic/face-api'],
-      exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util']
+      exclude: [
+        '@ffmpeg/ffmpeg',
+        '@ffmpeg/util',
+        '@huggingface/transformers'
+      ]
     },
     ssr: {
-      external: ['@vladmandic/face-api', '@ffmpeg/ffmpeg', '@ffmpeg/util']
+      external: [
+        '@vladmandic/face-api',
+        '@ffmpeg/ffmpeg',
+        '@ffmpeg/util',
+        '@huggingface/transformers'
+      ]
     },
     worker: {
       format: 'es'

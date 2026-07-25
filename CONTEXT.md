@@ -28,9 +28,9 @@ Shared pure helpers live in `utils/notificationHelpers.js` (date math, day text,
 
 | Channel | Entry | Notes |
 |---------|-------|--------|
-| Toast + native | `useNotifications` | 3-day subscription window |
-| SW periodic sync | `public/custom-sw.js` | self-contained; keep constants aligned with helpers |
-| Netlify cron Web Push | `netlify/functions/send-push-cron.js` | imports helpers; 3-day window |
+| Toast + native | `useNotifications` | 3-day subscription window; **>3 items → one grouped summary** (names + dates) instead of N stacked toasts |
+| SW periodic sync | `public/custom-sw.js` | self-contained; keep constants aligned with helpers; same group threshold |
+| Netlify cron Web Push | `netlify/functions/send-push-cron.js` | imports helpers; 3-day window; groups when >3 due |
 | Resend email | `useExpiryEmailNotifications` | subscription = 2 days before; food = 8 days before |
 | Web Push subscribe | `usePushNotification` | writes `push_subscriptions` |
 | In-app toast UI | `useToast` + `ToastContainer` | generic UI, not expiry-specific |

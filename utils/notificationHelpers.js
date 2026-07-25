@@ -66,6 +66,11 @@ export const isWithinNotifyWindow = (value, windowDays = SUBSCRIPTION_NOTIFY_WIN
   return days >= 0 && days <= windowDays
 }
 
+/** Above this count, toast/native/push collapse into one summary with a name list. */
+export const SUBSCRIPTION_ALERT_GROUP_THRESHOLD = 3
+/** How many individual lines to show inside a grouped body before “and N more”. */
+export const SUBSCRIPTION_ALERT_GROUP_PREVIEW = 6
+
 export const buildSubscriptionExpiryBody = (name, nextdate, { quoted = false } = {}) => {
   const daysLeft = daysUntil(nextdate)
   const dayText = daysLeft === null ? '即將' : getDayText(daysLeft)
@@ -76,6 +81,62 @@ export const buildSubscriptionExpiryBody = (name, nextdate, { quoted = false } =
   }
   return `${label} 將在 ${dayText} 到期（${dateLabel}）`
 }
+
+const subscriptionDisplayName = (sub) => sub?.name || sub?.title || '未命名訂閱'
+
+/** Sort soonest-first; stable for null dates. */
+export const sortSubscriptionsByDueDate = (items = []) =>
+  [...items].sort((a, b) => {
+    const daysA = daysUntil(a?.nextdate)
+    const daysB = daysUntil(b?.nextdate)
+    if (daysA === null && daysB === null) return 0
+    if (daysA === null) return 1
+    if (daysB === null) return -1
+    return daysA - daysB
+  })
+
+/**
+ * One readable body for many due subscriptions (toast, native, push, SW).
+ * Example: "16 項訂閱 3 天內到期：Netflix 明天；Spotify 2 天後…（另 10 項）"
+ */
+export const buildGroupedSubscriptionExpiryBody = (
+  items = [],
+  {
+    windowDays = SUBSCRIPTION_NOTIFY_WINDOW_DAYS,
+    previewLimit = SUBSCRIPTION_ALERT_GROUP_PREVIEW,
+    quoted = false
+  } = {}
+) => {
+  const sorted = sortSubscriptionsByDueDate(items)
+  const total = sorted.length
+  if (total === 0) return ''
+  if (total === 1) {
+    const only = sorted[0]
+    return buildSubscriptionExpiryBody(subscriptionDisplayName(only), only?.nextdate, { quoted })
+  }
+
+  const preview = sorted.slice(0, previewLimit)
+  const lines = preview.map((sub) => {
+    const daysLeft = daysUntil(sub?.nextdate)
+    const dayText = daysLeft === null ? '即將' : getDayText(daysLeft)
+    const dateLabel = dateKey(sub?.nextdate) || sub?.nextdate || '未填日期'
+    const name = subscriptionDisplayName(sub)
+    return quoted
+      ? `「${name}」${dayText}（${dateLabel}）`
+      : `${name} ${dayText}（${dateLabel}）`
+  })
+
+  const remaining = total - preview.length
+  const header = `${total} 項訂閱 ${windowDays} 天內到期`
+  const detail = lines.join('；')
+  const tail = remaining > 0 ? `…另 ${remaining} 項，請到儀表板查看` : '。請到儀表板查看'
+  return `${header}：${detail}${tail}`
+}
+
+export const shouldGroupSubscriptionAlerts = (
+  count,
+  threshold = SUBSCRIPTION_ALERT_GROUP_THRESHOLD
+) => count > threshold
 
 export const buildSubscriptionNotificationOptions = (sub, { tagPrefix = 'sub' } = {}) => {
   const id = sub?.id ?? sub?.$id ?? 'unknown'
@@ -91,8 +152,43 @@ export const buildSubscriptionNotificationOptions = (sub, { tagPrefix = 'sub' } 
   }
 }
 
+export const buildGroupedSubscriptionNotificationOptions = (
+  items = [],
+  { tagPrefix = 'sub-group', windowDays = SUBSCRIPTION_NOTIFY_WINDOW_DAYS } = {}
+) => {
+  const sorted = sortSubscriptionsByDueDate(items)
+  const dayKey = todayKey()
+  return {
+    title: SUBSCRIPTION_NOTIF_TITLE,
+    body: buildGroupedSubscriptionExpiryBody(sorted, { windowDays, quoted: false }),
+    icon: NOTIF_ICON,
+    badge: NOTIF_BADGE,
+    tag: `${tagPrefix}-${dayKey}`,
+    vibrate: [200, 100, 200],
+    requireInteraction: true,
+    data: { url: '/' }
+  }
+}
+
 export const buildPushPayload = (sub) => {
   const options = buildSubscriptionNotificationOptions(sub, { tagPrefix: 'sub-push' })
+  return {
+    title: options.title,
+    body: options.body,
+    tag: options.tag,
+    url: options.data.url,
+    icon: options.icon,
+    badge: options.badge,
+    requireInteraction: options.requireInteraction
+  }
+}
+
+/** Single push payload when many subscriptions are due the same day. */
+export const buildGroupedPushPayload = (items = [], windowDays = SUBSCRIPTION_NOTIFY_WINDOW_DAYS) => {
+  const options = buildGroupedSubscriptionNotificationOptions(items, {
+    tagPrefix: 'sub-push-group',
+    windowDays
+  })
   return {
     title: options.title,
     body: options.body,

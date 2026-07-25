@@ -9,6 +9,9 @@ const SW_CREDS_KEY = 'supabase-creds'
 const SUB_NOTIFY_DATE_KEY = 'sub-notify-date'
 const PERIODIC_SYNC_TAG = 'check-subscriptions'
 const SUBSCRIPTION_NOTIFY_WINDOW_DAYS = 3
+/** Keep aligned with utils/notificationHelpers.js SUBSCRIPTION_ALERT_GROUP_* */
+const SUBSCRIPTION_ALERT_GROUP_THRESHOLD = 3
+const SUBSCRIPTION_ALERT_GROUP_PREVIEW = 6
 const NOTIF_ICON = '/pwa-192x192.png'
 const NOTIF_BADGE = '/pwa-192x192.png'
 const SUBSCRIPTION_NOTIF_TITLE = '鋒兄訂閱提醒'
@@ -100,9 +103,39 @@ function getDayText(daysLeft) {
   return `${daysLeft} 天後`
 }
 
+function daysUntilFromNow(nextdate, now) {
+  const date = new Date(nextdate)
+  date.setHours(0, 0, 0, 0)
+  return Math.round((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+}
+
 function buildSubscriptionExpiryBody(name, nextdate, daysLeft) {
   const dayText = getDayText(daysLeft)
   return `${name || '未命名訂閱'} 將在 ${dayText} 到期（${nextdate}）`
+}
+
+function buildGroupedSubscriptionExpiryBody(items, now) {
+  const sorted = [...items].sort(
+    (a, b) => daysUntilFromNow(a.nextdate, now) - daysUntilFromNow(b.nextdate, now)
+  )
+  const total = sorted.length
+  if (total === 1) {
+    const only = sorted[0]
+    return buildSubscriptionExpiryBody(
+      only.name,
+      only.nextdate,
+      daysUntilFromNow(only.nextdate, now)
+    )
+  }
+
+  const preview = sorted.slice(0, SUBSCRIPTION_ALERT_GROUP_PREVIEW)
+  const lines = preview.map((sub) => {
+    const daysLeft = daysUntilFromNow(sub.nextdate, now)
+    return `${sub.name || '未命名訂閱'} ${getDayText(daysLeft)}（${sub.nextdate}）`
+  })
+  const remaining = total - preview.length
+  const tail = remaining > 0 ? `…另 ${remaining} 項，請到儀表板查看` : '。請到儀表板查看'
+  return `${total} 項訂閱 ${SUBSCRIPTION_NOTIFY_WINDOW_DAYS} 天內到期：${lines.join('；')}${tail}`
 }
 
 self.addEventListener('periodicsync', (event) => {
@@ -146,10 +179,22 @@ async function checkSubscriptionExpiry() {
     if (upcoming.length === 0) return
     await setInDB(SUB_NOTIFY_DATE_KEY, today)
 
+    // Collapse many due items into one notification with a preview list.
+    if (upcoming.length > SUBSCRIPTION_ALERT_GROUP_THRESHOLD) {
+      await self.registration.showNotification(SUBSCRIPTION_NOTIF_TITLE, {
+        body: buildGroupedSubscriptionExpiryBody(upcoming, now),
+        icon: NOTIF_ICON,
+        badge: NOTIF_BADGE,
+        tag: `sub-bg-group-${today}`,
+        vibrate: [200, 100, 200],
+        requireInteraction: true,
+        data: { url: '/' }
+      })
+      return
+    }
+
     for (const sub of upcoming) {
-      const date = new Date(sub.nextdate)
-      date.setHours(0, 0, 0, 0)
-      const daysLeft = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      const daysLeft = daysUntilFromNow(sub.nextdate, now)
       await self.registration.showNotification(SUBSCRIPTION_NOTIF_TITLE, {
         body: buildSubscriptionExpiryBody(sub.name, sub.nextdate, daysLeft),
         icon: NOTIF_ICON,

@@ -5,7 +5,9 @@ import webpush from 'web-push'
 import { createClient } from '@supabase/supabase-js'
 import {
   SUBSCRIPTION_NOTIFY_WINDOW_DAYS,
-  buildPushPayload
+  buildPushPayload,
+  buildGroupedPushPayload,
+  shouldGroupSubscriptionAlerts
 } from '../../utils/notificationHelpers.js'
 
 const REQUIRED_ENV = [
@@ -83,9 +85,12 @@ export default async () => {
   let removed = 0
   let failed = 0
 
-  for (const sub of subs) {
-    const payload = JSON.stringify(buildPushPayload(sub))
+  // Many due items → one grouped push per subscriber (avoids 16 stacked notifications).
+  const payloads = shouldGroupSubscriptionAlerts(subs.length)
+    ? [JSON.stringify(buildGroupedPushPayload(subs, SUBSCRIPTION_NOTIFY_WINDOW_DAYS))]
+    : subs.map((sub) => JSON.stringify(buildPushPayload(sub)))
 
+  for (const payload of payloads) {
     for (const pushSub of pushSubs) {
       try {
         await webpush.sendNotification(
@@ -112,7 +117,14 @@ export default async () => {
   }
 
   return new Response(
-    JSON.stringify({ sent, failed, removed, checked: subs.length, subscribers: pushSubs.length }),
+    JSON.stringify({
+      sent,
+      failed,
+      removed,
+      checked: subs.length,
+      subscribers: pushSubs.length,
+      grouped: shouldGroupSubscriptionAlerts(subs.length)
+    }),
     { status: 200, headers: { 'content-type': 'application/json; charset=utf-8' } }
   )
 }

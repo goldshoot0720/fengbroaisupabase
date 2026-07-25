@@ -17,8 +17,13 @@ import {
   NOTIF_ICON,
   NOTIF_BADGE,
   SUBSCRIPTION_NOTIF_TITLE,
+  SUBSCRIPTION_NOTIFY_WINDOW_DAYS,
   todayKey,
-  buildSubscriptionExpiryBody
+  buildSubscriptionExpiryBody,
+  buildGroupedSubscriptionExpiryBody,
+  buildGroupedSubscriptionNotificationOptions,
+  shouldGroupSubscriptionAlerts,
+  sortSubscriptionsByDueDate
 } from '../utils/notificationHelpers'
 
 const checkStatus = {
@@ -58,46 +63,68 @@ const writeLocalNotifyDate = (value) => {
   }
 }
 
+const showOneNativeNotification = async ({ title, body, tag }) => {
+  let registration = null
+  try {
+    registration = await navigator.serviceWorker?.ready
+  } catch {
+    registration = null
+  }
+
+  if (registration?.showNotification) {
+    await registration.showNotification(title, {
+      body,
+      icon: NOTIF_ICON,
+      badge: NOTIF_BADGE,
+      tag,
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+      data: { url: '/' }
+    })
+    return
+  }
+
+  try {
+    void new Notification(title, {
+      body,
+      icon: '/favicon.ico',
+      tag
+    })
+  } catch (error) {
+    console.warn('[Notifications] Native notification failed:', error)
+  }
+}
+
 const showNativeSubscriptionNotifications = async (upcoming) => {
   if (!import.meta.client || !('Notification' in window)) return
 
+  const sorted = sortSubscriptionsByDueDate(upcoming)
+  if (!sorted.length) return
+
   const send = async () => {
-    let registration = null
-    try {
-      registration = await navigator.serviceWorker?.ready
-    } catch {
-      registration = null
+    // Many items → one summary notification with names (avoid 16 stacked bubbles).
+    if (shouldGroupSubscriptionAlerts(sorted.length)) {
+      const options = buildGroupedSubscriptionNotificationOptions(sorted, {
+        tagPrefix: 'sub-group',
+        windowDays: SUBSCRIPTION_NOTIFY_WINDOW_DAYS
+      })
+      await showOneNativeNotification(options)
+      return
     }
 
-    upcoming.forEach((sub, index) => {
+    for (let index = 0; index < sorted.length; index += 1) {
+      const sub = sorted[index]
       const body = buildSubscriptionExpiryBody(sub.name || sub.title, sub.nextdate, { quoted: true })
       const tag = `sub-${sub.id ?? sub.$id ?? index}`
-
-      setTimeout(() => {
-        if (registration?.showNotification) {
-          registration.showNotification(SUBSCRIPTION_NOTIF_TITLE, {
-            body,
-            icon: NOTIF_ICON,
-            badge: NOTIF_BADGE,
-            tag,
-            vibrate: [200, 100, 200],
-            requireInteraction: true,
-            data: { url: '/' }
-          })
-          return
-        }
-
-        try {
-          void new Notification(SUBSCRIPTION_NOTIF_TITLE, {
-            body,
-            icon: '/favicon.ico',
-            tag
-          })
-        } catch (error) {
-          console.warn('[Notifications] Native notification failed:', error)
-        }
-      }, index * NATIVE_STAGGER_MS)
-    })
+      await showOneNativeNotification({
+        title: SUBSCRIPTION_NOTIF_TITLE,
+        body,
+        tag
+      })
+      if (index < sorted.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, NATIVE_STAGGER_MS))
+      }
+    }
   }
 
   if (Notification.permission === 'granted') {
@@ -236,15 +263,26 @@ export function useNotifications() {
 
     writeLocalNotifyDate(today)
 
-    upcoming.forEach((sub, index) => {
-      const message = buildSubscriptionExpiryBody(sub.name || sub.title, sub.nextdate, { quoted: true })
-      setTimeout(() => {
-        toastWarning(message, { duration: TOAST_DURATION_MS })
-      }, index * TOAST_STAGGER_MS)
-    })
+    const sorted = sortSubscriptionsByDueDate(upcoming)
 
-    await showNativeSubscriptionNotifications(upcoming)
-    return { sent: upcoming.length }
+    // Group when many are due so toasts do not pile up without scannable detail.
+    if (shouldGroupSubscriptionAlerts(sorted.length)) {
+      const message = buildGroupedSubscriptionExpiryBody(sorted, {
+        windowDays: SUBSCRIPTION_NOTIFY_WINDOW_DAYS,
+        quoted: true
+      })
+      toastWarning(message, { duration: TOAST_DURATION_MS + 4000 })
+    } else {
+      sorted.forEach((sub, index) => {
+        const message = buildSubscriptionExpiryBody(sub.name || sub.title, sub.nextdate, { quoted: true })
+        setTimeout(() => {
+          toastWarning(message, { duration: TOAST_DURATION_MS })
+        }, index * TOAST_STAGGER_MS)
+      })
+    }
+
+    await showNativeSubscriptionNotifications(sorted)
+    return { sent: sorted.length, grouped: shouldGroupSubscriptionAlerts(sorted.length) }
   }
 
   const ensureWebPushSubscription = async () => {

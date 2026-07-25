@@ -12,8 +12,9 @@
             rel="noreferrer"
             class="store-card__link"
           >VideoMerge</a>
-          · 首尾幀預覽 · 本機 FFmpeg.wasm 處理（不上傳伺服器）
-          · 首次合併需下載核心約 30MB
+          · 首尾幀預覽 · 自訂音軌 · 語音稿／Whisper 語音辨識字幕
+          · 本機 FFmpeg.wasm 處理（不上傳伺服器）
+          · 首次合併需下載 FFmpeg 核心；語音辨識另需 Whisper 模型（可快取）
         </p>
       </div>
     </div>
@@ -154,7 +155,7 @@
             <button
               type="button"
               class="tool-secondary-btn tool-secondary-btn--compact"
-              :disabled="merging || noAudio"
+              :disabled="merging || asrRunning || noAudio"
               @click="audioInputRef?.click()"
             >
               選擇 MP3
@@ -162,7 +163,7 @@
             <button
               type="button"
               class="tool-secondary-btn tool-secondary-btn--compact"
-              :disabled="!audioFile || merging"
+              :disabled="!audioFile || merging || asrRunning"
               @click="clearAudio"
             >
               清除
@@ -170,6 +171,38 @@
             <span class="vm-hint">{{ audioFile ? audioFile.name : '未選擇（可選）' }}</span>
           </div>
           <p class="vm-hint">音訊短於影片會循環；長於影片則裁到影片長度。勾選「不要聲音」時會忽略。</p>
+
+          <div class="vm-asr-row">
+            <label class="vm-check" title="依 MP3 語音自動產生字幕（需下載模型，較慢）">
+              <input
+                v-model="useAutoSubs"
+                type="checkbox"
+                :disabled="merging || asrRunning || noAudio || !audioFile"
+              />
+              <span>依音軌自動辨識字幕（Whisper）</span>
+            </label>
+            <label class="tool-field tool-field--inline">
+              <span>辨識語言</span>
+              <select v-model="asrLanguage" class="tool-input" :disabled="merging || asrRunning">
+                <option value="chinese">中文</option>
+                <option value="english">英文</option>
+                <option value="auto">自動偵測</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              class="tool-secondary-btn tool-secondary-btn--compact"
+              :disabled="!canRunAsr"
+              @click="runAsrOnly"
+            >
+              {{ asrRunning ? '辨識中…' : '僅辨識並填入講稿' }}
+            </button>
+          </div>
+          <p class="vm-hint">
+            勾選後合併時會用 Whisper 辨識自訂音軌並上字幕（較慢；模型首次下載後會快取）。
+            若已勾「語音稿上字幕」且講稿有內容，會優先用講稿。建議先選較短 MP3 試跑。
+          </p>
+          <p v-if="asrHint" class="vm-hint vm-hint--status">{{ asrHint }}</p>
         </div>
       </div>
 
@@ -179,7 +212,7 @@
           <strong>語音稿字幕</strong>
         </div>
         <label class="vm-check">
-          <input v-model="useScriptSubs" type="checkbox" :disabled="merging" />
+          <input v-model="useScriptSubs" type="checkbox" :disabled="merging || asrRunning" />
           <span>使用語音稿上字幕</span>
         </label>
         <label class="tool-field tool-field--wide">
@@ -188,8 +221,8 @@
             v-model="scriptText"
             class="tool-input vm-script"
             rows="5"
-            :disabled="merging"
-            placeholder="貼上語音稿，依影片時長自動切句。&#10;也支援 SRT / VTT 時間軸。"
+            :disabled="merging || asrRunning"
+            placeholder="貼上語音稿，依影片時長自動切句。&#10;也支援 SRT / VTT 時間軸。&#10;可先「僅辨識並填入講稿」再微調。"
           />
         </label>
         <label class="tool-field">
@@ -201,7 +234,7 @@
             min="-30"
             max="30"
             class="tool-input"
-            :disabled="merging"
+            :disabled="merging || asrRunning"
           />
         </label>
         <p class="vm-hint">正數延後、負數提前。合併時會 soft-mux 進 MP4（mov_text）。</p>
@@ -285,14 +318,14 @@
         <button
           type="button"
           class="tool-primary-btn"
-          :disabled="!canMerge || merging"
+          :disabled="!canMerge || merging || asrRunning"
           @click="runMerge"
         >
-          {{ merging ? '合併中…' : '合併為 MP4' }}
+          {{ merging || asrRunning ? (asrRunning && !merging ? '辨識中…' : '合併中…') : '合併為 MP4' }}
         </button>
       </div>
 
-      <div v-if="merging || progressRatio > 0" class="vm-progress">
+      <div v-if="merging || asrRunning || progressRatio > 0" class="vm-progress">
         <div class="vm-progress__label">
           <strong>{{ progressStatus }}</strong>
           <span>{{ Math.round(progressRatio * 100) }}%</span>
@@ -361,6 +394,7 @@ import {
 
 const SCRIPT_KEY = 'fengbro.tools.videomerge.script'
 const SCRIPT_OPT_KEY = 'fengbro.tools.videomerge.scriptOpt'
+const ASR_OPT_KEY = 'fengbro.tools.videomerge.asrOpt'
 /** Soft limit aligned with utils/videoMerge/merge.js LOOP_LIMITS */
 const LOOP_LIMITS = { maxCount: 999, maxDurationSec: 2 * 60 * 60 }
 
@@ -378,6 +412,10 @@ const loopHours = ref(0)
 const loopMins = ref(1)
 const loopSecs = ref(0)
 const useScriptSubs = ref(false)
+const useAutoSubs = ref(false)
+const asrLanguage = ref('chinese')
+const asrRunning = ref(false)
+const asrHint = ref('')
 const scriptText = ref('')
 const subOffset = ref(0)
 const merging = ref(false)
@@ -395,7 +433,9 @@ let persistTimer = null
 let idSeq = 0
 
 const readyClips = computed(() => clips.value.filter((c) => c.status === 'ready' && c.file))
-const canMerge = computed(() => readyClips.value.length > 0 && !merging.value)
+const canMerge = computed(
+  () => readyClips.value.length > 0 && !merging.value && !asrRunning.value
+)
 
 const clipsCountLabel = computed(() => {
   if (!clips.value.length) return '尚未加入'
@@ -438,11 +478,27 @@ const extendEstimate = computed(() => {
   return `目標時長 ${formatDuration(target)}`
 })
 
+const canRunAsr = computed(
+  () =>
+    Boolean(audioFile.value) &&
+    !noAudio.value &&
+    !merging.value &&
+    !asrRunning.value
+)
+
 const mergeHint = computed(() => {
   if (!clips.value.length) return '請先加入至少一段影片'
   if (clips.value.some((c) => c.status === 'loading')) return '尚有片段在讀取首尾幀…'
   if (!readyClips.value.length) return '沒有可合併的就緒片段'
-  if (useScriptSubs.value && !scriptText.value.trim()) return '已勾選字幕但尚未輸入講稿'
+  if (useScriptSubs.value && !scriptText.value.trim() && !useAutoSubs.value) {
+    return '已勾選語音稿字幕但尚未輸入講稿'
+  }
+  if (useAutoSubs.value && (!audioFile.value || noAudio.value)) {
+    return '自動辨識字幕需要自訂音軌（且勿勾「不要聲音」）'
+  }
+  if (useAutoSubs.value && !(useScriptSubs.value && scriptText.value.trim())) {
+    return '合併時會先 Whisper 辨識音軌再上字幕（較慢）'
+  }
   return '標準化為 1280×720 · 30fps · H.264 + AAC'
 })
 
@@ -549,6 +605,7 @@ const onAudioPick = (event) => {
   }
   audioFile.value = file
   if (noAudio.value) noAudio.value = false
+  asrHint.value = ''
   saveAudio(file).catch(() => {})
 }
 
@@ -589,8 +646,38 @@ const estimateOutputDuration = () => {
   return base
 }
 
+const appendLog = (msg) => {
+  logLines.value.push(msg)
+  if (logLines.value.length > 80) logLines.value.shift()
+}
+
+const runWhisperOnAudio = async ({
+  onStatus,
+  onProgress,
+  onLog
+} = {}) => {
+  if (!audioFile.value || noAudio.value) {
+    throw new Error('語音辨識需要自訂音軌（且勿勾「不要聲音」）')
+  }
+  const { transcribeAudioToSubtitles } = await import('../../utils/videoMerge/whisper.js')
+  return await transcribeAudioToSubtitles(audioFile.value, {
+    language: asrLanguage.value,
+    onStatus,
+    onProgress,
+    onLog
+  })
+}
+
+/**
+ * Build SRT for merge:
+ * 1) Script path if enabled + has text
+ * 2) Else Whisper ASR if auto-subs + audio
+ */
 const buildSubtitleSrt = async () => {
-  if (!useScriptSubs.value || !scriptText.value.trim()) {
+  const wantScript = useScriptSubs.value && Boolean(scriptText.value.trim())
+  const wantAsr = useAutoSubs.value && Boolean(audioFile.value) && !noAudio.value
+
+  if (!wantScript && !wantAsr) {
     return { srt: null, notice: '' }
   }
 
@@ -610,8 +697,38 @@ const buildSubtitleSrt = async () => {
     hasCustomAudio: Boolean(audioFile.value) && !noAudio.value
   })
 
-  let built = scriptToSubtitles(scriptText.value, timeline.cycleDur)
-  let chunks = built.chunks
+  let chunks = []
+  let source = ''
+
+  if (wantScript) {
+    const built = scriptToSubtitles(scriptText.value, timeline.cycleDur)
+    chunks = built.chunks
+    source = built.source
+  } else {
+    progressStatus.value = '語音辨識中…'
+    progressRatio.value = 0.02
+    const asr = await runWhisperOnAudio({
+      onStatus: (s) => {
+        progressStatus.value = s
+        asrHint.value = s
+      },
+      onProgress: (r) => {
+        // Keep ASR under ~22% of overall merge bar
+        progressRatio.value = 0.02 + Math.min(0.2, Math.max(0, r) * 0.2)
+      },
+      onLog: appendLog
+    })
+    chunks = asr.chunks || []
+    source = `whisper:${asr.modelId || '?'}`
+    if (asr.srt) {
+      // Keep timed script in the textarea for re-edit next time
+      scriptText.value = asr.srt
+      useScriptSubs.value = true
+    }
+    if (!chunks.length) {
+      throw new Error('語音辨識沒有產生可用字幕。可改貼語音稿再試。')
+    }
+  }
 
   const offset = Number(subOffset.value) || 0
   if (Math.abs(offset) >= 0.001) {
@@ -627,12 +744,51 @@ const buildSubtitleSrt = async () => {
   lastSrtFilename.value = `subtitles-${new Date().toISOString().slice(0, 10)}.srt`
   return {
     srt,
-    notice: `字幕 ${chunks.length} 句（${built.source}）`
+    notice: `字幕 ${chunks.length} 句（${source}）`
+  }
+}
+
+/** Run Whisper only: fill script textarea + enable script subs (no merge). */
+const runAsrOnly = async () => {
+  if (!canRunAsr.value) return
+  asrRunning.value = true
+  asrHint.value = ''
+  pickError.value = ''
+  mergeError.value = ''
+  logLines.value = []
+  progressRatio.value = 0
+  progressStatus.value = '語音辨識中…'
+  try {
+    const asr = await runWhisperOnAudio({
+      onStatus: (s) => {
+        progressStatus.value = s
+        asrHint.value = s
+      },
+      onProgress: (r) => {
+        progressRatio.value = Math.min(1, Math.max(0, r))
+      },
+      onLog: appendLog
+    })
+    scriptText.value = asr.srt || asr.text || ''
+    useScriptSubs.value = true
+    useAutoSubs.value = false
+    lastSrtText.value = asr.srt || ''
+    lastSrtFilename.value = `asr-${new Date().toISOString().slice(0, 10)}.srt`
+    asrHint.value = `辨識完成：${asr.chunks?.length || 0} 句（${asr.modelId || 'whisper'}）。已填入講稿，合併時會用語音稿上字幕。`
+    progressStatus.value = '辨識完成'
+    progressRatio.value = 1
+  } catch (err) {
+    const msg = err?.message || String(err)
+    asrHint.value = msg
+    mergeError.value = msg
+    progressStatus.value = '辨識失敗'
+  } finally {
+    asrRunning.value = false
   }
 }
 
 const runMerge = async () => {
-  if (!canMerge.value) return
+  if (!canMerge.value || asrRunning.value) return
   merging.value = true
   mergeError.value = ''
   progressRatio.value = 0
@@ -641,6 +797,13 @@ const runMerge = async () => {
   clearResult(false)
 
   try {
+    if (useAutoSubs.value && (!audioFile.value || noAudio.value)) {
+      throw new Error('自動辨識字幕需要自訂音軌（且勿勾「不要聲音」）')
+    }
+    if (useScriptSubs.value && !scriptText.value.trim() && !useAutoSubs.value) {
+      throw new Error('已勾選語音稿字幕，請貼上講稿或改用音軌自動辨識')
+    }
+
     const files = readyClips.value.map((c) => c.file)
     const clipDurations = readyClips.value.map((c) => c.duration || 10)
     const loop = getLoopOptions()
@@ -738,12 +901,37 @@ watch([scriptText, useScriptSubs], () => {
   }
 })
 
+watch([useAutoSubs, asrLanguage], () => {
+  try {
+    localStorage.setItem(
+      ASR_OPT_KEY,
+      JSON.stringify({
+        auto: useAutoSubs.value,
+        lang: asrLanguage.value
+      })
+    )
+  } catch {
+    /* ignore */
+  }
+})
+
+// 「不要聲音」時關閉自動辨識
+watch(noAudio, (off) => {
+  if (off) useAutoSubs.value = false
+})
+
 onMounted(async () => {
   try {
     const savedScript = localStorage.getItem(SCRIPT_KEY)
     if (savedScript != null) scriptText.value = savedScript
     const opt = localStorage.getItem(SCRIPT_OPT_KEY)
     if (opt != null) useScriptSubs.value = opt === '1'
+    const asrRaw = localStorage.getItem(ASR_OPT_KEY)
+    if (asrRaw) {
+      const asrOpt = JSON.parse(asrRaw)
+      if (typeof asrOpt?.auto === 'boolean') useAutoSubs.value = asrOpt.auto
+      if (asrOpt?.lang) asrLanguage.value = asrOpt.lang
+    }
   } catch {
     /* ignore */
   }
@@ -1009,10 +1197,25 @@ onBeforeUnmount(() => {
   gap: 0.45rem;
 }
 
+.vm-asr-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.85rem;
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed var(--border-color);
+}
+
 .vm-hint {
   margin: 0.4rem 0 0;
   color: var(--text-muted);
   font-size: 0.82rem;
+}
+
+.vm-hint--status {
+  color: var(--text-secondary, #555);
+  font-weight: 500;
 }
 
 .tool-field {
@@ -1026,6 +1229,18 @@ onBeforeUnmount(() => {
 
 .tool-field--wide {
   width: 100%;
+}
+
+.tool-field--inline {
+  flex-direction: row;
+  align-items: center;
+  margin-top: 0;
+  gap: 0.45rem;
+}
+
+.tool-field--inline .tool-input {
+  min-width: 7.5rem;
+  padding: 0.4rem 0.55rem;
 }
 
 .tool-input {

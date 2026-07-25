@@ -51,7 +51,9 @@ const iconMap = {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-width: 400px;
+  max-width: min(420px, calc(100vw - 2rem));
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
   pointer-events: none;
 }
 
@@ -76,8 +78,16 @@ const iconMap = {
 .toast.warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
 .toast.error { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
 
-.toast-icon { font-size: 1.25rem; flex-shrink: 0; }
-.toast-message { margin: 0; font-size: 0.95rem; font-weight: 500; flex: 1; }
+.toast-icon { font-size: 1.25rem; flex-shrink: 0; align-self: flex-start; margin-top: 0.1rem; }
+.toast-message {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  flex: 1;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 .toast-close {
   background: rgba(255, 255, 255, 0.2);

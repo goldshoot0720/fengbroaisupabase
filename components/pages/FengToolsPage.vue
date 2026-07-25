@@ -6,7 +6,7 @@
           <p class="tools-kicker">FENGBRO TOOLKIT</p>
           <h2>鋒兄工具</h2>
           <p class="tools-lead">
-            集中處理網路比價、手機通路價格、YouTube、金融觀察、鎖定網站新聞搜尋，以及圖片加語音生成影片。
+            集中處理網路比價、手機通路價格、YouTube、金融觀察、鎖定網站新聞搜尋、圖片加語音生成影片、PNG／JPEG 批次轉換、多段影片合併，以及 YouTube／Bilibili 轉 MP3／MP4。
           </p>
         </div>
       </section>
@@ -596,6 +596,12 @@
 
       <ImageVoiceVideoPanel v-else-if="activeTool === 'image-voice'" />
 
+      <ImageFormatConvertPanel v-else-if="activeTool === 'image-convert'" />
+
+      <VideoMergePanel v-else-if="activeTool === 'video-merge'" />
+
+      <YoutubeBilibiliConvertPanel v-else-if="activeTool === 'yt-bili-dl'" />
+
       <section v-else-if="activeTool === 'finance'" class="tool-panel">
         <div class="tool-panel__header">
           <div>
@@ -991,7 +997,7 @@ import {
 import { isKospiMarketOpen, KOSPI_LIVE_POLL_MS } from '../../utils/kospiMarketHours'
 
 /** Valid tool keys — selection is driven by the top nav (useNavigation tools children). */
-const VALID_TOOLS = ['biggo', 'manual', 'phone', 'tube', 'finance', 'news', 'image-voice']
+const VALID_TOOLS = ['biggo', 'manual', 'phone', 'tube', 'finance', 'news', 'image-voice', 'image-convert', 'video-merge', 'yt-bili-dl']
 
 const props = defineProps({
   modelValue: { type: String, default: '' }

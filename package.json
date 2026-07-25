@@ -22,6 +22,8 @@
     "test-blob-access": "node scripts/test-blob-access.js"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@netlify/blobs": "^8.2.0",
     "@nuxtjs/supabase": "^2.0.3",
     "@supabase/supabase-js": "^2.87.1",

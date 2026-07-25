@@ -140,13 +140,17 @@ export default defineNuxtConfig({
   // 全域 CSS
   css: ['~/assets/css/variables.css'],
 
-  // face-api is browser-only (used for image voice gender auto-select)
+  // face-api / ffmpeg.wasm are browser-only (image-voice gender + video merge)
   vite: {
     optimizeDeps: {
-      include: ['@vladmandic/face-api']
+      include: ['@vladmandic/face-api'],
+      exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util']
     },
     ssr: {
-      external: ['@vladmandic/face-api']
+      external: ['@vladmandic/face-api', '@ffmpeg/ffmpeg', '@ffmpeg/util']
+    },
+    worker: {
+      format: 'es'
     }
   },
 

@@ -72,7 +72,7 @@ const pages = [
     icon: '06',
     glyph: '🧰',
     title: '鋒兄工具',
-    subtitle: '整合比價、YouTube、金融、新聞與圖片語音成片工具。',
+    subtitle: '整合比價、YouTube、金融、新聞、圖片語音、格式轉換、影片合併與影音轉檔。',
     children: [
       { id: 'tools:biggo', tool: 'biggo', name: '鋒兄比價', glyph: '🔎' },
       { id: 'tools:manual', tool: 'manual', name: '手動紀錄', glyph: '✍️' },
@@ -80,7 +80,10 @@ const pages = [
       { id: 'tools:tube', tool: 'tube', name: '鋒兄Tube', glyph: '▶️' },
       { id: 'tools:finance', tool: 'finance', name: '鋒兄金融', glyph: '📈' },
       { id: 'tools:news', tool: 'news', name: '鋒兄新聞', glyph: '📰' },
-      { id: 'tools:image-voice', tool: 'image-voice', name: '圖片語音成片', glyph: '🎞️' }
+      { id: 'tools:image-voice', tool: 'image-voice', name: '圖片語音成片', glyph: '🎞️' },
+      { id: 'tools:image-convert', tool: 'image-convert', name: '圖片格式轉換', glyph: '🔄' },
+      { id: 'tools:video-merge', tool: 'video-merge', name: '影片合併', glyph: '🧩' },
+      { id: 'tools:yt-bili-dl', tool: 'yt-bili-dl', name: 'YT/B站轉檔', glyph: '⬇️' }
     ]
   },
   {

@@ -96,7 +96,7 @@
           <article class="feature-card">
             <span class="feature-icon">🧰</span>
             <h3>鋒兄工具</h3>
-            <p>整合 BigGo、手動價錢紀錄與手機通路比價，手機比價目前比對地標網通與傑昇通信。</p>
+            <p>整合 BigGo、手動價錢、手機通路比價、YouTube、金融、新聞、圖片語音成片、PNG／JPEG 轉換，以及多段影片合併。</p>
           </article>
           <article class="feature-card">
             <span class="feature-icon">🗂️</span>
@@ -183,7 +183,7 @@
             <div class="manual-step">5</div>
             <div class="manual-content">
               <h3>通路比價</h3>
-              <p>鋒兄工具可查 BigGo、手動紀錄商品價錢與走勢、手機通路比價（每 7 天一筆快照）、YouTube、金融報價，以及鎖定網站的鋒兄新聞搜尋。</p>
+              <p>鋒兄工具可查 BigGo、手動紀錄商品價錢與走勢、手機通路比價（每 7 天一筆快照）、YouTube、金融報價、鎖定網站新聞搜尋、圖片語音成片、PNG／JPEG 批次轉換、多段影片合併，以及 YouTube／Bilibili 轉 MP3／MP4（需本機 yt-dlp，參考 YoutubeBilibiliMP4MP3Converter）。</p>
             </div>
           </div>
         </div>

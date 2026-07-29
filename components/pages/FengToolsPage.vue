@@ -5,9 +5,7 @@
         <div class="tools-hero__copy">
           <p class="tools-kicker">FENGBRO TOOLKIT</p>
           <h2>鋒兄工具</h2>
-          <p class="tools-lead">
-            集中處理網路比價、手機通路價格、YouTube、金融觀察、鎖定網站新聞搜尋、圖片加語音生成影片、PNG／JPEG 批次轉換、多段影片合併，以及 YouTube／Bilibili 轉 MP3／MP4。
-          </p>
+          <p class="tools-lead">{{ toolsHeroLead }}</p>
         </div>
       </section>
 
@@ -966,12 +964,24 @@
           </div>
         </div>
       </section>
+
+      <section v-else class="tool-panel">
+        <div class="tool-panel__header">
+          <div>
+            <p class="panel-kicker">鋒兄工具</p>
+            <h3>請從上方子選單選擇一項工具</h3>
+            <p class="tool-subtitle">
+              比價、手動紀錄、手機通路、YouTube、金融、新聞、圖片語音成片、圖片格式轉換、影片合併，或 YT／B 站轉檔。
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   </PageContainer>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import ImageVoiceVideoPanel from './ImageVoiceVideoPanel.vue'
 import FengbroNewsPanel from './FengbroNewsPanel.vue'
@@ -996,8 +1006,29 @@ import {
 } from '../../utils/fengbroFinanceCustom'
 import { isKospiMarketOpen, KOSPI_LIVE_POLL_MS } from '../../utils/kospiMarketHours'
 
+// Lazy-load heavier tool panels so a panel-level failure does not blank the whole app shell.
+const ImageFormatConvertPanel = defineAsyncComponent(() => import('./ImageFormatConvertPanel.vue'))
+const VideoMergePanel = defineAsyncComponent(() => import('./VideoMergePanel.vue'))
+const YoutubeBilibiliConvertPanel = defineAsyncComponent(() => import('./YoutubeBilibiliConvertPanel.vue'))
+
 /** Valid tool keys — selection is driven by the top nav (useNavigation tools children). */
 const VALID_TOOLS = ['biggo', 'manual', 'phone', 'tube', 'finance', 'news', 'image-voice', 'image-convert', 'video-merge', 'yt-bili-dl']
+
+const TOOLS_HERO_LEAD_DEFAULT =
+  '集中處理網路比價、手機通路價格、YouTube、金融觀察、鎖定網站新聞搜尋、圖片加語音生成影片、PNG／JPEG 批次轉換、多段影片合併，以及 YouTube／Bilibili 轉 MP3／MP4。'
+
+const TOOLS_HERO_LEAD_BY_TOOL = {
+  biggo: '貼上商品網址或關鍵字，查 BigGo 價格區間與 7 天快照走勢。',
+  manual: '自行輸入商品與價錢，在本機追蹤紀錄與價格走勢。',
+  phone: '比對地標網通與傑昇通信等手機通路價格。',
+  tube: '整理追蹤頻道最新影片，並標記 3 天內新片。',
+  finance: '觀察指數、商品、利率與自訂標的，KOSPI 交易中可即時更新。',
+  news: '在鎖定網站內搜尋新聞標題，並查看台鐵便當門市資訊。',
+  'image-voice': '把圖片加上語音旁白，在瀏覽器生成有旁白的影片。',
+  'image-convert': '批次上傳圖片，本機轉成 JPEG 或 PNG（參考 PNGJPEGConverter，不上傳伺服器）。',
+  'video-merge': '多段影片合併、字幕與音軌，於瀏覽器完成剪輯匯出。',
+  'yt-bili-dl': 'YouTube／Bilibili 轉 MP3／MP4（需本機 yt-dlp 環境）。'
+}
 
 const props = defineProps({
   modelValue: { type: String, default: '' }
@@ -1014,6 +1045,10 @@ const readInitialTool = () => {
 }
 
 const activeTool = ref(isValidTool(props.modelValue) ? props.modelValue : readInitialTool())
+
+const toolsHeroLead = computed(
+  () => TOOLS_HERO_LEAD_BY_TOOL[activeTool.value] || TOOLS_HERO_LEAD_DEFAULT
+)
 
 const currentYearSuffix = String(new Date().getFullYear()).slice(-2)
 const defaultPhoneKeyword = `Samsung S${currentYearSuffix}`

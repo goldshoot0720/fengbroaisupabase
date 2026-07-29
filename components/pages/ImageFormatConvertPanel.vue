@@ -204,13 +204,18 @@
     </div>
 
     <!-- File list -->
-    <div v-if="items.length" class="ifc-card ifc-list-card">
+    <div class="ifc-card ifc-list-card">
       <div class="ifc-card__head">
         <span class="ifc-step">3</span>
         <strong>檔案清單</strong>
+        <span v-if="items.length" class="ifc-meta-tag">{{ items.length }} 張</span>
       </div>
 
-      <ul class="ifc-list" aria-label="待轉換圖片清單">
+      <div v-if="!items.length" class="ifc-empty">
+        尚未加入圖片。用上方拖放、選擇檔案／資料夾，或貼圖片網址後，這裡會顯示預覽與轉換結果。
+      </div>
+
+      <ul v-else class="ifc-list" aria-label="待轉換圖片清單">
         <li v-for="item in items" :key="item.id" class="ifc-item">
           <div class="ifc-item__thumb-wrap">
             <img
@@ -629,6 +634,28 @@ onBeforeUnmount(() => {
 
 .ifc-list-card {
   margin-top: 1rem;
+}
+
+.ifc-empty {
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.1rem 1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 14px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  text-align: center;
+  background: color-mix(in oklab, var(--bg-secondary) 90%, transparent);
+}
+
+.ifc-meta-tag {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .ifc-card__head {

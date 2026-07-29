@@ -369,6 +369,8 @@ import SettingsPage from '../components/pages/SettingsPage.vue'
 import HomePage from '../components/pages/HomePage.vue'
 import AppSidebar from '../components/layout/AppSidebar.vue'
 import AppHeader from '../components/layout/AppHeader.vue'
+import PageContainer from '../components/layout/PageContainer.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 import ToastContainer from '../components/ui/ToastContainer.vue'
 import VoiceInputPanel from '../components/ui/VoiceInputPanel.vue'
 

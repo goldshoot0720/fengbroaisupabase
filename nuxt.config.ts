@@ -1,7 +1,10 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { getRepoStats } from './utils/repoStats.js'
 
 const repoStats = getRepoStats()
+const rootDir = dirname(fileURLToPath(import.meta.url))
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -9,6 +12,12 @@ export default defineNuxtConfig({
 
   // SSR 模式（伺服器端渲染）
   ssr: true,
+
+  // Avoid client white-screen when Vite fails to resolve Nuxt virtual "#app-manifest"
+  // (dev: Failed to fetch dynamically imported module / entry.js).
+  experimental: {
+    appManifest: false
+  },
 
   // 應用程式配置
   app: {
@@ -168,9 +177,11 @@ export default defineNuxtConfig({
     preset: 'netlify'
   },
 
+  // Project keeps components/ at repo root (not under app/).
+  // Absolute path so Nuxt 4 app/ layout still scans them for auto-import.
   components: [
     {
-      path: '~/components',
+      path: join(rootDir, 'components'),
       global: true,
       pathPrefix: false
     }

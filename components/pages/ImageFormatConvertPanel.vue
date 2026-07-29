@@ -13,7 +13,7 @@
             class="store-card__link"
           >PNGJPEGConverter</a>
           · 本機 Canvas 轉換，不上傳伺服器
-          · 可一次選一連串檔案，或貼圖片網址
+          · 可選檔案／資料夾，或貼圖片網址（經 media-proxy 避開 CORS）
         </p>
       </div>
     </div>
@@ -50,11 +50,20 @@
           <input
             ref="fileInputRef"
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/bmp,image/gif,image/tiff,image/avif,.png,.jpg,.jpeg,.webp,.bmp,.gif,.tif,.tiff,.avif"
+            accept="image/png,image/jpeg,image/webp,image/bmp,image/gif,image/tiff,image/avif,image/heic,image/heif,.png,.jpg,.jpeg,.webp,.bmp,.gif,.tif,.tiff,.avif,.heic,.heif"
             multiple
             class="ifc-file-input"
             tabindex="-1"
             @change="onFilePick"
+            @click.stop
+          />
+          <input
+            ref="folderInputRef"
+            type="file"
+            multiple
+            class="ifc-file-input"
+            tabindex="-1"
+            @change="onFolderPick"
             @click.stop
           />
           <div class="ifc-dropzone__empty">
@@ -63,9 +72,29 @@
           </div>
         </div>
 
+        <div class="ifc-pick-actions">
+          <button
+            type="button"
+            class="tool-secondary-btn tool-secondary-btn--compact"
+            :disabled="converting || fetchingUrl"
+            @click="openPicker"
+          >
+            選擇檔案
+          </button>
+          <button
+            type="button"
+            class="tool-secondary-btn tool-secondary-btn--compact"
+            :disabled="converting || fetchingUrl"
+            @click="openFolderPicker"
+          >
+            選擇資料夾
+          </button>
+          <span class="ifc-hint ifc-hint--inline">資料夾會掃入瀏覽器可讀的圖片（含子路徑時依瀏覽器行為）</span>
+        </div>
+
         <div class="ifc-url-row">
           <label class="ifc-field ifc-field--grow">
-            <span>圖片網址（可選）</span>
+            <span>圖片網址（可選，經伺服器 proxy 避開 CORS）</span>
             <input
               v-model.trim="urlInput"
               type="url"
@@ -195,7 +224,8 @@
             <strong class="ifc-item__name" :title="item.name">{{ item.name }}</strong>
             <span class="ifc-item__detail">
               {{ formatLabel(item.sourceFormat) }}
-              <template v-if="item.fromUrl"> · 網址</template>
+              <template v-if="item.fromUrl || item.sourceHint?.startsWith('網址')"> · 網址</template>
+              <template v-else-if="item.sourceHint === '資料夾'"> · 資料夾</template>
               <template v-if="item.width"> · {{ item.width }}×{{ item.height }}</template>
               · {{ formatBytes(item.sourceSize) }}
               <template v-if="item.status === 'done'">
@@ -248,6 +278,7 @@ import {
 import { sanitizeZipFileName } from '../../utils/zipMediaBundle'
 
 const fileInputRef = ref(null)
+const folderInputRef = ref(null)
 const isDragOver = ref(false)
 const pickError = ref('')
 const convertError = ref('')
@@ -266,13 +297,30 @@ let idSeq = 0
 
 const readyCount = computed(() => items.value.filter((i) => i.status === 'done' && i.resultBlob).length)
 
+const fileKey = (file) => `${file.name}::${file.size}::${file.lastModified}`
+
 const openPicker = () => {
   fileInputRef.value?.click()
+}
+
+const openFolderPicker = () => {
+  const el = folderInputRef.value
+  if (!el) return
+  // Non-standard attributes for directory multi-select (Chromium / Safari)
+  el.setAttribute('webkitdirectory', '')
+  el.setAttribute('directory', '')
+  el.click()
 }
 
 const onFilePick = (event) => {
   const files = Array.from(event.target?.files || [])
   addFiles(files)
+  if (event.target) event.target.value = ''
+}
+
+const onFolderPick = (event) => {
+  const files = Array.from(event.target?.files || [])
+  addFiles(files, { sourceHint: '資料夾' })
   if (event.target) event.target.value = ''
 }
 
@@ -282,7 +330,7 @@ const onDrop = (event) => {
   addFiles(files)
 }
 
-const pushFileEntry = async (file, { fromUrl = false } = {}) => {
+const pushFileEntry = async (file, { fromUrl = false, sourceHint = '本機' } = {}) => {
   const id = `ifc-${Date.now()}-${++idSeq}`
   const previewUrl = URL.createObjectURL(file)
   const sourceFormat = detectSourceFormat(file)
@@ -294,6 +342,7 @@ const pushFileEntry = async (file, { fromUrl = false } = {}) => {
     sourceSize: file.size,
     previewUrl,
     fromUrl,
+    sourceHint,
     width: 0,
     height: 0,
     status: 'pending',
@@ -314,23 +363,45 @@ const pushFileEntry = async (file, { fromUrl = false } = {}) => {
   }
 }
 
-const addFiles = async (files) => {
+const addFiles = async (files, { sourceHint = '本機' } = {}) => {
   pickError.value = ''
   convertError.value = ''
   if (!files.length) return
 
-  const accepted = files.filter(isSupportedImageFile)
-  const skipped = files.length - accepted.length
-  if (!accepted.length) {
-    pickError.value = '請選擇可支援的圖片（PNG / JPEG / WebP / BMP / GIF / TIFF / AVIF 等）'
-    return
-  }
-  if (skipped > 0) {
-    pickError.value = `已略過 ${skipped} 個非圖片檔`
+  const existing = new Set(items.value.map((i) => fileKey(i.file)))
+  let skippedNonImage = 0
+  let skippedDup = 0
+  const accepted = []
+
+  for (const file of files) {
+    if (!isSupportedImageFile(file)) {
+      skippedNonImage += 1
+      continue
+    }
+    const key = fileKey(file)
+    if (existing.has(key)) {
+      skippedDup += 1
+      continue
+    }
+    existing.add(key)
+    accepted.push(file)
   }
 
+  if (!accepted.length) {
+    pickError.value =
+      skippedDup > 0 && skippedNonImage === 0
+        ? '這些圖片已在清單中'
+        : '請選擇可支援的圖片（PNG / JPEG / WebP / BMP / GIF / TIFF / AVIF 等）'
+    return
+  }
+
+  const notes = []
+  if (skippedNonImage > 0) notes.push(`略過 ${skippedNonImage} 個非圖片`)
+  if (skippedDup > 0) notes.push(`略過 ${skippedDup} 個重複`)
+  if (notes.length) pickError.value = notes.join(' · ')
+
   for (const file of accepted) {
-    await pushFileEntry(file)
+    await pushFileEntry(file, { sourceHint })
   }
 }
 
@@ -338,15 +409,20 @@ const addFromUrl = async () => {
   if (!urlInput.value || fetchingUrl.value) return
   pickError.value = ''
   convertError.value = ''
+  const raw = urlInput.value.trim()
+  if (items.value.some((i) => i.fromUrl && (i.sourceHint === `網址：${raw}` || i.name === raw))) {
+    pickError.value = '這個網址已在清單中'
+    return
+  }
   fetchingUrl.value = true
   try {
-    const file = await fetchImageAsFile(urlInput.value)
-    await pushFileEntry(file, { fromUrl: true })
+    const file = await fetchImageAsFile(raw, items.value.length + 1)
+    await pushFileEntry(file, { fromUrl: true, sourceHint: `網址：${file.name}` })
     urlInput.value = ''
   } catch (err) {
     pickError.value =
       err?.message ||
-      '無法從網址載入圖片（可能被 CORS 阻擋，請改下載後本機上傳）'
+      '無法從網址載入圖片（請確認為圖片直接連結，或改本機上傳）'
   } finally {
     fetchingUrl.value = false
   }
@@ -371,6 +447,8 @@ const clearAll = () => {
   convertError.value = ''
   convertProgress.value = 0
   urlInput.value = ''
+  if (fileInputRef.value) fileInputRef.value.value = ''
+  if (folderInputRef.value) folderInputRef.value.value = ''
 }
 
 const convertAll = async () => {
@@ -622,6 +700,19 @@ onBeforeUnmount(() => {
   pointer-events: none;
   padding: 1rem;
   text-align: center;
+}
+
+.ifc-pick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.ifc-hint--inline {
+  margin: 0;
+  font-size: 0.78rem;
 }
 
 .ifc-url-row {

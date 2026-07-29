@@ -134,29 +134,69 @@ export const formatBytes = (bytes) => {
 }
 
 /**
- * Guess filename from URL path.
+ * Guess filename from URL path (strip CDN @ modifiers like bilibili).
  * @param {string} url
+ * @param {number} [index=1]
  */
-export const filenameFromUrl = (url) => {
+export const filenameFromUrl = (url, index = 1) => {
   try {
     const u = new URL(url)
-    const last = u.pathname.split('/').filter(Boolean).pop() || 'image'
-    const decoded = decodeURIComponent(last).replace(/[\\/:*?"<>|]+/g, '_')
-    if (/\.(png|jpe?g|webp|bmp|gif|tiff?|avif|heic|heif)$/i.test(decoded)) {
-      return decoded
+    let last = decodeURIComponent(u.pathname.split('/').filter(Boolean).pop() || '')
+    const at = last.indexOf('@')
+    if (at > 0) last = last.slice(0, at)
+    const cleaned = last.replace(/[\\/:*?"<>|]+/g, '_')
+    if (/\.(png|jpe?g|webp|bmp|gif|tiff?|avif|heic|heif)$/i.test(cleaned)) {
+      return cleaned
     }
-    return `${decoded || 'image'}.jpg`
+    if (cleaned && cleaned !== '/') return `${cleaned}.jpg`
+    return `url-image-${index}.jpg`
   } catch {
-    return `url-image-${Date.now()}.jpg`
+    return `url-image-${index}-${Date.now()}.jpg`
   }
 }
 
 /**
- * Fetch remote image as File (CORS must allow).
+ * Build URL candidates (e.g. strip bilibili `@w_h` CDN suffixes).
+ * Aligned with fengbroaiappwrite `getImageUriCandidates`.
+ * @param {URL} uri
+ * @returns {URL[]}
+ */
+export const getImageUriCandidates = (uri) => {
+  const list = []
+  const absolutePath = uri.origin + uri.pathname
+  const extensions = ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif', '.avif', '.tif', '.tiff']
+
+  for (const extension of extensions) {
+    const index = absolutePath.toLowerCase().indexOf(extension)
+    if (index < 0) continue
+    const endIndex = index + extension.length
+    if (endIndex < absolutePath.length && absolutePath[endIndex] === '@') {
+      try {
+        list.push(new URL(absolutePath.slice(0, endIndex)))
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  list.push(uri)
+  const seen = new Set()
+  return list.filter((u) => {
+    const k = u.href.toLowerCase()
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
+}
+
+/**
+ * Fetch remote image as File via same-origin media-proxy (avoids CORS).
+ * Falls back to direct browser fetch if proxy is unavailable.
  * @param {string} url
+ * @param {number} [index=1]
  * @returns {Promise<File>}
  */
-export const fetchImageAsFile = async (url) => {
+export const fetchImageAsFile = async (url, index = 1) => {
   const raw = String(url || '').trim()
   if (!raw) throw new Error('請輸入圖片網址')
   let parsed
@@ -169,18 +209,92 @@ export const fetchImageAsFile = async (url) => {
     throw new Error('僅支援 http / https 圖片網址')
   }
 
-  const res = await fetch(parsed.href, { mode: 'cors' })
-  if (!res.ok) throw new Error(`無法下載圖片（HTTP ${res.status}）`)
+  const candidates = getImageUriCandidates(parsed)
+  const errors = []
+
+  for (const candidate of candidates) {
+    try {
+      return await fetchImageCandidate(candidate, index)
+    } catch (err) {
+      errors.push(`${candidate.href}：${err?.message || String(err)}`)
+    }
+  }
+
+  throw new Error(
+    errors.length
+      ? `無法加入網址圖片：\n${errors.join('\n')}`
+      : '無法下載圖片'
+  )
+}
+
+/**
+ * @param {URL} uri
+ * @param {number} index
+ * @returns {Promise<File>}
+ */
+const fetchImageCandidate = async (uri, index) => {
+  // Prefer same-origin proxy (server-side fetch; works when origin lacks CORS)
+  const proxyUrl = `/api/media-proxy?url=${encodeURIComponent(uri.href)}`
+  let res
+  let usedProxy = true
+  try {
+    res = await fetch(proxyUrl, { cache: 'no-store' })
+  } catch {
+    usedProxy = false
+    res = await fetch(uri.href, { mode: 'cors', cache: 'no-store' })
+  }
+
+  if (!res.ok) {
+    // Retry direct if proxy failed (e.g. static hosting without Nitro)
+    if (usedProxy) {
+      try {
+        res = await fetch(uri.href, { mode: 'cors', cache: 'no-store' })
+      } catch {
+        throw new Error(`下載失敗（HTTP ${res.status}）`)
+      }
+      if (!res.ok) throw new Error(`下載失敗（HTTP ${res.status}）`)
+    } else {
+      throw new Error(`下載失敗（HTTP ${res.status}）`)
+    }
+  }
+
+  const contentType = (res.headers.get('content-type') || '').split(';')[0].trim()
+  if (
+    contentType &&
+    !contentType.startsWith('image/') &&
+    contentType !== 'application/octet-stream'
+  ) {
+    throw new Error(
+      `網址沒有直接回傳圖片（Content-Type: ${contentType}）。請貼圖片直接連結。`
+    )
+  }
 
   const blob = await res.blob()
   if (!blob.size) throw new Error('下載的檔案是空的')
-  if (blob.type && !blob.type.startsWith('image/') && blob.type !== 'application/octet-stream') {
-    throw new Error(`不是圖片類型：${blob.type}`)
+
+  let mime = contentType.startsWith('image/')
+    ? contentType
+    : blob.type?.startsWith('image/')
+      ? blob.type
+      : ''
+  let name = filenameFromUrl(uri.href, index)
+  if (!/\.[a-z0-9]+$/i.test(name) && mime) {
+    const ext =
+      mime === 'image/jpeg'
+        ? 'jpg'
+        : mime === 'image/png'
+          ? 'png'
+          : mime.replace('image/', '').split('+')[0] || 'img'
+    name = `${name}.${ext}`
+  }
+  if (!mime) {
+    mime = 'image/jpeg'
   }
 
-  const name = filenameFromUrl(parsed.href)
-  const type = blob.type?.startsWith('image/') ? blob.type : 'image/jpeg'
-  return new File([blob], name, { type })
+  const file = new File([blob], name, { type: mime })
+  // Fail early on HTML error pages disguised as blobs
+  await loadImageFromBlob(file)
+  return file
 }
 
 /**

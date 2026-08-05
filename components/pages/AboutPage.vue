@@ -91,7 +91,7 @@
           <article class="feature-card">
             <span class="feature-icon">📄</span>
             <h3>文件中心</h3>
-            <p>支援 ZIP 匯出、ZIP 匯入、Appwrite CSV 匯入與進度顯示。</p>
+            <p>支援 ZIP 匯出/匯入、CSV 匯出/匯入、附件 CSV 表格預覽與進度顯示。</p>
           </article>
           <article class="feature-card">
             <span class="feature-icon">🧰</span>
@@ -124,7 +124,7 @@
             <ul>
               <li>可匯出結構化 JSON / CSV 與附件檔案。</li>
               <li>匯入時會顯示進度，降低大量資料操作的不確定感。</li>
-              <li>文件中心已支援 Appwrite 文件 ZIP 格式。</li>
+              <li>文件中心已支援 ZIP／CSV 匯入匯出，以及附件 CSV 表格預覽。</li>
             </ul>
           </article>
           <article class="doc-card">

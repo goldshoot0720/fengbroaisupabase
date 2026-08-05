@@ -53,15 +53,28 @@
         </div>
 
         <div class="csv-actions">
-          <button @click="exportToZip" class="btn btn-export" :disabled="importProgress.active">
+          <button
+            v-if="documents.length > 0"
+            @click="exportToZip"
+            class="btn btn-export"
+            :disabled="importProgress.active"
+          >
             匯出 ZIP
           </button>
+          <button
+            v-if="documents.length > 0"
+            @click="exportDocumentsCsv"
+            class="btn btn-export btn-export-secondary"
+            :disabled="importProgress.active"
+          >
+            匯出 CSV
+          </button>
           <label class="btn btn-import" :class="{ disabled: importProgress.active }">
-            匯入 ZIP
+            匯入 ZIP/CSV
             <input
               type="file"
-              accept=".zip"
-              @change="handleZipImport"
+              accept=".zip,.csv,text/csv"
+              @change="handleImportFile"
               :disabled="importProgress.active"
               style="display: none"
             />
@@ -144,12 +157,20 @@
                 <div class="inline-upload-area">
                   <label class="btn-inline-upload" :class="{ disabled: addFileUploading }">
                     {{ addFileUploading ? '上傳中...' : '選擇檔案' }}
-                    <input type="file" multiple style="display:none" :disabled="addFileUploading" @change="handleAddFileUpload" />
+                    <input
+                      type="file"
+                      multiple
+                      style="display:none"
+                      :disabled="addFileUploading"
+                      @change="handleAddFileUpload"
+                    />
                   </label>
-                  <span v-if="addForm.file" class="inline-file-name">📎 {{ getFileName(addForm.file) }}
+                  <span v-if="addForm.file" class="inline-file-name">
+                    {{ isCsvUrl(addForm.file) ? '📊' : '📎' }} {{ getFileName(addForm.file) }}
                     <button type="button" class="btn-inline-remove" @click="addForm.file = ''">✕</button>
                   </span>
                   <img v-if="addForm.file && isImageUrl(addForm.file)" :src="addForm.file" class="inline-img-preview" alt="預覽" />
+                  <div v-else-if="addForm.file && isCsvUrl(addForm.file)" class="inline-csv-chip">CSV 檔 · 儲存後可表格預覽</div>
                   <input v-model="addForm.file" type="text" class="inline-input" placeholder="或輸入檔案 URL" style="margin-top:4px">
                 </div>
               </div>
@@ -200,12 +221,19 @@
                   <div class="inline-upload-area">
                     <label class="btn-inline-upload" :class="{ disabled: inlineFileUploading }">
                       {{ inlineFileUploading ? '上傳中...' : '選擇檔案' }}
-                      <input type="file" style="display:none" :disabled="inlineFileUploading" @change="handleInlineFileUpload" />
+                      <input
+                        type="file"
+                        style="display:none"
+                        :disabled="inlineFileUploading"
+                        @change="handleInlineFileUpload"
+                      />
                     </label>
-                    <span v-if="editForm.file" class="inline-file-name">📎 {{ getFileName(editForm.file) }}
+                    <span v-if="editForm.file" class="inline-file-name">
+                      {{ isCsvUrl(editForm.file) ? '📊' : '📎' }} {{ getFileName(editForm.file) }}
                       <button type="button" class="btn-inline-remove" @click="editForm.file = ''">✕</button>
                     </span>
                     <img v-if="editForm.file && isImageUrl(editForm.file)" :src="editForm.file" class="inline-img-preview" alt="預覽" />
+                    <div v-else-if="editForm.file && isCsvUrl(editForm.file)" class="inline-csv-chip">CSV 檔 · 可表格預覽</div>
                     <input v-model="editForm.file" type="text" class="inline-input" placeholder="或輸入檔案 URL" style="margin-top:4px">
                   </div>
                 </div>
@@ -249,8 +277,9 @@
                 </div>
               </template>
               <template v-else>
-                <span class="file-icon">📎</span>
+                <span class="file-icon">{{ isCsvUrl(document.file) ? '📊' : '📎' }}</span>
                 <span class="file-name">{{ getFileName(document.file) }}</span>
+                <span v-if="isCsvUrl(document.file)" class="file-type-badge">CSV</span>
                 <button type="button" class="btn-download btn-preview" @click="openFilePreview(document)">預覽</button>
                 <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載">下載</a>
               </template>
@@ -317,6 +346,66 @@
               class="file-preview-large-frame"
               :title="previewDocument.name || getFileName(previewDocument.file)"
             ></iframe>
+            <div
+              v-else-if="getFilePreviewType(previewDocument.file) === 'csv'"
+              class="file-preview-csv-panel"
+            >
+              <div v-if="previewTextLoading" class="file-preview-fallback">
+                <p>CSV 讀取中...</p>
+              </div>
+              <div v-else-if="previewTextError" class="file-preview-fallback">
+                <p>{{ previewTextError }}</p>
+                <a :href="previewDocument.file" target="_blank" rel="noopener" class="btn btn-primary">開啟檔案</a>
+              </div>
+              <template v-else>
+                <div class="csv-preview-toolbar">
+                  <span class="csv-preview-meta">
+                    {{ previewCsv.rowCount }} 列 · {{ previewCsv.headers.length }} 欄
+                    <template v-if="previewCsv.truncated">（僅顯示前 {{ previewCsv.rows.length }} 列）</template>
+                  </span>
+                  <div class="csv-preview-mode-switch" role="group" aria-label="CSV 預覽模式">
+                    <button
+                      type="button"
+                      class="csv-mode-btn"
+                      :class="{ active: previewCsvMode === 'table' }"
+                      @click="previewCsvMode = 'table'"
+                    >
+                      表格
+                    </button>
+                    <button
+                      type="button"
+                      class="csv-mode-btn"
+                      :class="{ active: previewCsvMode === 'text' }"
+                      @click="previewCsvMode = 'text'"
+                    >
+                      原文
+                    </button>
+                  </div>
+                </div>
+                <div v-if="previewCsvMode === 'table'" class="csv-preview-table-wrap">
+                  <table v-if="previewCsv.headers.length" class="csv-preview-table">
+                    <thead>
+                      <tr>
+                        <th class="csv-row-index">#</th>
+                        <th v-for="(header, hi) in previewCsv.headers" :key="'h-' + hi">
+                          {{ header || `欄 ${hi + 1}` }}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(row, ri) in previewCsv.rows" :key="'r-' + ri">
+                        <td class="csv-row-index">{{ ri + 1 }}</td>
+                        <td v-for="(cell, ci) in row" :key="'c-' + ri + '-' + ci">{{ cell }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div v-else class="file-preview-fallback">
+                    <p>此 CSV 沒有可顯示的資料列。</p>
+                  </div>
+                </div>
+                <pre v-else class="file-preview-text-content">{{ previewText }}</pre>
+              </template>
+            </div>
             <div
               v-else-if="getFilePreviewType(previewDocument.file) === 'text'"
               class="file-preview-text-panel"
@@ -405,7 +494,7 @@
                 </button>
               </div>
               <div v-if="formData.file" class="file-preview">
-                <span>📄 {{ getFileName(formData.file) }}</span>
+                <span>{{ isCsvUrl(formData.file) ? '📊' : '📄' }} {{ getFileName(formData.file) }}</span>
                 <button type="button" @click="removeFile" class="btn-remove">移除</button>
               </div>
               <input
@@ -544,6 +633,9 @@ const previewDocument = ref(null)
 const previewText = ref('')
 const previewTextLoading = ref(false)
 const previewTextError = ref('')
+const previewCsvMode = ref('table')
+const previewCsv = ref({ headers: [], rows: [], rowCount: 0, truncated: false })
+const CSV_PREVIEW_MAX_ROWS = 500
 
 const availableCategories = computed(() => {
   const cats = new Set()
@@ -563,8 +655,11 @@ const openFilePreview = async (documentItem) => {
   previewDocument.value = documentItem
   previewText.value = ''
   previewTextError.value = ''
-  if (getFilePreviewType(documentItem?.file) === 'text') {
-    await loadPreviewText(documentItem.file)
+  previewCsvMode.value = 'table'
+  previewCsv.value = { headers: [], rows: [], rowCount: 0, truncated: false }
+  const type = getFilePreviewType(documentItem?.file)
+  if (type === 'csv' || type === 'text') {
+    await loadPreviewText(documentItem.file, type === 'csv')
   }
 }
 
@@ -572,6 +667,8 @@ const closeFilePreview = () => {
   previewDocument.value = null
   previewText.value = ''
   previewTextError.value = ''
+  previewCsvMode.value = 'table'
+  previewCsv.value = { headers: [], rows: [], rowCount: 0, truncated: false }
 }
 
 // Batch mode
@@ -988,6 +1085,28 @@ const confirmDelete = async (document) => {
   }
 }
 
+// CSV Export（僅 metadata，不含附件檔本體）
+const exportDocumentsCsv = () => {
+  if (documents.value.length === 0) {
+    alert('沒有資料可以匯出')
+    return
+  }
+  const header = ['name', 'file', 'note', 'ref', 'category', 'hash', 'cover']
+  const rows = documents.value.map((doc) => header.map((key) => {
+    const value = doc[key] ?? ''
+    return `"${String(value).replace(/"/g, '""')}"`
+  }))
+  const bom = '\uFEFF'
+  const csvContent = bom + [header.join(','), ...rows.map((r) => r.join(','))].join('\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'supabase-document.csv'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 // ZIP Export
 const exportToZip = async () => {
   if (documents.value.length === 0) {
@@ -1068,13 +1187,13 @@ function resetImportProgress() {
   importProgress.value = { active: false, title: '', step: '', current: 0, total: 0, percent: 0, itemName: '', stats: null }
 }
 
-// CSV Parser
-const parseDocCsv = (text) => {
+// CSV Parser（支援引號內換行）
+const parseCsvMatrix = (text) => {
   const rows = []
   let row = []
   let current = ''
   let inQuotes = false
-  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const normalized = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 
   for (let i = 0; i < normalized.length; i++) {
     const char = normalized[i]
@@ -1100,6 +1219,11 @@ const parseDocCsv = (text) => {
 
   row.push(current.trim())
   if (row.some(cell => cell !== '')) rows.push(row)
+  return rows
+}
+
+const parseDocCsv = (text) => {
+  const rows = parseCsvMatrix(text)
   if (rows.length < 2) return []
 
   const headers = rows[0]
@@ -1108,6 +1232,96 @@ const parseDocCsv = (text) => {
     headers.forEach((h, i) => { obj[h] = cells[i] || '' })
     return obj
   })
+}
+
+const buildCsvPreviewTable = (text, maxRows = CSV_PREVIEW_MAX_ROWS) => {
+  const matrix = parseCsvMatrix(text)
+  if (matrix.length === 0) {
+    return { headers: [], rows: [], rowCount: 0, truncated: false }
+  }
+  const headers = matrix[0]
+  const dataRows = matrix.slice(1)
+  const colCount = Math.max(headers.length, ...dataRows.map((r) => r.length), 0)
+  const normalizeRow = (cells) => {
+    const next = cells.slice(0, colCount)
+    while (next.length < colCount) next.push('')
+    return next
+  }
+  const normalizedHeaders = normalizeRow(headers)
+  const truncated = dataRows.length > maxRows
+  const rows = dataRows.slice(0, maxRows).map(normalizeRow)
+  return {
+    headers: normalizedHeaders,
+    rows,
+    rowCount: dataRows.length,
+    truncated
+  }
+}
+
+const importDocumentCsvRows = async (rows) => {
+  if (!rows.length) {
+    alert('CSV 檔案無有效資料')
+    return
+  }
+  const firstRow = rows[0]
+  const isAppwrite = '$id' in firstRow || '$createdAt' in firstRow || '$collectionId' in firstRow
+  const mapped = rows.map((row, index) => mapImportedDocumentRow(row, index))
+  let confirmMsg = `確定匯入 ${mapped.length} 筆文件資料？\n（純 CSV 僅匯入欄位，不會上傳附件檔）`
+  if (isAppwrite) {
+    confirmMsg = `ℹ️ 偵測到 Appwrite CSV 格式\n\n已自動對應欄位並移除系統欄位\n（純 CSV 僅匯入欄位，附件請改用 ZIP）\n\n確定匯入 ${mapped.length} 筆文件資料？`
+  }
+  if (!confirm(confirmMsg)) return
+
+  updateImportProgress({
+    active: true,
+    title: '匯入 CSV 中...',
+    step: '寫入資料庫',
+    current: 0,
+    total: mapped.length,
+    stats: null,
+    itemName: `${mapped.length} 筆`
+  })
+  try {
+    const result = await importDocuments(mapped)
+    resetImportProgress()
+    if (result.success) {
+      await loadDocuments()
+      alert(`✅ ${result.message || '匯入成功'}！共 ${result.count} 筆資料`)
+    } else {
+      alert('匯入失敗: ' + result.error)
+    }
+  } catch (error) {
+    resetImportProgress()
+    alert('匯入失敗: ' + error.message)
+  }
+}
+
+const handleImportFile = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  const lower = (file.name || '').toLowerCase()
+  const isCsvFile = lower.endsWith('.csv') || file.type === 'text/csv'
+  const isZipFile = lower.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed'
+  try {
+    if (isCsvFile) {
+      const text = await file.text()
+      const cleanText = text.replace(/^\uFEFF/, '')
+      const rows = parseDocCsv(cleanText)
+      await importDocumentCsvRows(rows)
+      return
+    }
+    if (!isZipFile) {
+      alert('請選擇 .csv 或 .zip 檔案')
+      return
+    }
+    await handleZipImport(event)
+  } catch (error) {
+    resetImportProgress()
+    console.error('Import file error:', error)
+    alert('匯入失敗：' + error.message)
+  } finally {
+    if (!isZipFile && event?.target) event.target.value = ''
+  }
 }
 
 // ZIP Import — 相容 supabase (documents.json) 及 appwrite (document.csv + files/ + covers/)
@@ -1440,11 +1654,14 @@ const getFileExtension = (url) => {
   return cleanUrl.split('.').pop()?.toLowerCase() || ''
 }
 
+const isCsvUrl = (url) => getFileExtension(url) === 'csv'
+
 const getFilePreviewType = (url) => {
   const ext = getFileExtension(url)
   if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'].includes(ext)) return 'image'
   if (ext === 'pdf') return 'pdf'
-  if (['txt', 'csv', 'json', 'md', 'log', 'xml', 'html', 'css', 'js', 'ts'].includes(ext)) return 'text'
+  if (ext === 'csv') return 'csv'
+  if (['txt', 'json', 'md', 'log', 'xml', 'html', 'css', 'js', 'ts'].includes(ext)) return 'text'
   if (['mp4', 'webm', 'ogg', 'mov', 'm4v'].includes(ext)) return 'video'
   if (['mp3', 'wav', 'm4a', 'aac', 'flac', 'oga'].includes(ext)) return 'audio'
   if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) return 'office'
@@ -1486,17 +1703,24 @@ const decodePreviewText = (buffer) => {
   return candidates.sort((a, b) => scoreDecodedText(a) - scoreDecodedText(b))[0]
 }
 
-const loadPreviewText = async (url) => {
+const loadPreviewText = async (url, asCsv = false) => {
   previewTextLoading.value = true
   previewTextError.value = ''
+  previewCsv.value = { headers: [], rows: [], rowCount: 0, truncated: false }
   try {
     const response = await fetch(url)
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     const buffer = await response.arrayBuffer()
-    previewText.value = decodePreviewText(buffer)
+    const text = decodePreviewText(buffer)
+    previewText.value = text
+    if (asCsv) {
+      previewCsv.value = buildCsvPreviewTable(text)
+    }
   } catch (error) {
     console.error('Text preview error:', error)
-    previewTextError.value = '文字預覽失敗，請改用開啟檔案或下載。'
+    previewTextError.value = asCsv
+      ? 'CSV 預覽失敗，請改用開啟檔案或下載。'
+      : '文字預覽失敗，請改用開啟檔案或下載。'
   } finally {
     previewTextLoading.value = false
   }
@@ -1791,6 +2015,14 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 
+.btn-export-secondary {
+  background: #0d9488;
+}
+
+.btn-export-secondary:hover {
+  background: #0f766e;
+}
+
 .btn-import {
   background: #3b82f6;
   color: white;
@@ -1801,6 +2033,11 @@ onMounted(() => {
 .btn-import:hover {
   background: #2563eb;
   transform: translateY(-2px);
+}
+
+.btn-import.disabled {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .btn-icon {
@@ -2204,6 +2441,98 @@ onMounted(() => {
   background: white;
 }
 
+.file-preview-csv-panel {
+  width: 100%;
+  max-height: 72vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: white;
+  overflow: hidden;
+}
+
+.csv-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.csv-preview-meta {
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.csv-preview-mode-switch {
+  display: inline-flex;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+}
+
+.csv-mode-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.csv-mode-btn.active {
+  background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
+  color: white;
+}
+
+.csv-preview-table-wrap {
+  overflow: auto;
+  max-height: calc(72vh - 52px);
+}
+
+.csv-preview-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: #0f172a;
+}
+
+.csv-preview-table th,
+.csv-preview-table td {
+  border: 1px solid #e2e8f0;
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.csv-preview-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f1f5f9;
+  z-index: 1;
+  font-weight: 600;
+}
+
+.csv-preview-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.csv-preview-table .csv-row-index {
+  color: #94a3b8;
+  background: #f8fafc;
+  text-align: right;
+  width: 3rem;
+}
+
 .file-preview-text-content {
   margin: 0;
   padding: 1rem;
@@ -2213,6 +2542,28 @@ onMounted(() => {
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.file-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(46, 204, 113, 0.15);
+  color: #1e8449;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+.inline-csv-chip {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #1e8449;
+  background: rgba(46, 204, 113, 0.12);
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  width: fit-content;
 }
 
 .file-preview-large-media {

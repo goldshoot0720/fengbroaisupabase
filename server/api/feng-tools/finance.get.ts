@@ -40,6 +40,9 @@ type CustomFinanceInstrumentInput = {
   symbol?: unknown;
   provider?: unknown;
   group?: unknown;
+  /** Supabase Storage public URL, site path, or list — shown on quote cards. */
+  imageUrl?: unknown;
+  imageUrls?: unknown;
 };
 
 type FinanceHistoryPoint = {
@@ -295,6 +298,51 @@ function slugifyInstrumentId(value: string) {
     .slice(0, 48);
 }
 
+const MAX_CUSTOM_IMAGE_URLS = 9;
+
+/** Accept http(s) URLs (Supabase public) or site-relative paths for card media. */
+function normalizeCustomImageUrls(input: CustomFinanceInstrumentInput): string[] {
+  const rawList: string[] = [];
+  if (typeof input.imageUrls === "string") {
+    rawList.push(...input.imageUrls.split(/[\n,]+/));
+  } else if (Array.isArray(input.imageUrls)) {
+    for (const item of input.imageUrls) {
+      if (typeof item === "string") rawList.push(...item.split(/[\n,]+/));
+    }
+  }
+  if (typeof input.imageUrl === "string" && input.imageUrl.trim()) {
+    rawList.unshift(input.imageUrl);
+  }
+
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of rawList) {
+    const trimmed = typeof raw === "string" ? raw.trim() : "";
+    if (!trimmed) continue;
+    let next = "";
+    if (trimmed.startsWith("/") && !trimmed.startsWith("//") && trimmed.length > 1) {
+      next = trimmed.length <= 500 ? trimmed : trimmed.slice(0, 500);
+    } else if (/^https?:\/\//i.test(trimmed)) {
+      try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") continue;
+        const host = parsed.hostname;
+        if (!host || (!host.includes(".") && host !== "localhost")) continue;
+        next = trimmed.length <= 1000 ? trimmed : trimmed.slice(0, 1000);
+      } catch {
+        continue;
+      }
+    } else {
+      continue;
+    }
+    if (!next || seen.has(next)) continue;
+    seen.add(next);
+    urls.push(next);
+    if (urls.length >= MAX_CUSTOM_IMAGE_URLS) break;
+  }
+  return urls;
+}
+
 function normalizeCustomFinanceInstrument(input: CustomFinanceInstrumentInput, index: number): FinanceInstrument | null {
   const symbol = typeof input.symbol === "string" ? input.symbol.trim().toUpperCase() : "";
   if (!symbol || symbol.length > 32) return null;
@@ -306,6 +354,7 @@ function normalizeCustomFinanceInstrument(input: CustomFinanceInstrumentInput, i
       ? input.name.trim().slice(0, 80)
       : symbol;
   const idBase = slugifyInstrumentId(`${provider}-${symbol}`) || `custom-${index + 1}`;
+  const imageUrls = normalizeCustomImageUrls(input);
 
   return {
     id: `custom-${idBase}`,
@@ -319,6 +368,8 @@ function normalizeCustomFinanceInstrument(input: CustomFinanceInstrumentInput, i
     group,
     provider,
     localLabel: `${provider.toUpperCase()}: ${symbol}`,
+    ...(imageUrls[0] ? { imageUrl: imageUrls[0] } : {}),
+    ...(imageUrls.length > 0 ? { imageUrls } : {}),
   };
 }
 

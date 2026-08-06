@@ -15,6 +15,10 @@ export type CustomFinanceInstrument = {
   symbol: string;
   provider: FinanceCustomProvider;
   group: FinanceCustomGroup;
+  /** Primary card image (first of imageUrls). Absolute Supabase public URL or site path. */
+  imageUrl?: string;
+  /** Up to MAX_CUSTOM_IMAGE_URLS card images (carousel). */
+  imageUrls?: string[];
 };
 
 export type CustomFinanceDraft = {
@@ -24,7 +28,12 @@ export type CustomFinanceDraft = {
   urlOrSymbol: string;
   provider: FinanceCustomProvider;
   group: FinanceCustomGroup;
+  /** One image URL per line (optional). Supabase Storage public URL or `/path`. */
+  imageUrlsText: string;
 };
+
+/** Max images per custom instrument (carousel). */
+export const MAX_CUSTOM_IMAGE_URLS = 9;
 
 export const FINANCE_CUSTOM_GROUPS: FinanceCustomGroup[] = [
   "korea",
@@ -378,6 +387,68 @@ export function buildCnbcQuoteSourceUrl(symbol: string): string {
   return `https://www.cnbc.com/quotes/${encodeURIComponent(symbol.trim())}`;
 }
 
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Accept absolute http(s) URLs (e.g. Supabase Storage public) or site-relative paths
+ * starting with `/` (e.g. `/finance/kospi-cats.jpg`).
+ */
+function normalizeFinanceImageUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//") && trimmed.length > 1) {
+    // Site-relative asset path (max reasonable length)
+    return trimmed.length <= 500 ? trimmed : trimmed.slice(0, 500);
+  }
+
+  // Only treat as absolute URL when it already has a scheme (avoid "foo" → https://foo)
+  if (!/^https?:\/\//i.test(trimmed)) return null;
+  if (!isHttpUrl(trimmed)) return null;
+  try {
+    const host = new URL(trimmed).hostname;
+    // Require a real-looking host (supabase.co, localhost, etc.)
+    if (!host || (!host.includes(".") && host !== "localhost")) return null;
+  } catch {
+    return null;
+  }
+  return trimmed.length <= 1000 ? trimmed : trimmed.slice(0, 1000);
+}
+
+/**
+ * Parse draft textarea / stored list into clean image URLs.
+ * Supports Supabase Storage public URLs and local `/finance/...` paths.
+ */
+export function normalizeFinanceImageUrls(input: unknown): string[] {
+  const rawList: string[] = [];
+
+  if (typeof input === "string") {
+    rawList.push(...input.split(/[\n,]+/));
+  } else if (Array.isArray(input)) {
+    for (const item of input) {
+      if (typeof item === "string") rawList.push(...item.split(/[\n,]+/));
+    }
+  }
+
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of rawList) {
+    const url = normalizeFinanceImageUrl(raw);
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
+    if (urls.length >= MAX_CUSTOM_IMAGE_URLS) break;
+  }
+  return urls;
+}
+
 /** Load an existing custom instrument into the add/edit draft form. */
 export function draftFromCustomFinanceInstrument(
   instrument: CustomFinanceInstrument
@@ -387,16 +458,25 @@ export function draftFromCustomFinanceInstrument(
       ? buildYahooQuoteSourceUrl(instrument.symbol, { group: instrument.group })
       : buildCnbcQuoteSourceUrl(instrument.symbol);
 
+  const imageUrls = normalizeFinanceImageUrls(
+    instrument.imageUrls?.length
+      ? instrument.imageUrls
+      : instrument.imageUrl
+        ? [instrument.imageUrl]
+        : []
+  );
+
   return {
     name: instrument.name,
     urlOrSymbol,
     provider: instrument.provider,
     group: migrateFinanceGroup(instrument.group),
+    imageUrlsText: imageUrls.join("\n"),
   };
 }
 
 export function normalizeCustomFinanceInstrument(
-  input: Partial<CustomFinanceInstrument>
+  input: Partial<CustomFinanceInstrument> & { imageUrlsText?: string }
 ): CustomFinanceInstrument | null {
   const symbol = typeof input.symbol === "string" ? input.symbol.trim().toUpperCase() : "";
   if (!symbol || symbol.length > 32) return null;
@@ -408,7 +488,22 @@ export function normalizeCustomFinanceInstrument(
   const provider = input.provider === "yahoo" ? "yahoo" : "cnbc";
   const group = migrateFinanceGroup(input.group);
 
-  return { name, symbol, provider, group };
+  const imageUrls = normalizeFinanceImageUrls(
+    input.imageUrls?.length
+      ? input.imageUrls
+      : input.imageUrl
+        ? [input.imageUrl]
+        : input.imageUrlsText
+  );
+
+  return {
+    name,
+    symbol,
+    provider,
+    group,
+    ...(imageUrls[0] ? { imageUrl: imageUrls[0] } : {}),
+    ...(imageUrls.length > 0 ? { imageUrls } : {}),
+  };
 }
 
 /**
@@ -438,6 +533,7 @@ export function buildCustomFinanceInstrumentFromDraft(
     symbol: parsed.symbol,
     provider,
     group,
+    imageUrls: normalizeFinanceImageUrls(draft.imageUrlsText),
   });
 }
 
@@ -449,6 +545,7 @@ export function createEmptyCustomFinanceDraft(
     urlOrSymbol: "",
     provider: "cnbc",
     group: "us",
+    imageUrlsText: "",
     ...overrides,
   };
 }

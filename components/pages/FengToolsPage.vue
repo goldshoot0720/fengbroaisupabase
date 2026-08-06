@@ -911,7 +911,7 @@
 
           <div class="finance-custom-form" :class="{ 'finance-custom-form--editing': financeEditingCustomKey }">
             <p class="store-card__name">{{ financeEditingCustomKey ? '編輯指數或股票' : '新增指數或股票' }}</p>
-            <p class="tool-notice tool-notice--inline">可貼 Yahoo 奇摩／CNBC 網址或代號（如 2330.TW、.SOX）；台股會自動辨識。</p>
+            <p class="tool-notice tool-notice--inline">可貼 Yahoo 奇摩／CNBC 網址或代號（如 2330.TW、.SOX）；台股會自動辨識。圖片可從 Supabase 圖片庫選取或貼上公開網址。</p>
             <div class="finance-custom-form__grid">
               <label>
                 <span>代稱</span>
@@ -940,6 +940,64 @@
                   <option v-for="group in FINANCE_CUSTOM_GROUPS" :key="group" :value="group">{{ FINANCE_GROUP_LABELS[group] }}</option>
                 </select>
               </label>
+              <label class="finance-custom-form__images">
+                <span>圖片（選填 · Supabase 公開網址，每行一張，最多 {{ MAX_CUSTOM_IMAGE_URLS }} 張）</span>
+                <textarea
+                  v-model="financeCustomDraft.imageUrlsText"
+                  class="tool-input finance-custom-form__textarea"
+                  rows="3"
+                  placeholder="https://xxxx.supabase.co/storage/v1/object/public/… 或從下方圖片庫點選"
+                />
+              </label>
+              <div class="finance-custom-form__image-tools">
+                <button
+                  type="button"
+                  class="tool-secondary-btn"
+                  :disabled="financeGalleryLoading"
+                  @click="toggleFinanceGalleryPicker"
+                >
+                  {{ financeGalleryOpen ? '收合圖片庫' : (financeGalleryLoading ? '載入圖片庫…' : '從 Supabase 圖片庫選取') }}
+                </button>
+                <button
+                  v-if="financeCustomDraft.imageUrlsText.trim()"
+                  type="button"
+                  class="tool-secondary-btn"
+                  @click="clearFinanceDraftImages"
+                >
+                  清除圖片
+                </button>
+              </div>
+              <div v-if="financeDraftImagePreviewUrls.length" class="finance-custom-form__preview-row">
+                <img
+                  v-for="(url, idx) in financeDraftImagePreviewUrls"
+                  :key="`${url}-${idx}`"
+                  :src="url"
+                  :alt="`預覽 ${idx + 1}`"
+                  class="finance-custom-form__preview"
+                  loading="lazy"
+                />
+              </div>
+              <div v-if="financeGalleryOpen" class="finance-gallery-picker">
+                <p v-if="financeGalleryError" class="tool-error">{{ financeGalleryError }}</p>
+                <p v-else-if="financeGalleryLoading" class="tool-notice tool-notice--inline">載入 Supabase 圖片庫…</p>
+                <p v-else-if="!financeGalleryPickableImages.length" class="tool-notice tool-notice--inline">
+                  圖片庫尚無資料。請先到「鋒兄圖片」上傳，或確認 Supabase `image` 資料表與 Storage bucket 已設定。
+                </p>
+                <div v-else class="finance-gallery-picker__grid">
+                  <button
+                    v-for="img in financeGalleryPickableImages"
+                    :key="img.id || img.url"
+                    type="button"
+                    class="finance-gallery-picker__item"
+                    :class="{ 'finance-gallery-picker__item--selected': isFinanceDraftImageSelected(img.url) }"
+                    :title="img.displayName || img.name"
+                    @click="toggleFinanceDraftImage(img.url)"
+                  >
+                    <img :src="img.url" :alt="img.displayName || img.name || '圖片'" loading="lazy" />
+                    <span>{{ img.displayName || img.name || '未命名' }}</span>
+                  </button>
+                </div>
+              </div>
               <div class="finance-custom-form__actions">
                 <button type="button" class="tool-primary-btn tool-primary-btn--compact" @click="saveCustomFinanceInstrument">
                   {{ financeEditingCustomKey ? '儲存' : '新增' }}
@@ -957,6 +1015,7 @@
                 <strong>{{ item.name }}</strong>
                 <span>{{ item.provider.toUpperCase() }}: {{ item.symbol }}</span>
                 <span>{{ FINANCE_GROUP_LABELS[item.group] || item.group }}</span>
+                <span v-if="(item.imageUrls || []).length || item.imageUrl" class="finance-chip__media" title="已設定圖片">🖼</span>
                 <button type="button" class="finance-chip__btn" @click="editCustomFinanceInstrument(item)">編輯</button>
                 <button type="button" class="finance-chip__btn" @click="deleteCustomFinanceInstrument(item)">×</button>
               </span>
@@ -994,6 +1053,7 @@ import { FENG_FINANCE_DEFAULT_INSTRUMENTS } from '../../utils/fengFinanceInstrum
 import {
   FINANCE_CUSTOM_GROUPS,
   FINANCE_GROUP_LABELS,
+  MAX_CUSTOM_IMAGE_URLS,
   buildCustomFinanceInstrumentFromDraft,
   createEmptyCustomFinanceDraft,
   draftFromCustomFinanceInstrument,
@@ -1002,9 +1062,11 @@ import {
   isFinanceQuoteUrl,
   isTaiwanYahooStockSource,
   normalizeCustomFinanceInstrument,
+  normalizeFinanceImageUrls,
   parseFinanceQuoteInput
 } from '../../utils/fengbroFinanceCustom'
 import { isKospiMarketOpen, KOSPI_LIVE_POLL_MS } from '../../utils/kospiMarketHours'
+import { useGallery } from '../../composables/useGallery'
 
 // Lazy-load heavier tool panels so a panel-level failure does not blank the whole app shell.
 const ImageFormatConvertPanel = defineAsyncComponent(() => import('./ImageFormatConvertPanel.vue'))
@@ -1022,7 +1084,7 @@ const TOOLS_HERO_LEAD_BY_TOOL = {
   manual: '自行輸入商品與價錢，在本機追蹤紀錄與價格走勢。',
   phone: '比對地標網通與傑昇通信等手機通路價格。',
   tube: '整理追蹤頻道最新影片，並標記 3 天內新片。',
-  finance: '觀察指數、商品、利率與自訂標的，KOSPI 交易中可即時更新。',
+  finance: '觀察指數、商品、利率與自訂標的；可掛 Supabase 圖片，KOSPI 交易中可即時更新。',
   news: '在鎖定網站內搜尋新聞標題，並查看台鐵便當門市資訊。',
   'image-voice': '把圖片加上語音旁白，在瀏覽器生成有旁白的影片。',
   'image-convert': '批次上傳圖片，本機轉成 JPEG 或 PNG（參考 PNGJPEGConverter，不上傳伺服器）。',
@@ -1095,6 +1157,20 @@ const financeCustomInstruments = ref([])
 const financeCustomDraft = ref(createEmptyCustomFinanceDraft())
 const financeEditingCustomKey = ref(null)
 const financeImageIndex = ref({})
+const financeGalleryOpen = ref(false)
+const {
+  galleryImages: financeGalleryImages,
+  loading: financeGalleryLoading,
+  error: financeGalleryErrorRef,
+  loadGalleryImages
+} = useGallery()
+const financeGalleryError = computed(() => financeGalleryErrorRef.value || '')
+const financeGalleryPickableImages = computed(() =>
+  (financeGalleryImages.value || []).filter((img) => img?.url)
+)
+const financeDraftImagePreviewUrls = computed(() =>
+  normalizeFinanceImageUrls(financeCustomDraft.value?.imageUrlsText || '')
+)
 const kospiLiveOpen = ref(false)
 const kospiLiveRefreshing = ref(false)
 let kospiLiveTimer = null
@@ -1956,6 +2032,46 @@ const deleteCustomFinanceInstrument = (instrument) => {
   if (financeEditingCustomKey.value === key) cancelEditCustomFinanceInstrument()
   persistFinanceWatchlist()
   runFinanceLookup()
+}
+
+const clearFinanceDraftImages = () => {
+  financeCustomDraft.value = {
+    ...financeCustomDraft.value,
+    imageUrlsText: ''
+  }
+}
+
+const isFinanceDraftImageSelected = (url) => {
+  if (!url) return false
+  return financeDraftImagePreviewUrls.value.includes(url)
+}
+
+const toggleFinanceDraftImage = (url) => {
+  if (!url || typeof url !== 'string') return
+  const current = normalizeFinanceImageUrls(financeCustomDraft.value.imageUrlsText)
+  const index = current.indexOf(url)
+  let next
+  if (index >= 0) {
+    next = current.filter((_, i) => i !== index)
+  } else if (current.length >= MAX_CUSTOM_IMAGE_URLS) {
+    financeError.value = `每檔標的最多 ${MAX_CUSTOM_IMAGE_URLS} 張圖片`
+    return
+  } else {
+    next = [...current, url]
+  }
+  financeCustomDraft.value = {
+    ...financeCustomDraft.value,
+    imageUrlsText: next.join('\n')
+  }
+}
+
+const toggleFinanceGalleryPicker = async () => {
+  if (financeGalleryOpen.value) {
+    financeGalleryOpen.value = false
+    return
+  }
+  financeGalleryOpen.value = true
+  await loadGalleryImages()
 }
 
 const setFinanceImageIndex = (id, index) => {
@@ -2929,6 +3045,95 @@ watch(
   gap: 0.3rem;
   font-size: 0.8rem;
   color: var(--text-secondary);
+}
+
+.finance-custom-form__images,
+.finance-custom-form__image-tools,
+.finance-custom-form__preview-row,
+.finance-gallery-picker {
+  grid-column: 1 / -1;
+}
+
+.finance-custom-form__textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.finance-custom-form__image-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.finance-custom-form__preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.finance-custom-form__preview {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.finance-gallery-picker {
+  border: 1px dashed var(--border-color);
+  border-radius: 14px;
+  padding: 0.75rem;
+  background: color-mix(in oklab, var(--bg-secondary) 55%, var(--bg-primary));
+}
+
+.finance-gallery-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 0.55rem;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.finance-gallery-picker__item {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.finance-gallery-picker__item img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.finance-gallery-picker__item span {
+  font-size: 0.72rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finance-gallery-picker__item--selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+}
+
+.finance-chip__media {
+  font-size: 0.85rem;
+  line-height: 1;
 }
 
 .tool-input {

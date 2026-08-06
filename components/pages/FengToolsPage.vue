@@ -610,9 +610,34 @@
               <span v-if="kospiLiveOpen" class="finance-live-pill">即時</span>
             </p>
           </div>
-          <button type="button" class="tool-primary-btn tool-primary-btn--compact" :disabled="financeLoading" @click="runFinanceLookup">
-            {{ financeLoading ? '更新中...' : '重新整理' }}
-          </button>
+          <div class="finance-header-actions">
+            <input
+              ref="financeCsvInputRef"
+              type="file"
+              accept=".csv,text/csv"
+              class="finance-csv-input"
+              @change="onFinanceCustomCsvFileChange"
+            />
+            <button
+              type="button"
+              class="tool-secondary-btn"
+              title="匯出自訂指數／股票 CSV（含 imageUrls：Supabase 公開網址）"
+              @click="exportFinanceCustomCsv"
+            >
+              匯出 CSV
+            </button>
+            <button
+              type="button"
+              class="tool-secondary-btn"
+              title="從 CSV 匯入自訂指數／股票（同代號會覆蓋；imageUrls 支援 Supabase Storage）"
+              @click="triggerFinanceCustomCsvImport"
+            >
+              匯入 CSV
+            </button>
+            <button type="button" class="tool-primary-btn tool-primary-btn--compact" :disabled="financeLoading" @click="runFinanceLookup">
+              {{ financeLoading ? '更新中...' : '重新整理' }}
+            </button>
+          </div>
         </div>
 
         <p v-if="financeError" class="tool-error">{{ financeError }}</p>
@@ -1065,6 +1090,11 @@ import {
   normalizeFinanceImageUrls,
   parseFinanceQuoteInput
 } from '../../utils/fengbroFinanceCustom'
+import {
+  buildFinanceCustomCsv,
+  mergeFinanceCustomInstruments,
+  parseFinanceCustomCsv
+} from '../../utils/fengbroFinanceCsv'
 import { isKospiMarketOpen, KOSPI_LIVE_POLL_MS } from '../../utils/kospiMarketHours'
 import { useGallery } from '../../composables/useGallery'
 
@@ -1084,7 +1114,7 @@ const TOOLS_HERO_LEAD_BY_TOOL = {
   manual: '自行輸入商品與價錢，在本機追蹤紀錄與價格走勢。',
   phone: '比對地標網通與傑昇通信等手機通路價格。',
   tube: '整理追蹤頻道最新影片，並標記 3 天內新片。',
-  finance: '觀察指數、商品、利率與自訂標的；可掛 Supabase 圖片，KOSPI 交易中可即時更新。',
+  finance: '觀察指數、商品、利率與自訂標的；可掛 Supabase 圖片並 CSV 匯入／匯出，KOSPI 交易中可即時更新。',
   news: '在鎖定網站內搜尋新聞標題，並查看台鐵便當門市資訊。',
   'image-voice': '把圖片加上語音旁白，在瀏覽器生成有旁白的影片。',
   'image-convert': '批次上傳圖片，本機轉成 JPEG 或 PNG（參考 PNGJPEGConverter，不上傳伺服器）。',
@@ -2034,6 +2064,88 @@ const deleteCustomFinanceInstrument = (instrument) => {
   runFinanceLookup()
 }
 
+const financeCsvInputRef = ref(null)
+
+const exportFinanceCustomCsv = () => {
+  try {
+    const csv = buildFinanceCustomCsv(financeCustomInstruments.value)
+    const BOM = '\uFEFF'
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const stamp = new Date().toISOString().slice(0, 10)
+    link.href = URL.createObjectURL(blob)
+    link.download = `fengbro-finance-${stamp}.csv`
+    link.click()
+    URL.revokeObjectURL(link.href)
+    financeError.value = ''
+  } catch (error) {
+    financeError.value = error instanceof Error ? error.message : '匯出 CSV 失敗'
+  }
+}
+
+const triggerFinanceCustomCsvImport = () => {
+  financeCsvInputRef.value?.click?.()
+}
+
+const onFinanceCustomCsvFileChange = (event) => {
+  const input = event?.target
+  const file = input?.files?.[0]
+  if (input) input.value = ''
+  if (!file) return
+  importFinanceCustomCsv(file)
+}
+
+const importFinanceCustomCsv = (file) => {
+  if (!file?.name?.toLowerCase().endsWith('.csv')) {
+    financeError.value = '請選擇 .csv 檔案'
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = () => {
+    try {
+      const text = typeof reader.result === 'string' ? reader.result : ''
+      const { data, errors } = parseFinanceCustomCsv(text)
+
+      if (data.length === 0) {
+        financeError.value =
+          errors.length > 0
+            ? `CSV 匯入失敗：${errors.slice(0, 5).join('；')}`
+            : 'CSV 沒有可匯入的標的'
+        return
+      }
+
+      if (financeCustomInstruments.value.length > 0) {
+        const ok = window.confirm(
+          `將合併匯入 ${data.length} 筆自訂標的（相同來源+代號會覆蓋）。\n` +
+            `目前 ${financeCustomInstruments.value.length} 筆，合併後最多保留 30 筆。\n\n` +
+            `確定匯入？`
+        )
+        if (!ok) return
+      }
+
+      const merged = mergeFinanceCustomInstruments(financeCustomInstruments.value, data)
+      financeCustomInstruments.value = merged
+      cancelEditCustomFinanceInstrument()
+      persistFinanceWatchlist()
+      financeError.value = ''
+      runFinanceLookup()
+
+      const warn =
+        errors.length > 0
+          ? `\n警告 ${errors.length}：${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n…' : ''}`
+          : ''
+      window.alert(`匯入完成！\n新增或覆蓋：${data.length} 筆\n合併後共 ${merged.length} 筆${warn}`)
+    } catch (error) {
+      financeError.value = error instanceof Error ? error.message : '匯入 CSV 失敗'
+    }
+  }
+  reader.onerror = () => {
+    financeError.value = '讀取 CSV 檔案失敗'
+  }
+  reader.readAsText(file, 'UTF-8')
+}
+
 const clearFinanceDraftImages = () => {
   financeCustomDraft.value = {
     ...financeCustomDraft.value,
@@ -2645,6 +2757,25 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.finance-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.finance-csv-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .tool-panel__header {

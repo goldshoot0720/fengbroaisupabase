@@ -387,6 +387,9 @@ export function buildCnbcQuoteSourceUrl(symbol: string): string {
   return `https://www.cnbc.com/quotes/${encodeURIComponent(symbol.trim())}`;
 }
 
+/** Supabase Storage / external image URLs may be long (signed tokens). */
+const MAX_FINANCE_IMAGE_URL_LEN = 1200;
+
 function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -397,16 +400,78 @@ function isHttpUrl(value: string): boolean {
 }
 
 /**
- * Accept absolute http(s) URLs (e.g. Supabase Storage public) or site-relative paths
- * starting with `/` (e.g. `/finance/kospi-cats.jpg`).
+ * Unwrap `/api/media-proxy?url=…` (absolute or site-relative) back to the inner media URL.
+ * Keeps Storage public URLs portable in localStorage / CSV (no embedded query secrets).
+ */
+export function unwrapFinanceMediaProxyUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed || !trimmed.includes("media-proxy")) return trimmed;
+  try {
+    const parsed = new URL(trimmed, "http://localhost");
+    if (!parsed.pathname.includes("/api/media-proxy") && !parsed.pathname.includes("media-proxy")) {
+      return trimmed;
+    }
+    const inner = parsed.searchParams.get("url");
+    if (inner?.trim()) return inner.trim();
+  } catch {
+    // fall through to regex
+  }
+  const match = trimmed.match(/[?&]url=([^&]+)/i);
+  if (match?.[1]) {
+    try {
+      return decodeURIComponent(match[1]);
+    } catch {
+      return match[1];
+    }
+  }
+  return trimmed;
+}
+
+/**
+ * Split a multi-image cell / textarea into raw URL candidates.
+ * Prefer `;` and newlines (CSV multi-value). Avoid naive comma-split that could
+ * mangle rare URLs; only split on comma when the next token starts a new http(s) URL.
+ */
+export function splitFinanceImageUrlList(input: string): string[] {
+  const text = input.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+  if (!text) return [];
+
+  if (/[;\n]/.test(text)) {
+    return text
+      .split(/[;\n]+/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  // Single token, or comma-separated full URLs (legacy paste)
+  if (/,/.test(text) && /https?:\/\//i.test(text)) {
+    return text
+      .split(/,\s*(?=https?:\/\/)/i)
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  return [text];
+}
+
+/**
+ * Accept absolute http(s) URLs (e.g. Supabase Storage public), media-proxy wraps,
+ * or site-relative paths starting with `/` (e.g. `/finance/kospi-cats.jpg`).
  */
 function normalizeFinanceImageUrl(value: string): string | null {
-  const trimmed = value.trim();
+  let trimmed = value.trim();
   if (!trimmed) return null;
+
+  trimmed = unwrapFinanceMediaProxyUrl(trimmed);
 
   if (trimmed.startsWith("/") && !trimmed.startsWith("//") && trimmed.length > 1) {
     // Site-relative asset path (max reasonable length)
     return trimmed.length <= 500 ? trimmed : trimmed.slice(0, 500);
+  }
+
+  // Protocol-relative //host/…
+  if (trimmed.startsWith("//")) {
+    trimmed = `https:${trimmed}`;
   }
 
   // Only treat as absolute URL when it already has a scheme (avoid "foo" → https://foo)
@@ -419,21 +484,29 @@ function normalizeFinanceImageUrl(value: string): string | null {
   } catch {
     return null;
   }
-  return trimmed.length <= 1000 ? trimmed : trimmed.slice(0, 1000);
+  return trimmed.length <= MAX_FINANCE_IMAGE_URL_LEN
+    ? trimmed
+    : trimmed.slice(0, MAX_FINANCE_IMAGE_URL_LEN);
 }
 
 /**
- * Parse draft textarea / stored list into clean image URLs.
- * Supports Supabase Storage public URLs and local `/finance/...` paths.
+ * Parse draft textarea / stored list / CSV cell into clean image URLs.
+ * Supports Supabase Storage public URLs, media-proxy unwrap, and local `/finance/...` paths.
  */
 export function normalizeFinanceImageUrls(input: unknown): string[] {
   const rawList: string[] = [];
 
   if (typeof input === "string") {
-    rawList.push(...input.split(/[\n,]+/));
+    rawList.push(...splitFinanceImageUrlList(input));
   } else if (Array.isArray(input)) {
     for (const item of input) {
-      if (typeof item === "string") rawList.push(...item.split(/[\n,]+/));
+      if (typeof item === "string" && item.trim()) {
+        if (/[;\n]/.test(item) || (/https?:\/\//i.test(item) && item.includes(","))) {
+          rawList.push(...splitFinanceImageUrlList(item));
+        } else {
+          rawList.push(item.trim());
+        }
+      }
     }
   }
 

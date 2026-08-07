@@ -283,6 +283,150 @@
         {{ bentoResult.live ? '即時' : '備援' }} · {{ formatDateTime(bentoResult.fetchedAt) }}
       </p>
     </section>
+
+    <section class="tool-panel news-pop">
+      <div class="tool-panel__header">
+        <div>
+          <p class="panel-kicker">Population</p>
+          <h3>桃園／中壢人口統計</h3>
+          <p class="tool-subtitle">
+            最近三個月人口數與新增人口數，以及近十年（年底）走勢。來源：桃園市政府資料開放平台民政局。
+          </p>
+        </div>
+        <div class="tool-panel__actions">
+          <a
+            v-if="popResult?.sourceUrl"
+            :href="popResult.sourceUrl"
+            target="_blank"
+            rel="noreferrer"
+            class="store-card__link"
+          >
+            開放資料
+          </a>
+          <button
+            type="button"
+            class="tool-primary-btn tool-primary-btn--compact"
+            :disabled="popLoading"
+            @click="loadPopulation(true)"
+          >
+            {{ popLoading ? '讀取中' : '更新' }}
+          </button>
+        </div>
+      </div>
+
+      <p v-if="popError" class="tool-error">{{ popError }}</p>
+      <p v-if="popResult?.warning" class="tool-notice">{{ popResult.warning }}</p>
+      <p v-if="popLoading && !popResult" class="tool-empty">讀取人口統計…</p>
+
+      <div v-else-if="popResult" class="news-pop__grid">
+        <article
+          v-for="region in popRegions"
+          :key="region.id"
+          class="news-pop-card"
+        >
+          <div class="news-pop-card__header">
+            <div>
+              <p class="panel-kicker">{{ region.id === 'zhongli' ? 'Zhongli' : 'Taoyuan City' }}</p>
+              <h4>{{ region.label }}人口統計</h4>
+            </div>
+            <div class="news-pop-card__latest">
+              <span class="news-pop-card__latest-label">{{ region.latestLabel || '最新' }}</span>
+              <strong>{{ formatPopulation(region.latestPopulation) }}</strong>
+              <span
+                class="news-pop-change"
+                :class="changeClass(region.latestChange)"
+              >
+                {{ formatChange(region.latestChange) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="news-pop-table-wrap">
+            <p class="news-pop-section-title">最近三個月</p>
+            <table class="news-pop-table">
+              <thead>
+                <tr>
+                  <th>月份</th>
+                  <th>人口數</th>
+                  <th>新增人口數</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in region.recentMonths" :key="row.label">
+                  <td>{{ row.label }}</td>
+                  <td>{{ formatPopulation(row.population) }}</td>
+                  <td>
+                    <span class="news-pop-change" :class="changeClass(row.change)">
+                      {{ formatChange(row.change) }}
+                    </span>
+                  </td>
+                </tr>
+                <tr v-if="!region.recentMonths?.length">
+                  <td colspan="3" class="news-pop-table__empty">尚無近月資料</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="news-pop-chart-block">
+            <p class="news-pop-section-title">近十年走勢（年底）</p>
+            <div v-if="region.yearly?.length" class="news-pop-chart" role="img" :aria-label="`${region.label}近十年人口走勢`">
+              <svg
+                class="news-pop-chart__svg"
+                viewBox="0 0 360 160"
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <linearGradient :id="`pop-fill-${region.id}`" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.28" />
+                    <stop offset="100%" stop-color="var(--primary)" stop-opacity="0.02" />
+                  </linearGradient>
+                </defs>
+                <polyline
+                  v-if="chartArea(region.yearly)"
+                  :points="chartArea(region.yearly)"
+                  :fill="`url(#pop-fill-${region.id})`"
+                  stroke="none"
+                />
+                <polyline
+                  :points="chartLine(region.yearly)"
+                  fill="none"
+                  stroke="var(--primary)"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <circle
+                  v-for="(pt, idx) in chartDots(region.yearly)"
+                  :key="`${region.id}-dot-${idx}`"
+                  :cx="pt.x"
+                  :cy="pt.y"
+                  r="3.2"
+                  fill="var(--bg-primary)"
+                  stroke="var(--primary)"
+                  stroke-width="1.8"
+                />
+              </svg>
+              <div class="news-pop-chart__axis">
+                <span v-for="y in region.yearly" :key="`${region.id}-y-${y.label}`">
+                  {{ y.year }}
+                </span>
+              </div>
+              <div class="news-pop-chart__range">
+                <span>最低 {{ formatPopulation(minPop(region.yearly)) }}</span>
+                <span>最高 {{ formatPopulation(maxPop(region.yearly)) }}</span>
+              </div>
+            </div>
+            <p v-else class="tool-empty">尚無年度走勢資料</p>
+          </div>
+        </article>
+      </div>
+
+      <p v-if="popResult?.fetchedAt" class="news-bento__footer">
+        {{ popResult.live ? '即時' : '備援' }} · {{ formatDateTime(popResult.fetchedAt) }}
+        <template v-if="popResult.sourceLabel"> · {{ popResult.sourceLabel }}</template>
+      </p>
+    </section>
   </div>
 </template>
 
@@ -369,10 +513,19 @@ const bentoError = ref('')
 const bentoResult = ref(null)
 const bentoFocusOnly = ref(true)
 
+const popLoading = ref(false)
+const popError = ref('')
+const popResult = ref(null)
+
 let searchAbort = null
 let searchTimer = null
 
 const lockedCount = computed(() => sites.value.filter((s) => s.locked).length)
+
+const popRegions = computed(() => {
+  if (!popResult.value) return []
+  return [popResult.value.city, popResult.value.zhongli].filter(Boolean)
+})
 
 const adapterLabel = (adapter) => adapterOptions.find((a) => a.id === adapter)?.label || adapter
 
@@ -384,6 +537,88 @@ const formatDateTime = (value) => {
 const formatDate = (value) => {
   if (!value) return '--'
   return new Date(value).toLocaleDateString('zh-TW')
+}
+
+const formatPopulation = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return '—'
+  return Number(value).toLocaleString('zh-TW')
+}
+
+const formatChange = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return '—'
+  const n = Number(value)
+  if (n === 0) return '0'
+  const sign = n > 0 ? '+' : ''
+  return `${sign}${n.toLocaleString('zh-TW')}`
+}
+
+const changeClass = (value) => {
+  if (value == null || !Number.isFinite(Number(value))) return ''
+  const n = Number(value)
+  if (n > 0) return 'is-up'
+  if (n < 0) return 'is-down'
+  return 'is-flat'
+}
+
+const chartPadding = { top: 14, right: 12, bottom: 12, left: 12 }
+
+const chartBounds = (series) => {
+  const values = (series || []).map((p) => Number(p.population)).filter((n) => Number.isFinite(n))
+  if (!values.length) return null
+  let min = Math.min(...values)
+  let max = Math.max(...values)
+  if (min === max) {
+    min = Math.max(0, min - 1)
+    max = max + 1
+  }
+  // pad range a little for readability
+  const pad = (max - min) * 0.08
+  return { min: min - pad, max: max + pad, count: series.length }
+}
+
+const chartPoints = (series) => {
+  const bounds = chartBounds(series)
+  if (!bounds || !series?.length) return []
+  const w = 360
+  const h = 160
+  const { top, right, bottom, left } = chartPadding
+  const innerW = w - left - right
+  const innerH = h - top - bottom
+  const n = series.length
+  return series.map((p, i) => {
+    const x = left + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW)
+    const t = (Number(p.population) - bounds.min) / (bounds.max - bounds.min)
+    const y = top + innerH * (1 - t)
+    return { x, y, population: p.population, label: p.label }
+  })
+}
+
+const chartLine = (series) => chartPoints(series).map((p) => `${p.x},${p.y}`).join(' ')
+
+const chartArea = (series) => {
+  const pts = chartPoints(series)
+  if (!pts.length) return ''
+  const h = 160
+  const bottom = h - chartPadding.bottom
+  const first = pts[0]
+  const last = pts[pts.length - 1]
+  return [
+    `${first.x},${bottom}`,
+    ...pts.map((p) => `${p.x},${p.y}`),
+    `${last.x},${bottom}`
+  ].join(' ')
+}
+
+const chartDots = (series) => chartPoints(series)
+
+const minPop = (series) => {
+  const values = (series || []).map((p) => Number(p.population)).filter((n) => Number.isFinite(n))
+  return values.length ? Math.min(...values) : null
+}
+
+const maxPop = (series) => {
+  const values = (series || []).map((p) => Number(p.population)).filter((n) => Number.isFinite(n))
+  return values.length ? Math.max(...values) : null
 }
 
 const persistSites = () => {
@@ -622,8 +857,24 @@ const toggleBentoFocus = () => {
   loadBentoStores(bentoFocusOnly.value)
 }
 
+const loadPopulation = async (refresh = false) => {
+  popLoading.value = true
+  popError.value = ''
+  try {
+    popResult.value = await $fetch('/api/feng-tools/population', {
+      query: refresh ? { refresh: '1' } : undefined
+    })
+  } catch (err) {
+    popResult.value = null
+    popError.value = err?.data?.statusMessage || err?.message || '人口統計讀取失敗'
+  } finally {
+    popLoading.value = false
+  }
+}
+
 onMounted(() => {
   loadBentoStores(true)
+  loadPopulation(false)
 })
 
 onUnmounted(() => {
@@ -1088,6 +1339,161 @@ onUnmounted(() => {
   text-decoration: underline;
 }
 
+.news-pop__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.news-pop-card {
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  background: color-mix(in oklab, var(--bg-primary) 92%, transparent);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.news-pop-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.news-pop-card h4 {
+  margin: 0.25rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.news-pop-card__latest {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  min-width: 7.5rem;
+}
+
+.news-pop-card__latest-label {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.news-pop-card__latest strong {
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.news-pop-section-title {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.news-pop-table-wrap {
+  overflow-x: auto;
+}
+
+.news-pop-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.news-pop-table th,
+.news-pop-table td {
+  padding: 0.55rem 0.45rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--border-color) 85%, transparent);
+  text-align: left;
+}
+
+.news-pop-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.news-pop-table th:nth-child(2),
+.news-pop-table td:nth-child(2),
+.news-pop-table th:nth-child(3),
+.news-pop-table td:nth-child(3) {
+  text-align: right;
+}
+
+.news-pop-table__empty {
+  text-align: center !important;
+  color: var(--text-secondary);
+}
+
+.news-pop-change {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.news-pop-change.is-up {
+  color: #15803d;
+}
+
+.news-pop-change.is-down {
+  color: #b91c1c;
+}
+
+.news-pop-change.is-flat {
+  color: var(--text-secondary);
+}
+
+.news-pop-chart-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.news-pop-chart {
+  border: 1px solid color-mix(in oklab, var(--border-color) 80%, transparent);
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--bg-secondary) 70%, var(--bg-primary));
+  padding: 0.65rem 0.55rem 0.5rem;
+}
+
+.news-pop-chart__svg {
+  display: block;
+  width: 100%;
+  height: 150px;
+}
+
+.news-pop-chart__axis {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.15rem;
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  overflow: hidden;
+}
+
+.news-pop-chart__axis span {
+  flex: 1 1 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.news-pop-chart__range {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 720px) {
   .news-form__row {
     grid-template-columns: 1fr;
@@ -1099,6 +1505,10 @@ onUnmounted(() => {
 
   .news-site-card__actions {
     justify-content: flex-start;
+  }
+
+  .news-pop-card__latest {
+    align-items: flex-start;
   }
 }
 </style>

@@ -21,6 +21,17 @@ type TubeVideo = {
 
 type TubeSourceChannel = typeof FENG_TUBE_CHANNELS[number]
 
+type DownfallIndexUpdate = {
+  hasUpdate: boolean
+  value: string | null
+  title: string
+  videoUrl: string
+  /** Calendar days between the two most recent 倒台指數 releases; null if fewer than two. */
+  intervalDays: number | null
+  previousPublished: string
+  latestPublished: string
+}
+
 type TubeChannelResult = {
   id: string
   label: string
@@ -28,12 +39,7 @@ type TubeChannelResult = {
   url: string
   channelId: string | null
   videos: TubeVideo[]
-  downfallIndexUpdate: {
-    hasUpdate: boolean
-    value: string | null
-    title: string
-    videoUrl: string
-  }
+  downfallIndexUpdate: DownfallIndexUpdate
   error: string
 }
 
@@ -76,7 +82,7 @@ const isWithinNewWindow = (published: string) => {
   return Date.now() - date.getTime() <= NEW_VIDEO_WINDOW_DAYS * 24 * 60 * 60 * 1000
 }
 
-const parseFeed = (xml: string): TubeVideo[] => {
+const parseFeed = (xml: string, limit = MAX_VIDEOS_PER_CHANNEL): TubeVideo[] => {
   return xml
     .split(/<entry>/i)
     .slice(1)
@@ -96,17 +102,49 @@ const parseFeed = (xml: string): TubeVideo[] => {
       }
     })
     .filter(video => video.id && video.url)
-    .slice(0, MAX_VIDEOS_PER_CHANNEL)
+    .slice(0, limit)
 }
 
-const createDownfallIndexUpdate = (channelId: string, videos: TubeVideo[]) => {
-  if (channelId !== 'henren778') {
-    return {
-      hasUpdate: false,
-      value: null,
-      title: '',
-      videoUrl: ''
+const emptyDownfallIndexUpdate = (): DownfallIndexUpdate => ({
+  hasUpdate: false,
+  value: null,
+  title: '',
+  videoUrl: '',
+  intervalDays: null,
+  previousPublished: '',
+  latestPublished: ''
+})
+
+/** Calendar-day gap between two ISO timestamps (server-local date parts). */
+const calendarDaysBetween = (newerIso: string, olderIso: string): number | null => {
+  const newer = new Date(newerIso)
+  const older = new Date(olderIso)
+  if (Number.isNaN(newer.getTime()) || Number.isNaN(older.getTime())) return null
+
+  const newerDay = Date.UTC(newer.getFullYear(), newer.getMonth(), newer.getDate())
+  const olderDay = Date.UTC(older.getFullYear(), older.getMonth(), older.getDate())
+  return Math.max(0, Math.round((newerDay - olderDay) / (24 * 60 * 60 * 1000)))
+}
+
+const isHenrenDownfallChannel = (channel: Pick<TubeSourceChannel, 'id' | 'handle' | 'url'>) => {
+  const id = (channel.id || '').toLowerCase()
+  const handle = (channel.handle || '').replace(/^@/, '').toLowerCase()
+  const fromUrl = (() => {
+    try {
+      return decodeURIComponent(new URL(channel.url).pathname).match(/^\/@([^/]+)/)?.[1].toLowerCase() || ''
+    } catch {
+      return ''
     }
+  })()
+  return id === 'henren778' || handle === 'henren778' || fromUrl === 'henren778'
+}
+
+const createDownfallIndexUpdate = (
+  channel: Pick<TubeSourceChannel, 'id' | 'handle' | 'url'>,
+  videos: TubeVideo[]
+): DownfallIndexUpdate => {
+  if (!isHenrenDownfallChannel(channel)) {
+    return emptyDownfallIndexUpdate()
   }
 
   const normalizeDigits = (value: string) =>
@@ -131,15 +169,26 @@ const createDownfallIndexUpdate = (channelId: string, videos: TubeVideo[]) => {
     })
     return firstNonDateNumber?.[1] ? formatIndex(firstNonDateNumber[1]) : null
   }
+
   const matched = videos
     .map(video => ({ video, value: extractValue(video.title) }))
-    .find(item => item.value !== null)
+    .filter((item): item is { video: TubeVideo, value: string } => item.value !== null)
+    .sort((a, b) => new Date(b.video.published).getTime() - new Date(a.video.published).getTime())
+
+  const latest = matched[0]
+  const previous = matched[1]
+  const intervalDays = latest && previous
+    ? calendarDaysBetween(latest.video.published, previous.video.published)
+    : null
 
   return {
-    hasUpdate: Boolean(matched),
-    value: matched?.value || null,
-    title: matched?.video.title || '',
-    videoUrl: matched?.video.url || ''
+    hasUpdate: Boolean(latest),
+    value: latest?.value || null,
+    title: latest?.video.title || '',
+    videoUrl: latest?.video.url || '',
+    intervalDays,
+    previousPublished: previous?.video.published || '',
+    latestPublished: latest?.video.published || ''
   }
 }
 
@@ -161,13 +210,15 @@ const fetchChannelVideos = async (channel: TubeSourceChannel): Promise<TubeChann
 
     const feedXml = await fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`)
 
-    const videos = parseFeed(feedXml)
+    // YouTube Atom feed exposes ~15 entries; keep all for 倒台指數 interval, show only latest N.
+    const feedVideos = parseFeed(feedXml, 30)
+    const videos = feedVideos.slice(0, MAX_VIDEOS_PER_CHANNEL)
 
     return {
       ...channel,
       channelId,
       videos,
-      downfallIndexUpdate: createDownfallIndexUpdate(channel.id, videos),
+      downfallIndexUpdate: createDownfallIndexUpdate(channel, feedVideos),
       error: ''
     }
   } catch (error: any) {
@@ -175,7 +226,7 @@ const fetchChannelVideos = async (channel: TubeSourceChannel): Promise<TubeChann
       ...channel,
       channelId: null,
       videos: [],
-      downfallIndexUpdate: createDownfallIndexUpdate(channel.id, []),
+      downfallIndexUpdate: createDownfallIndexUpdate(channel, []),
       error: error?.message || '抓取頻道失敗'
     }
   }

@@ -550,13 +550,20 @@
                     target="_blank"
                     rel="noreferrer"
                     class="tube-update-badge"
-                    :title="channel.downfallIndexUpdate.title"
+                    :title="downfallIndexBadgeTitle(channel.downfallIndexUpdate)"
                   >
                     更新
                     <span v-if="channel.downfallIndexUpdate.value !== null">
                       {{ formatDownfallIndex(channel.downfallIndexUpdate.value) }}
                     </span>
                   </a>
+                  <span
+                    v-if="channel.downfallIndexUpdate?.intervalDays != null"
+                    class="tube-interval-badge"
+                    :title="downfallIntervalTitle(channel.downfallIndexUpdate)"
+                  >
+                    間隔 {{ channel.downfallIndexUpdate.intervalDays }} 天
+                  </span>
                 </h4>
               </div>
               <div class="tube-channel-card__actions">
@@ -1488,6 +1495,25 @@ const formatDownfallIndex = (value) => {
   const amount = Number(String(value).replace(/[^\d.-]/g, ''))
   if (!Number.isFinite(amount)) return String(value)
   return amount.toFixed(2).padStart(5, '0')
+}
+
+const downfallIndexBadgeTitle = (update) => {
+  if (!update) return ''
+  const parts = [update.title].filter(Boolean)
+  if (update.intervalDays != null) {
+    parts.push(`最近兩次發布間隔 ${update.intervalDays} 天`)
+  }
+  return parts.join(' · ')
+}
+
+const downfallIntervalTitle = (update) => {
+  if (!update || update.intervalDays == null) return ''
+  const latest = update.latestPublished ? formatTubeDate(update.latestPublished) : ''
+  const previous = update.previousPublished ? formatTubeDate(update.previousPublished) : ''
+  if (latest && previous) {
+    return `最近兩次倒台指數：${previous} → ${latest}（間隔 ${update.intervalDays} 天）`
+  }
+  return `最近兩次倒台指數發布間隔 ${update.intervalDays} 天`
 }
 
 const formatFinanceNumber = (value) => {
@@ -3653,6 +3679,18 @@ watch(
 
 .tube-update-badge span {
   color: #7f1d1d;
+}
+
+.tube-interval-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, #f59e0b 16%, var(--bg-secondary));
+  color: #b45309;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .tube-video-list {

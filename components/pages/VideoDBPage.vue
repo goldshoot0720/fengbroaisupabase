@@ -836,6 +836,7 @@ import { useStorage } from '../../composables/useStorage'
 import { usePersistentVideoPlayer } from '../../composables/usePersistentVideoPlayer'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
 import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import { recordMediaTraffic } from '../../utils/mediaTraffic'
 
 useHead({
   title: '鋒兄影片 - 鋒兄AI Supabase'
@@ -1354,6 +1355,7 @@ async function downloadVideo(video) {
   downloadingVideoId.value = video.id
   try {
     const blob = await getVideoBlobForDownload(video)
+    recordMediaTraffic({ bytes: blob.size, category: 'video', action: 'download' })
     const blobUrl = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = blobUrl

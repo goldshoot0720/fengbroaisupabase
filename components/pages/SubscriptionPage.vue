@@ -108,6 +108,9 @@
         </span>
       </div>
       <div class="summary-right">
+        <button type="button" class="btn-trash" @click="trashOpen = true">
+          垃圾桶<span v-if="trashedSubscriptions.length"> ({{ trashedSubscriptions.length }})</span>
+        </button>
         <button
           v-if="selectedIds.length > 0"
           @click="openConfirmModal"
@@ -307,7 +310,7 @@
                   </svg>
                 </button>
                 <button @click="copySubscription(sub)" class="btn-icon btn-copy-icon" title="Copy">C</button>
-                <button @click="deleteSubscription(sub.id)" class="btn-icon btn-delete-icon" title="刪除">✕</button>
+                <button @click="moveSubscriptionToTrash(sub)" class="btn-icon btn-delete-icon" title="移到垃圾桶">✕</button>
               </td>
             </template>
           </tr>
@@ -357,6 +360,14 @@
     <datalist id="account-options">
       <option v-for="name in accountNames" :key="name" :value="name" />
     </datalist>
+    <RestoreTrashModal
+      v-model="trashOpen"
+      title="訂閱垃圾桶"
+      :items="trashedSubscriptions"
+      :label-fields="['name']"
+      @restore="restoreTrashedSubscription"
+      @clear="clearSubscriptionTrash"
+    />
   </div>
 </template>
 
@@ -367,6 +378,8 @@ import { useFormatters } from '../../composables/useFormatters'
 import { useCommonAccounts } from '../../composables/useCommonAccounts'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
 import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import RestoreTrashModal from '../ui/RestoreTrashModal.vue'
+import { useLocalTrash } from '../../composables/useLocalTrash'
 
 const searchQuery = ref('')
 const renewFilter = ref('all')
@@ -392,10 +405,36 @@ const {
   importSubscriptions,
   isAppwriteFormat,
   updateSubscriptionInline,
-  deleteSubscription,
+  deleteSubscription: deleteSubscriptionRecord,
   toggleIsContinue,
-  batchDeleteSubscriptions
+  batchDeleteSubscriptions,
+  restoreSubscription,
 } = useSubscriptions()
+
+const trashOpen = ref(false)
+const {
+  items: trashedSubscriptions,
+  load: loadSubscriptionTrash,
+  moveToTrash: saveSubscriptionsToTrash,
+  remove: removeSubscriptionFromTrash,
+  clear: clearSubscriptionTrashRecords,
+} = useLocalTrash('fengbro.subscription.trash')
+
+const moveSubscriptionToTrash = async (subscription) => {
+  const result = await deleteSubscriptionRecord(subscription.id)
+  if (result?.success) saveSubscriptionsToTrash(subscription)
+}
+
+const restoreTrashedSubscription = async (item) => {
+  const result = await restoreSubscription(item.record)
+  if (result.success) removeSubscriptionFromTrash(item)
+  else alert(`還原訂閱失敗：${result.error}`)
+}
+
+const clearSubscriptionTrash = () => {
+  if (!trashedSubscriptions.value.length) return
+  if (confirm(`永久清空 ${trashedSubscriptions.value.length} 筆訂閱？此操作無法復原。`)) clearSubscriptionTrashRecords()
+}
 
 const { formatDate, getDateClass } = useFormatters()
 
@@ -640,8 +679,10 @@ const closeConfirmModal = () => {
 const confirmBatchDelete = async () => {
   if (!isConfirmValid.value) return
   
+  const deletedRecords = subscriptions.value.filter((item) => selectedIds.value.includes(item.id))
   const result = await batchDeleteSubscriptions(selectedIds.value)
   if (result.success) {
+    saveSubscriptionsToTrash(deletedRecords)
     selectedIds.value = []
     batchMode.value = false
     closeConfirmModal()
@@ -777,6 +818,7 @@ const accountNames = computed(() => {
 })
 
 onMounted(() => {
+  loadSubscriptionTrash()
   loadSubscriptions()
   loadCommonAccounts()
 })
@@ -1149,6 +1191,19 @@ defineExpose({ subscriptions, totalMonthlyCost })
   font-weight: 600;
   transition: all 0.3s;
 }
+
+.btn-trash {
+  min-height: 40px;
+  padding: 0 var(--spacing-md);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--bg-muted);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.btn-trash:hover { background: var(--danger-light); color: var(--danger); }
 
 .btn-batch-delete:hover {
   transform: translateY(-2px);

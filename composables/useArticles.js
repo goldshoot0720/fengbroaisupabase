@@ -161,6 +161,24 @@ export const useArticles = () => {
     }
   }
 
+  const restoreArticle = async (record) => {
+    const client = initSupabase()
+    if (!client || !record) return { success: false, error: 'No client' }
+    const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...payload } = record
+    try {
+      loading.value = true
+      const { data, error: insertError } = await client.from('article').insert(payload).select().single()
+      if (insertError) throw insertError
+      articles.value.unshift(data)
+      articles.value.sort((a, b) => new Date(b.newdate) - new Date(a.newdate))
+      return { success: true, data }
+    } catch (e) {
+      return { success: false, error: e.message }
+    } finally {
+      loading.value = false
+    }
+  }
+
   // 檢測是否為 Appwrite 格式（有 $id 或 ISO 8601 日期）
   const isAppwriteFormat = (rows) => {
     if (!rows || rows.length === 0) return false
@@ -267,6 +285,7 @@ export const useArticles = () => {
     addArticle,
     updateArticle,
     deleteArticle,
+    restoreArticle,
     importArticles,
     isAppwriteFormat
   }

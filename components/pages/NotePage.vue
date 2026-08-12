@@ -80,6 +80,9 @@
           </span>
         </div>
         <div class="summary-right">
+          <button type="button" class="btn-trash" @click="trashOpen = true">
+            垃圾桶<span v-if="trashedArticles.length"> ({{ trashedArticles.length }})</span>
+          </button>
           <div v-if="filteredArticles.length > 0 || showAddRow" class="view-switcher" role="tablist" aria-label="筆記版型切換">
             <button
               v-for="option in viewOptions"
@@ -441,6 +444,14 @@
           <img :src="previewUrl" alt="預覽" class="lightbox-img" />
         </div>
       </div>
+      <RestoreTrashModal
+        v-model="trashOpen"
+        title="筆記垃圾桶"
+        :items="trashedArticles"
+        :label-fields="['title']"
+        @restore="restoreTrashedArticle"
+        @clear="clearArticleTrash"
+      />
     </div>
   </PageContainer>
 </template>
@@ -452,6 +463,8 @@ import { useArticles } from '../../composables/useArticles'
 import { useStorage } from '../../composables/useStorage'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
 import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import RestoreTrashModal from '../ui/RestoreTrashModal.vue'
+import { useLocalTrash } from '../../composables/useLocalTrash'
 
 const {
   articles,
@@ -459,9 +472,30 @@ const {
   loadArticles,
   addArticle,
   updateArticle,
-  deleteArticle,
+  deleteArticle: deleteArticleRecord,
+  restoreArticle,
   importArticles
 } = useArticles()
+
+const trashOpen = ref(false)
+const {
+  items: trashedArticles,
+  load: loadArticleTrash,
+  moveToTrash: saveArticlesToTrash,
+  remove: removeArticleFromTrash,
+  clear: clearArticleTrashRecords,
+} = useLocalTrash('fengbro.notes.trash')
+
+const restoreTrashedArticle = async (item) => {
+  const result = await restoreArticle(item.record)
+  if (result.success) removeArticleFromTrash(item)
+  else alert(`還原筆記失敗：${result.error}`)
+}
+
+const clearArticleTrash = () => {
+  if (!trashedArticles.value.length) return
+  if (confirm(`永久清空 ${trashedArticles.value.length} 篇筆記？此操作無法復原。`)) clearArticleTrashRecords()
+}
 
 const {
   uploading,
@@ -521,6 +555,7 @@ const editFileInputRefs = {}
 
 // 初始化
 onMounted(() => {
+  loadArticleTrash()
   loadArticles()
 })
 
@@ -754,8 +789,11 @@ const saveInlineEdit = async (id) => {
 // 確認刪除
 const confirmDelete = async (article) => {
   if (confirm(`確定要刪除這則筆記嗎？\n標題: ${article.title || '(無標題)'}`)) {
-    await deleteArticle(article.id)
-    selectedIds.value.delete(article.id)
+    const result = await deleteArticleRecord(article.id)
+    if (result.success) {
+      saveArticlesToTrash(article)
+      selectedIds.value.delete(article.id)
+    }
   }
 }
 
@@ -810,10 +848,12 @@ const deleteSelected = async () => {
 
   let successCount = 0
   const ids = [...selectedIds.value]
+  const deletedRecords = articles.value.filter((article) => selectedIds.value.has(article.id))
   for (const id of ids) {
-    const result = await deleteArticle(id)
+    const result = await deleteArticleRecord(id)
     if (result.success) successCount++
   }
+  saveArticlesToTrash(deletedRecords.filter((record) => !articles.value.some((article) => article.id === record.id)))
   selectedIds.value = new Set()
   batchMode.value = false
   alert(`已刪除 ${successCount} 筆筆記`)
@@ -1563,6 +1603,19 @@ useHead({
   font-weight: 600;
   transition: all 0.3s;
 }
+
+.btn-trash {
+  min-height: 40px;
+  padding: 0 var(--spacing-md);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--bg-muted);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.btn-trash:hover { background: var(--danger-light); color: var(--danger); }
 
 .btn-batch-delete:hover {
   transform: translateY(-2px);

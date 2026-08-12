@@ -492,6 +492,7 @@ import { useStorage } from '../../composables/useStorage'
 import { usePersistentAudioPlayer } from '../../composables/usePersistentAudioPlayer'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
 import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import { recordMediaTraffic } from '../../utils/mediaTraffic'
 
 useHead({
   title: '鋒兄音樂 - 鋒兄AI Supabase'
@@ -787,6 +788,7 @@ async function cacheMusicItem(music) {
     const response = await fetch(resolveMediaUrl(music.file))
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     const blob = await response.blob()
+    recordMediaTraffic({ bytes: blob.size, category: 'music', action: 'playback' })
     const blobUrl = URL.createObjectURL(blob)
     musicCache.value.set(music.id, { blobUrl, size: blob.size, name: music.name })
     totalCacheSize.value += blob.size

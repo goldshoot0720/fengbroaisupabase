@@ -189,6 +189,45 @@
         </div>
       </section>
 
+      <section class="section legacy-features-section">
+        <h2 class="section-title">鋒兄事業與服務資訊</h2>
+        <div class="about-tabs" role="tablist" aria-label="關於頁內容">
+          <button v-for="panel in aboutPanels" :key="panel.id" type="button" role="tab" :aria-selected="activeAboutPanel === panel.id" :class="{ active: activeAboutPanel === panel.id }" @click="activeAboutPanel = panel.id">
+            {{ panel.label }}
+          </button>
+        </div>
+
+        <div v-if="activeAboutPanel === 'ceo'" class="profile-layout">
+          <img src="/fengbro-home-person.webp" alt="人工智慧水電行執行長" class="profile-image">
+          <div class="profile-copy">
+            <span class="profile-role">人工智慧水電行 · 執行長（CEO）</span>
+            <h3>策略願景、產業經驗與卓越領導</h3>
+            <p>結合傳統水電工程與人工智慧，推動服務自動化與產業創新；作為公司最大股東與執行長，引領企業持續轉型。</p>
+            <div class="shareholding"><strong>37% 以上</strong><span>持股比例 · 控股股東</span></div>
+          </div>
+        </div>
+
+        <div v-else-if="activeAboutPanel === 'cats'" class="cat-list">
+          <article v-for="cat in cats" :key="cat.name" class="cat-profile">
+            <img :src="cat.image" :alt="cat.name">
+            <div><h3>{{ cat.name }} · {{ cat.type }}</h3><p>{{ cat.description }}</p><span>{{ cat.tags.join(' · ') }}</span></div>
+          </article>
+        </div>
+
+        <div v-else-if="activeAboutPanel === 'plumber'" class="business-units">
+          <div class="business-intro"><h3>水電大亨 · 事業版圖</h3><p>從傳統水電工程起家，逐步發展為橫跨科技、金融、教育、醫療等領域的綜合事業群。</p></div>
+          <article v-for="unit in businessUnits" :key="unit.name"><span>{{ unit.icon }}</span><div><strong>{{ unit.name }}</strong><small>{{ unit.description }}</small></div></article>
+        </div>
+
+        <div v-else class="service-directory">
+          <article v-for="service in services" :key="service.name">
+            <div><h3>{{ service.name }}</h3><p>{{ service.description }}</p></div>
+            <div class="service-links"><a :href="service.url" target="_blank" rel="noreferrer">開啟服務</a><a :href="service.repository" target="_blank" rel="noreferrer">自動化專案</a></div>
+          </article>
+          <p class="service-caution">自動化結果只代表工作流執行狀態；帳戶獎勵、會員權益與地區限制仍以各服務頁面為準。請勿將帳密、Cookie 或 API 金鑰寫入版本庫。</p>
+        </div>
+      </section>
+
       <div class="info-section">
         <p class="info-text">
           這一頁現在會跟著目前系統版本同步更新，避免設定頁、關於頁和實際 build 版本各說各話。
@@ -199,11 +238,38 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import packageJson from '../../package.json'
 
 const runtimeConfig = useRuntimeConfig()
+
+const activeAboutPanel = ref('ceo')
+const aboutPanels = [
+  { id: 'ceo', label: '執行長' },
+  { id: 'cats', label: '貓咪家族' },
+  { id: 'plumber', label: '水電大亨' },
+  { id: 'services', label: '影音與自動簽到服務' },
+]
+const cats = [
+  { name: '喵布布', type: '三花貓', image: 'https://raw.githubusercontent.com/goldshoot0720/fengbroaiappwrite/main/public/cats2.25fimage1.png', description: '活潑、好奇又親人的三花貓，喜歡曬太陽、逗貓棒與小魚乾。', tags: ['活潑', '好奇', '親人'] },
+  { name: '喵白白', type: '白貓', image: 'https://raw.githubusercontent.com/goldshoot0720/fengbroaiappwrite/main/public/cats2.25fimage2.png', description: '溫柔優雅的白貓，喜歡睡覺、被摸摸與吃罐罐。', tags: ['溫柔', '優雅', '慵懶'] },
+]
+const businessUnits = [
+  ['🔧', '水電工程行', '專業水電工程服務'], ['🧠', '水電人工智慧股份有限公司', 'AI 技術研發與應用'],
+  ['🌐', '水電資訊', '資訊系統整合服務'], ['💻', '水電科技', '科技創新與研發'], ['🏗️', '水電營造', '大型營造工程'],
+  ['🏢', '水電建設', '建設開發與管理'], ['🤖', '水電機器人', '智能機器人研發'], ['🏦', '水電銀行', '金融服務與投資'],
+  ['🍽️', '水電餐飲', '餐飲連鎖經營'], ['📚', '水電文化事業', '文化產業發展'], ['🏥', '水電醫院', '醫療健康服務'],
+  ['🎓', '水電大學', '高等教育機構'], ['🏛️', '水電基金會', '公益慈善基金會'],
+].map(([icon, name, description]) => ({ icon, name, description }))
+const services = [
+  ['Bilibili', '影音社群、創作者內容與每日經驗任務資訊。', 'https://www.bilibili.com', 'https://github.com/huang1988pioneer/CronBilibiliMission'],
+  ['MindVideo', '每日 API 簽到、點數與連續簽到摘要。', 'https://www.mindvideo.ai', 'https://github.com/huang1988pioneer/AutoSignMindVideo'],
+  ['LitVideo', 'LitMedia 每日簽到與執行結果 artifacts。', 'https://www.litmedia.ai', 'https://github.com/huang1988pioneer/AutoSignLitVideo'],
+  ['Musicful', 'Musicful growth center 每日簽到與 streak 報告。', 'https://www.musicful.ai', 'https://github.com/huang1988pioneer/AutoSignMusicful'],
+  ['Digen', '每日登入獎勵與多帳號摘要。', 'https://digen.ai', 'https://github.com/huang1988pioneer/AutoSignDigen'],
+  ['OiiOii', '每日 lunch 領取與失敗截圖 artifacts。', 'https://www.oiioii.ai', 'https://github.com/huang1988pioneer/AutoSignOiiOii'],
+].map(([name, description, url, repository]) => ({ name, description, url, repository }))
 
 const systemVersion = computed(() => `v${packageJson.version || '未設定'}`)
 const nuxtVersion = computed(() => packageJson.dependencies?.nuxt || '未設定')
@@ -236,6 +302,36 @@ useHead({
   padding: 2rem;
   animation: fadeIn 0.5s ease-in;
 }
+
+.about-tabs { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-bottom: var(--spacing-lg); }
+.about-tabs button { min-height: 44px; padding: 0 var(--spacing-md); border: 1px solid var(--border-strong); border-radius: var(--radius-full); color: var(--text-secondary); background: var(--bg-surface); cursor: pointer; font-weight: 700; }
+.about-tabs button.active { border-color: var(--primary); color: var(--text-inverse); background: var(--primary); }
+.profile-layout { display: grid; grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr); gap: var(--spacing-xl); align-items: center; }
+.profile-image { width: 100%; max-height: 360px; object-fit: cover; border-radius: var(--radius-lg); background: var(--bg-muted); }
+.profile-copy { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.profile-copy h3, .profile-copy p { margin: 0; }
+.profile-role { color: var(--primary); font-weight: 800; }
+.shareholding { display: flex; flex-direction: column; gap: var(--spacing-2xs); padding: var(--spacing-md); border-radius: var(--radius-md); background: var(--success-light); }
+.shareholding strong { color: var(--success); font-size: var(--text-3xl); }
+.cat-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-lg); }
+.cat-profile { overflow: hidden; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--bg-surface); }
+.cat-profile img { width: 100%; height: 300px; object-fit: cover; }
+.cat-profile div { padding: var(--spacing-lg); }
+.cat-profile h3, .cat-profile p { margin: 0 0 var(--spacing-xs); }
+.cat-profile span { color: var(--primary); font-size: var(--text-sm); font-weight: 700; }
+.business-intro { grid-column: 1 / -1; max-width: 70ch; }
+.business-units { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--spacing-sm); }
+.business-units article { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-md); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-surface); }
+.business-units article > span { font-size: var(--text-2xl); }
+.business-units article div { display: flex; flex-direction: column; }
+.business-units small { color: var(--text-muted); }
+.service-directory { display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.service-directory article { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-md); border-bottom: 1px solid var(--border-subtle); }
+.service-directory h3, .service-directory p { margin: 0; }
+.service-directory p { color: var(--text-secondary); }
+.service-links { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); }
+.service-links a { min-height: 40px; display: inline-flex; align-items: center; padding: 0 var(--spacing-sm); border-radius: var(--radius-sm); color: var(--primary); background: var(--primary-muted); font-weight: 700; white-space: nowrap; }
+.service-caution { padding: var(--spacing-md); border-radius: var(--radius-sm); background: var(--warning-light); }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(20px); }
@@ -487,6 +583,8 @@ useHead({
 }
 
 @media (max-width: 768px) {
+  .profile-layout, .cat-list { grid-template-columns: 1fr; }
+  .service-directory article { align-items: flex-start; flex-direction: column; }
   .about-page {
     padding: 1rem;
   }

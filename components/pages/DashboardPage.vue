@@ -71,6 +71,27 @@
         </StatCard>
       </div>
 
+      <BaseCard class="capacity-panel">
+        <div class="capacity-panel__header">
+          <div>
+            <h3>Storage 容量與本月媒體流量</h3>
+            <p>容量依 Supabase bucket 配額計算；流量是本機記錄的未快取上傳、播放、瀏覽與下載推估。</p>
+          </div>
+          <AlertBadge :variant="capacityBadgeVariant" size="sm">{{ capacityStatus }}</AlertBadge>
+        </div>
+        <div class="capacity-meter" role="progressbar" :aria-valuenow="storageUsagePercent" aria-valuemin="0" aria-valuemax="100">
+          <span :style="{ width: `${storageUsagePercent}%` }"></span>
+        </div>
+        <div class="capacity-panel__metrics">
+          <div><strong>{{ storageUsageDisplay }}</strong><span>Storage 使用量</span></div>
+          <div><strong>{{ mediaTrafficDisplay }}</strong><span>{{ mediaTrafficMonth }} 未快取流量</span></div>
+          <div><strong>{{ mediaTrafficStatus }}</strong><span>流量狀態</span></div>
+        </div>
+        <p v-if="mediaTrafficAlert" class="capacity-alert" :class="`capacity-alert--${mediaTrafficAlert.level}`">
+          本月未快取媒體流量已超過 {{ mediaTrafficAlert.thresholdGiB }} GB。請優先使用已快取檔案，並檢查大型影音的重複播放或下載。
+        </p>
+      </BaseCard>
+
       <!-- 11 個資料表統計 -->
       <BaseCard class="table-stats-section">
         <div class="table-stats-header">
@@ -276,6 +297,9 @@ import { useMusicRecords } from '../../composables/useMusicRecords'
 import { usePodcasts } from '../../composables/usePodcasts'
 import { useRoutines } from '../../composables/useRoutines'
 import { useStorageUsage } from '../../composables/useStorageUsage'
+import { useMediaTraffic } from '../../composables/useMediaTraffic'
+import { formatBytes } from '../../composables/useStorageUsage'
+import { getMediaTrafficAlertPolicy } from '../../utils/mediaTraffic'
 import { useSubscriptions } from '../../composables/useSubscriptions'
 import { useVideoRecords } from '../../composables/useVideoRecords'
 import PageContainer from '../layout/PageContainer.vue'
@@ -352,6 +376,29 @@ const storageUsageInfo = computed(() => {
   if (storageUsageLoading.value) return '正在掃描 file storage 實際容量...'
   if (storageUsageError.value) return storageUsageError.value
   return `${storageUsageBucket.value}: ${storageUsageDisplay.value}，已使用 ${storageUsagePercent.value}%`
+})
+
+const {
+  total: mediaTrafficTotal,
+  month: mediaTrafficMonth,
+} = useMediaTraffic()
+const mediaTrafficDisplay = computed(() => formatBytes(mediaTrafficTotal.value))
+const mediaTrafficAlert = computed(() => getMediaTrafficAlertPolicy(mediaTrafficTotal.value))
+const mediaTrafficStatus = computed(() => {
+  if (mediaTrafficTotal.value >= 5 * 1024 ** 3) return '超過 5 GB'
+  if (mediaTrafficTotal.value >= 2.5 * 1024 ** 3) return '接近上限'
+  return '正常'
+})
+const capacityStatus = computed(() => {
+  if (storageUsagePercent.value >= 100) return '已滿'
+  if (storageUsagePercent.value >= 90) return '需清理'
+  if (storageUsagePercent.value >= 80) return '接近上限'
+  return '容量正常'
+})
+const capacityBadgeVariant = computed(() => {
+  if (storageUsagePercent.value >= 100) return 'critical'
+  if (storageUsagePercent.value >= 80) return 'warning'
+  return 'success'
 })
 
 onMounted(() => {
@@ -726,6 +773,20 @@ onMounted(() => {
 .activity-title { color: var(--text-primary); font-weight: 600; margin: 0 0 0.25rem 0; font-size: 0.95rem; }
 .activity-time { color: var(--text-secondary); font-size: 0.85rem; margin: 0; }
 
+.capacity-panel { padding: var(--spacing-lg); }
+.capacity-panel__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-md); }
+.capacity-panel__header h3 { margin: 0 0 var(--spacing-2xs); color: var(--text-primary); }
+.capacity-panel__header p { margin: 0; max-width: 70ch; color: var(--text-secondary); font-size: var(--text-sm); }
+.capacity-meter { height: 0.65rem; margin: var(--spacing-md) 0; overflow: hidden; border-radius: var(--radius-full); background: var(--bg-inset); }
+.capacity-meter span { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width var(--transition-normal); }
+.capacity-panel__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--spacing-md); }
+.capacity-panel__metrics div { display: flex; flex-direction: column; gap: var(--spacing-2xs); }
+.capacity-panel__metrics strong { color: var(--text-primary); font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
+.capacity-panel__metrics span { color: var(--text-muted); font-size: var(--text-xs); }
+.capacity-alert { margin: var(--spacing-md) 0 0; padding: var(--spacing-sm) var(--spacing-md); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.capacity-alert--warning { color: var(--text-primary); background: var(--warning-light); }
+.capacity-alert--danger { color: var(--text-primary); background: var(--danger-light); }
+
 /* 響應式 */
 @media (max-width: 768px) {
   .copyright-content { flex-direction: column; text-align: center; gap: 1rem; }
@@ -738,6 +799,8 @@ onMounted(() => {
   .action-buttons { grid-template-columns: repeat(2, 1fr); }
   .info-grid { grid-template-columns: 1fr; }
   .additional-content { grid-template-columns: 1fr; }
+  .capacity-panel__header { align-items: stretch; flex-direction: column; }
+  .capacity-panel__metrics { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {

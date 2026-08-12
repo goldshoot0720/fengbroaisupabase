@@ -333,11 +333,11 @@ export const useSubscriptions = () => {
   }
 
   // 刪除訂閱
-  const deleteSubscription = async (id) => {
+  const deleteSubscription = async (id, options = {}) => {
     const client = initSupabase()
     if (!client) return
     
-    if (!confirm('確定要刪除此訂閱項目嗎？')) return
+    if (!options.skipConfirm && !confirm('確定要將此訂閱項目移到垃圾桶嗎？')) return { success: false, cancelled: true }
     
     try {
       subscriptionLoading.value = true
@@ -350,12 +350,28 @@ export const useSubscriptions = () => {
       if (error) throw error
       
       subscriptions.value = subscriptions.value.filter(s => s.id !== id)
-      alert('訂閱已刪除！')
+      if (!options.silent) alert('訂閱已移到垃圾桶！')
+      return { success: true }
     } catch (error) {
       console.error('刪除訂閱失敗:', error.message)
       alert('刪除訂閱失敗: ' + getSubscriptionErrorMessage(error))
+      return { success: false, error: getSubscriptionErrorMessage(error) }
     } finally {
       subscriptionLoading.value = false
+    }
+  }
+
+  const restoreSubscription = async (record) => {
+    const client = initSupabase()
+    if (!client || !record) return { success: false, error: 'No client' }
+    const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...payload } = record
+    try {
+      const { data, error } = await client.from('subscription').insert(payload).select().single()
+      if (error) throw error
+      subscriptions.value.unshift(normalizeSubscription(data))
+      return { success: true, data }
+    } catch (error) {
+      return { success: false, error: getSubscriptionErrorMessage(error) }
     }
   }
 
@@ -552,6 +568,7 @@ export const useSubscriptions = () => {
     updateSubscriptionInline,
     deleteSubscription,
     batchDeleteSubscriptions,
+    restoreSubscription,
     toggleIsContinue,
     resetSubscriptionForm
   }

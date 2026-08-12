@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { resolveSupabaseBucket } from './useSettings'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 import { STORAGE_UPLOAD_LIMIT_BYTES, formatBytes, useStorageUsage } from './useStorageUsage'
+import { recordMediaTraffic } from '../utils/mediaTraffic'
 
 const MULTIPART_VIDEO_THRESHOLD = 50 * 1024 * 1024
 const MULTIPART_VIDEO_CHUNK_SIZE = 45 * 1024 * 1024
@@ -9,6 +10,15 @@ const MULTIPART_ARTICLE_THRESHOLD = 50 * 1024 * 1024
 const MULTIPART_ARTICLE_CHUNK_SIZE = 25 * 1024 * 1024
 const MULTIPART_MANIFEST_SUFFIX = '.manifest.json'
 const MULTIPART_REFERENCE_PREFIX = 'supabase-multipart://'
+
+const trafficCategoryFromFolder = (folder = '') => {
+  if (/image|cover|gallery|food/i.test(folder)) return 'image'
+  if (/video/i.test(folder)) return 'video'
+  if (/music/i.test(folder)) return 'music'
+  if (/podcast/i.test(folder)) return 'podcast'
+  if (/document|article|note/i.test(folder)) return 'document'
+  return 'other'
+}
 
 // 取得 bucket：明確 bucket → 帳號名（goldshoot0720 等）→ env → 預設 uploads
 const getBucket = () => resolveSupabaseBucket()
@@ -403,12 +413,14 @@ export const useStorage = () => {
         ? (customPath || buildMultipartFilePath(folder, file))
         : buildFilePath(file, folder, customPath)
       if (multipartConfig) {
-        return await uploadMultipartVideo(client, bucketName, file, filePath, {
+        const result = await uploadMultipartVideo(client, bucketName, file, filePath, {
           chunkSize: multipartConfig.chunkSize,
           fallbackType: folder === 'article'
             ? 'application/octet-stream'
             : (file.type || 'video/webm')
         })
+        if (result?.success) recordMediaTraffic({ bytes: file.size, category: trafficCategoryFromFolder(folder), action: 'upload' })
+        return result
       }
 
       const contentType = file.type || 'application/octet-stream'
@@ -431,6 +443,7 @@ export const useStorage = () => {
         .getPublicUrl(filePath)
 
       uploadProgress.value = 100
+      recordMediaTraffic({ bytes: file.size, category: trafficCategoryFromFolder(folder), action: 'upload' })
 
       return {
         success: true,

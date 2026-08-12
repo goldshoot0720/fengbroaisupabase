@@ -378,7 +378,7 @@ import VoiceInputPanel from '../components/ui/VoiceInputPanel.vue'
 import { useSubscriptions } from '../composables/useSubscriptions'
 import { useFoods } from '../composables/useFoods'
 import { useTheme } from '../composables/useTheme'
-import { useNavigation } from '../composables/useNavigation'
+import { useNavigation, isAppPageId } from '../composables/useNavigation'
 import { useScroll } from '../composables/useScroll'
 import { useToast } from '../composables/useToast'
 import { getSupabaseCredentials } from '../composables/useSettings'
@@ -407,6 +407,24 @@ const {
   closeSidebar, 
   handleResize 
 } = useNavigation()
+const route = useRoute()
+const applyRoutePage = () => {
+  if (route.path === '/about') {
+    setCurrentPage('about')
+    return
+  }
+  const raw = route.query.page
+  const page = Array.isArray(raw) ? raw[0] : raw
+  if (typeof page === 'string' && isAppPageId(page)) {
+    setCurrentPage(page)
+    return
+  }
+  if (import.meta.server) {
+    setCurrentPage('home')
+  }
+}
+applyRoutePage()
+watch(() => [route.path, route.query.page], applyRoutePage)
 const { warning: toastWarning } = useToast()
 const { bootstrapNotifications } = useNotifications()
 const {

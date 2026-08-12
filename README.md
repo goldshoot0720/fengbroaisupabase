@@ -65,10 +65,11 @@ Storage bucket 解析順序：設定頁明確的 bucket 欄位 → **Netlify / �
 
 在 Supabase SQL Editor 依需求執行：
 
-- `setup-all-tables.sql` 或各模組 `*-setup.sql`
-- `simple-subscription-setup.sql`（訂閱）
-- `supabase-push-table.sql`（Web Push 訂閱表）
-- `image-setup.sql`、`music-setup.sql`、`video-setup.sql` 等
+- `setup-all-tables.sql`（產品資料表；新帳號也可在 **鋒兄設定** 複製各表 SQL）
+- `supabase-push-table.sql`（Web Push 訂閱表 `push_subscriptions`）
+- 或各模組 `*-setup.sql` / `simple-subscription-setup.sql`
+
+產品表：`article`、`bank`、`commonaccount`、`commondocument`、`food`、`image`、`music`、`podcast`、`routine`、`subscription`、`video`。設定頁產生的 SQL 使用 UUID 主鍵；舊腳本可能是 `BIGSERIAL`。
 
 並建立 public Storage bucket（預設 `uploads`）。
 
@@ -89,7 +90,7 @@ npm run dev
 | 筆記 / 常用 / 文件 | 分類、附件、ZIP |
 | 圖片 / 影片 / 音樂 / 播客 | 媒體管理與播放 |
 | 銀行 | 帳戶、批次存款調整、交易流程 |
-| 工具 | 比價、Tube、金融 |
+| 工具 | 比價、手動紀錄、手機比價、Tube、金融、新聞、成片、轉檔、合併 |
 | 設定 / 關於 | 連線、資料表、Storage 掃描、版本 |
 
 ## 部署（Netlify）

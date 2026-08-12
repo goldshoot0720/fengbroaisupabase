@@ -1,7 +1,11 @@
 -- =====================================================
 -- 鋒兄系統 - 完整資料表初始化腳本
--- 用途：新 Supabase 帳號建立所有必要資料表
+-- 用途：新 Supabase 帳號建立所有產品資料表
 -- 執行方式：在 Supabase SQL Editor 中貼上並執行
+--
+-- 欄位以 鋒兄設定 tables[] 為準。此腳本用 BIGSERIAL 以相容舊庫；
+-- 設定頁複製的 SQL 用 UUID（gen_random_uuid）。IF NOT EXISTS 不會改已存在的表。
+-- Web Push 表見 supabase-push-table.sql（含 RLS）。
 -- =====================================================
 
 -- =====================================================
@@ -134,6 +138,7 @@ CREATE TABLE IF NOT EXISTS public.food (
   shop VARCHAR(100),
   todate DATE,
   photo TEXT,
+  photohash VARCHAR(256),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -142,6 +147,138 @@ CREATE INDEX IF NOT EXISTS idx_food_name ON public.food(name);
 CREATE INDEX IF NOT EXISTS idx_food_todate ON public.food(todate);
 CREATE INDEX IF NOT EXISTS idx_food_created_at ON public.food(created_at);
 CREATE INDEX IF NOT EXISTS idx_food_shop ON public.food(shop);
+
+ALTER TABLE public.food
+ADD COLUMN IF NOT EXISTS photohash VARCHAR(256);
+
+-- =====================================================
+-- 7. ARTICLE 表（筆記）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.article (
+  id BIGSERIAL PRIMARY KEY,
+  title VARCHAR(100) NOT NULL,
+  content TEXT,
+  category VARCHAR(100),
+  ref VARCHAR(100),
+  newdate TIMESTAMPTZ,
+  url1 TEXT,
+  url2 TEXT,
+  url3 TEXT,
+  file1 VARCHAR(150),
+  file1name VARCHAR(100),
+  file1type VARCHAR(20),
+  file2 VARCHAR(150),
+  file2name VARCHAR(100),
+  file2type VARCHAR(20),
+  file3 VARCHAR(150),
+  file3name VARCHAR(100),
+  file3type VARCHAR(20),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_article_title ON public.article(title);
+CREATE INDEX IF NOT EXISTS idx_article_category ON public.article(category);
+CREATE INDEX IF NOT EXISTS idx_article_newdate ON public.article(newdate);
+
+-- =====================================================
+-- 8. BANK 表（銀行 / 電子票證）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.bank (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  deposit INTEGER DEFAULT 0,
+  site TEXT,
+  address VARCHAR(100),
+  withdrawals INTEGER DEFAULT 0,
+  transfer INTEGER DEFAULT 0,
+  activity TEXT,
+  card VARCHAR(100),
+  account VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_bank_name ON public.bank(name);
+
+-- =====================================================
+-- 9. COMMONACCOUNT 表（常用帳號）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.commonaccount (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  site01 VARCHAR(100), site02 VARCHAR(100), site03 VARCHAR(100), site04 VARCHAR(100), site05 VARCHAR(100),
+  site06 VARCHAR(100), site07 VARCHAR(100), site08 VARCHAR(100), site09 VARCHAR(100), site10 VARCHAR(100),
+  site11 VARCHAR(100), site12 VARCHAR(100), site13 VARCHAR(100), site14 VARCHAR(100), site15 VARCHAR(100),
+  site16 VARCHAR(100), site17 VARCHAR(100), site18 VARCHAR(100), site19 VARCHAR(100), site20 VARCHAR(100),
+  site21 VARCHAR(100), site22 VARCHAR(100), site23 VARCHAR(100), site24 VARCHAR(100), site25 VARCHAR(100),
+  site26 VARCHAR(100), site27 VARCHAR(100), site28 VARCHAR(100), site29 VARCHAR(100), site30 VARCHAR(100),
+  site31 VARCHAR(100), site32 VARCHAR(100), site33 VARCHAR(100), site34 VARCHAR(100), site35 VARCHAR(100),
+  site36 VARCHAR(100), site37 VARCHAR(100),
+  note01 VARCHAR(100), note02 VARCHAR(100), note03 VARCHAR(100), note04 VARCHAR(100), note05 VARCHAR(100),
+  note06 VARCHAR(100), note07 VARCHAR(100), note08 VARCHAR(100), note09 VARCHAR(100), note10 VARCHAR(100),
+  note11 VARCHAR(100), note12 VARCHAR(100), note13 VARCHAR(100), note14 VARCHAR(100), note15 VARCHAR(100),
+  note16 VARCHAR(100), note17 VARCHAR(100), note18 VARCHAR(100), note19 VARCHAR(100), note20 VARCHAR(100),
+  note21 VARCHAR(100), note22 VARCHAR(100), note23 VARCHAR(100), note24 VARCHAR(100), note25 VARCHAR(100),
+  note26 VARCHAR(100), note27 VARCHAR(100), note28 VARCHAR(100), note29 VARCHAR(100), note30 VARCHAR(100),
+  note31 VARCHAR(100), note32 VARCHAR(100), note33 VARCHAR(100), note34 VARCHAR(100), note35 VARCHAR(100),
+  note36 VARCHAR(100), note37 VARCHAR(100),
+  photohash VARCHAR(256),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_commonaccount_name ON public.commonaccount(name);
+
+-- =====================================================
+-- 10. COMMONDOCUMENT 表（文件）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.commondocument (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  file VARCHAR(150),
+  note VARCHAR(100),
+  ref VARCHAR(100),
+  category VARCHAR(100),
+  hash VARCHAR(300),
+  cover VARCHAR(150),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_commondocument_name ON public.commondocument(name);
+CREATE INDEX IF NOT EXISTS idx_commondocument_category ON public.commondocument(category);
+CREATE INDEX IF NOT EXISTS idx_commondocument_hash ON public.commondocument(hash);
+
+-- =====================================================
+-- 11. ROUTINE 表（例行）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.routine (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  note VARCHAR(100),
+  lastdate1 TIMESTAMPTZ,
+  lastdate2 TIMESTAMPTZ,
+  lastdate3 TIMESTAMPTZ,
+  link TEXT,
+  photo TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_routine_name ON public.routine(name);
+
+-- =====================================================
+-- 12. PUSH_SUBSCRIPTIONS（Web Push；RLS 見 supabase-push-table.sql）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+  id BIGSERIAL PRIMARY KEY,
+  endpoint TEXT UNIQUE NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- =====================================================
 -- 驗證：查看所有建立的表結構
@@ -154,5 +291,9 @@ SELECT
     column_default
 FROM information_schema.columns 
 WHERE table_schema = 'public' 
-  AND table_name IN ('image', 'video', 'music', 'podcast', 'subscription', 'food')
+  AND table_name IN (
+    'article', 'bank', 'commonaccount', 'commondocument', 'food',
+    'image', 'music', 'podcast', 'push_subscriptions', 'routine',
+    'subscription', 'video'
+  )
 ORDER BY table_name, ordinal_position;

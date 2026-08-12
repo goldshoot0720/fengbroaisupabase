@@ -1,7 +1,4 @@
-import { ref, computed } from 'vue'
-
-const currentPage = ref('home')
-const sidebarOpen = ref(false)
+import { computed } from 'vue'
 
 const pages = [
   { id: 'home', name: '鋒兄首頁', icon: '01', glyph: '🏠', title: '鋒兄首頁', subtitle: '整理所有資料入口與目前工作區焦點。' },
@@ -114,6 +111,16 @@ const pages = [
   }
 ]
 
+/** Product page ids accepted by `/?page=` (not child ids like `note:notes`). */
+export const isAppPageId = (pageId) => {
+  if (!pageId || typeof pageId !== 'string') return false
+  for (const page of pages) {
+    if (page.id === pageId) return true
+    if (page.children?.some((child) => child.page === pageId)) return true
+  }
+  return false
+}
+
 /** Resolve top-level or nested child page config by id / child.page */
 const findPageConfig = (pageId) => {
   for (const page of pages) {
@@ -173,6 +180,8 @@ export const isNavChildActive = (page, child, currentPageId, activeTool = '') =>
 }
 
 export const useNavigation = () => {
+  const currentPage = useState('feng-current-page', () => 'home')
+  const sidebarOpen = useState('feng-sidebar-open', () => false)
   const currentPageConfig = computed(() => findPageConfig(currentPage.value))
 
   const pageTitle = computed(() => currentPageConfig.value.title)

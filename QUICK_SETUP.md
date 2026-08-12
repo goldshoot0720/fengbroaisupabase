@@ -51,7 +51,9 @@
 | 訂閱到期提醒 | 訂閱 `nextdate` 距今 **2 天** |
 | 食品到期提醒 | 食品 `todate` 距今 **8 天** |
 
-通知在每次開啟儀表板時自動檢查，每個項目每個到期日只通知一次（防重複）。
+`app/app.vue` 在訂閱資料載入後呼叫一次 `bootstrapNotifications()`（含 Resend 到期信）。不要從 `HomePage` / `DashboardPage` 再觸發。每個項目每個到期日只通知一次（防重複）。
+
+其他通道（與 Email 分開）：應用內 toast / native、`public/custom-sw.js` 週期同步、Netlify `send-push-cron`（每日 09:00 UTC Web Push）。
 
 ---
 

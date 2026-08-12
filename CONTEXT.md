@@ -1,5 +1,30 @@
 # Project Context
 
+## Product shell
+
+The live app is the Nuxt 4 shell in `app/app.vue`: sidebar + header, `useNavigation.currentPage`, and `components/pages/*`. It is not a Vue Router multi-page app. `app.vue` has no `<NuxtPage />`. Root `pages/index.vue` only registers `/`. `/about` redirects to `/?page=about` (`routeRules`); `app.vue` also treats path `/about` as the product About page. `isAppPageId` + `app.vue` apply a valid `?page=` query (also used by the header account switcher).
+
+Column source of truth for new tables is the `tables` array in `components/pages/SettingsPage.vue` (UUID `id` via `gen_random_uuid()`). Older setup scripts (`setup-all-tables.sql`, `*-setup.sql`) may still use `BIGSERIAL`. Composables treat `id` as opaque; both key types work. `app/types/database.types.ts` follows the Settings columns.
+
+## Modules and tables
+
+| UI | Page | Owner composable | Table |
+|----|------|------------------|-------|
+| 鋒兄筆記 | `NotePage.vue` | `useArticles` | `article` |
+| 鋒兄銀行 | `BankPage.vue` | `useBanks` + `useBankWorkflow` | `bank` |
+| 鋒兄常用 | `CommonPage.vue` | `useCommonAccounts` | `commonaccount` |
+| 鋒兄文件 | `DocumentPage.vue` | `useDocuments` | `commondocument` |
+| 鋒兄食品 | `FoodPage.vue` | `useFoods` | `food` |
+| 鋒兄圖片 | `GalleryPage.vue` | `useImages` / `useGallery` | `image` |
+| 鋒兄音樂 | `MusicDBPage.vue` | `useMusicRecords` | `music` |
+| 鋒兄播客 | `PodcastPage.vue` | `usePodcasts` | `podcast` |
+| 鋒兄例行 | `RoutinePage.vue` | `useRoutines` | `routine` |
+| 鋒兄訂閱 | `SubscriptionPage.vue` | `useSubscriptions` | `subscription` |
+| 鋒兄影片 | `VideoDBPage.vue` | `useVideoRecords` | `video` |
+| Web Push | Settings / SW | `usePushNotification` | `push_subscriptions` |
+
+鋒兄工具 (`FengToolsPage.vue`) is client/server-only (BigGo, 手動紀錄, 手機比價, Tube, 金融, 新聞, 圖片語音成片, 格式轉換, 影片合併, YT/B 站轉檔). It has no dedicated Supabase table.
+
 ## Supabase accounts & Storage bucket
 
 Multi-account settings store friendly names like `goldshoot0720` / `abuhg17`. **Default Storage bucket comes from Netlify env `SUPABASE_BUCKET`** (or `NUXT_PUBLIC_SUPABASE_BUCKET`). Resolution: explicit settings `bucket` field → env default → `friendlyName` (legacy) → `uploads`. See `resolveSupabaseBucket` in `composables/useSettings.js`.

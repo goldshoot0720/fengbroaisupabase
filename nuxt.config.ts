@@ -13,6 +13,10 @@ export default defineNuxtConfig({
   // SSR 模式（伺服器端渲染）
   ssr: true,
 
+  routeRules: {
+    '/about': { redirect: '/?page=about' }
+  },
+
   // Avoid client white-screen when Vite fails to resolve Nuxt virtual "#app-manifest"
   // (dev: Failed to fetch dynamically imported module / entry.js).
   experimental: {

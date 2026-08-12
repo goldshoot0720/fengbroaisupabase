@@ -14,7 +14,11 @@ SELECT
     column_default
 FROM information_schema.columns 
 WHERE table_schema = 'public' 
-  AND table_name IN ('image', 'video', 'music', 'podcast', 'subscription', 'food')
+  AND table_name IN (
+    'article', 'bank', 'commonaccount', 'commondocument', 'food',
+    'image', 'music', 'podcast', 'push_subscriptions', 'routine',
+    'subscription', 'video'
+  )
 ORDER BY table_name, ordinal_position;
 
 -- =====================================================

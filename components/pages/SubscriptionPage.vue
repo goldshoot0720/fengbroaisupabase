@@ -19,6 +19,12 @@
         />
       </div>
       <div class="date-filters">
+        <select v-model="sortBy" class="date-filter-select" aria-label="訂閱排序">
+          <option value="date">最近付款</option>
+          <option value="price">費用最高</option>
+          <option value="overdue">已過期優先</option>
+          <option value="name">服務名稱</option>
+        </select>
         <select v-model="selectedYear" class="date-filter-select">
           <option value="">全部年份</option>
           <option v-for="year in availableYears" :key="year" :value="String(year)">
@@ -123,7 +129,15 @@
     </div>
 
     <!-- 訂閱列表 -->
-    <div v-if="subscriptionLoading" class="loading">載入中...</div>
+    <div v-if="subscriptionLoading" class="subscription-skeleton" role="status" aria-live="polite">
+      <strong>正在載入訂閱資料</strong>
+      <span>安全連線完成後會顯示目前的訂閱項目。</span>
+      <i v-for="n in 6" :key="n"></i>
+    </div>
+    <div v-else-if="subscriptionError" class="load-error" role="alert">
+      <div><strong>無法載入訂閱資料</strong><span>{{ subscriptionError }}</span></div>
+      <button type="button" @click="loadSubscriptions(true)">重新載入</button>
+    </div>
     <div v-else-if="filteredSubscriptions.length === 0 && !showAddRow" class="empty-state">
       暫無訂閱記錄
     </div>
@@ -197,7 +211,7 @@
           </tr>
           
           <tr 
-            v-for="sub in filteredSubscriptions" 
+            v-for="sub in paginatedSubscriptions"
             :key="sub.id"
             :class="{ selected: selectedIds.includes(sub.id), editing: editingRowId === sub.id }"
           >
@@ -276,7 +290,7 @@
                 </div>
               </td>
               <td class="col-account">
-                <span class="account-text" :title="sub.account">{{ sub.account || '-' }}</span>
+                <span class="account-text" :title="maskAccount(sub.account)">{{ maskAccount(sub.account) }}</span>
               </td>
               <td class="col-date">
                 <div class="date-cell" :class="getDateClass(sub.nextdate)">
@@ -309,14 +323,38 @@
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                   </svg>
                 </button>
-                <button @click="copySubscription(sub)" class="btn-icon btn-copy-icon" title="Copy">C</button>
-                <button @click="moveSubscriptionToTrash(sub)" class="btn-icon btn-delete-icon" title="移到垃圾桶">✕</button>
+                <button @click="copySubscription(sub)" class="btn-icon btn-copy-icon" title="複製訂閱" aria-label="複製訂閱">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+                <button @click="selectedSubscription = sub" class="btn-icon btn-more-icon" title="查看詳情" aria-label="查看訂閱詳情">⋯</button>
               </td>
             </template>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <nav v-if="totalPages > 1" class="pagination" aria-label="訂閱分頁">
+      <button type="button" :disabled="currentPage === 1" @click="currentPage--">上一頁</button>
+      <span>第 {{ currentPage }} / {{ totalPages }} 頁 · 共 {{ filteredSubscriptions.length }} 筆</span>
+      <button type="button" :disabled="currentPage === totalPages" @click="currentPage++">下一頁</button>
+    </nav>
+
+    <Teleport to="body">
+      <div v-if="selectedSubscription" class="detail-backdrop" @click.self="selectedSubscription = null">
+        <aside class="detail-drawer" aria-labelledby="subscription-detail-title">
+          <div class="detail-header"><div><span>訂閱詳情</span><h2 id="subscription-detail-title">{{ selectedSubscription.name }}</h2></div><button type="button" aria-label="關閉詳情" @click="selectedSubscription = null">×</button></div>
+          <dl>
+            <div><dt>帳號</dt><dd>{{ maskAccount(selectedSubscription.account) }}</dd></div>
+            <div><dt>下次付款</dt><dd>{{ formatDate(selectedSubscription.nextdate) }} · {{ formatDaysUntil(selectedSubscription.nextdate) }}</dd></div>
+            <div><dt>費用</dt><dd>{{ getCurrencySymbol(selectedSubscription.currency) }} {{ selectedSubscription.price || 0 }}</dd></div>
+            <div><dt>續訂狀態</dt><dd>{{ selectedSubscription.iscontinue !== false ? '續訂中' : '已停止續訂' }}</dd></div>
+            <div class="detail-note"><dt>備註</dt><dd>{{ selectedSubscription.note || '沒有備註' }}</dd></div>
+          </dl>
+          <div class="detail-actions"><button type="button" @click="startInlineEdit(selectedSubscription); selectedSubscription = null">編輯</button><button type="button" class="danger" @click="moveSubscriptionToTrash(selectedSubscription); selectedSubscription = null">移到垃圾桶</button></div>
+        </aside>
+      </div>
+    </Teleport>
 
     <!-- 安全確認 Modal -->
     <div v-if="showConfirmModal" class="modal-overlay" @click.self="closeConfirmModal">
@@ -372,7 +410,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useSubscriptions } from '../../composables/useSubscriptions'
 import { useFormatters } from '../../composables/useFormatters'
 import { useCommonAccounts } from '../../composables/useCommonAccounts'
@@ -382,6 +420,10 @@ import RestoreTrashModal from '../ui/RestoreTrashModal.vue'
 import { useLocalTrash } from '../../composables/useLocalTrash'
 
 const searchQuery = ref('')
+const sortBy = ref('date')
+const currentPage = ref(1)
+const pageSize = 20
+const selectedSubscription = ref(null)
 const renewFilter = ref('all')
 const selectedYear = ref('')
 const selectedMonth = ref('')
@@ -398,6 +440,7 @@ const {
 const {
   subscriptions,
   subscriptionLoading,
+  subscriptionError,
   totalMonthlyCost,
   sortedSubscriptions,
   loadSubscriptions,
@@ -804,8 +847,26 @@ const filteredSubscriptions = computed(() => {
       (s.note || '').toLowerCase().includes(q)
     )
   }
-  return list
+  return [...list].sort((a, b) => {
+    if (sortBy.value === 'price') return toTWD(b.price, b.currency) - toTWD(a.price, a.currency)
+    if (sortBy.value === 'name') return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
+    return new Date(a.nextdate || '9999-12-31') - new Date(b.nextdate || '9999-12-31')
+  })
 })
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredSubscriptions.value.length / pageSize)))
+const paginatedSubscriptions = computed(() => filteredSubscriptions.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize))
+watch([searchQuery, selectedYear, selectedMonth, renewFilter, sortBy], () => { currentPage.value = 1 })
+watch(totalPages, (value) => { if (currentPage.value > value) currentPage.value = value })
+
+const maskAccount = (value) => {
+  const text = String(value || '').trim()
+  if (!text) return '-'
+  const at = text.indexOf('@')
+  if (at > 0) return `${text.slice(0, Math.min(2, at))}***${text.slice(at)}`
+  if (text.length <= 4) return `${text.slice(0, 1)}***`
+  return `${text.slice(0, 2)}***${text.slice(-2)}`
+}
 
 const { accounts: commonAccounts, loadAccounts: loadCommonAccounts } = useCommonAccounts()
 
@@ -1226,11 +1287,11 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 /* Table Style */
 .sub-table-container {
-  background: white;
+  background: var(--bg-surface);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   overflow-x: auto;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--border-subtle);
 }
 
 .sub-table {
@@ -1240,7 +1301,10 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .sub-table thead {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-dropdown);
+  background: var(--bg-muted);
 }
 
 .sub-table th {
@@ -1987,5 +2051,41 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .btn-danger:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+}
+
+.subscription-skeleton, .load-error { display: flex; flex-direction: column; gap: var(--spacing-sm); padding: var(--spacing-lg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-surface); }
+.subscription-skeleton span, .load-error span { color: var(--text-secondary); font-size: var(--text-sm); }
+.subscription-skeleton i { height: 44px; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-muted), var(--bg-inset), var(--bg-muted)); background-size: 200% 100%; animation: skeleton-shift 1.4s ease-in-out infinite; }
+@keyframes skeleton-shift { to { background-position: -200% 0; } }
+.load-error { flex-direction: row; align-items: center; justify-content: space-between; background: var(--danger-light); }
+.load-error div { display: flex; flex-direction: column; gap: var(--spacing-2xs); }
+.load-error button, .pagination button { min-height: 40px; padding: 0 var(--spacing-md); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text-primary); background: var(--bg-elevated); cursor: pointer; font-weight: 700; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: var(--spacing-md); padding: var(--spacing-lg); color: var(--text-secondary); }
+.pagination button:disabled { cursor: not-allowed; opacity: .45; }
+.detail-backdrop { position: fixed; inset: 0; z-index: var(--z-modal-backdrop); display: flex; justify-content: flex-end; background: color-mix(in oklab, var(--surface-strong) 45%, transparent); }
+.detail-drawer { width: min(100%, 440px); height: 100%; display: flex; flex-direction: column; gap: var(--spacing-xl); padding: var(--spacing-xl); overflow-y: auto; color: var(--text-primary); background: var(--bg-elevated); box-shadow: var(--elevation-3); }
+.detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-md); }
+.detail-header span { color: var(--text-muted); font-size: var(--text-sm); }
+.detail-header h2 { margin: var(--spacing-2xs) 0 0; }
+.detail-header button { width: 44px; height: 44px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--text-primary); background: var(--bg-muted); cursor: pointer; font-size: var(--text-xl); }
+.detail-drawer dl { display: flex; flex-direction: column; gap: var(--spacing-md); }
+.detail-drawer dl div { display: grid; grid-template-columns: 7rem 1fr; gap: var(--spacing-md); padding-bottom: var(--spacing-md); border-bottom: 1px solid var(--border-subtle); }
+.detail-drawer dt { color: var(--text-muted); }
+.detail-drawer dd { margin: 0; overflow-wrap: anywhere; }
+.detail-note { grid-template-columns: 1fr !important; }
+.detail-actions { margin-top: auto; display: flex; gap: var(--spacing-sm); }
+.detail-actions button { flex: 1; min-height: 44px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text-primary); background: var(--bg-muted); cursor: pointer; font-weight: 700; }
+.detail-actions .danger { color: var(--danger); background: var(--danger-light); }
+.service-note { max-width: 52ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 768px) {
+  .sub-table, .sub-table tbody, .sub-table tr, .sub-table td { display: block; width: 100%; }
+  .sub-table thead { position: static; display: none; }
+  .sub-table tbody { display: grid; gap: var(--spacing-sm); padding: var(--spacing-sm); }
+  .sub-table tbody tr { padding: var(--spacing-md); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-surface); }
+  .sub-table td { min-width: 0 !important; padding: var(--spacing-xs) 0; border: 0; }
+  .sub-table .col-actions { display: flex; justify-content: flex-end; gap: var(--spacing-xs); padding-top: var(--spacing-sm); border-top: 1px solid var(--border-subtle); }
+  .service-note { max-width: 100%; }
+  .pagination { flex-wrap: wrap; }
 }
 </style>

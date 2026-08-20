@@ -9,6 +9,7 @@
   --bg-muted: oklch(0.945 0.012 240);
   --bg-inset: oklch(0.93 0.01 240);
   --bg-elevated: color-mix(in oklab, var(--bg-surface) 86%, white 14%);
+  --bg-page: var(--bg-canvas);
   --surface-product: var(--bg-surface);
   --surface-brand: var(--bg-surface);
   --surface-inset: var(--bg-inset);
@@ -21,6 +22,7 @@
 
   --border-subtle: color-mix(in oklab, oklch(0.50 0.02 248) 22%, transparent);
   --border-strong: color-mix(in oklab, oklch(0.42 0.03 248) 32%, transparent);
+  --border-default: var(--border-subtle);
   --shadow-border: 0 0 0 1px var(--border-subtle);
 
   /* ——— Shell ——— */
@@ -50,6 +52,9 @@
   --info: oklch(0.50 0.10 220);
   --info-hover: oklch(0.44 0.10 220);
   --info-light: color-mix(in oklab, var(--info) 14%, transparent);
+  --status-success: var(--success);
+  --status-warning: var(--warning);
+  --status-danger: var(--danger);
 
   /* ——— Spacing ——— */
   --spacing-2xs: 0.25rem;

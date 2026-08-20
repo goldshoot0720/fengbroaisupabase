@@ -543,14 +543,14 @@
                 <li>進入 Supabase Dashboard → <strong>Storage</strong></li>
                 <li>點擊 <strong>New bucket</strong></li>
                 <li>Name 輸入：<code style="background: var(--bg-tertiary); padding: 0.1rem 0.4rem; border-radius: 3px;">{{ currentBucketName }}</code></li>
-                <li>勾選 <strong>Public bucket</strong>（公開存取）</li>
+                <li>不要勾選 <strong>Public bucket</strong>，檔案僅限登入後存取</li>
                 <li>點擊 <strong>Create bucket</strong></li>
               </ol>
               <p class="modal-hint" style="margin-top: 1rem;">在 SQL Editor 執行以下指令（建立 Bucket + RLS 政策）。若出現 <code>new row violates row-level security policy</code>，多半是缺這些政策：</p>
-              <pre class="sql-code">-- 1. 建立 / 公開 Bucket
+              <pre class="sql-code">-- 1. 建立私人 Bucket
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('{{ currentBucketName }}', '{{ currentBucketName }}', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
+VALUES ('{{ currentBucketName }}', '{{ currentBucketName }}', false)
+ON CONFLICT (id) DO UPDATE SET public = false;
 
 -- 2. 存取政策（名稱含 bucket，避免多帳號政策衝突）
 DROP POLICY IF EXISTS "Allow public upload on {{ currentBucketName }}" ON storage.objects;
@@ -558,14 +558,14 @@ DROP POLICY IF EXISTS "Allow public read on {{ currentBucketName }}" ON storage.
 DROP POLICY IF EXISTS "Allow public update on {{ currentBucketName }}" ON storage.objects;
 DROP POLICY IF EXISTS "Allow public delete on {{ currentBucketName }}" ON storage.objects;
 
-CREATE POLICY "Allow public upload on {{ currentBucketName }}" ON storage.objects
-  FOR INSERT TO public WITH CHECK (bucket_id = '{{ currentBucketName }}');
-CREATE POLICY "Allow public read on {{ currentBucketName }}" ON storage.objects
-  FOR SELECT TO public USING (bucket_id = '{{ currentBucketName }}');
-CREATE POLICY "Allow public update on {{ currentBucketName }}" ON storage.objects
-  FOR UPDATE TO public USING (bucket_id = '{{ currentBucketName }}') WITH CHECK (bucket_id = '{{ currentBucketName }}');
-CREATE POLICY "Allow public delete on {{ currentBucketName }}" ON storage.objects
-  FOR DELETE TO public USING (bucket_id = '{{ currentBucketName }}');</pre>
+CREATE POLICY "Authenticated upload on {{ currentBucketName }}" ON storage.objects
+  FOR INSERT TO authenticated WITH CHECK (bucket_id = '{{ currentBucketName }}');
+CREATE POLICY "Authenticated read on {{ currentBucketName }}" ON storage.objects
+  FOR SELECT TO authenticated USING (bucket_id = '{{ currentBucketName }}');
+CREATE POLICY "Authenticated update on {{ currentBucketName }}" ON storage.objects
+  FOR UPDATE TO authenticated USING (bucket_id = '{{ currentBucketName }}') WITH CHECK (bucket_id = '{{ currentBucketName }}');
+CREATE POLICY "Authenticated delete on {{ currentBucketName }}" ON storage.objects
+  FOR DELETE TO authenticated USING (bucket_id = '{{ currentBucketName }}');</pre>
             </div>
             <div class="modal-footer">
               <button class="btn-secondary" @click="showBucketHelp = false">關閉</button>
@@ -1326,10 +1326,10 @@ const copyAllTableSql = async () => {
 
 const copyBucketSql = async () => {
   const bkt = currentBucketName.value
-  const sql = `-- 1. 建立 / 公開 Bucket
+  const sql = `-- 1. 建立私人 Bucket
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('${bkt}', '${bkt}', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
+VALUES ('${bkt}', '${bkt}', false)
+ON CONFLICT (id) DO UPDATE SET public = false;
 
 -- 2. 存取政策（名稱含 bucket，避免多帳號政策衝突）
 DROP POLICY IF EXISTS "Allow public upload on ${bkt}" ON storage.objects;
@@ -1337,14 +1337,14 @@ DROP POLICY IF EXISTS "Allow public read on ${bkt}" ON storage.objects;
 DROP POLICY IF EXISTS "Allow public update on ${bkt}" ON storage.objects;
 DROP POLICY IF EXISTS "Allow public delete on ${bkt}" ON storage.objects;
 
-CREATE POLICY "Allow public upload on ${bkt}" ON storage.objects
-  FOR INSERT TO public WITH CHECK (bucket_id = '${bkt}');
-CREATE POLICY "Allow public read on ${bkt}" ON storage.objects
-  FOR SELECT TO public USING (bucket_id = '${bkt}');
-CREATE POLICY "Allow public update on ${bkt}" ON storage.objects
-  FOR UPDATE TO public USING (bucket_id = '${bkt}') WITH CHECK (bucket_id = '${bkt}');
-CREATE POLICY "Allow public delete on ${bkt}" ON storage.objects
-  FOR DELETE TO public USING (bucket_id = '${bkt}');`
+CREATE POLICY "Authenticated upload on ${bkt}" ON storage.objects
+  FOR INSERT TO authenticated WITH CHECK (bucket_id = '${bkt}');
+CREATE POLICY "Authenticated read on ${bkt}" ON storage.objects
+  FOR SELECT TO authenticated USING (bucket_id = '${bkt}');
+CREATE POLICY "Authenticated update on ${bkt}" ON storage.objects
+  FOR UPDATE TO authenticated USING (bucket_id = '${bkt}') WITH CHECK (bucket_id = '${bkt}');
+CREATE POLICY "Authenticated delete on ${bkt}" ON storage.objects
+  FOR DELETE TO authenticated USING (bucket_id = '${bkt}');`
   try {
     await navigator.clipboard.writeText(sql)
     alert('SQL 已複製到剪貼簿！')

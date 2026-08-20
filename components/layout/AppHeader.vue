@@ -72,6 +72,10 @@
 
         <slot name="actions" />
 
+        <button class="sign-out-btn" type="button" @click="handleSignOut" aria-label="安全登出">
+          登出
+        </button>
+
         <button
           @click="$emit('toggleDarkMode')"
           class="dark-mode-toggle"
@@ -96,7 +100,7 @@
           class="nav-tab"
           type="button"
         >
-          <span v-if="page.glyph" class="nav-tab-glyph" aria-hidden="true">{{ page.glyph }}</span>
+          <NavIcon :name="page.iconName" class="nav-tab-glyph" />
           <span class="nav-tab-name">{{ page.name }}</span>
         </button>
       </div>
@@ -114,7 +118,7 @@
           class="nav-sub-tab"
           type="button"
         >
-          <span v-if="child.glyph" class="nav-sub-glyph" aria-hidden="true">{{ child.glyph }}</span>
+          <NavIcon :name="child.iconName || activeParent.iconName" class="nav-sub-glyph" />
           <span>{{ child.name }}</span>
           <span v-if="child.menuHint" class="nav-sub-hint">{{ child.menuHint }}</span>
         </button>
@@ -128,6 +132,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useSettings } from '../../composables/useSettings'
 import { isNavChildActive, isNavParentActive } from '../../composables/useNavigation'
 import { useRouter } from 'vue-router'
+import { useAuth } from '../../composables/useAuth'
+import NavIcon from '../ui/NavIcon.vue'
 
 const props = defineProps({
   title: { type: String, default: '控制首頁' },
@@ -142,6 +148,7 @@ const props = defineProps({
 const emit = defineEmits(['toggleSidebar', 'toggleDarkMode', 'navigate'])
 
 const router = useRouter()
+const { signOut } = useAuth()
 const { displayName, accounts, activeAccountId, switchAccount, clearSettings, loadSettings } = useSettings()
 
 const showDropdown = ref(false)
@@ -181,6 +188,11 @@ const handleUseEnv = () => {
 const goToSettings = () => {
   showDropdown.value = false
   router.push('/?page=settings')
+}
+
+const handleSignOut = async () => {
+  await signOut()
+  window.location.reload()
 }
 
 const handleClickOutside = (event) => {
@@ -233,6 +245,19 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.9rem;
 }
+
+.sign-out-btn {
+  min-height: 40px;
+  padding: 0 var(--spacing-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background: var(--bg-muted);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.sign-out-btn:hover { color: var(--danger); background: var(--danger-light); }
 
 .brand-lockup {
   display: flex;

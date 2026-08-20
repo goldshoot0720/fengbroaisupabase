@@ -112,12 +112,12 @@ export const useSubscriptions = () => {
   }
 
   // 載入訂閱資料
-  const loadSubscriptions = async () => {
+  const loadSubscriptions = async (force = false) => {
     const client = initSupabase()
     if (!client) return
     
     // 避免重複載入
-    if (isInitialized && subscriptions.value.length > 0) return
+    if (!force && isInitialized && subscriptions.value.length > 0) return
     
     try {
       subscriptionLoading.value = true

@@ -28,7 +28,7 @@
             class="nav-btn"
             type="button"
           >
-            <span class="nav-index" aria-hidden="true">{{ page.glyph || page.icon }}</span>
+            <span class="nav-index"><NavIcon :name="page.iconName" /></span>
             <span class="nav-copy">
               <span class="nav-name">{{ page.name }}</span>
               <span v-if="page.menuHint" class="nav-hint">{{ page.menuHint }}</span>
@@ -45,7 +45,7 @@
                 class="nav-child-btn"
                 type="button"
               >
-                <span v-if="child.glyph" class="nav-child-glyph" aria-hidden="true">{{ child.glyph }}</span>
+                <NavIcon :name="child.iconName || page.iconName" class="nav-child-glyph" />
                 <span class="nav-child-name">{{ child.name }}</span>
                 <span v-if="child.menuHint" class="nav-child-hint">{{ child.menuHint }}</span>
               </button>
@@ -65,6 +65,7 @@
 
 <script setup>
 import { isNavChildActive, isNavParentActive, isNavParentExpanded } from '../../composables/useNavigation'
+import NavIcon from '../ui/NavIcon.vue'
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false },

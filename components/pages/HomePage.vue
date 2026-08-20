@@ -52,13 +52,13 @@
           <figcaption>鋒兄人物圖</figcaption>
         </figure>
 
-        <p class="eyebrow">2026 interface direction</p>
+        <p class="eyebrow">今日工作台</p>
         <h1 class="hero-title">
-          用科技編輯風，
-          <span>重新整理日常管理介面。</span>
+          先處理今天，
+          <span>再安心安排接下來的日常。</span>
         </h1>
         <p class="hero-copy">
-          這個工作台是為科技人設計的資訊首頁。它讓訂閱成本、食品期限與資料入口像雜誌專題一樣好掃讀，快速、冷靜、清楚。
+          從本月費用、即將到期與庫存警告開始；需要新增資料時，也能直接進入對應模組。
         </p>
 
         <div class="hero-actions">
@@ -79,32 +79,32 @@
       </article>
 
       <aside class="hero-panel hero-briefing">
-        <p class="briefing-label">Issue Brief</p>
+        <p class="briefing-label">今日優先</p>
         <div class="briefing-item">
           <span class="briefing-index">A1</span>
           <div>
             <h2>訂閱</h2>
-            <p>以付款週期、價格與提醒節點為主軸，像編輯摘要一樣先抓重點。</p>
+            <p>先確認 3 天內到期、已過期，以及可能需要取消的項目。</p>
           </div>
         </div>
         <div class="briefing-item">
           <span class="briefing-index">B2</span>
           <div>
             <h2>食品</h2>
-            <p>聚焦保存期限、補貨優先級與庫存壓力，讓日常判斷更快。</p>
+            <p>先處理即將過期與數量不足的食品，再安排補貨。</p>
           </div>
         </div>
         <div class="briefing-divider"></div>
         <p class="briefing-note">
-          版面刻意保留留白與編輯節奏，避免傳統後台那種過度擁擠、每塊都像卡片的視覺疲勞。
+          系統與儲存空間狀態留在儀表板；首頁只呈現今天真正需要採取的行動。
         </p>
       </aside>
     </section>
 
     <section class="editorial-strip">
       <div class="strip-heading">
-        <p class="eyebrow">Primary workflow</p>
-        <h2>今天最重要的三個入口</h2>
+        <p class="eyebrow">快速新增與處理</p>
+        <h2>今天最重要的三件事</h2>
       </div>
       <div class="strip-grid">
         <button v-for="item in primaryRoutes" :key="item.page" class="strip-card" type="button" @click="$emit('navigate', item.page)">

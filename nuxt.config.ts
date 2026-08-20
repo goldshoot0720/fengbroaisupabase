@@ -30,7 +30,7 @@ export default defineNuxtConfig({
       titleTemplate: '%s - 鋒兄AI Supabase',
       meta: [
         { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'description', content: '鋒兄AI Supabase - 專業的訂閱、食物、影片和圖片管理平台' },
         { name: 'keywords', content: '鋒兄,Nuxt,資訊管理,訂閱管理,食物管理,影片庫,圖片庫' },
         { name: 'author', content: '鋒兄塗哥公關資訊' },

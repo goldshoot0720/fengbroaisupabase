@@ -39,9 +39,9 @@ export const getSupabaseBrowserClient = () => {
   if (!cache.has(credKey)) {
     cache.set(credKey, createClient(url, key, {
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
       }
     }))
   }

@@ -1,109 +1,71 @@
 import { computed } from 'vue'
 
 const pages = [
-  { id: 'home', name: '鋒兄首頁', icon: '01', glyph: '🏠', title: '鋒兄首頁', subtitle: '整理所有資料入口與目前工作區焦點。' },
-  { id: 'dashboard', name: '鋒兄儀表', icon: '02', glyph: '📊', title: '鋒兄儀表', subtitle: '快速查看各資料區塊的目前狀態與重點摘要。' },
-  { id: 'subscription', name: '鋒兄訂閱', icon: '03', glyph: '💳', title: '鋒兄訂閱', subtitle: '整理站點、價格、帳號與續訂日期。' },
-  { id: 'food', name: '鋒兄食品', menuHint: '（＋商品庫存）', icon: '04', glyph: '🍔', title: '鋒兄食品', titleHint: '（＋商品庫存）', subtitle: '記錄品項、價格、商店與日期資訊。' },
+  { id: 'home', name: '首頁', iconName: 'home', title: '鋒兄首頁', subtitle: '查看今天最需要處理的事項。' },
+  { id: 'dashboard', name: '儀表', iconName: 'dashboard', title: '鋒兄儀表', subtitle: '快速查看費用、到期項目與資料狀態。' },
   {
-    id: 'note',
-    name: '鋒兄筆記/文件',
-    icon: '05',
-    glyph: '📝',
-    title: '鋒兄筆記/文件',
-    subtitle: '整理靈感、會議紀錄、讀書筆記與結構化文件。',
+    id: 'daily', name: '日常管理', iconName: 'daily', title: '日常管理', subtitle: '管理訂閱、食品與例行事項。',
     children: [
-      {
-        id: 'note:notes',
-        page: 'note',
-        name: '鋒兄筆記',
-        glyph: '📝',
-        title: '鋒兄筆記',
-        subtitle: '整理靈感、會議紀錄、讀書筆記與附件。'
-      },
-      {
-        id: 'note:document',
-        page: 'document',
-        name: '鋒兄文件',
-        glyph: '📄',
-        title: '鋒兄文件',
-        subtitle: '管理結構化文件與工作紀錄。'
-      }
+      { id: 'subscription', page: 'subscription', name: '訂閱', title: '鋒兄訂閱', subtitle: '管理付款、續訂與到期日。' },
+      { id: 'food', page: 'food', name: '食品', title: '鋒兄食品', subtitle: '管理食品與庫存期限。' },
+      { id: 'routine', page: 'routine', name: '例行', title: '鋒兄例行', subtitle: '管理固定流程與最近執行日期。' },
     ]
   },
-  { id: 'common', name: '鋒兄常用', icon: '07', glyph: '🔑', title: '鋒兄常用', subtitle: '集中整理常用帳號、備註與附加資訊。' },
-  { id: 'gallery', name: '鋒兄圖片', icon: '08', glyph: '🖼️', title: '鋒兄圖片', subtitle: '管理圖片素材與封面檔案。' },
-  { id: 'video', name: '鋒兄影片', icon: '09', glyph: '🎬', title: '鋒兄影片', subtitle: '管理影片檔、封面、分類與參考資料。' },
   {
-    id: 'music',
-    name: '鋒兄音樂/播客',
-    icon: '10',
-    glyph: '🎵',
-    title: '鋒兄音樂/播客',
-    subtitle: '整理音樂作品、播客音檔、封面與歌詞。',
+    id: 'content', name: '內容中心', iconName: 'content', title: '內容中心', subtitle: '集中管理筆記、文件與媒體。',
     children: [
-      {
-        id: 'music:tracks',
-        page: 'music',
-        name: '鋒兄音樂',
-        glyph: '🎵',
-        title: '鋒兄音樂',
-        subtitle: '整理音樂作品、封面、歌詞與音檔。'
-      },
-      {
-        id: 'music:podcast',
-        page: 'podcast',
-        name: '鋒兄播客',
-        glyph: '🎧',
-        title: '鋒兄播客',
-        subtitle: '整理播客音檔、封面與備註。'
-      }
+      { id: 'note', page: 'note', name: '筆記', title: '鋒兄筆記', subtitle: '整理筆記與附件。' },
+      { id: 'document', page: 'document', name: '文件', title: '鋒兄文件', subtitle: '管理結構化文件。' },
+      { id: 'gallery', page: 'gallery', name: '圖片', title: '鋒兄圖片', subtitle: '管理圖片素材。' },
+      { id: 'video', page: 'video', name: '影片', title: '鋒兄影片', subtitle: '管理影片與封面。' },
+      { id: 'music', page: 'music', name: '音樂', title: '鋒兄音樂', subtitle: '管理歌曲、歌詞與封面。' },
+      { id: 'podcast', page: 'podcast', name: '播客', title: '鋒兄播客', subtitle: '管理播客音檔。' },
     ]
   },
-  { id: 'bank', name: '鋒兄銀行', menuHint: '( +電子票證)', icon: '13', glyph: '🏦', title: '鋒兄銀行 (+電子票證)', subtitle: '整理存款、提款、轉帳與卡片資訊。' },
-  { id: 'routine', name: '鋒兄例行', icon: '14', glyph: '🔁', title: '鋒兄例行', subtitle: '記錄固定流程、連結與最近執行日期。' },
+  {
+    id: 'finance', name: '財務與帳號', iconName: 'finance', title: '財務與帳號', subtitle: '管理銀行紀錄與常用帳號。',
+    children: [
+      { id: 'bank', page: 'bank', name: '銀行', title: '鋒兄銀行', subtitle: '管理銀行與電子票證紀錄。' },
+      { id: 'common', page: 'common', name: '常用帳號', title: '鋒兄常用', subtitle: '管理常用帳號與備註。' },
+    ]
+  },
   {
     id: 'tools',
-    name: '鋒兄工具',
-    menuHint: '（＋比價）',
-    icon: '06',
-    glyph: '🧰',
+    name: '工具',
+    iconName: 'tools',
     title: '鋒兄工具',
     subtitle: '整合比價、YouTube、金融、新聞、圖片語音、格式轉換、影片合併與影音轉檔。',
     children: [
-      { id: 'tools:biggo', tool: 'biggo', name: '鋒兄比價', glyph: '🔎' },
-      { id: 'tools:manual', tool: 'manual', name: '手動紀錄', glyph: '✍️' },
-      { id: 'tools:phone', tool: 'phone', name: '手機比價', glyph: '📱' },
-      { id: 'tools:tube', tool: 'tube', name: '鋒兄Tube', glyph: '▶️' },
-      { id: 'tools:finance', tool: 'finance', name: '鋒兄金融', glyph: '📈' },
-      { id: 'tools:news', tool: 'news', name: '鋒兄新聞', glyph: '📰' },
-      { id: 'tools:image-voice', tool: 'image-voice', name: '圖片語音成片', glyph: '🎞️' },
-      { id: 'tools:image-convert', tool: 'image-convert', name: '圖片格式轉換', glyph: '🔄' },
-      { id: 'tools:video-merge', tool: 'video-merge', name: '影片合併', glyph: '🧩' },
-      { id: 'tools:yt-bili-dl', tool: 'yt-bili-dl', name: 'YT/B站轉檔', glyph: '⬇️' }
+      { id: 'tools:biggo', tool: 'biggo', name: '比價' },
+      { id: 'tools:manual', tool: 'manual', name: '手動紀錄' },
+      { id: 'tools:phone', tool: 'phone', name: '手機比價' },
+      { id: 'tools:tube', tool: 'tube', name: '鋒兄 Tube' },
+      { id: 'tools:finance', tool: 'finance', name: '金融' },
+      { id: 'tools:news', tool: 'news', name: '新聞' },
+      { id: 'tools:image-voice', tool: 'image-voice', name: '圖片語音成片' },
+      { id: 'tools:image-convert', tool: 'image-convert', name: '圖片格式轉換' },
+      { id: 'tools:video-merge', tool: 'video-merge', name: '影片合併' },
+      { id: 'tools:yt-bili-dl', tool: 'yt-bili-dl', name: 'YT / B站轉檔' }
     ]
   },
   {
     id: 'settings',
-    name: '鋒兄設定/關於',
-    icon: '15',
-    glyph: '⚙️',
-    title: '鋒兄設定/關於',
+    name: '設定',
+    iconName: 'settings',
+    title: '設定與關於',
     subtitle: '管理來源設定與系統說明。',
     children: [
       {
-        id: 'settings:config',
+        id: 'settings',
         page: 'settings',
         name: '鋒兄設定',
-        glyph: '⚙️',
         title: '鋒兄設定',
         subtitle: '管理來源、匯入匯出與儲存設定。'
       },
       {
-        id: 'settings:about',
+        id: 'about',
         page: 'about',
         name: '鋒兄關於',
-        glyph: 'ℹ️',
         title: '鋒兄關於',
         subtitle: '查看系統說明與目前工作區資訊。'
       }

@@ -1,5 +1,7 @@
 <template>
   <div id="app">
+    <AuthGate v-if="!authReady || !authUser" />
+    <template v-else>
     <!-- 整體應用容器 -->
     <div class="app-container">
       <!-- 側邊欄（手機版） -->
@@ -346,6 +348,7 @@
       <div>頂部按鈕: {{ showTopButton ? '✅' : '❌' }}</div>
       <div>底部按鈕: {{ showBottomButton ? '✅' : '❌' }}</div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -373,6 +376,7 @@ import PageContainer from '../components/layout/PageContainer.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ToastContainer from '../components/ui/ToastContainer.vue'
 import VoiceInputPanel from '../components/ui/VoiceInputPanel.vue'
+import AuthGate from '../components/auth/AuthGate.vue'
 
 // 使用 composables
 import { useSubscriptions } from '../composables/useSubscriptions'
@@ -385,6 +389,7 @@ import { getSupabaseCredentials } from '../composables/useSettings'
 import { useNotifications } from '../composables/useNotifications'
 import { usePersistentAudioPlayer } from '../composables/usePersistentAudioPlayer'
 import { usePersistentVideoPlayer } from '../composables/usePersistentVideoPlayer'
+import { useAuth } from '../composables/useAuth'
 
 // 組件引用
 const subscriptionPageRef = ref(null)
@@ -394,6 +399,7 @@ const bankPageRef = ref(null)
 // 使用 composables
 const { subscriptions, totalMonthlyCost, loadSubscriptions } = useSubscriptions()
 const { foods, loadFoods } = useFoods()
+const { user: authUser, ready: authReady, initializeAuth, disposeAuth } = useAuth()
 const { isDarkMode, toggleDarkMode, initTheme } = useTheme()
 const { 
   currentPage,
@@ -606,6 +612,11 @@ const getSupabaseUrlValidationMessage = (rawUrl) => {
 
 // 生命週期
 onMounted(async () => {
+  await initializeAuth()
+  if (!authUser.value) {
+    initTheme()
+    return
+  }
   checkBirthdayEasterEgg()
 
   const config = useRuntimeConfig()
@@ -640,6 +651,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  disposeAuth()
   if (import.meta.client) {
     window.removeEventListener('resize', handleResize)
     removeScrollListener()

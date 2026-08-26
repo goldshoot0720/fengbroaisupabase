@@ -353,23 +353,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import DashboardPage from '../components/pages/DashboardPage.vue'
-import SubscriptionPage from '../components/pages/SubscriptionPage.vue'
-import FoodPage from '../components/pages/FoodPage.vue'
-import GalleryPage from '../components/pages/GalleryPage.vue'
-import VideoDBPage from '../components/pages/VideoDBPage.vue'
-import MusicDBPage from '../components/pages/MusicDBPage.vue'
-import DocumentPage from '../components/pages/DocumentPage.vue'
-import PodcastPage from '../components/pages/PodcastPage.vue'
-import RoutinePage from '../components/pages/RoutinePage.vue'
-import AboutPage from '../components/pages/AboutPage.vue'
-import NotePage from '../components/pages/NotePage.vue'
-import FengToolsPage from '../components/pages/FengToolsPage.vue'
-import CommonPage from '../components/pages/CommonPage.vue'
-import BankPage from '../components/pages/BankPage.vue'
-import SettingsPage from '../components/pages/SettingsPage.vue'
-import HomePage from '../components/pages/HomePage.vue'
+import { ref, computed, defineAsyncComponent, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import AppSidebar from '../components/layout/AppSidebar.vue'
 import AppHeader from '../components/layout/AppHeader.vue'
 import PageContainer from '../components/layout/PageContainer.vue'
@@ -377,6 +361,32 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import ToastContainer from '../components/ui/ToastContainer.vue'
 import VoiceInputPanel from '../components/ui/VoiceInputPanel.vue'
 import AuthGate from '../components/auth/AuthGate.vue'
+import PageLoadingState from '../components/ui/PageLoadingState.vue'
+
+// 頁面模組按需載入，避免影片、音樂與 AI 工具的重量影響首屏。
+// `suspensible: false` 讓 loadingComponent 直接呈現，不會因 Suspense 造成空白頁。
+const lazyPage = (loader) => defineAsyncComponent({
+  loader,
+  loadingComponent: PageLoadingState,
+  delay: 120,
+  suspensible: false
+})
+const DashboardPage = lazyPage(() => import('../components/pages/DashboardPage.vue'))
+const SubscriptionPage = lazyPage(() => import('../components/pages/SubscriptionPage.vue'))
+const FoodPage = lazyPage(() => import('../components/pages/FoodPage.vue'))
+const GalleryPage = lazyPage(() => import('../components/pages/GalleryPage.vue'))
+const VideoDBPage = lazyPage(() => import('../components/pages/VideoDBPage.vue'))
+const MusicDBPage = lazyPage(() => import('../components/pages/MusicDBPage.vue'))
+const DocumentPage = lazyPage(() => import('../components/pages/DocumentPage.vue'))
+const PodcastPage = lazyPage(() => import('../components/pages/PodcastPage.vue'))
+const RoutinePage = lazyPage(() => import('../components/pages/RoutinePage.vue'))
+const AboutPage = lazyPage(() => import('../components/pages/AboutPage.vue'))
+const NotePage = lazyPage(() => import('../components/pages/NotePage.vue'))
+const FengToolsPage = lazyPage(() => import('../components/pages/FengToolsPage.vue'))
+const CommonPage = lazyPage(() => import('../components/pages/CommonPage.vue'))
+const BankPage = lazyPage(() => import('../components/pages/BankPage.vue'))
+const SettingsPage = lazyPage(() => import('../components/pages/SettingsPage.vue'))
+const HomePage = lazyPage(() => import('../components/pages/HomePage.vue'))
 
 // 使用 composables
 import { useSubscriptions } from '../composables/useSubscriptions'

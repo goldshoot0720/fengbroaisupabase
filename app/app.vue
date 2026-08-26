@@ -170,6 +170,7 @@
 
     <!-- 手機版遮罩層 -->
     <VoiceInputPanel
+      v-if="voicePanelReady"
       :current-page="currentPage"
       :pages="pages"
       @navigate="setCurrentPage"
@@ -359,7 +360,6 @@ import AppHeader from '../components/layout/AppHeader.vue'
 import PageContainer from '../components/layout/PageContainer.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ToastContainer from '../components/ui/ToastContainer.vue'
-import VoiceInputPanel from '../components/ui/VoiceInputPanel.vue'
 import AuthGate from '../components/auth/AuthGate.vue'
 import PageLoadingState from '../components/ui/PageLoadingState.vue'
 
@@ -387,6 +387,7 @@ const CommonPage = lazyPage(() => import('../components/pages/CommonPage.vue'))
 const BankPage = lazyPage(() => import('../components/pages/BankPage.vue'))
 const SettingsPage = lazyPage(() => import('../components/pages/SettingsPage.vue'))
 const HomePage = lazyPage(() => import('../components/pages/HomePage.vue'))
+const VoiceInputPanel = lazyPage(() => import('../components/ui/VoiceInputPanel.vue'))
 
 // 使用 composables
 import { useSubscriptions } from '../composables/useSubscriptions'
@@ -494,6 +495,9 @@ const readStoredTool = () => {
   return TOOL_KEYS.includes(saved) ? saved : 'biggo'
 }
 const activeTool = ref(readStoredTool())
+const voicePanelReady = ref(false)
+let voicePanelIdleHandle = null
+let voicePanelFallbackTimer = null
 const handleSidebarNavigate = (pageId) => {
   if (typeof pageId === 'string' && pageId.startsWith('tools:')) {
     const tool = pageId.split(':')[1]
@@ -627,6 +631,14 @@ onMounted(async () => {
     initTheme()
     return
   }
+
+  // Voice is a secondary tool; defer its large panel until the first paint is idle.
+  const mountVoicePanel = () => { voicePanelReady.value = true }
+  if (typeof window.requestIdleCallback === 'function') {
+    voicePanelIdleHandle = window.requestIdleCallback(mountVoicePanel, { timeout: 1500 })
+  } else {
+    voicePanelFallbackTimer = window.setTimeout(mountVoicePanel, 700)
+  }
   checkBirthdayEasterEgg()
 
   const config = useRuntimeConfig()
@@ -662,6 +674,10 @@ onMounted(async () => {
 
 onUnmounted(() => {
   disposeAuth()
+  if (typeof window !== 'undefined' && voicePanelIdleHandle !== null && typeof window.cancelIdleCallback === 'function') {
+    window.cancelIdleCallback(voicePanelIdleHandle)
+  }
+  if (voicePanelFallbackTimer !== null) window.clearTimeout(voicePanelFallbackTimer)
   if (import.meta.client) {
     window.removeEventListener('resize', handleResize)
     removeScrollListener()

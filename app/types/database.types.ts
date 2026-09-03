@@ -515,6 +515,21 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['shoppinglist']['Insert']>
       }
+      toollistsync: {
+        Row: {
+          id: RowId
+          sync_key: string
+          payload: Json
+        } & Timestamps
+        Insert: {
+          id?: RowId
+          sync_key: string
+          payload?: Json
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['toollistsync']['Insert']>
+      }
     }
     Views: {
       [_ in never]: never

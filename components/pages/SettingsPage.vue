@@ -1384,6 +1384,22 @@ CREATE TABLE public.shoppinglist (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );`
+  },
+  {
+    name: 'toollistsync',
+    label: '工具雲端清單',
+    icon: '☁️',
+    checking: false,
+    exists: false,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE public.toollistsync (
+  ${UUID_PRIMARY_KEY_SQL}
+  sync_key VARCHAR(80) UNIQUE NOT NULL,
+  payload JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);`
   }
 ])
 

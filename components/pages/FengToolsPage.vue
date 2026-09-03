@@ -1104,6 +1104,7 @@ import {
 } from '../../utils/fengbroFinanceCsv'
 import { isKospiMarketOpen, KOSPI_LIVE_POLL_MS } from '../../utils/kospiMarketHours'
 import { useGallery } from '../../composables/useGallery'
+import { useCloudListSync } from '../../composables/useCloudListSync'
 
 // Lazy-load heavier tool panels so a panel-level failure does not blank the whole app shell.
 const ImageFormatConvertPanel = defineAsyncComponent(() => import('./ImageFormatConvertPanel.vue'))
@@ -1222,6 +1223,48 @@ const MANUAL_PRICE_STORAGE_KEY = 'fengbro-tools-manual-prices'
 const MANUAL_SELECTED_PRODUCT_KEY = 'fengbro-tools-manual-selected-product'
 const TUBE_CHANNELS_STORAGE_KEY = 'fengbro-tools-tube-channels'
 const defaultTubeChannelCount = FENG_TUBE_CHANNELS.length
+
+// ---- 個人清單雲端同步（雲端為主、本機為離線快取） ----
+const financeDefaultsSync = useCloudListSync({
+  syncKey: 'finance-default-instrument-ids',
+  target: selectedDefaultInstrumentIds,
+  readLocal: () => safeJsonParse(localStorage.getItem(FINANCE_DEFAULT_IDS_KEY) || 'null', []),
+  writeLocal: (value) => localStorage.setItem(FINANCE_DEFAULT_IDS_KEY, JSON.stringify(value)),
+  normalize: (id) => String(id || ''),
+  enabled: true,
+})
+
+const financeCustomSync = useCloudListSync({
+  syncKey: 'finance-custom-instruments',
+  target: financeCustomInstruments,
+  readLocal: () => safeJsonParse(localStorage.getItem(FINANCE_CUSTOM_INSTRUMENTS_KEY) || '[]', []),
+  writeLocal: (value) => localStorage.setItem(FINANCE_CUSTOM_INSTRUMENTS_KEY, JSON.stringify(value)),
+  normalize: (item) => normalizeCustomFinanceInstrument(item),
+  enabled: true,
+})
+
+const tubeChannelsSync = useCloudListSync({
+  syncKey: 'tube-channels',
+  target: tubeUserChannels,
+  readLocal: () => {
+    const savedValue = localStorage.getItem(TUBE_CHANNELS_STORAGE_KEY)
+    if (savedValue === null) return FENG_TUBE_CHANNELS.map(channel => ({ ...channel }))
+    const parsed = safeJsonParse(savedValue, [])
+    return Array.isArray(parsed) ? normalizeTubeChannels(stripRemovedFengTubeChannels(parsed)) : []
+  },
+  writeLocal: (value) => localStorage.setItem(TUBE_CHANNELS_STORAGE_KEY, JSON.stringify(value)),
+  normalize: (channel) => normalizeTubeChannels([channel])[0] || null,
+  enabled: true,
+})
+
+const manualProductsSync = useCloudListSync({
+  syncKey: 'manual-price-products',
+  target: manualProducts,
+  readLocal: () => safeJsonParse(localStorage.getItem(MANUAL_PRICE_STORAGE_KEY) || '[]', []),
+  writeLocal: (value) => localStorage.setItem(MANUAL_PRICE_STORAGE_KEY, JSON.stringify(value)),
+  normalize: (product) => normalizeManualProduct(product),
+  enabled: true,
+})
 const FINANCE_HISTORY_RANGE_LABELS = {
   '1y': '最近一年走勢',
   '3y': '最近三年走勢'
@@ -2651,10 +2694,21 @@ const runFinanceLookup = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   readTubeChannels()
   readManualProducts()
   readFinanceWatchlist()
+  // 個人清單雲端同步：本機快取先顯示，再以雲端覆蓋或把本機遷移上雲。
+  await Promise.all([
+    financeDefaultsSync.hydrateFromCloud(),
+    financeCustomSync.hydrateFromCloud(),
+    tubeChannelsSync.hydrateFromCloud(),
+    manualProductsSync.hydrateFromCloud(),
+  ])
+  // 手動價錢雲端覆蓋後，重新對齊「選中的商品」與表單預設日期。
+  if (manualProductsSync.cloudReady.value) {
+    readManualProducts()
+  }
   if (activeTool.value === 'tube') runTubeLookup()
   if (activeTool.value === 'finance') runFinanceLookup()
 })

@@ -402,6 +402,19 @@ CREATE INDEX IF NOT EXISTS idx_shoppinglist_name ON public.shoppinglist(name);
 CREATE INDEX IF NOT EXISTS idx_shoppinglist_planneddate ON public.shoppinglist(planneddate);
 
 -- =====================================================
+-- 19. TOOLLISTSYNC 表（鋒兄工具個人清單雲端同步）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.toollistsync (
+  id BIGSERIAL PRIMARY KEY,
+  sync_key VARCHAR(80) UNIQUE NOT NULL,
+  payload JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_toollistsync_sync_key ON public.toollistsync(sync_key);
+
+-- =====================================================
 -- 驗證：查看所有建立的表結構
 -- =====================================================
 SELECT 
@@ -415,6 +428,6 @@ WHERE table_schema = 'public'
   AND table_name IN (
     'article', 'bank', 'commonaccount', 'commondocument', 'food',
     'image', 'menuusage', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'routine',
-    'shoppinglist', 'sitevisit', 'subscription', 'trialpurchase', 'video'
+    'shoppinglist', 'sitevisit', 'subscription', 'toollistsync', 'trialpurchase', 'video'
   )
 ORDER BY table_name, ordinal_position;

@@ -530,6 +530,25 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['toollistsync']['Insert']>
       }
+      resendsettings: {
+        Row: {
+          id: RowId
+          rowkey: string
+          password_hash: string | null
+          from_email: string | null
+          slots_json: string | null
+        } & Timestamps
+        Insert: {
+          id?: RowId
+          rowkey: string
+          password_hash?: string | null
+          from_email?: string | null
+          slots_json?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['resendsettings']['Insert']>
+      }
     }
     Views: {
       [_ in never]: never

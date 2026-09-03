@@ -405,6 +405,41 @@
                 >確認合併</button>
               </div>
             </div>
+
+            <div class="resend-cloud-panel">
+              <h3>雲端備份／跨裝置同步</h3>
+              <p class="form-hint">
+                把目前帳號的 Resend 組合（含 API Key）以通知密碼保護後存入 Supabase 的 resendsettings 表，
+                可在其他裝置解鎖後下載回本機。密碼只保護「顯示／上傳／下載」操作，請牢記密碼。
+              </p>
+              <div class="resend-cloud-status">
+                <span>雲端狀態：</span>
+                <strong :class="cloudSettingsLoaded ? '' : 'muted'">
+                  {{ cloudStatusLabel }}
+                </strong>
+                <button class="btn-secondary btn-sm" type="button" :disabled="cloudChecking" @click="checkCloudResendSettings">
+                  {{ cloudChecking ? '檢查中…' : '檢查雲端' }}
+                </button>
+              </div>
+              <div class="resend-cloud-form">
+                <label class="cloud-password-field">
+                  <span>通知密碼</span>
+                  <input
+                    v-model="cloudPassword"
+                    type="password"
+                    autocomplete="off"
+                    placeholder="至少 4 碼"
+                    class="form-input"
+                  >
+                </label>
+                <div class="resend-cloud-actions">
+                  <button class="btn-secondary" type="button" :disabled="cloudBusy" @click="uploadCloudResendSettings">上傳到雲端</button>
+                  <button class="btn-secondary" type="button" :disabled="cloudBusy" @click="downloadCloudResendSettings">下載並覆蓋本機</button>
+                  <button class="btn-secondary" type="button" :disabled="cloudBusy" @click="changeCloudResendPassword">設定／變更密碼</button>
+                </div>
+              </div>
+              <p v-if="cloudMessage" class="cloud-message" role="status">{{ cloudMessage }}</p>
+            </div>
           </div>
         </section>
 
@@ -930,6 +965,146 @@ const confirmResendImport = () => {
   resendImportPreview.value = null
 }
 
+// Resend 雲端備份／跨裝置同步（resendsettings 表 + 通知密碼保護）
+const cloudSettings = ref(null) // { hasPassword, fromEmail, slots:[{apiKey(遮蔽或明文), toEmail}] }
+const cloudPassword = ref('')
+const cloudBusy = ref(false)
+const cloudChecking = ref(false)
+const cloudMessage = ref('')
+
+const cloudSettingsLoaded = computed(() => cloudSettings.value !== null)
+const cloudStatusLabel = computed(() => {
+  if (!cloudSettings.value) return '尚未檢查'
+  const slotCount = Array.isArray(cloudSettings.value.slots) ? cloudSettings.value.slots.length : 0
+  const passwordText = cloudSettings.value.hasPassword ? '已設密碼' : '未設密碼'
+  return `${passwordText} · ${slotCount} 組`
+})
+
+const cloudSupabaseAuth = () => {
+  const url = String(supabaseUrl.value || '').trim()
+  const key = String(supabaseAnonKey.value || '').trim()
+  return { supabaseUrl: url, supabaseKey: key }
+}
+
+const readCloudSlots = () => resendPairs.map((pair) => ({
+  apiKey: String(pair.apiKey.value || '').trim(),
+  toEmail: String(pair.toEmail.value || '').trim(),
+}))
+
+const setCloudMessage = (text) => {
+  cloudMessage.value = text
+  if (text) {
+    window.setTimeout(() => {
+      if (cloudMessage.value === text) cloudMessage.value = ''
+    }, 6000)
+  }
+}
+
+const checkCloudResendSettings = async () => {
+  cloudChecking.value = true
+  cloudMessage.value = ''
+  try {
+    const { supabaseUrl: url, supabaseKey: key } = cloudSupabaseAuth()
+    cloudSettings.value = await $fetch('/api/notifications/resend-settings', {
+      method: 'GET',
+      query: { supabaseUrl: url, supabaseKey: key },
+    })
+    if (!cloudSettings.value.hasPassword) {
+      setCloudMessage('雲端尚未設定通知密碼；可直接「設定／變更密碼」初始化，或「上傳到雲端」一併建立。')
+    }
+  } catch (error) {
+    setCloudMessage(`檢查失敗：${error?.data?.statusMessage || error?.statusMessage || error?.message || '未知錯誤'}`)
+  } finally {
+    cloudChecking.value = false
+  }
+}
+
+const uploadCloudResendSettings = async () => {
+  const password = cloudPassword.value
+  if (password.length < 4) {
+    setCloudMessage('請輸入至少 4 碼的通知密碼。')
+    return
+  }
+  cloudBusy.value = true
+  cloudMessage.value = ''
+  try {
+    const result = await $fetch('/api/notifications/resend-settings', {
+      method: 'PUT',
+      body: {
+        ...cloudSupabaseAuth(),
+        password,
+        newPassword: password,
+        fromEmail: String(resendFromEmail.value || '').trim(),
+        slots: readCloudSlots(),
+      },
+    })
+    cloudSettings.value = result
+    setCloudMessage(`已上傳到雲端（${Array.isArray(result.slots) ? result.slots.length : 0} 組）。`)
+  } catch (error) {
+    setCloudMessage(`上傳失敗：${error?.data?.statusMessage || error?.statusMessage || error?.message || '未知錯誤'}`)
+  } finally {
+    cloudBusy.value = false
+  }
+}
+
+const downloadCloudResendSettings = async () => {
+  const password = cloudPassword.value
+  if (!password) {
+    setCloudMessage('請輸入通知密碼以解鎖下載。')
+    return
+  }
+  cloudBusy.value = true
+  cloudMessage.value = ''
+  try {
+    const full = await $fetch('/api/notifications/resend-settings', {
+      method: 'POST',
+      body: { ...cloudSupabaseAuth(), password },
+    })
+    // 覆蓋目前表單組（保留最多 21 組）
+    const slots = Array.isArray(full.slots) ? full.slots.slice(0, 21) : []
+    resendPairs.forEach((pair, index) => {
+      const slot = slots[index]
+      pair.apiKey.value = slot?.apiKey || ''
+      pair.toEmail.value = slot?.toEmail || ''
+    })
+    if (full.fromEmail) resendFromEmail.value = full.fromEmail
+    cloudSettings.value = full
+    setCloudMessage(`已從雲端下載 ${slots.length} 組並覆蓋本機表單。記得按「儲存並切換」寫入目前帳號。`)
+  } catch (error) {
+    setCloudMessage(`下載失敗：${error?.data?.statusMessage || error?.statusMessage || error?.message || '未知錯誤'}`)
+  } finally {
+    cloudBusy.value = false
+  }
+}
+
+const changeCloudResendPassword = async () => {
+  const password = cloudPassword.value
+  if (password.length < 4) {
+    setCloudMessage('請輸入至少 4 碼的新通知密碼。')
+    return
+  }
+  cloudBusy.value = true
+  cloudMessage.value = ''
+  try {
+    const result = await $fetch('/api/notifications/resend-settings', {
+      method: 'PUT',
+      body: {
+        ...cloudSupabaseAuth(),
+        password,
+        newPassword: password,
+        fromEmail: String(resendFromEmail.value || '').trim(),
+        slots: readCloudSlots(),
+      },
+    })
+    cloudSettings.value = result
+    setCloudMessage('通知密碼已設定／更新。')
+  } catch (error) {
+    setCloudMessage(`設定失敗：${error?.data?.statusMessage || error?.statusMessage || error?.message || '未知錯誤'}`)
+  } finally {
+    cloudBusy.value = false
+  }
+}
+
 const showSqlModal = ref(false)
 const currentTable = ref(null)
 const isChecking = ref(false)
@@ -1400,6 +1575,28 @@ CREATE TABLE public.toollistsync (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );`
+  },
+  {
+    name: 'resendsettings',
+    label: 'Resend 通知設定',
+    icon: '📧',
+    checking: false,
+    exists: false,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE public.resendsettings (
+  ${UUID_PRIMARY_KEY_SQL}
+  rowkey VARCHAR(50) UNIQUE NOT NULL,
+  password_hash VARCHAR(300),
+  from_email VARCHAR(300),
+  slots_json TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO public.resendsettings (rowkey)
+SELECT 'main'
+WHERE NOT EXISTS (SELECT 1 FROM public.resendsettings WHERE rowkey = 'main');`
   }
 ])
 
@@ -2110,6 +2307,70 @@ useHead({
   justify-content: flex-end;
   gap: 0.6rem;
   flex-wrap: wrap;
+}
+
+.resend-cloud-panel {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.resend-cloud-panel h3 {
+  margin: 0;
+}
+
+.resend-cloud-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.resend-cloud-status .muted {
+  color: var(--text-muted);
+}
+
+.resend-cloud-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.cloud-password-field {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 200px;
+  flex: 1 1 220px;
+}
+
+.cloud-password-field > span {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.resend-cloud-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cloud-message {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
 }
 
 .notification-check-actions {

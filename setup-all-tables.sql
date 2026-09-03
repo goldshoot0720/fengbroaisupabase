@@ -415,6 +415,23 @@ CREATE TABLE IF NOT EXISTS public.toollistsync (
 CREATE INDEX IF NOT EXISTS idx_toollistsync_sync_key ON public.toollistsync(sync_key);
 
 -- =====================================================
+-- 20. RESENDSETTINGS 表（Resend 通知設定，密碼鎖保護）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.resendsettings (
+  id BIGSERIAL PRIMARY KEY,
+  rowkey VARCHAR(50) UNIQUE NOT NULL,
+  password_hash VARCHAR(300),
+  from_email VARCHAR(300),
+  slots_json TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO public.resendsettings (rowkey)
+SELECT 'main'
+WHERE NOT EXISTS (SELECT 1 FROM public.resendsettings WHERE rowkey = 'main');
+
+-- =====================================================
 -- 驗證：查看所有建立的表結構
 -- =====================================================
 SELECT 
@@ -427,7 +444,7 @@ FROM information_schema.columns
 WHERE table_schema = 'public' 
   AND table_name IN (
     'article', 'bank', 'commonaccount', 'commondocument', 'food',
-    'image', 'menuusage', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'routine',
+    'image', 'menuusage', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'resendsettings', 'routine',
     'shoppinglist', 'sitevisit', 'subscription', 'toollistsync', 'trialpurchase', 'video'
   )
 ORDER BY table_name, ordinal_position;

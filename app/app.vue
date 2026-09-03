@@ -423,20 +423,26 @@ const {
   pageTitle,
   pageTitleHint,
   pageSubtitle,
-  setCurrentPage, 
+  setCurrentPage,
+  restoreLastPage,
   toggleSidebar, 
   closeSidebar, 
   handleResize 
 } = useNavigation()
 const route = useRoute()
+// True when the URL explicitly named a target page (/?page= or /about);
+// then we must NOT override it with the remembered last page.
+const hasExplicitPage = ref(false)
 const applyRoutePage = () => {
   if (route.path === '/about') {
+    hasExplicitPage.value = true
     setCurrentPage('about')
     return
   }
   const raw = route.query.page
   const page = Array.isArray(raw) ? raw[0] : raw
   if (typeof page === 'string' && isAppPageId(page)) {
+    hasExplicitPage.value = true
     setCurrentPage(page)
     return
   }
@@ -630,6 +636,13 @@ const getSupabaseUrlValidationMessage = (rawUrl) => {
 
 // 生命週期
 onMounted(async () => {
+  // Remember the last visited menu item and re-enter directly (unless the URL
+  // explicitly pointed at a page). Runs client-side after hydration to avoid
+  // SSR/client template mismatch.
+  if (!hasExplicitPage.value) {
+    restoreLastPage()
+  }
+
   // Voice is a secondary tool; defer its large panel until the first paint is idle.
   const mountVoicePanel = () => { voicePanelReady.value = true }
   if (typeof window.requestIdleCallback === 'function') {

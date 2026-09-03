@@ -143,6 +143,9 @@ export const isNavChildActive = (page, child, currentPageId, activeTool = '') =>
   return currentPageId === child.id
 }
 
+/** localStorage key for remembering the last visited page. */
+const LAST_PAGE_KEY = 'feng-last-page'
+
 export const useNavigation = () => {
   const currentPage = useState('feng-current-page', () => 'home')
   const sidebarOpen = useState('feng-sidebar-open', () => false)
@@ -155,6 +158,10 @@ export const useNavigation = () => {
   const setCurrentPage = (pageId) => {
     currentPage.value = pageId
 
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LAST_PAGE_KEY, pageId)
+    }
+
     if (typeof window !== 'undefined' && window.innerWidth <= 768) {
       sidebarOpen.value = false
     }
@@ -164,6 +171,15 @@ export const useNavigation = () => {
       if (config) {
         document.title = `${config.title} - Feng AI Supabase`
       }
+    }
+  }
+
+  /** Restore the last visited page on the client (after hydration). */
+  const restoreLastPage = () => {
+    if (typeof window === 'undefined') return
+    const saved = localStorage.getItem(LAST_PAGE_KEY)
+    if (saved && isAppPageId(saved)) {
+      setCurrentPage(saved)
     }
   }
 
@@ -190,6 +206,7 @@ export const useNavigation = () => {
     pageTitleHint,
     pageSubtitle,
     setCurrentPage,
+    restoreLastPage,
     toggleSidebar,
     closeSidebar,
     handleResize

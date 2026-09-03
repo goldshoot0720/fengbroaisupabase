@@ -350,6 +350,37 @@ CREATE TABLE IF NOT EXISTS public.push_subscriptions (
 );
 
 -- =====================================================
+-- 16. SITEVISIT 表（進站人次／連續進站天數）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.sitevisit (
+  id BIGSERIAL PRIMARY KEY,
+  rowkey VARCHAR(50) UNIQUE NOT NULL,
+  count INTEGER DEFAULT 0,
+  lastvisitat TIMESTAMPTZ,
+  currentstreak INTEGER DEFAULT 0,
+  lastvisitdate VARCHAR(10),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO public.sitevisit (rowkey, count)
+SELECT 'site-visit', 0
+WHERE NOT EXISTS (SELECT 1 FROM public.sitevisit WHERE rowkey = 'site-visit');
+
+-- =====================================================
+-- 17. MENUUSAGE 表（選單使用統計）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.menuusage (
+  id BIGSERIAL PRIMARY KEY,
+  moduleid VARCHAR(50) UNIQUE NOT NULL,
+  count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_menuusage_count ON public.menuusage(count DESC);
+
+-- =====================================================
 -- 驗證：查看所有建立的表結構
 -- =====================================================
 SELECT 
@@ -362,7 +393,7 @@ FROM information_schema.columns
 WHERE table_schema = 'public' 
   AND table_name IN (
     'article', 'bank', 'commonaccount', 'commondocument', 'food',
-    'image', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'routine',
-    'subscription', 'trialpurchase', 'video'
+    'image', 'menuusage', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'routine',
+    'sitevisit', 'subscription', 'trialpurchase', 'video'
   )
 ORDER BY table_name, ordinal_position;

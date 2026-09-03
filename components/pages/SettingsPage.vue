@@ -1215,6 +1215,45 @@ CREATE TABLE public.video (
   hash TEXT,
   cover TEXT
 );`
+  },
+  {
+    name: 'sitevisit',
+    label: '進站人次',
+    icon: '👣',
+    checking: false,
+    exists: false,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE public.sitevisit (
+  ${UUID_PRIMARY_KEY_SQL}
+  rowkey VARCHAR(50) UNIQUE NOT NULL,
+  count INTEGER DEFAULT 0,
+  lastvisitat TIMESTAMPTZ,
+  currentstreak INTEGER DEFAULT 0,
+  lastvisitdate VARCHAR(10),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO public.sitevisit (rowkey, count)
+SELECT 'site-visit', 0
+WHERE NOT EXISTS (SELECT 1 FROM public.sitevisit WHERE rowkey = 'site-visit');`
+  },
+  {
+    name: 'menuusage',
+    label: '選單使用',
+    icon: '📌',
+    checking: false,
+    exists: false,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE public.menuusage (
+  ${UUID_PRIMARY_KEY_SQL}
+  moduleid VARCHAR(50) UNIQUE NOT NULL,
+  count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);`
   }
 ])
 

@@ -70,6 +70,73 @@
         </div>
       </section>
 
+      <section class="section site-stats-section">
+        <h2 class="section-title">網站站況</h2>
+        <p class="section-lead">
+          營運天數以承繼起源日 2025-09-28 起算；進站人次與連續進站天數採台北時間日曆日。
+          選單點擊次數與銀行存款現況依實際使用自動更新，尚無資料時先顯示「—」。
+        </p>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-value">{{ operatingDaysLabel }}</span>
+            <span class="stat-label">網站營運天數</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ visitCountLabel }}</span>
+            <span class="stat-label">進站人次</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ visitStreakLabel }}</span>
+            <span class="stat-label">連續進站天數</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ bankTotalLabel }}</span>
+            <span class="stat-label">目前總存款</span>
+          </div>
+        </div>
+
+        <div class="site-stats-columns">
+          <div class="site-stats-panel">
+            <h3 class="panel-title">選單使用次數與頻率（Top 5）</h3>
+            <ol v-if="menuUsageRows.length" class="menu-usage-list">
+              <li v-for="(row, index) in menuUsageRows" :key="row.moduleId">
+                <span class="menu-rank">{{ index + 1 }}</span>
+                <span class="menu-name">{{ row.name }}</span>
+                <span class="menu-count">{{ row.count }} 次</span>
+              </li>
+            </ol>
+            <p v-else-if="menuUsageLoading" class="panel-empty">載入中…</p>
+            <p v-else class="panel-empty">
+              尚沒有選單使用紀錄；若已使用過其他頁面，請到鋒兄設定確認 menuusage 資料表已建立。
+            </p>
+          </div>
+
+          <div class="site-stats-panel">
+            <h3 class="panel-title">銀行存款現況</h3>
+            <div class="bank-stats-grid">
+              <div class="bank-stat">
+                <span class="bank-stat-label">與上次使用比對</span>
+                <span class="bank-stat-value" :class="deltaClass">{{ bankDeltaLabel }}</span>
+              </div>
+              <div class="bank-stat">
+                <span class="bank-stat-label">銀行最高存款（總存款歷史高點）</span>
+                <span class="bank-stat-value">{{ bankMaxLabel }}</span>
+              </div>
+              <div class="bank-stat">
+                <span class="bank-stat-label">銀行最低存款（總存款歷史低點）</span>
+                <span class="bank-stat-value">{{ bankMinLabel }}</span>
+              </div>
+              <div class="bank-stat">
+                <span class="bank-stat-label">目前最高單一帳戶</span>
+                <span class="bank-stat-value">{{ highestBankLabel }}</span>
+              </div>
+            </div>
+            <p v-if="siteStatsNote" class="panel-note">{{ siteStatsNote }}</p>
+          </div>
+        </div>
+      </section>
+
       <section class="section features-section">
         <h2 class="section-title">目前重點功能</h2>
         <div class="features-grid">
@@ -243,11 +310,116 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
 import packageJson from '../../package.json'
+import { useSiteStats } from '../../composables/useSiteStats'
+import { useBanks } from '../../composables/useBanks'
+import { useBankSessionCompare } from '../../composables/useBankSessionCompare'
+import { useNavigation } from '../../composables/useNavigation'
+import { daysSinceOrigin } from '../../utils/siteVisitStreak'
 
 const runtimeConfig = useRuntimeConfig()
+const { pages } = useNavigation()
+const {
+  siteVisit,
+  menuUsageItems,
+  menuUsageExists,
+  siteStatsLoading,
+  siteStatsError,
+  loadSiteStats,
+} = useSiteStats()
+const { banks, loadBanks } = useBanks()
+const {
+  currentTotal: bankTotal,
+  maxTotal: bankMax,
+  minTotal: bankMin,
+  delta: bankDelta,
+  highestAccount,
+  captureBankSnapshot,
+} = useBankSessionCompare(banks)
+
+const formatNT = (value) => {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '—'
+  return `NT$ ${n.toLocaleString('zh-TW')}`
+}
+
+// moduleId → 選單顯示名。子項目優先；群組 id（例如 tools）只在
+// 沒有同名子項目時補上，讓「工具」這類群組導覽也有中文名。
+const moduleNameMap = {}
+const collectMenuNames = (items, { groups = false } = {}) => {
+  for (const item of items || []) {
+    if (!groups && item.children?.length) {
+      collectMenuNames(item.children, { groups: false })
+    } else if (!groups && item.id && !moduleNameMap[item.id]) {
+      moduleNameMap[item.id] = item.name
+    }
+    if (!groups && item.page && !moduleNameMap[item.page]) {
+      moduleNameMap[item.page] = item.name
+    }
+    if (groups && item.id && !moduleNameMap[item.id]) {
+      moduleNameMap[item.id] = item.name
+    }
+    if (groups && item.children?.length) {
+      collectMenuNames(item.children, { groups: true })
+    }
+  }
+}
+collectMenuNames(pages)
+collectMenuNames(pages, { groups: true })
+const menuNameFor = (moduleId) => moduleNameMap[moduleId] || moduleId
+
+const operatingDaysLabel = computed(() => {
+  const days = daysSinceOrigin()
+  return days > 0 ? `${days} 天` : '—'
+})
+const visitCountLabel = computed(() =>
+  siteVisit.value.exists ? Number(siteVisit.value.count || 0).toLocaleString('zh-TW') : '—',
+)
+const visitStreakLabel = computed(() =>
+  siteVisit.value.exists && siteVisit.value.currentStreak > 0
+    ? `${siteVisit.value.currentStreak} 天`
+    : '—',
+)
+
+const menuUsageRows = computed(() =>
+  (menuUsageItems.value || []).slice(0, 5).map((item) => ({
+    moduleId: item.moduleId,
+    name: menuNameFor(item.moduleId),
+    count: item.count,
+  })),
+)
+const menuUsageLoading = computed(() => siteStatsLoading.value && menuUsageItems.value.length === 0)
+
+const bankTotalLabel = computed(() => (banks.value.length ? formatNT(bankTotal.value) : '—'))
+const bankMaxLabel = computed(() => (banks.value.length ? formatNT(bankMax.value) : '—'))
+const bankMinLabel = computed(() => (banks.value.length ? formatNT(bankMin.value) : '—'))
+const bankDeltaLabel = computed(() => {
+  if (!banks.value.length || bankDelta.value === null) return '—'
+  if (bankDelta.value === 0) return '持平'
+  return `${bankDelta.value > 0 ? '▲' : '▼'} ${formatNT(Math.abs(bankDelta.value))}`
+})
+const deltaClass = computed(() => {
+  if (!banks.value.length || bankDelta.value === null) return ''
+  if (bankDelta.value > 0) return 'bank-delta-up'
+  if (bankDelta.value < 0) return 'bank-delta-down'
+  return 'bank-delta-flat'
+})
+const highestBankLabel = computed(() => {
+  if (!highestAccount.value) return '—'
+  return `${highestAccount.value.name} · ${formatNT(highestAccount.value.deposit)}`
+})
+const siteStatsNote = computed(() => {
+  if (siteStatsError.value) return siteStatsError.value
+  if (!menuUsageExists.value) return 'menuusage／sitevisit 表尚未建立時，請到鋒兄設定初始化。'
+  return ''
+})
+
+onMounted(async () => {
+  await Promise.all([loadSiteStats(), loadBanks()])
+  captureBankSnapshot()
+})
 
 const activeAboutPanel = ref('ceo')
 const aboutPanels = [
@@ -587,11 +759,146 @@ useHead({
   font-weight: 500;
 }
 
+/* ===== 網站站況 ===== */
+.section-lead {
+  margin: -0.5rem 0 1.2rem;
+  color: #718096;
+  font-size: 0.92rem;
+  line-height: 1.7;
+  max-width: 78ch;
+}
+
+.site-stats-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.2rem;
+  margin-top: 1.2rem;
+}
+
+.site-stats-panel {
+  padding: 1.4rem 1.5rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.panel-title {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.menu-usage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.menu-usage-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.menu-rank {
+  min-width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.menu-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #2d3748;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.menu-count {
+  color: #667eea;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.panel-empty {
+  margin: 0;
+  color: #a0aec0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.bank-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.9rem;
+}
+
+.bank-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  background: #f7fafc;
+  border: 1px solid #edf2f7;
+}
+
+.bank-stat-label {
+  color: #718096;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.bank-stat-value {
+  color: #4c51bf;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.bank-delta-up {
+  color: #38a169;
+}
+
+.bank-delta-down {
+  color: #e53e3e;
+}
+
+.bank-delta-flat {
+  color: #718096;
+}
+
+.panel-note {
+  margin: 0.9rem 0 0;
+  color: #a0aec0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
 @media (max-width: 768px) {
   .profile-layout, .cat-list { grid-template-columns: 1fr; }
   .service-directory article { align-items: flex-start; flex-direction: column; }
   .about-page {
     padding: 1rem;
+  }
+
+  .site-stats-columns {
+    grid-template-columns: 1fr;
   }
 
   .hero-section {

@@ -70,7 +70,7 @@
             :subscriptions-count="subscriptionsCount"
             :foods-count="foodsCount"
             :total-monthly-cost="totalMonthlyCost"
-            @navigate="setCurrentPage"
+            @navigate="navigateToPage"
           />
 
           <!-- 訂閱管理 -->
@@ -163,7 +163,7 @@
           <!-- 鋒兄首頁 -->
           <HomePage
             v-if="currentPage === 'home'"
-            @navigate="setCurrentPage"
+            @navigate="navigateToPage"
           />
 
           <PageContainer
@@ -186,7 +186,7 @@
       v-if="voicePanelReady"
       :current-page="currentPage"
       :pages="pages"
-      @navigate="setCurrentPage"
+      @navigate="navigateToPage"
     />
 
     <div 
@@ -409,6 +409,7 @@ import { useScroll } from '../composables/useScroll'
 import { useToast } from '../composables/useToast'
 import { getSupabaseCredentials } from '../composables/useSettings'
 import { useNotifications } from '../composables/useNotifications'
+import { useSiteStats } from '../composables/useSiteStats'
 import { usePersistentAudioPlayer } from '../composables/usePersistentAudioPlayer'
 import { usePersistentVideoPlayer } from '../composables/usePersistentVideoPlayer'
 
@@ -459,6 +460,7 @@ applyRoutePage()
 watch(() => [route.path, route.query.page], applyRoutePage)
 const { warning: toastWarning } = useToast()
 const { bootstrapNotifications } = useNotifications()
+const { recordSiteVisit, recordMenuUsage } = useSiteStats()
 const {
   showScrollButtons,
   showTopButton,
@@ -513,50 +515,38 @@ const activeTool = ref(readStoredTool())
 const voicePanelReady = ref(false)
 let voicePanelIdleHandle = null
 let voicePanelFallbackTimer = null
-const handleSidebarNavigate = (pageId) => {
-  if (typeof pageId === 'string' && pageId.startsWith('tools:')) {
-    const tool = pageId.split(':')[1]
-    if (TOOL_KEYS.includes(tool)) {
-      activeTool.value = tool
-      setCurrentPage('tools')
-      return
-    }
-  }
-
-  // 鋒兄筆記/文件 子選單：note:notes → note，note:document → document
-  if (typeof pageId === 'string' && pageId.startsWith('note:')) {
-    const section = pageId.slice('note:'.length)
-    if (section === 'document') {
-      setCurrentPage('document')
-      return
-    }
-    setCurrentPage('note')
-    return
-  }
-
-  // 鋒兄音樂/播客 子選單：music:tracks → music，music:podcast → podcast
-  if (typeof pageId === 'string' && pageId.startsWith('music:')) {
-    const section = pageId.slice('music:'.length)
-    if (section === 'podcast') {
-      setCurrentPage('podcast')
-      return
-    }
-    setCurrentPage('music')
-    return
-  }
-
-  // 鋒兄設定/關於 子選單：settings:config → settings，settings:about → about
-  if (typeof pageId === 'string' && pageId.startsWith('settings:')) {
-    const section = pageId.slice('settings:'.length)
-    if (section === 'about') {
-      setCurrentPage('about')
-      return
-    }
-    setCurrentPage('settings')
-    return
-  }
-
+// 使用者意圖的導覽（側欄、頁頭、頁內快速卡、語音）。切到目標頁並回報
+// 選單使用統計（fire-and-forget）；程式性的還原／路由解析不走這裡。
+const navigateToPage = (pageId) => {
+  if (typeof pageId !== 'string' || !pageId) return
   setCurrentPage(pageId)
+  recordMenuUsage(pageId)
+}
+const handleSidebarNavigate = (pageId) => {
+  // 子選單先解析出真正的 product page id，再統一交給 navigateToPage。
+  if (typeof pageId === 'string') {
+    if (pageId.startsWith('tools:')) {
+      const tool = pageId.split(':')[1]
+      if (TOOL_KEYS.includes(tool)) {
+        activeTool.value = tool
+      }
+      navigateToPage('tools')
+      return
+    }
+    if (pageId.startsWith('note:')) {
+      navigateToPage(pageId.slice('note:'.length) === 'document' ? 'document' : 'note')
+      return
+    }
+    if (pageId.startsWith('music:')) {
+      navigateToPage(pageId.slice('music:'.length) === 'podcast' ? 'podcast' : 'music')
+      return
+    }
+    if (pageId.startsWith('settings:')) {
+      navigateToPage(pageId.slice('settings:'.length) === 'about' ? 'about' : 'settings')
+      return
+    }
+  }
+  navigateToPage(pageId)
 }
 const SUPABASE_URL_WARNING_KEY = 'feng-supabase-url-warning'
 const BIRTHDAY_EASTER_EGG_KEY_PREFIX = 'feng-birthday-easter-egg'
@@ -656,6 +646,9 @@ onMounted(async () => {
     voicePanelFallbackTimer = window.setTimeout(mountVoicePanel, 700)
   }
   checkBirthdayEasterEgg()
+
+  // 每個瀏覽器 session 記錄一次進站（人次＋連續天數）；純裝飾性，失敗不影響使用。
+  recordSiteVisit()
 
   const config = useRuntimeConfig()
   const creds = getSupabaseCredentials()

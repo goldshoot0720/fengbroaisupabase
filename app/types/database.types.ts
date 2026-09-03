@@ -450,6 +450,42 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['video']['Insert']>
       }
+      sitevisit: {
+        Row: {
+          id: RowId
+          rowkey: string
+          count: number | null
+          lastvisitat: string | null
+          currentstreak: number | null
+          lastvisitdate: string | null
+        } & Timestamps
+        Insert: {
+          id?: RowId
+          rowkey: string
+          count?: number | null
+          lastvisitat?: string | null
+          currentstreak?: number | null
+          lastvisitdate?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['sitevisit']['Insert']>
+      }
+      menuusage: {
+        Row: {
+          id: RowId
+          moduleid: string
+          count: number | null
+        } & Timestamps
+        Insert: {
+          id?: RowId
+          moduleid: string
+          count?: number | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['menuusage']['Insert']>
+      }
     }
     Views: {
       [_ in never]: never

@@ -92,7 +92,7 @@
               <input v-model.number="form.ratio5h" type="number" min="0" max="100" step="1" inputmode="numeric" />
             </label>
             <label class="field">
-              <span>5 小時到期（24 小時制）</span>
+              <span>5 小時到期</span>
               <input v-model="form.expiry5h" type="time" />
             </label>
             <label class="field">

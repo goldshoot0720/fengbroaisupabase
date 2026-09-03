@@ -7,7 +7,7 @@
 ## 功能特色
 
 - **響應式介面**：桌面左側選單、手機滑出式側邊欄
-- **多資料模組**：訂閱、試用／首購、重灌軟體、食品、筆記、常用帳號、圖片、影片、音樂、文件、播客、銀行、例行事務
+- **多資料模組**：訂閱、試用／首購、額度、重灌軟體、食品、筆記、常用帳號、圖片、影片、音樂、文件、播客、銀行、例行事務
 - **Supabase 後端**：PostgreSQL 資料表 + Storage 檔案
 - **ZIP 匯入匯出**：圖片／音樂／影片／播客／文件／筆記／食品／例行可匯出 JSON（或 CSV）並一併打包媒體檔；匯入時自動回傳 Storage
 - **鋒兄工具**：BigGo 比價、手動價錢紀錄、手機通路比價、YouTube、金融報價、鋒兄新聞、圖片語音成片、圖片格式轉換（參考 PNGJPEGConverter）、影片合併（參考 VideoMerge：自訂音軌、語音稿字幕、Whisper 依音軌辨識字幕）、YT／B站轉 MP3／MP4（參考 YoutubeBilibiliMP4MP3Converter，需本機 yt-dlp）
@@ -67,9 +67,9 @@ Storage bucket 解析順序：設定頁明確的 bucket 欄位 → **Netlify / �
 
 - `setup-all-tables.sql`（產品資料表；新帳號也可在 **鋒兄設定** 複製各表 SQL）
 - `supabase-push-table.sql`（Web Push 訂閱表 `push_subscriptions`）
-- 或各模組 `*-setup.sql` / `simple-subscription-setup.sql`
+- 或各模組 `*-setup.sql` / `simple-subscription-setup.sql`（含 `quota-setup.sql`）
 
-產品表：`article`、`bank`、`commonaccount`、`commondocument`、`food`、`image`、`music`、`podcast`、`reinstall`、`routine`、`subscription`、`trialpurchase`、`video`。設定頁產生的 SQL 使用 UUID 主鍵；舊腳本可能是 `BIGSERIAL`。
+產品表：`article`、`bank`、`commonaccount`、`commondocument`、`food`、`image`、`music`、`podcast`、`quota`、`reinstall`、`routine`、`subscription`、`trialpurchase`、`video`。設定頁產生的 SQL 使用 UUID 主鍵；舊腳本可能是 `BIGSERIAL`。
 
 並建立 public Storage bucket（預設 `uploads`）。
 
@@ -86,7 +86,7 @@ npm run dev
 | 頁面 | 說明 |
 |------|------|
 | 鋒兄首頁 / 儀表 | 入口與資料摘要、Storage 用量 |
-| 訂閱 / 食品 | CRUD、到期提醒 |
+| 訂閱 / 食品 / 額度 | CRUD、到期提醒 |
 | 筆記 / 常用 / 文件 | 分類、附件、ZIP |
 | 圖片 / 影片 / 音樂 / 播客 | 媒體管理與播放 |
 | 銀行 | 帳戶、批次存款調整、交易流程 |

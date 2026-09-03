@@ -89,6 +89,11 @@
             v-if="currentPage === 'reinstall'"
           />
 
+          <!-- 額度管理 -->
+          <QuotaPage
+            v-if="currentPage === 'quota'"
+          />
+
           <!-- 食物管理 -->
           <FoodPage 
             v-if="currentPage === 'food'"

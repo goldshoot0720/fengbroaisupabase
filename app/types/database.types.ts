@@ -255,6 +255,43 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['podcast']['Insert']>
       }
+      quota: {
+        Row: {
+          id: RowId
+          name: string
+          servicetype: string | null
+          account: string | null
+          quotaremaining: number | null
+          quotaratio: number | null
+          quotaexpiry: string | null
+          ratio5h: number | null
+          expiry5h: string | null
+          ratioweek: number | null
+          expiryweek: string | null
+          ratiomonth: number | null
+          expirymonth: string | null
+          note: string | null
+        } & Timestamps
+        Insert: {
+          id?: RowId
+          name: string
+          servicetype?: string | null
+          account?: string | null
+          quotaremaining?: number | null
+          quotaratio?: number | null
+          quotaexpiry?: string | null
+          ratio5h?: number | null
+          expiry5h?: string | null
+          ratioweek?: number | null
+          expiryweek?: string | null
+          ratiomonth?: number | null
+          expirymonth?: string | null
+          note?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['quota']['Insert']>
+      }
       reinstall: {
         Row: {
           id: RowId

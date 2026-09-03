@@ -95,8 +95,8 @@
           </article>
           <article class="feature-card">
             <span class="feature-icon">🧾</span>
-            <h3>試用／首購與重灌</h3>
-            <p>獨立 trialpurchase、reinstall 資料表：依服務展開帳號，並整理 Win／Mac 軟體、隱藏序號與查看密碼。</p>
+            <h3>試用／首購、額度與重灌</h3>
+            <p>獨立 trialpurchase、quota、reinstall 資料表：依服務展開帳號，追蹤試用／首購、剩餘額度與到期，並整理 Win／Mac 軟體、隱藏序號與查看密碼。</p>
           </article>
           <article class="feature-card">
             <span class="feature-icon">🧰</span>

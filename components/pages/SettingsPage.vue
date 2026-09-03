@@ -1137,6 +1137,33 @@ CREATE TABLE public.trialpurchase (
 );`
   },
   {
+    name: 'quota',
+    label: '鋒兄額度',
+    icon: '📊',
+    checking: false,
+    exists: false,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE public.quota (
+  ${UUID_PRIMARY_KEY_SQL}
+  name VARCHAR(100) NOT NULL,
+  servicetype VARCHAR(20) DEFAULT 'general',
+  account VARCHAR(200),
+  quotaremaining INTEGER DEFAULT 0,
+  quotaratio INTEGER DEFAULT 0,
+  quotaexpiry DATE,
+  ratio5h INTEGER DEFAULT 0,
+  expiry5h VARCHAR(10),
+  ratioweek INTEGER DEFAULT 0,
+  expiryweek VARCHAR(10),
+  ratiomonth INTEGER DEFAULT 0,
+  expirymonth VARCHAR(10),
+  note VARCHAR(3337),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);`
+  },
+  {
     name: 'reinstall',
     label: '重灌軟體',
     icon: '💻',

@@ -5,6 +5,7 @@ const TABLES = [
   'subscription',
   'trialpurchase',
   'reinstall',
+  'quota',
   'food',
   'article',
   'commonaccount',

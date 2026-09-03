@@ -435,3 +435,194 @@ export function isMissingTableError(error, tableName) {
     new RegExp(`Could not find the table .*${table}`, 'i').test(message) ||
     new RegExp(`relation .*${table}.* does not exist`, 'i').test(message)
 }
+
+export const QUOTA_SERVICE_TYPE_OPTIONS = [
+  { value: 'general', label: '一般' },
+  { value: 'ai', label: 'AI 服務' },
+]
+
+const quotaServiceTypes = new Set(QUOTA_SERVICE_TYPE_OPTIONS.map((option) => option.value))
+
+const FIVE_HOUR_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/
+const YEAR_MONTH_DAY_PATTERN = /^\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])$/
+
+function asOptionalText(value, label = '欄位', maxLength) {
+  return asText(value, label, maxLength)
+}
+
+function asOptionalDatePart(value, pattern, label, humanExample) {
+  const normalized = asText(value, label, 20)
+  if (!normalized) return ''
+  if (!pattern.test(normalized)) throw new Error(`${label}格式需為 ${humanExample}（例如 ${humanExample}）`)
+  return normalized
+}
+
+export function emptyQuotaForm(name = '') {
+  return {
+    name,
+    serviceType: 'general',
+    account: '',
+    quotaRemaining: 0,
+    quotaRatio: 0,
+    quotaExpiry: '',
+    ratio5h: 0,
+    expiry5h: '',
+    ratioWeek: 0,
+    expiryWeek: '',
+    ratioMonth: 0,
+    expiryMonth: '',
+    note: '',
+  }
+}
+
+export function toQuotaForm(source) {
+  return {
+    name: source.name || '',
+    serviceType: asChoice(source.serviceType, quotaServiceTypes, 'general'),
+    account: source.account || '',
+    quotaRemaining: Number(source.quotaRemaining || 0),
+    quotaRatio: source.quotaRatio == null ? 0 : Number(source.quotaRatio),
+    quotaExpiry: source.quotaExpiry ? String(source.quotaExpiry).slice(0, 10) : '',
+    ratio5h: source.ratio5h == null ? 0 : Number(source.ratio5h),
+    expiry5h: source.expiry5h || '',
+    ratioWeek: source.ratioWeek == null ? 0 : Number(source.ratioWeek),
+    expiryWeek: source.expiryWeek || '',
+    ratioMonth: source.ratioMonth == null ? 0 : Number(source.ratioMonth),
+    expiryMonth: source.expiryMonth || '',
+    note: source.note || '',
+  }
+}
+
+export function buildQuotaWritePayload(body, mode) {
+  validateBody(body)
+  const name = asText(body.name, '服務名稱', 100)
+  if (!name) throw new Error('請填寫服務名稱')
+
+  const serviceType = asChoice(body.serviceType, quotaServiceTypes, 'general', '服務類型')
+  const quotaExpiry = asOptionalDate(body.quotaExpiry)
+  const payload = {
+    name,
+    serviceType,
+    account: asOptionalText(body.account, '帳號', 200),
+    quotaRemaining: asNonNegativeInteger(body.quotaRemaining, '額度剩餘次數'),
+    quotaRatio: asNonNegativeInteger(body.quotaRatio, '額度剩餘比例'),
+    note: asOptionalText(body.note, '備註', 3337),
+  }
+
+  if (quotaExpiry) payload.quotaExpiry = quotaExpiry
+  else if (mode === 'update') payload.quotaExpiry = null
+
+  if (serviceType === 'ai') {
+    payload.ratio5h = asNonNegativeInteger(body.ratio5h, '5 小時比例')
+    payload.expiry5h = asOptionalDatePart(body.expiry5h, FIVE_HOUR_TIME_PATTERN, '5 小時到期', 'HH:mm（24 小時制）')
+    payload.ratioWeek = asNonNegativeInteger(body.ratioWeek, '一週比例')
+    payload.expiryWeek = asOptionalDatePart(body.expiryWeek, YEAR_MONTH_DAY_PATTERN, '一週到期', '西元年-月-日')
+    payload.ratioMonth = asNonNegativeInteger(body.ratioMonth, '一月比例')
+    payload.expiryMonth = asOptionalDatePart(body.expiryMonth, YEAR_MONTH_DAY_PATTERN, '一月到期', '西元年-月-日')
+  } else {
+    payload.ratio5h = 0
+    payload.expiry5h = ''
+    payload.ratioWeek = 0
+    payload.expiryWeek = ''
+    payload.ratioMonth = 0
+    payload.expiryMonth = ''
+  }
+  return payload
+}
+
+export function quotaToDbRow(payload) {
+  return {
+    name: payload.name,
+    servicetype: payload.serviceType || 'general',
+    account: payload.account || '',
+    quotaremaining: payload.quotaRemaining ?? 0,
+    quotaratio: payload.quotaRatio ?? 0,
+    quotaexpiry: payload.quotaExpiry ? String(payload.quotaExpiry).slice(0, 10) : null,
+    ratio5h: payload.ratio5h ?? 0,
+    expiry5h: payload.expiry5h || '',
+    ratioweek: payload.ratioWeek ?? 0,
+    expiryweek: payload.expiryWeek || '',
+    ratiomonth: payload.ratioMonth ?? 0,
+    expirymonth: payload.expiryMonth || '',
+    note: payload.note || '',
+  }
+}
+
+export function quotaFromDbRow(row) {
+  if (!row) return null
+  return {
+    id: row.id,
+    name: row.name || '',
+    serviceType: asChoice(row.servicetype, quotaServiceTypes, 'general'),
+    account: row.account || '',
+    quotaRemaining: Number(row.quotaremaining || 0),
+    quotaRatio: Number(row.quotaratio || 0),
+    quotaExpiry: row.quotaexpiry ? String(row.quotaexpiry).slice(0, 10) : '',
+    ratio5h: Number(row.ratio5h || 0),
+    expiry5h: row.expiry5h || '',
+    ratioWeek: Number(row.ratioweek || 0),
+    expiryWeek: row.expiryweek || '',
+    ratioMonth: Number(row.ratiomonth || 0),
+    expiryMonth: row.expirymonth || '',
+    note: row.note || '',
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export function quotaServiceKey(name) {
+  return String(name || '').trim().toLocaleLowerCase('zh-Hant')
+}
+
+export function groupQuotas(items, query = '', typeFilter = 'all') {
+  const normalizedQuery = String(query || '').trim().toLocaleLowerCase('zh-Hant')
+  const filtered = (items || []).filter((item) => {
+    const matchesQuery = !normalizedQuery || [item.name, item.account, item.note]
+      .some((value) => String(value || '').toLocaleLowerCase('zh-Hant').includes(normalizedQuery))
+    const matchesType = typeFilter === 'all' || item.serviceType === typeFilter
+    return matchesQuery && matchesType
+  })
+
+  const grouped = new Map()
+  filtered.forEach((item) => {
+    const key = quotaServiceKey(item.name)
+    const group = grouped.get(key) || { key, name: String(item.name || '').trim(), items: [] }
+    group.items.push(item)
+    grouped.set(key, group)
+  })
+
+  return [...grouped.values()]
+    .map((group) => ({
+      ...group,
+      items: group.items.sort((a, b) =>
+        String(a.account || '').localeCompare(String(b.account || ''), 'zh-Hant'),
+      ),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'))
+}
+
+export function quotaStats(items) {
+  const list = items || []
+  return {
+    serviceCount: new Set(list.map((item) => quotaServiceKey(item.name)).filter(Boolean)).size,
+    accountCount: list.length,
+    aiCount: list.filter((item) => item.serviceType === 'ai').length,
+  }
+}
+
+export function quotaRatioLabel(value) {
+  if (value == null || value === 0) return null
+  return `${value}%`
+}
+
+export function formatQuotaDate(value) {
+  if (!value) return '未設定'
+  const date = new Date(`${value}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) return '日期格式錯誤'
+  return new Intl.DateTimeFormat('zh-TW', {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}

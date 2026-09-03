@@ -289,7 +289,32 @@ CREATE INDEX IF NOT EXISTS idx_trialpurchase_name ON public.trialpurchase(name);
 CREATE INDEX IF NOT EXISTS idx_trialpurchase_eventdate ON public.trialpurchase(eventdate);
 
 -- =====================================================
--- 13. REINSTALL 表（重灌軟體）
+-- 13. QUOTA 表（鋒兄額度）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.quota (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  servicetype VARCHAR(20) DEFAULT 'general',
+  account VARCHAR(200),
+  quotaremaining INTEGER DEFAULT 0,
+  quotaratio INTEGER DEFAULT 0,
+  quotaexpiry DATE,
+  ratio5h INTEGER DEFAULT 0,
+  expiry5h VARCHAR(10),
+  ratioweek INTEGER DEFAULT 0,
+  expiryweek VARCHAR(10),
+  ratiomonth INTEGER DEFAULT 0,
+  expirymonth VARCHAR(10),
+  note VARCHAR(3337),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_quota_name ON public.quota(name);
+CREATE INDEX IF NOT EXISTS idx_quota_servicetype ON public.quota(servicetype);
+
+-- =====================================================
+-- 14. REINSTALL 表（重灌軟體）
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.reinstall (
   id BIGSERIAL PRIMARY KEY,
@@ -313,7 +338,7 @@ CREATE INDEX IF NOT EXISTS idx_reinstall_name ON public.reinstall(name);
 CREATE INDEX IF NOT EXISTS idx_reinstall_system ON public.reinstall(system);
 
 -- =====================================================
--- 14. PUSH_SUBSCRIPTIONS（Web Push；RLS 見 supabase-push-table.sql）
+-- 15. PUSH_SUBSCRIPTIONS（Web Push；RLS 見 supabase-push-table.sql）
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.push_subscriptions (
   id BIGSERIAL PRIMARY KEY,
@@ -337,7 +362,7 @@ FROM information_schema.columns
 WHERE table_schema = 'public' 
   AND table_name IN (
     'article', 'bank', 'commonaccount', 'commondocument', 'food',
-    'image', 'music', 'podcast', 'push_subscriptions', 'reinstall', 'routine',
+    'image', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'routine',
     'subscription', 'trialpurchase', 'video'
   )
 ORDER BY table_name, ordinal_position;

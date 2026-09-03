@@ -355,7 +355,55 @@
               >
                 {{ testingResendEmail ? '測試寄發中...' : '測試寄發' }}
               </button>
-              <span class="form-hint">會寄送測試信到所有完整填寫的收件組合。</span>
+              <button
+                class="btn-secondary"
+                type="button"
+                title="匯出目前全部 Resend API Key／收件組合為 CSV"
+                @click="exportResendSettingsCsv"
+              >
+                匯出設定 CSV
+              </button>
+              <button
+                class="btn-secondary"
+                type="button"
+                title="從 CSV 匯入 Resend API Key／收件組合（相同收件 Email 會更新）"
+                @click="resendCsvInput?.click()"
+              >
+                匯入設定 CSV
+              </button>
+              <input
+                ref="resendCsvInput"
+                type="file"
+                accept=".csv,text/csv"
+                style="display:none"
+                @change="handleResendCsvFileSelect"
+              >
+              <span class="form-hint">會寄送測試信到所有完整填寫的收件組合。CSV 僅含 API Key 與收件 Email，不含寄件人。</span>
+            </div>
+
+            <div v-if="resendImportPreview" class="resend-import-preview" role="dialog" aria-labelledby="resend-import-title">
+              <h3 id="resend-import-title">匯入 Resend 設定預覽</h3>
+              <p v-if="resendImportPreview.errors.length" class="import-errors">
+                發現 {{ resendImportPreview.errors.length }} 筆格式錯誤，不會寫入任何資料。
+              </p>
+              <p v-else>
+                將匯入 {{ resendImportPreview.slots.length }} 組；相同收件 Email 會更新 API Key，其餘依序補到後方。
+              </p>
+              <ul v-if="resendImportPreview.errors.length" class="import-error-list">
+                <li v-for="(item, index) in resendImportPreview.errors.slice(0, 8)" :key="index">{{ item }}</li>
+              </ul>
+              <p v-if="resendImportResult">
+                完成：新增 {{ resendImportResult.added }} 組、更新 {{ resendImportResult.updated }} 組、略過 {{ resendImportResult.skipped }} 組。記得按下「儲存並切換」才會寫入目前帳號。
+              </p>
+              <div class="resend-import-actions">
+                <button class="btn-secondary" type="button" @click="closeResendImportPreview">取消</button>
+                <button
+                  class="btn-primary"
+                  type="button"
+                  :disabled="resendImportPreview.errors.length > 0 || resendImportPreview.slots.length === 0"
+                  @click="confirmResendImport"
+                >確認合併</button>
+              </div>
             </div>
           </div>
         </section>
@@ -586,6 +634,7 @@ import PageContainer from '../layout/PageContainer.vue'
 import { useSettings, resolveSupabaseBucket } from '../../composables/useSettings'
 import { useNotifications } from '../../composables/useNotifications'
 import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
+import { buildResendSettingsCsv, mergeResendSlots, parseResendSettingsCsv } from '../../utils/resendSettingsCsv'
 import packageJson from '../../package.json'
 
 const {
@@ -821,6 +870,64 @@ const testResendEmail = async () => {
   } finally {
     testingResendEmail.value = false
   }
+}
+
+// Resend 設定 CSV 匯入／匯出
+const resendCsvInput = ref(null)
+const resendImportPreview = ref(null)
+const resendImportResult = ref(null)
+
+const readCurrentResendSlots = () => resendPairs.map((pair) => ({
+  apiKey: String(pair.apiKey.value || '').trim(),
+  toEmail: String(pair.toEmail.value || '').trim(),
+}))
+
+const exportResendSettingsCsv = () => {
+  try {
+    const csv = buildResendSettingsCsv(readCurrentResendSlots())
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = 'resend-settings.csv'
+    link.click()
+    URL.revokeObjectURL(link.href)
+  } catch (error) {
+    alert(`匯出失敗：${error instanceof Error ? error.message : '未知錯誤'}`)
+  }
+}
+
+const handleResendCsvFileSelect = (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    alert('請選擇 CSV 檔案')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    resendImportResult.value = null
+    resendImportPreview.value = parseResendSettingsCsv(typeof reader.result === 'string' ? reader.result : '')
+  }
+  reader.onerror = () => alert('讀取 CSV 檔案失敗')
+  reader.readAsText(file, 'UTF-8')
+}
+
+const closeResendImportPreview = () => {
+  resendImportPreview.value = null
+  resendImportResult.value = null
+}
+
+const confirmResendImport = () => {
+  if (!resendImportPreview.value || resendImportPreview.value.errors.length > 0 || resendImportPreview.value.slots.length === 0) return
+  const merged = mergeResendSlots(resendImportPreview.value.slots, readCurrentResendSlots())
+  resendPairs.forEach((pair, index) => {
+    const next = merged.slots[index]
+    pair.apiKey.value = next?.apiKey || ''
+    pair.toEmail.value = next?.toEmail || ''
+  })
+  resendImportResult.value = { added: merged.added, updated: merged.updated, skipped: merged.skipped }
+  resendImportPreview.value = null
 }
 
 const showSqlModal = ref(false)
@@ -1948,6 +2055,45 @@ useHead({
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border-color);
+}
+
+.resend-import-preview {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.resend-import-preview h3 {
+  margin: 0;
+}
+
+.resend-import-preview p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.resend-import-preview .import-errors {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.resend-import-preview .import-error-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--danger);
+  max-height: 8rem;
+  overflow: auto;
+}
+
+.resend-import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .notification-check-actions {

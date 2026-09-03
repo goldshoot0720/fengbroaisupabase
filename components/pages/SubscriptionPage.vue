@@ -213,6 +213,7 @@
           <tr 
             v-for="sub in paginatedSubscriptions"
             :key="sub.id"
+            :data-subscription-id="sub.id"
             :class="{ selected: selectedIds.includes(sub.id), editing: editingRowId === sub.id }"
           >
             <!-- 批量選擇 Checkbox -->
@@ -410,7 +411,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useSubscriptions } from '../../composables/useSubscriptions'
 import { useFormatters } from '../../composables/useFormatters'
 import { useCommonAccounts } from '../../composables/useCommonAccounts'
@@ -636,9 +637,32 @@ const saveAddRow = async () => {
   const result = await addSubscriptionInline(addForm.value)
   if (result.success) {
     showAddRow.value = false
+    // 新列會排進第一頁頂端：回到第一頁後把該筆捲回視窗頂端
+    currentPage.value = 1
+    if (result.item?.id) revealSubscriptionRow(result.item.id)
   } else {
     alert('新增失敗: ' + result.error)
   }
+}
+
+/** 關閉 inline 編輯表單（儲存或取消）後，把該筆訂閱列捲回視窗頂端。
+ *  等兩幀讓 Vue 完成列縮回、排序重算與瀏覽器新佈局後再捲動。 */
+const revealSubscriptionRow = (subscriptionId) => {
+  if (!process.client) return
+  const selector = `[data-subscription-id="${String(subscriptionId).replace(/"/g, '\\"')}"]`
+  const anchor = document.querySelector(selector)
+  if (!anchor) return
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const current = document.querySelector(selector)
+        if (current && typeof current.scrollIntoView === 'function') {
+          const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          current.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' })
+        }
+      })
+    })
+  })
 }
 
 const startInlineEdit = (sub) => {
@@ -656,7 +680,9 @@ const startInlineEdit = (sub) => {
 }
 
 const cancelInlineEdit = () => {
+  const id = editingRowId.value
   editingRowId.value = null
+  if (id) revealSubscriptionRow(id)
 }
 
 const saveInlineEdit = async (id) => {
@@ -666,6 +692,7 @@ const saveInlineEdit = async (id) => {
   const result = await updateSubscriptionInline(id, editForm.value)
   if (result.success) {
     editingRowId.value = null
+    revealSubscriptionRow(id)
   } else {
     alert('儲存失敗: ' + result.error)
   }

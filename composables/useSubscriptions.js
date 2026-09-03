@@ -215,8 +215,9 @@ export const useSubscriptions = () => {
       
       if (error) throw error
       
-      subscriptions.value.unshift(normalizeSubscription(data))
-      return { success: true }
+      const created = normalizeSubscription(data)
+      subscriptions.value.unshift(created)
+      return { success: true, item: created }
     } catch (error) {
       console.error('行内新增失敗:', error.message)
       return { success: false, error: getSubscriptionErrorMessage(error) }

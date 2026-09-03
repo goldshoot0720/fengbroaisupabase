@@ -466,6 +466,19 @@
             <p class="tool-subtitle">目前追蹤 {{ tubeChannelCount }} 個頻道，預設清單 {{ defaultTubeChannelCount }} 個。</p>
           </div>
           <div class="tool-panel__actions">
+            <input
+              ref="tubeCsvInput"
+              type="file"
+              accept=".csv,text/csv"
+              style="display:none"
+              @change="handleTubeCsvFileSelect"
+            >
+            <button type="button" class="tool-secondary-btn tool-secondary-btn--compact" :disabled="tubeCsvBusy" title="匯出目前全部頻道為 CSV（alias,sourceUrl）" @click="exportTubeChannelsCsv">
+              匯出 CSV
+            </button>
+            <button type="button" class="tool-secondary-btn tool-secondary-btn--compact" :disabled="tubeCsvBusy" title="從 CSV 匯入頻道（相同頻道會略過；已下架預設頻道會明確報錯）" @click="tubeCsvInput?.click()">
+              匯入 CSV
+            </button>
             <button type="button" class="tool-secondary-btn tool-secondary-btn--compact" @click="showTubeManager = !showTubeManager">
               {{ showTubeManager ? '收起管理' : '頻道管理' }}
             </button>
@@ -530,6 +543,7 @@
           </div>
         </div>
 
+        <p v-if="tubeCsvMessage" class="tool-notice tube-csv-message" role="status">{{ tubeCsvMessage }}</p>
         <p v-if="tubeError" class="tool-error">{{ tubeError }}</p>
         <p v-else-if="tubeLoading && !tubeResult" class="tool-notice">正在整理鋒兄tube 最新影片。</p>
         <p v-else-if="tubeNewVideos.length > 0" class="tool-notice">
@@ -1079,8 +1093,10 @@ import FengbroNewsPanel from './FengbroNewsPanel.vue'
 import {
   FENG_TUBE_ACTIVE_TOOL_KEY,
   FENG_TUBE_CHANNELS,
+  REMOVED_FENG_TUBE_HANDLES,
   stripRemovedFengTubeChannels
 } from '../../utils/fengTubeChannels'
+import { buildFengbroTubeCsv, parseFengbroTubeCsv } from '../../utils/fengTubeCsv'
 import { FENG_FINANCE_DEFAULT_INSTRUMENTS } from '../../utils/fengFinanceInstruments'
 import {
   FINANCE_CUSTOM_GROUPS,
@@ -1183,6 +1199,9 @@ const showTubeManager = ref(false)
 const editingTubeChannelId = ref('')
 const tubeEditForm = ref({ label: '', url: '' })
 const tubeEditFormError = ref('')
+const tubeCsvInput = ref(null)
+const tubeCsvMessage = ref('')
+const tubeCsvBusy = ref(false)
 
 const financeLoading = ref(false)
 const financeError = ref('')
@@ -2512,6 +2531,87 @@ const confirmRemoveTubeChannel = (channelId) => {
   removeTubeChannel(channelId)
 }
 
+const exportTubeChannelsCsv = () => {
+  if (tubeCsvBusy.value) return
+  try {
+    const csv = buildFengbroTubeCsv(tubeUserChannels.value)
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = 'fengbro-tube-channels.csv'
+    link.click()
+    URL.revokeObjectURL(link.href)
+    tubeCsvMessage.value = ''
+  } catch (error) {
+    tubeCsvMessage.value = `匯出失敗：${error instanceof Error ? error.message : '未知錯誤'}`
+  }
+}
+
+const handleTubeCsvFileSelect = async (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    tubeCsvMessage.value = '請選擇 CSV 檔案'
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = async () => {
+    const parsed = parseFengbroTubeCsv(typeof reader.result === 'string' ? reader.result : '')
+    if (parsed.errors.length > 0) {
+      tubeCsvMessage.value = parsed.errors.slice(0, 5).join('；')
+      // 若整批都是已下架頻道/格式錯誤，不匯入任何資料。
+      if (parsed.data.length === 0) return
+    }
+    if (parsed.data.length === 0) {
+      tubeCsvMessage.value = 'CSV 沒有可匯入的頻道'
+      return
+    }
+
+    tubeCsvBusy.value = true
+    let addedCount = 0
+    let skippedCount = 0
+    try {
+      for (const row of parsed.data) {
+        const parsedSource = parseTubeChannelSource(row.sourceUrl)
+        if (!parsedSource) {
+          skippedCount += 1
+          continue
+        }
+        // 已下架黑名單（parse 層已報錯，這裡再擋一次以保險）
+        const rawHandle = parsedSource.handle.replace(/^@/, '').toLowerCase()
+        if (REMOVED_FENG_TUBE_HANDLES.has(rawHandle)) {
+          skippedCount += 1
+          continue
+        }
+        if (isDuplicateTubeChannel(parsedSource)) {
+          skippedCount += 1
+          continue
+        }
+        const label = row.alias?.trim() || decodeHandleSegment(parsedSource.handleSegment)
+        const channel = {
+          id: uniqueTubeId(slugifyTubeId(parsedSource.handleSegment)),
+          label,
+          handle: parsedSource.handle,
+          url: parsedSource.url
+        }
+        tubeUserChannels.value = [...tubeUserChannels.value, channel]
+        addedCount += 1
+      }
+      writeTubeChannels()
+      const summary = `匯入完成：新增 ${addedCount} 個、略過 ${skippedCount} 個。`
+      tubeCsvMessage.value = parsed.errors.length > 0
+        ? `${parsed.errors.slice(0, 3).join('；')}。${summary}`
+        : summary
+      runTubeLookup()
+    } finally {
+      tubeCsvBusy.value = false
+    }
+  }
+  reader.onerror = () => { tubeCsvMessage.value = '讀取 CSV 檔案失敗' }
+  reader.readAsText(file, 'UTF-8')
+}
+
 const startTubeChannelEdit = (channel) => {
   editingTubeChannelId.value = channel.id
   tubeEditForm.value = {
@@ -2955,6 +3055,11 @@ watch(
   background: color-mix(in oklab, var(--primary) 8%, var(--bg-primary));
   color: var(--text-secondary);
   line-height: 1.6;
+}
+
+.tube-csv-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .tool-meta,

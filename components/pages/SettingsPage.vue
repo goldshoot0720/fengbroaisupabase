@@ -1254,6 +1254,29 @@ CREATE TABLE public.menuusage (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );`
+  },
+  {
+    name: 'shoppinglist',
+    label: '購物清單',
+    icon: '🛒',
+    checking: false,
+    exists: false,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE public.shoppinglist (
+  ${UUID_PRIMARY_KEY_SQL}
+  name VARCHAR(100) NOT NULL,
+  planneddate DATE,
+  price INTEGER DEFAULT 0,
+  currency VARCHAR(10) DEFAULT 'TWD',
+  quantity INTEGER DEFAULT 1,
+  shop VARCHAR(100),
+  pickupmethod VARCHAR(100),
+  account VARCHAR(200),
+  note VARCHAR(3337),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);`
   }
 ])
 

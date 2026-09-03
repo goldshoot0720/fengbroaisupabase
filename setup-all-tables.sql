@@ -381,6 +381,27 @@ CREATE TABLE IF NOT EXISTS public.menuusage (
 CREATE INDEX IF NOT EXISTS idx_menuusage_count ON public.menuusage(count DESC);
 
 -- =====================================================
+-- 18. SHOPPINGLIST 表（鋒兄購物清單）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.shoppinglist (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  planneddate DATE,
+  price INTEGER DEFAULT 0,
+  currency VARCHAR(10) DEFAULT 'TWD',
+  quantity INTEGER DEFAULT 1,
+  shop VARCHAR(100),
+  pickupmethod VARCHAR(100),
+  account VARCHAR(200),
+  note VARCHAR(3337),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_shoppinglist_name ON public.shoppinglist(name);
+CREATE INDEX IF NOT EXISTS idx_shoppinglist_planneddate ON public.shoppinglist(planneddate);
+
+-- =====================================================
 -- 驗證：查看所有建立的表結構
 -- =====================================================
 SELECT 
@@ -394,6 +415,6 @@ WHERE table_schema = 'public'
   AND table_name IN (
     'article', 'bank', 'commonaccount', 'commondocument', 'food',
     'image', 'menuusage', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'routine',
-    'sitevisit', 'subscription', 'trialpurchase', 'video'
+    'shoppinglist', 'sitevisit', 'subscription', 'trialpurchase', 'video'
   )
 ORDER BY table_name, ordinal_position;

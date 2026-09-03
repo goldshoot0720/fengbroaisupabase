@@ -626,3 +626,169 @@ export function formatQuotaDate(value) {
     day: '2-digit',
   }).format(date)
 }
+
+// ===== 鋒兄購物清單 =====
+
+export const SHOPPING_CURRENCY_OPTIONS = [
+  { value: 'TWD', label: '台幣' },
+  { value: 'USD', label: '美元' },
+  { value: 'JPY', label: '日圓' },
+  { value: 'CNY', label: '人民幣' },
+]
+
+export const SHOPPING_PICKUP_METHOD_PRESETS = [
+  '取貨付款',
+  '宅配',
+  '超商取貨',
+  '面交',
+]
+
+const shoppingCurrencies = new Set(SHOPPING_CURRENCY_OPTIONS.map((option) => option.value))
+
+const SHOPPING_EXCHANGE_RATES = { TWD: 1, USD: 35, JPY: 0.35, CNY: 4.5 }
+const SHOPPING_CURRENCY_SYMBOLS = { TWD: 'NT$', USD: '$', JPY: '¥', CNY: '¥' }
+
+export function emptyShoppingItemForm(name = '') {
+  return {
+    name,
+    plannedDate: '',
+    price: 0,
+    currency: 'TWD',
+    quantity: 1,
+    shop: '',
+    pickupMethod: '',
+    account: '',
+    note: '',
+  }
+}
+
+export function toShoppingItemForm(source) {
+  return {
+    name: source.name || '',
+    plannedDate: source.plannedDate ? String(source.plannedDate).slice(0, 10) : '',
+    price: Number(source.price || 0),
+    currency: asChoice(source.currency, shoppingCurrencies, 'TWD'),
+    quantity: Number(source.quantity || 1),
+    shop: source.shop || '',
+    pickupMethod: source.pickupMethod || '',
+    account: source.account || '',
+    note: source.note || '',
+  }
+}
+
+function asPositiveInteger(value, label) {
+  const parsed = Number(value)
+  if ((typeof value !== 'string' && typeof value !== 'number') || !Number.isSafeInteger(parsed) || parsed < 1) {
+    throw new Error(`${label}必須是 1 以上的整數`)
+  }
+  return parsed
+}
+
+export function buildShoppingItemWritePayload(body, mode) {
+  validateBody(body)
+  const name = asText(body.name, '購物名稱', 100)
+  if (!name) throw new Error('請填寫購物名稱')
+
+  const plannedDate = asOptionalDate(body.plannedDate)
+  const payload = {
+    name,
+    price: asNonNegativeInteger(body.price, '預定價格'),
+    currency: asChoice(body.currency, shoppingCurrencies, 'TWD', '幣別'),
+    quantity: asPositiveInteger(body.quantity == null || body.quantity === '' ? 1 : body.quantity, '預定數量'),
+    shop: asText(body.shop, '預定商店', 100),
+    pickupMethod: asText(body.pickupMethod, '預定取貨方式', 100),
+    account: asText(body.account, '帳號', 200),
+    note: asText(body.note, '備註', 3337),
+  }
+
+  if (plannedDate) payload.plannedDate = plannedDate
+  else if (mode === 'update') payload.plannedDate = null
+  return payload
+}
+
+export function shoppingItemToDbRow(payload) {
+  return {
+    name: payload.name,
+    planneddate: payload.plannedDate ? String(payload.plannedDate).slice(0, 10) : null,
+    price: payload.price ?? 0,
+    currency: payload.currency || 'TWD',
+    quantity: payload.quantity ?? 1,
+    shop: payload.shop || '',
+    pickupmethod: payload.pickupMethod || '',
+    account: payload.account || '',
+    note: payload.note || '',
+  }
+}
+
+export function shoppingItemFromDbRow(row) {
+  if (!row) return null
+  return {
+    id: row.id,
+    name: row.name || '',
+    plannedDate: row.planneddate ? String(row.planneddate).slice(0, 10) : '',
+    price: Number(row.price || 0),
+    currency: asChoice(row.currency, shoppingCurrencies, 'TWD'),
+    quantity: Number(row.quantity || 1),
+    shop: row.shop || '',
+    pickupMethod: row.pickupmethod || '',
+    account: row.account || '',
+    note: row.note || '',
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export function shoppingItemKey(name) {
+  return String(name || '').trim().toLocaleLowerCase('zh-Hant')
+}
+
+/** 日期差（以本地日曆日為準，正數＝未來）。無日期回 null。 */
+export function shoppingPlannedDays(value, now = new Date()) {
+  if (!value) return null
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) return null
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const targetLocal = new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  return Math.round((targetLocal.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
+}
+
+export function shoppingExpiryInfo(item, now = new Date()) {
+  const daysRemaining = shoppingPlannedDays(item?.plannedDate, now)
+  const hasDate = daysRemaining !== null
+  return {
+    hasDate,
+    daysRemaining: daysRemaining ?? null,
+    isToday: hasDate && daysRemaining === 0,
+    isExpired: hasDate && daysRemaining < 0,
+    isUpcomingSoon: hasDate && daysRemaining >= 0 && daysRemaining <= 3,
+  }
+}
+
+export function shoppingPlannedLabel(item, now = new Date()) {
+  const info = shoppingExpiryInfo(item, now)
+  if (!info.hasDate) return ''
+  if (info.isExpired) return `已過 ${Math.abs(info.daysRemaining)} 天`
+  if (info.isToday) return '今天'
+  if (info.daysRemaining === 1) return '明天'
+  return `${info.daysRemaining} 天後`
+}
+
+export function formatShoppingDate(value) {
+  if (!value) return '未設定'
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) return '日期格式錯誤'
+  return new Intl.DateTimeFormat('zh-TW', {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}
+
+export function formatShoppingFee(amount, currency = 'TWD') {
+  const value = Number(amount) || 0
+  if (currency === 'TWD') return `NT$ ${value.toLocaleString()}`
+  const rate = SHOPPING_EXCHANGE_RATES[currency] || 1
+  const symbol = SHOPPING_CURRENCY_SYMBOLS[currency] || currency
+  return `NT$ ${Math.round(value * rate).toLocaleString()} (${symbol} ${value.toLocaleString()})`
+}

@@ -127,6 +127,7 @@ const pageAliases = {
   'trial-purchase': ['試用', '首購', '試用首購', '試用/首購', '鋒兄試用', 'trial purchase'],
   reinstall: ['重灌', '重裝', '軟體清單', '鋒兄重灌', 'reinstall'],
   quota: ['額度', '額度管理', '剩餘額度', '鋒兄額度', 'quota'],
+  shopping: ['購物', '購物清單', '商品清單', '採購', '想買', '鋒兄購物清單', 'shopping list', 'shopping'],
   food: ['食品', '食物', '商品庫存', '庫存', '到期食品', '鋒兄食品', 'food'],
   note: ['筆記', '記事', '紀錄', '會議紀錄', '鋒兄筆記', '筆記文件', '鋒兄筆記/文件', 'note'],
   common: ['常用', '常用帳號', '帳號', '網站帳號', '鋒兄常用', 'common'],
@@ -149,6 +150,7 @@ const pageHints = {
   'trial-purchase': ['新增紀錄', '搜尋 ChatGPT', '輸入 帳號', '匯出 CSV'],
   reinstall: ['新增軟體', '搜尋 7-Zip', '輸入 序號', '匯出 CSV'],
   quota: ['新增紀錄', '搜尋 ChatGPT', '輸入 剩餘次數', '匯出 CSV'],
+  shopping: ['新增商品', '搜尋 洗碗機', '輸入 預定購買日', '匯出 CSV'],
   food: ['新增食品', '搜尋 牛奶', '輸入 義美', '匯出 CSV'],
   note: ['新增筆記', '搜尋 會議', '輸入 今天值整理什麼', '批量選擇'],
   common: ['新增常用', '搜尋 Gmail', '輸入 example@gmail.com', '儲存'],
@@ -180,6 +182,7 @@ const fieldAliases = [
   { key: 'hash', aliases: ['hash', 'Hash', '雜湊'] },
   { key: 'quantity', aliases: ['數量', '庫存', '份數', '瓶數', '包數', '個數'] },
   { key: 'status', aliases: ['狀態', '續訂狀態', '是否續訂'] },
+  { key: 'pickupMethod', aliases: ['取貨方式', '取貨'] },
   { key: 'phone', aliases: ['電話', '手機', '聯絡電話'] },
   { key: 'deposit', aliases: ['存款'] },
   { key: 'card', aliases: ['卡號'] },
@@ -215,6 +218,16 @@ const pageFieldSelectors = {
     account: 'input[placeholder*="帳號"], input[placeholder*="Email"]',
     date: 'input[type="date"]',
     note: 'textarea[placeholder*="備註"], textarea'
+  },
+  shopping: {
+    name: 'input[placeholder*="洗碗機"], input[placeholder*="購物"]',
+    account: 'input[placeholder*="帳號"], input[placeholder*="Email"]',
+    price: 'input[type="number"]',
+    quantity: 'input[type="number"]',
+    date: 'input[type="date"]',
+    note: 'textarea[placeholder*="備註"], textarea',
+    shop: 'input[placeholder*="PChome"], input[placeholder*="家樂福"], input[list="shopping-shops"]',
+    pickupMethod: 'input[placeholder*="取貨付款"], input[list="shopping-pickup-presets"]'
   },
   food: {
     name: 'input[placeholder*="食品"], input[placeholder*="名稱"], .inline-name',

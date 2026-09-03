@@ -10,6 +10,7 @@ const pages = [
       { id: 'trial-purchase', page: 'trial-purchase', name: '試用/首購', title: '鋒兄試用/首購', subtitle: '依服務展開帳號、試用與首購狀態。' },
       { id: 'reinstall', page: 'reinstall', name: '重灌', title: '鋒兄重灌', subtitle: '整理 Windows／Mac 重灌軟體、序號與訂閱費用。' },
       { id: 'quota', page: 'quota', name: '額度', title: '鋒兄額度', subtitle: '依服務展開帳號、剩餘額度與到期日。' },
+      { id: 'shopping', page: 'shopping', name: '購物清單', title: '鋒兄購物清單', subtitle: '記錄想買的商品、預定購買日、價格與取貨方式。' },
       { id: 'food', page: 'food', name: '食品', title: '鋒兄食品', subtitle: '管理食品與庫存期限。' },
       { id: 'routine', page: 'routine', name: '例行', title: '鋒兄例行', subtitle: '管理固定流程與最近執行日期。' },
     ]

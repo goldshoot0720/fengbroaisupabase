@@ -22,6 +22,7 @@ Column source of truth for new tables is the `tables` array in `components/pages
 | 鋒兄訂閱 | `SubscriptionPage.vue` | `useSubscriptions` | `subscription` |
 | 鋒兄試用/首購 | `TrialPurchasePage.vue` | `useTrialPurchases` | `trialpurchase` |
 | 鋒兄額度 | `QuotaPage.vue` | `useQuotas` | `quota` |
+| 鋒兄購物清單 | `ShoppingPage.vue` | `useShoppingList` | `shoppinglist` |
 | 鋒兄重灌 | `ReinstallPage.vue` | `useReinstalls` | `reinstall`（含訂閱週期／費用與 CSV） |
 | 鋒兄影片 | `VideoDBPage.vue` | `useVideoRecords` | `video` |
 | Web Push | Settings / SW | `usePushNotification` | `push_subscriptions` |

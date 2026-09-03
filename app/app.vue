@@ -94,6 +94,11 @@
             v-if="currentPage === 'quota'"
           />
 
+          <!-- 購物清單 -->
+          <ShoppingPage
+            v-if="currentPage === 'shopping'"
+          />
+
           <!-- 食物管理 -->
           <FoodPage 
             v-if="currentPage === 'food'"

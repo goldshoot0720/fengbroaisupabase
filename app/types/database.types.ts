@@ -486,6 +486,35 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['menuusage']['Insert']>
       }
+      shoppinglist: {
+        Row: {
+          id: RowId
+          name: string
+          planneddate: string | null
+          price: number | null
+          currency: string | null
+          quantity: number | null
+          shop: string | null
+          pickupmethod: string | null
+          account: string | null
+          note: string | null
+        } & Timestamps
+        Insert: {
+          id?: RowId
+          name: string
+          planneddate?: string | null
+          price?: number | null
+          currency?: string | null
+          quantity?: number | null
+          shop?: string | null
+          pickupmethod?: string | null
+          account?: string | null
+          note?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['shoppinglist']['Insert']>
+      }
     }
     Views: {
       [_ in never]: never

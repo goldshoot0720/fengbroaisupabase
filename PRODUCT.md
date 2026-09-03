@@ -10,7 +10,7 @@ web
 
 ## Users
 
-Primary user is 鋒兄 (the product owner) managing personal life data day to day on desktop and phone: subscriptions, food expiry, notes, accounts, media libraries, bank records, routines, and utility tools. Context is often quick check-ins between other tasks—confirm an expiry, log a bank move, play media, or open a tool—not long-form exploration.
+Primary user is 鋒兄 (the product owner) managing personal life data day to day on desktop and phone: subscriptions, trial/first-purchase accounts, reinstall software lists, food expiry, notes, accounts, media libraries, bank records, routines, and utility tools. Context is often quick check-ins between other tasks—confirm an expiry, log a bank move, play media, or open a tool—not long-form exploration.
 
 ## Product Purpose
 

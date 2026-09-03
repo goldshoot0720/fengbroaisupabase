@@ -12,7 +12,7 @@ declare
   table_name text;
   private_tables text[] := array[
     'article', 'bank', 'commonaccount', 'commondocument', 'food', 'image',
-    'music', 'podcast', 'routine', 'subscription', 'video', 'push_subscriptions',
+    'music', 'podcast', 'reinstall', 'routine', 'subscription', 'trialpurchase', 'video', 'push_subscriptions',
     'manualprice', 'landtop_history'
   ];
 begin

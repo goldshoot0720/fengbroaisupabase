@@ -81,6 +81,16 @@
             ref="subscriptionPageRef"
           />
 
+          <!-- 試用／首購 -->
+          <TrialPurchasePage
+            v-if="currentPage === 'trial-purchase'"
+          />
+
+          <!-- 重灌軟體 -->
+          <ReinstallPage
+            v-if="currentPage === 'reinstall'"
+          />
+
           <!-- 食物管理 -->
           <FoodPage 
             v-if="currentPage === 'food'"

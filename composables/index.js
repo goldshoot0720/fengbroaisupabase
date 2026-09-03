@@ -1,5 +1,7 @@
 // Composables 統一導出
 export { useSubscriptions } from './useSubscriptions'
+export { useTrialPurchases } from './useTrialPurchases'
+export { useReinstalls } from './useReinstalls'
 export { useRecentSearchHistory } from './useRecentSearchHistory'
 export { useFoods } from './useFoods'
 export { useGallery } from './useGallery'

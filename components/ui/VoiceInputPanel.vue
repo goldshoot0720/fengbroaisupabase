@@ -124,6 +124,8 @@ const pageAliases = {
   home: ['首頁', '鋒兄首頁', '主頁', '開始', 'home'],
   dashboard: ['儀表', '儀表板', '總覽', '鋒兄儀表', 'dashboard'],
   subscription: ['訂閱', '續訂', '月費', '扣款', '鋒兄訂閱', 'subscription'],
+  'trial-purchase': ['試用', '首購', '試用首購', '試用/首購', '鋒兄試用', 'trial purchase'],
+  reinstall: ['重灌', '重裝', '軟體清單', '鋒兄重灌', 'reinstall'],
   food: ['食品', '食物', '商品庫存', '庫存', '到期食品', '鋒兄食品', 'food'],
   note: ['筆記', '記事', '紀錄', '會議紀錄', '鋒兄筆記', '筆記文件', '鋒兄筆記/文件', 'note'],
   common: ['常用', '常用帳號', '帳號', '網站帳號', '鋒兄常用', 'common'],
@@ -143,6 +145,8 @@ const pageHints = {
   home: ['切換到鋒兄儀表', '切換到鋒兄訂閱', '切換到鋒兄食品', '搜尋 今日'],
   dashboard: ['切換到鋒兄訂閱', '切換到鋒兄食品', '重新整理', '往下'],
   subscription: ['新增訂閱', '搜尋 Netflix', '輸入 月費 390', '儲存'],
+  'trial-purchase': ['新增紀錄', '搜尋 ChatGPT', '輸入 帳號', '匯出 CSV'],
+  reinstall: ['新增軟體', '搜尋 7-Zip', '輸入 序號', '匯出 CSV'],
   food: ['新增食品', '搜尋 牛奶', '輸入 義美', '匯出 CSV'],
   note: ['新增筆記', '搜尋 會議', '輸入 今天值整理什麼', '批量選擇'],
   common: ['新增常用', '搜尋 Gmail', '輸入 example@gmail.com', '儲存'],
@@ -190,6 +194,19 @@ const pageFieldSelectors = {
     date: 'input[type="date"]',
     shop: 'input[type="url"], input[placeholder*="網址"]',
     url: 'input[type="url"], input[placeholder*="網址"]'
+  },
+  'trial-purchase': {
+    name: 'input[placeholder*="ChatGPT"], input[placeholder*="服務"]',
+    account: 'input[placeholder*="帳號"], input[placeholder*="Email"]',
+    price: 'input[type="number"]',
+    date: 'input[type="date"]',
+    note: 'textarea[placeholder*="備註"], textarea'
+  },
+  reinstall: {
+    name: 'input[placeholder*="7-Zip"], input[placeholder*="Adobe"]',
+    note: 'textarea[placeholder*="備註"], textarea',
+    url: 'input[placeholder*="https"], input[type="url"]',
+    shop: 'input[placeholder*="https"], input[type="url"]'
   },
   food: {
     name: 'input[placeholder*="食品"], input[placeholder*="名稱"], .inline-name',

@@ -1115,6 +1115,60 @@ CREATE TABLE public.subscription (
 );`
   },
   {
+    name: 'trialpurchase',
+    label: '試用／首購',
+    icon: '🧾',
+    checking: false,
+    exists: false,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE public.trialpurchase (
+  ${UUID_PRIMARY_KEY_SQL}
+  name VARCHAR(100) NOT NULL,
+  eventdate DATE,
+  firstpurchaseprice INTEGER DEFAULT 0,
+  regularprice INTEGER DEFAULT 0,
+  account VARCHAR(200),
+  note VARCHAR(3337),
+  trialstatus VARCHAR(20) DEFAULT 'untried',
+  purchasestatus VARCHAR(30) DEFAULT 'not_purchased',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);`
+  },
+  {
+    name: 'reinstall',
+    label: '重灌軟體',
+    icon: '💻',
+    checking: false,
+    exists: false,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE public.reinstall (
+  ${UUID_PRIMARY_KEY_SQL}
+  name VARCHAR(100) NOT NULL,
+  system VARCHAR(10) DEFAULT 'win',
+  softwaretype VARCHAR(20) DEFAULT 'free',
+  licensetype VARCHAR(20) DEFAULT 'none',
+  serial VARCHAR(500),
+  viewpassword VARCHAR(100),
+  subscriptionsoftware BOOLEAN DEFAULT false,
+  subscriptionperiod VARCHAR(20),
+  subscriptionprice INTEGER DEFAULT 0,
+  subscriptioncurrency VARCHAR(10) DEFAULT 'TWD',
+  site TEXT,
+  note VARCHAR(3337),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.reinstall
+  ADD COLUMN IF NOT EXISTS subscriptionsoftware BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS subscriptionperiod VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS subscriptionprice INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS subscriptioncurrency VARCHAR(10) DEFAULT 'TWD';`
+  },
+  {
     name: 'video',
     label: '影片管理',
     icon: '🎬',

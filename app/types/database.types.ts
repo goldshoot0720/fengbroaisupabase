@@ -255,6 +255,41 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['podcast']['Insert']>
       }
+      reinstall: {
+        Row: {
+          id: RowId
+          name: string
+          system: string | null
+          softwaretype: string | null
+          licensetype: string | null
+          serial: string | null
+          viewpassword: string | null
+          subscriptionsoftware: boolean | null
+          subscriptionperiod: string | null
+          subscriptionprice: number | null
+          subscriptioncurrency: string | null
+          site: string | null
+          note: string | null
+        } & Timestamps
+        Insert: {
+          id?: RowId
+          name: string
+          system?: string | null
+          softwaretype?: string | null
+          licensetype?: string | null
+          serial?: string | null
+          viewpassword?: string | null
+          subscriptionsoftware?: boolean | null
+          subscriptionperiod?: string | null
+          subscriptionprice?: number | null
+          subscriptioncurrency?: string | null
+          site?: string | null
+          note?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['reinstall']['Insert']>
+      }
       push_subscriptions: {
         Row: {
           id: RowId
@@ -323,6 +358,33 @@ export interface Database {
           updated_at?: string | null
         }
         Update: Partial<Database['public']['Tables']['subscription']['Insert']>
+      }
+      trialpurchase: {
+        Row: {
+          id: RowId
+          name: string
+          eventdate: string | null
+          firstpurchaseprice: number | null
+          regularprice: number | null
+          account: string | null
+          note: string | null
+          trialstatus: string | null
+          purchasestatus: string | null
+        } & Timestamps
+        Insert: {
+          id?: RowId
+          name: string
+          eventdate?: string | null
+          firstpurchaseprice?: number | null
+          regularprice?: number | null
+          account?: string | null
+          note?: string | null
+          trialstatus?: string | null
+          purchasestatus?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['trialpurchase']['Insert']>
       }
       video: {
         Row: {

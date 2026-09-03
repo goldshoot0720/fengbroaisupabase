@@ -269,7 +269,51 @@ CREATE TABLE IF NOT EXISTS public.routine (
 CREATE INDEX IF NOT EXISTS idx_routine_name ON public.routine(name);
 
 -- =====================================================
--- 12. PUSH_SUBSCRIPTIONS（Web Push；RLS 見 supabase-push-table.sql）
+-- 12. TRIALPURCHASE 表（試用／首購）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.trialpurchase (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  eventdate DATE,
+  firstpurchaseprice INTEGER DEFAULT 0,
+  regularprice INTEGER DEFAULT 0,
+  account VARCHAR(200),
+  note VARCHAR(3337),
+  trialstatus VARCHAR(20) DEFAULT 'untried',
+  purchasestatus VARCHAR(30) DEFAULT 'not_purchased',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_trialpurchase_name ON public.trialpurchase(name);
+CREATE INDEX IF NOT EXISTS idx_trialpurchase_eventdate ON public.trialpurchase(eventdate);
+
+-- =====================================================
+-- 13. REINSTALL 表（重灌軟體）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.reinstall (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  system VARCHAR(10) DEFAULT 'win',
+  softwaretype VARCHAR(20) DEFAULT 'free',
+  licensetype VARCHAR(20) DEFAULT 'none',
+  serial VARCHAR(500),
+  viewpassword VARCHAR(100),
+  subscriptionsoftware BOOLEAN DEFAULT false,
+  subscriptionperiod VARCHAR(20),
+  subscriptionprice INTEGER DEFAULT 0,
+  subscriptioncurrency VARCHAR(10) DEFAULT 'TWD',
+  site TEXT,
+  note VARCHAR(3337),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reinstall_name ON public.reinstall(name);
+CREATE INDEX IF NOT EXISTS idx_reinstall_system ON public.reinstall(system);
+
+-- =====================================================
+-- 14. PUSH_SUBSCRIPTIONS（Web Push；RLS 見 supabase-push-table.sql）
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.push_subscriptions (
   id BIGSERIAL PRIMARY KEY,
@@ -293,7 +337,7 @@ FROM information_schema.columns
 WHERE table_schema = 'public' 
   AND table_name IN (
     'article', 'bank', 'commonaccount', 'commondocument', 'food',
-    'image', 'music', 'podcast', 'push_subscriptions', 'routine',
-    'subscription', 'video'
+    'image', 'music', 'podcast', 'push_subscriptions', 'reinstall', 'routine',
+    'subscription', 'trialpurchase', 'video'
   )
 ORDER BY table_name, ordinal_position;

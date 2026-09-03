@@ -94,6 +94,11 @@
             <p>支援 ZIP 匯出/匯入、CSV 匯出/匯入、附件 CSV 表格預覽與進度顯示。</p>
           </article>
           <article class="feature-card">
+            <span class="feature-icon">🧾</span>
+            <h3>試用／首購與重灌</h3>
+            <p>獨立 trialpurchase、reinstall 資料表：依服務展開帳號，並整理 Win／Mac 軟體、隱藏序號與查看密碼。</p>
+          </article>
+          <article class="feature-card">
             <span class="feature-icon">🧰</span>
             <h3>鋒兄工具</h3>
             <p>整合 BigGo、手動價錢、手機通路比價、YouTube、金融、新聞、圖片語音成片、PNG／JPEG 轉換，以及多段影片合併。</p>

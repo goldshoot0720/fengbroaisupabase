@@ -5,7 +5,7 @@
 
 ## 結論
 
-核心的資料管理（訂閱、食物、銀行、常用帳號、文件、影音、音樂、Podcast）以及轉檔、金融、新聞與通知，皆可在目前 Supabase 專案的 `components/pages/`、`composables/` 與 `server/api/` 中找到對應實作。未發現需要優先補齊的核心 CRUD 缺口。
+核心的資料管理（訂閱、試用／首購、重灌、食物、銀行、常用帳號、文件、影音、音樂、Podcast）以及轉檔、金融、新聞與通知，皆可在目前 Supabase 專案的 `components/pages/`、`composables/` 與 `server/api/` 中找到對應實作。2026-09-03 已補上 Appwrite `docs/INDEX.md` 的「鋒兄試用/首購」與「鋒兄重灌」，並對齊重灌訂閱週期／費用欄位與 CSV 匯入匯出。
 
 下列三項是 Appwrite 版有明確元件、但本專案以全文搜尋 `components/`、`app/`、`composables/`、`pages/` 後找不到相應入口或內容的功能；它們應視為尚未移植的展示／互動功能：
 

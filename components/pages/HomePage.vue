@@ -335,7 +335,7 @@ const metrics = [
 const primaryRoutes = [
   { index: '01', title: '總覽', description: '快速掌握近期續訂、食品期限與整體管理壓力。', page: 'dashboard' },
   { index: '02', title: '訂閱管理', description: '整理平台費用、付款時間與續訂節奏。', page: 'subscription' },
-  { index: '03', title: '鋒兄食品', description: '追蹤數量、期限與補貨優先順序。', page: 'food' }
+  { index: '03', title: '試用／首購', description: '依服務展開帳號，追蹤試用、首購與扣款日。', page: 'trial-purchase' }
 ]
 
 const features = [
@@ -357,9 +357,9 @@ const features = [
 ]
 
 const channels = [
-  { index: '04', title: '筆記 / 常用帳號', description: '維持快速檢索與低干擾的資訊視圖。', page: 'note' },
-  { index: '05', title: '圖庫 / 影片 / 音樂', description: '多媒體資料也使用相同的編排與節奏。', page: 'gallery' },
-  { index: '06', title: '文件 / 例行流程 / 設定', description: '從內容到系統設定都落在同一套視覺母語。', page: 'document' }
+  { index: '04', title: '重灌軟體', description: '整理 Win／Mac 安裝清單、隱藏序號與查看密碼。', page: 'reinstall' },
+  { index: '05', title: '筆記 / 常用帳號', description: '維持快速檢索與低干擾的資訊視圖。', page: 'note' },
+  { index: '06', title: '圖庫 / 影片 / 音樂', description: '多媒體資料也使用相同的編排與節奏。', page: 'gallery' }
 ]
 </script>
 

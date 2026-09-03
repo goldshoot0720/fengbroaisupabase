@@ -20,7 +20,8 @@
     "list-blobs": "node scripts/blob-manager.js list",
     "blob-report": "node scripts/blob-manager.js report",
     "test-blob-access": "node scripts/test-blob-access.js",
-    "test:finance-csv": "node --experimental-strip-types scripts/test-fengbro-finance-csv.mjs"
+    "test:finance-csv": "node --experimental-strip-types scripts/test-fengbro-finance-csv.mjs",
+    "test:unit": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",

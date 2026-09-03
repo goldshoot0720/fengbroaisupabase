@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 // Probe the actual tables used by fengbroaisupabase pages/composables.
 const TABLES = [
   'subscription',
+  'trialpurchase',
+  'reinstall',
   'food',
   'article',
   'commonaccount',

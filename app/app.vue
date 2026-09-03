@@ -1,7 +1,5 @@
 <template>
   <div id="app">
-    <AuthGate v-if="!authReady || !authUser" />
-    <template v-else>
     <!-- 整體應用容器 -->
     <div class="app-container">
       <!-- 側邊欄（手機版） -->
@@ -359,7 +357,6 @@
       <div>頂部按鈕: {{ showTopButton ? '✅' : '❌' }}</div>
       <div>底部按鈕: {{ showBottomButton ? '✅' : '❌' }}</div>
     </div>
-    </template>
   </div>
 </template>
 
@@ -370,7 +367,6 @@ import AppHeader from '../components/layout/AppHeader.vue'
 import PageContainer from '../components/layout/PageContainer.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ToastContainer from '../components/ui/ToastContainer.vue'
-import AuthGate from '../components/auth/AuthGate.vue'
 import PageLoadingState from '../components/ui/PageLoadingState.vue'
 
 // 頁面模組按需載入，避免影片、音樂與 AI 工具的重量影響首屏。
@@ -410,7 +406,6 @@ import { getSupabaseCredentials } from '../composables/useSettings'
 import { useNotifications } from '../composables/useNotifications'
 import { usePersistentAudioPlayer } from '../composables/usePersistentAudioPlayer'
 import { usePersistentVideoPlayer } from '../composables/usePersistentVideoPlayer'
-import { useAuth } from '../composables/useAuth'
 
 // 組件引用
 const subscriptionPageRef = ref(null)
@@ -420,7 +415,6 @@ const bankPageRef = ref(null)
 // 使用 composables
 const { subscriptions, totalMonthlyCost, loadSubscriptions } = useSubscriptions()
 const { foods, loadFoods } = useFoods()
-const { user: authUser, ready: authReady, initializeAuth, disposeAuth } = useAuth()
 const { isDarkMode, toggleDarkMode, initTheme } = useTheme()
 const { 
   currentPage,
@@ -636,12 +630,6 @@ const getSupabaseUrlValidationMessage = (rawUrl) => {
 
 // 生命週期
 onMounted(async () => {
-  await initializeAuth()
-  if (!authUser.value) {
-    initTheme()
-    return
-  }
-
   // Voice is a secondary tool; defer its large panel until the first paint is idle.
   const mountVoicePanel = () => { voicePanelReady.value = true }
   if (typeof window.requestIdleCallback === 'function') {
@@ -683,7 +671,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  disposeAuth()
   if (typeof window !== 'undefined' && voicePanelIdleHandle !== null && typeof window.cancelIdleCallback === 'function') {
     window.cancelIdleCallback(voicePanelIdleHandle)
   }

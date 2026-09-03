@@ -6,6 +6,7 @@ export const SHOPPING_CSV_HEADERS = [
   'quantity',
   'shop',
   'pickupMethod',
+  'imageUrl',
   'account',
   'note',
 ]
@@ -40,6 +41,12 @@ const HEADER_ALIASES = {
   預定取貨方式: 'pickupMethod',
   取貨方式: 'pickupMethod',
   取貨: 'pickupMethod',
+  imageurl: 'imageUrl',
+  image_url: 'imageUrl',
+  image: 'imageUrl',
+  圖片: 'imageUrl',
+  圖片網址: 'imageUrl',
+  商品圖片: 'imageUrl',
   account: 'account',
   帳號: 'account',
   note: 'note',
@@ -89,6 +96,7 @@ function toCsvRow(item) {
     escapeCsvValue(item.quantity || 1),
     escapeCsvValue(item.shop || ''),
     escapeCsvValue(item.pickupMethod || ''),
+    escapeCsvValue(item.imageUrl || ''),
     escapeCsvValue(item.account || ''),
     escapeCsvValue(item.note || ''),
   ].join(',')
@@ -277,9 +285,28 @@ export function parseShoppingCsv(text) {
     }
 
     const pickupMethod = cell('pickupMethod').trim()
-    if (pickupMethod.length > 100) {
-      errors.push(`第 ${lineNumber} 行: 預定取貨方式最多 100 個字元`)
+    if (pickupMethod.length > 30) {
+      errors.push(`第 ${lineNumber} 行: 預定取貨方式最多 30 個字元`)
       continue
+    }
+
+    const imageUrlRaw = cell('imageUrl').trim()
+    let imageUrl = imageUrlRaw
+    if (imageUrlRaw) {
+      if (imageUrlRaw.length > 2000) {
+        errors.push(`第 ${lineNumber} 行: 商品圖片網址最多 2000 個字元`)
+        continue
+      }
+      try {
+        const parsedImageUrl = new URL(imageUrlRaw)
+        if (!new Set(['http:', 'https:']).has(parsedImageUrl.protocol)) {
+          errors.push(`第 ${lineNumber} 行: 商品圖片網址只接受 http 或 https`)
+          continue
+        }
+      } catch {
+        errors.push(`第 ${lineNumber} 行: 商品圖片網址格式不正確`)
+        continue
+      }
     }
 
     const account = cell('account').trim()
@@ -302,6 +329,7 @@ export function parseShoppingCsv(text) {
       quantity: quantity.value,
       shop,
       pickupMethod,
+      imageUrl,
       account,
       note,
     })

@@ -1553,12 +1553,17 @@ CREATE TABLE public.shoppinglist (
   currency VARCHAR(10) DEFAULT 'TWD',
   quantity INTEGER DEFAULT 1,
   shop VARCHAR(100),
-  pickupmethod VARCHAR(100),
+  pickupmethod VARCHAR(30),
+  imageurl TEXT,
   account VARCHAR(200),
   note VARCHAR(3337),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
-);`
+);
+
+ALTER TABLE public.shoppinglist
+  ADD COLUMN IF NOT EXISTS imageurl TEXT,
+  ALTER COLUMN pickupmethod TYPE VARCHAR(30) USING LEFT(pickupmethod, 30);`
   },
   {
     name: 'toollistsync',

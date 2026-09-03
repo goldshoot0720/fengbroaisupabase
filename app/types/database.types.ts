@@ -496,6 +496,7 @@ export interface Database {
           quantity: number | null
           shop: string | null
           pickupmethod: string | null
+          imageurl: string | null
           account: string | null
           note: string | null
         } & Timestamps
@@ -508,6 +509,7 @@ export interface Database {
           quantity?: number | null
           shop?: string | null
           pickupmethod?: string | null
+          imageurl?: string | null
           account?: string | null
           note?: string | null
           created_at?: string

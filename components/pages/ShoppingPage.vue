@@ -98,19 +98,72 @@
             </datalist>
           </label>
           <label class="field">
-            <span>預定取貨方式</span>
-            <input
+            <span>預定購買／取貨方式</span>
+            <select
               id="shopping-pickup"
+              :value="pickupSelectValue"
+              @change="handlePickupSelectChange($event.target.value)"
+            >
+              <option value="">未設定</option>
+              <option v-for="method in SHOPPING_PICKUP_METHOD_PRESETS" :key="method" :value="method">{{ method }}</option>
+              <option v-for="method in pickupMethods" :key="`existing-${method}`" :value="method">{{ method }}</option>
+              <option :value="PICKUP_METHOD_CUSTOM">自行輸入…</option>
+            </select>
+            <input
+              v-if="pickupSelectValue === PICKUP_METHOD_CUSTOM"
+              id="shopping-pickup-custom"
               v-model="form.pickupMethod"
+              class="pickup-custom-input"
               type="text"
-              maxlength="100"
-              list="shopping-pickup-presets"
-              placeholder="取貨付款、宅配或自行輸入"
+              maxlength="30"
+              placeholder="輸入其他取貨方式"
             />
-            <datalist id="shopping-pickup-presets">
-              <option v-for="method in SHOPPING_PICKUP_METHOD_PRESETS" :key="method" :value="method" />
-              <option v-for="method in pickupMethods" :key="`existing-${method}`" :value="method" />
-            </datalist>
+          </label>
+          <label class="field field-wide">
+            <span>商品圖片</span>
+            <span class="image-field-row">
+              <input
+                id="shopping-image"
+                v-model="form.imageUrl"
+                class="image-url-input"
+                type="url"
+                maxlength="2000"
+                placeholder="貼上圖片網址，或按右側「上傳圖片」"
+                @input="imageFile = null"
+              />
+              <input
+                ref="imageFileInput"
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                style="display:none"
+                @change="handleImageFileSelect"
+              />
+              <button
+                type="button"
+                class="btn-ghost"
+                :disabled="busy"
+                @click="imageFileInput?.click()"
+              >{{ imageFile ? '已選取圖片' : '上傳圖片' }}</button>
+              <button
+                v-if="imageFile || imagePreviewUrl || form.imageUrl"
+                type="button"
+                class="btn-ghost danger"
+                :disabled="busy"
+                @click="form.imageUrl = ''; resetImageState()"
+              >移除圖片</button>
+            </span>
+            <span v-if="imagePreviewUrl || form.imageUrl" class="image-preview">
+              <img
+                :src="imagePreviewUrl || form.imageUrl"
+                alt="商品圖片預覽"
+                class="image-preview-img"
+              />
+              <span class="image-preview-meta">
+                {{ imageFile ? imageFile.name : (form.imageUrl || '') }}
+                <span v-if="imageUploading">上傳中…</span>
+                <span v-else>儲存後圖片會跟著這筆購物項目保存。</span>
+              </span>
+            </span>
           </label>
           <label class="field">
             <span>帳號</span>
@@ -183,8 +236,19 @@
           <tbody>
             <tr v-for="item in filteredItems" :key="item.id">
               <td data-label="購物名稱">
-                <strong>{{ item.name }}</strong>
-                <p v-if="item.note?.trim()" class="note">{{ item.note }}</p>
+                <span class="name-cell">
+                  <img
+                    v-if="item.imageUrl"
+                    :src="item.imageUrl"
+                    alt=""
+                    loading="lazy"
+                    class="item-thumb"
+                  />
+                  <span class="name-cell-copy">
+                    <strong>{{ item.name }}</strong>
+                    <span v-if="item.note?.trim()" class="note">{{ item.note }}</span>
+                  </span>
+                </span>
               </td>
               <td data-label="預定購買日">
                 <p class="date-value">{{ formatShoppingDate(item.plannedDate) }}</p>
@@ -239,6 +303,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useShoppingList } from '../../composables/useShoppingList'
 import { useNavigation } from '../../composables/useNavigation'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import { useStorage } from '../../composables/useStorage'
 import {
   SHOPPING_CURRENCY_OPTIONS,
   SHOPPING_PICKUP_METHOD_PRESETS,
@@ -249,6 +314,9 @@ import {
   toShoppingItemForm,
 } from '../../utils/managementRecords'
 import { buildShoppingCsv, parseShoppingCsv } from '../../utils/shoppingCsv'
+
+const PICKUP_METHOD_CUSTOM = '__custom__'
+const { uploadFile: uploadShoppingImage } = useStorage()
 
 const {
   shoppingItems,
@@ -283,7 +351,72 @@ const importing = ref(false)
 const importProgress = ref({ current: 0, total: 0 })
 let importCloseTimer = null
 
-const busy = computed(() => saving.value || importing.value)
+// 商品圖片（本機檔案上傳或網址）
+const imageFileInput = ref(null)
+const imageFile = ref(null)
+const imagePreviewUrl = ref('')
+const imageUploading = ref(false)
+
+const busy = computed(() => saving.value || importing.value || imageUploading.value)
+
+// 取貨方式下拉：值不在預設清單且非空時，切到「自行輸入」。
+const pickupSelectValue = computed(() => {
+  const value = form.value.pickupMethod || ''
+  if (value && !SHOPPING_PICKUP_METHOD_PRESETS.includes(value)) return PICKUP_METHOD_CUSTOM
+  return value
+})
+
+const resetImageState = () => {
+  imageFile.value = null
+  imageUploading.value = false
+  if (imagePreviewUrl.value && imagePreviewUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(imagePreviewUrl.value)
+  }
+  imagePreviewUrl.value = ''
+}
+
+const handlePickupSelectChange = (value) => {
+  if (value === PICKUP_METHOD_CUSTOM) {
+    form.value.pickupMethod = ''
+    return
+  }
+  form.value.pickupMethod = value
+}
+
+const handleImageFileSelect = (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  const maxSize = 50 * 1024 * 1024
+  if (file.size > maxSize) {
+    actionError.value = `圖片大小超過限制：${Math.round(file.size / 1024 / 1024)}MB > 50MB`
+    return
+  }
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+  if (!validTypes.includes(file.type)) {
+    actionError.value = '只支援 JPG、PNG、GIF、WEBP 圖片格式'
+    return
+  }
+  if (imagePreviewUrl.value && imagePreviewUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(imagePreviewUrl.value)
+  }
+  imageFile.value = file
+  imagePreviewUrl.value = URL.createObjectURL(file)
+  form.value.imageUrl = ''
+  actionError.value = ''
+}
+
+const uploadSelectedImage = async () => {
+  if (!imageFile.value) return ''
+  imageUploading.value = true
+  try {
+    const result = await uploadShoppingImage(imageFile.value, 'shopping')
+    if (!result.success || !result.url) throw new Error(result.error || '圖片上傳失敗')
+    return result.url
+  } finally {
+    imageUploading.value = false
+  }
+}
 
 const itemStatus = (item) => {
   const info = shoppingExpiryInfo(item)
@@ -357,6 +490,7 @@ const openCreateForm = () => {
   editingId.value = null
   form.value = emptyShoppingItemForm()
   actionError.value = ''
+  resetImageState()
   formOpen.value = true
 }
 
@@ -364,6 +498,7 @@ const openCopyForm = (item) => {
   editingId.value = null
   form.value = { ...toShoppingItemForm(item), name: `${item.name || '未命名'} (複製)` }
   actionError.value = ''
+  resetImageState()
   formOpen.value = true
 }
 
@@ -371,6 +506,7 @@ const openEditForm = (item) => {
   editingId.value = item.id
   form.value = toShoppingItemForm(item)
   actionError.value = ''
+  resetImageState()
   formOpen.value = true
 }
 
@@ -379,6 +515,7 @@ const closeForm = () => {
   editingId.value = null
   form.value = emptyShoppingItemForm()
   actionError.value = ''
+  resetImageState()
 }
 
 const handleSubmit = async () => {
@@ -386,9 +523,18 @@ const handleSubmit = async () => {
   saving.value = true
   actionError.value = ''
   try {
+    let formToSubmit = form.value
+    if (imageFile.value) {
+      const uploadedUrl = await uploadSelectedImage()
+      if (!uploadedUrl) {
+        actionError.value = '圖片上傳失敗，請稍後再試'
+        return
+      }
+      formToSubmit = { ...form.value, imageUrl: uploadedUrl }
+    }
     const result = editingId.value
-      ? await updateShoppingItem(editingId.value, form.value)
-      : await addShoppingItem(form.value)
+      ? await updateShoppingItem(editingId.value, formToSubmit)
+      : await addShoppingItem(formToSubmit)
     if (!result.success) {
       actionError.value = result.error || '儲存失敗，請稍後再試。'
       return
@@ -669,6 +815,74 @@ const executeImport = async () => {
 
 .field-wide {
   grid-column: 1 / -1;
+}
+
+.pickup-custom-input {
+  margin-top: 0.35rem;
+}
+
+.image-field-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.image-url-input {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.image-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+}
+
+.image-preview-img {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg-inset);
+}
+
+.image-preview-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.item-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg-inset);
+}
+
+.name-cell-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .form-actions {

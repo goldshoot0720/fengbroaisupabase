@@ -637,16 +637,34 @@ export const SHOPPING_CURRENCY_OPTIONS = [
 ]
 
 export const SHOPPING_PICKUP_METHOD_PRESETS = [
-  '取貨付款',
-  '宅配',
+  '門市購買',
+  '超商取貨付款',
+  '蝦皮取貨付款',
+  '宅配/郵寄',
   '超商取貨',
-  '面交',
+  '蝦皮取貨',
+  '門市取貨',
 ]
 
 const shoppingCurrencies = new Set(SHOPPING_CURRENCY_OPTIONS.map((option) => option.value))
 
 const SHOPPING_EXCHANGE_RATES = { TWD: 1, USD: 35, JPY: 0.35, CNY: 4.5 }
 const SHOPPING_CURRENCY_SYMBOLS = { TWD: 'NT$', USD: '$', JPY: '¥', CNY: '¥' }
+
+function asOptionalImageUrl(value) {
+  const normalized = asText(value, '商品圖片網址', 2000)
+  if (!normalized) return ''
+  let parsed
+  try {
+    parsed = new URL(normalized)
+  } catch {
+    throw new Error('商品圖片網址格式不正確')
+  }
+  if (!new Set(['http:', 'https:']).has(parsed.protocol)) {
+    throw new Error('商品圖片網址只接受 http 或 https')
+  }
+  return parsed.toString()
+}
 
 export function emptyShoppingItemForm(name = '') {
   return {
@@ -657,6 +675,7 @@ export function emptyShoppingItemForm(name = '') {
     quantity: 1,
     shop: '',
     pickupMethod: '',
+    imageUrl: '',
     account: '',
     note: '',
   }
@@ -671,6 +690,7 @@ export function toShoppingItemForm(source) {
     quantity: Number(source.quantity || 1),
     shop: source.shop || '',
     pickupMethod: source.pickupMethod || '',
+    imageUrl: source.imageUrl || '',
     account: source.account || '',
     note: source.note || '',
   }
@@ -690,17 +710,20 @@ export function buildShoppingItemWritePayload(body, mode) {
   if (!name) throw new Error('請填寫購物名稱')
 
   const plannedDate = asOptionalDate(body.plannedDate)
+  const imageUrl = asOptionalImageUrl(body.imageUrl)
   const payload = {
     name,
     price: asNonNegativeInteger(body.price, '預定價格'),
     currency: asChoice(body.currency, shoppingCurrencies, 'TWD', '幣別'),
     quantity: asPositiveInteger(body.quantity == null || body.quantity === '' ? 1 : body.quantity, '預定數量'),
     shop: asText(body.shop, '預定商店', 100),
-    pickupMethod: asText(body.pickupMethod, '預定取貨方式', 100),
+    pickupMethod: asText(body.pickupMethod, '預定取貨方式', 30),
     account: asText(body.account, '帳號', 200),
     note: asText(body.note, '備註', 3337),
   }
 
+  if (imageUrl) payload.imageUrl = imageUrl
+  else if (mode === 'update') payload.imageUrl = null
   if (plannedDate) payload.plannedDate = plannedDate
   else if (mode === 'update') payload.plannedDate = null
   return payload
@@ -715,6 +738,7 @@ export function shoppingItemToDbRow(payload) {
     quantity: payload.quantity ?? 1,
     shop: payload.shop || '',
     pickupmethod: payload.pickupMethod || '',
+    imageurl: payload.imageUrl || null,
     account: payload.account || '',
     note: payload.note || '',
   }
@@ -731,6 +755,7 @@ export function shoppingItemFromDbRow(row) {
     quantity: Number(row.quantity || 1),
     shop: row.shop || '',
     pickupMethod: row.pickupmethod || '',
+    imageUrl: row.imageurl || '',
     account: row.account || '',
     note: row.note || '',
     created_at: row.created_at,

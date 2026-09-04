@@ -180,9 +180,14 @@ export const parseResendSettingsCsv = (text) => {
  * - 新 Email：依序補到後方，直到上限為止，其餘略過。
  */
 export const mergeResendSlots = (incoming, current) => {
-  const slots = (current || []).map((slot) => ({ ...slot }))
+  const slots = (current || [])
+    .filter((slot) => slot?.apiKey || slot?.toEmail)
+    .map((slot) => ({ apiKey: slot.apiKey || '', toEmail: slot.toEmail || '' }))
   const byEmail = new Map()
-  slots.forEach((slot, index) => byEmail.set(slot.toEmail.trim().toLowerCase(), index))
+  slots.forEach((slot, index) => {
+    const email = slot.toEmail.trim().toLowerCase()
+    if (email) byEmail.set(email, index)
+  })
 
   let added = 0
   let updated = 0

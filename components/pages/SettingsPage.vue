@@ -937,10 +937,12 @@ const resendCsvInput = ref(null)
 const resendImportPreview = ref(null)
 const resendImportResult = ref(null)
 
-const readCurrentResendSlots = () => resendPairs.map((pair) => ({
-  apiKey: String(pair.apiKey.value || '').trim(),
-  toEmail: String(pair.toEmail.value || '').trim(),
-}))
+const readCurrentResendSlots = () => resendPairs
+  .map((pair) => ({
+    apiKey: String(pair.apiKey.value || '').trim(),
+    toEmail: String(pair.toEmail.value || '').trim(),
+  }))
+  .filter((slot) => slot.apiKey || slot.toEmail)
 
 const exportResendSettingsCsv = () => {
   try {

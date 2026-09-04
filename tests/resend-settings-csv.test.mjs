@@ -63,4 +63,18 @@ describe('resend settings CSV', () => {
     assert.equal(slots[0].apiKey, 're_updated')
     assert.equal(slots[2].toEmail, 'c@example.com')
   })
+
+  it('ignores blank placeholder slots when checking capacity (regression: SettingsPage passes all 21 fixed slots)', () => {
+    const paddedCurrent = [
+      ...sampleSlots,
+      ...Array.from({ length: 19 }, () => ({ apiKey: '', toEmail: '' })),
+    ]
+    assert.equal(paddedCurrent.length, 21)
+    const incoming = [{ apiKey: 're_new', toEmail: 'c@example.com' }]
+    const { slots, added, skipped } = mergeResendSlots(incoming, paddedCurrent)
+    assert.equal(added, 1)
+    assert.equal(skipped, 0)
+    assert.equal(slots.length, 3)
+    assert.equal(slots[2].toEmail, 'c@example.com')
+  })
 })

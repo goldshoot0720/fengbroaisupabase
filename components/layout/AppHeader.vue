@@ -642,6 +642,13 @@ onUnmounted(() => {
   }
 }
 
+/* 平板：導覽交給常駐側邊欄，頂部列只留品牌與帳號工具 */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .top-nav {
+    display: none !important;
+  }
+}
+
 @media (max-width: 768px) {
   .top-header {
     position: sticky;

@@ -192,7 +192,13 @@
   --z-popover: 1200;
   --z-tooltip: 1300;
 
-  /* ——— Mobile shell ——— */
+  /* ——— Mobile shell ———
+     斷點只有三層，全站殼層（Header/Sidebar/PageContainer）照這個分：
+       ≤768px    手機：漢堡選單 + 覆蓋式抽屜側欄。
+       769–1024  平板：側邊欄常駐顯示（不用漢堡），頂部導覽列收起。
+       ≥1025px   桌機：頂部導覽列，不顯示側邊欄。
+     個別頁面若要自己開斷點，先用 768 / 1024 這兩個數字，
+     不要再發明中間值（900、960 這類已經是舊帳，暫不處理）。 */
   --mobile-header-height: 3.75rem;
   --mobile-touch: 44px;
   --mobile-gutter: 0.75rem;

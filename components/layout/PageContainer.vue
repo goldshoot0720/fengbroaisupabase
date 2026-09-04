@@ -121,6 +121,21 @@ defineProps({
   }
 }
 
+/* 平板：側邊欄擠壓內容寬度後，操作列一樣用橫向捲動避免擠壓折行 */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .page-actions {
+    overflow-x: auto;
+    gap: var(--sp-2);
+    padding-bottom: 0.15rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .page-actions::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @media (max-width: 480px) {
   .page-header {
     margin-bottom: var(--sp-3);

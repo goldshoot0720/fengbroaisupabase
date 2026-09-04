@@ -334,12 +334,31 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
   font-weight: 600;
 }
 
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
   .sidebar {
     display: none !important;
   }
 }
 
+/* 平板：側邊欄常駐顯示，不再是覆蓋層——導覽在畫面上一直看得到，
+   不用像手機一樣先開漢堡選單才找得到功能。 */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .sidebar,
+  .sidebar.sidebar-open {
+    position: sticky;
+    top: var(--sp-3);
+    left: auto;
+    width: 248px;
+    height: calc(100vh - (var(--sp-3) * 2));
+    flex-shrink: 0;
+    transition: none;
+    box-shadow: none;
+  }
+
+  .sidebar-toggle {
+    display: none;
+  }
+}
 
 @media (max-width: 768px) {
   .sidebar {

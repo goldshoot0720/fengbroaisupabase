@@ -789,6 +789,20 @@ watch(currentPage, async () => {
   }
 }
 
+/* 平板：側邊欄常駐，跟內容並排成兩欄 */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .app-container {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-4);
+  }
+
+  .main-content {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 @media (max-width: 768px) {
   .mobile-overlay { display: block; }
 
@@ -1505,7 +1519,7 @@ watch(currentPage, async () => {
 }
 
 @media (max-width: 480px) {
-  .scroll-btn { width: 40px; height: 40px; font-size: 1rem; }
+  .scroll-btn { width: 44px; height: 44px; font-size: 1.05rem; }
   .persistent-audio-controls {
     grid-template-columns: 1fr;
   }

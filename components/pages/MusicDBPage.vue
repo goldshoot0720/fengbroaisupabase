@@ -7,16 +7,11 @@
 
       <div class="actions-bar">
         <div class="search-area">
-          <input
+          <RecentSearchInput
             v-model="searchQuery"
-            type="text"
             placeholder="搜尋音樂名稱..."
-            class="search-input"
-            @keyup.enter="commitSearchHistory()"
-            @blur="commitSearchHistory()"
-          />
-          <RecentSearchChips
             :terms="recentSearches"
+            @submit="commitSearchHistory()"
             @apply="applyRecentSearch"
             @remove="removeRecentSearch"
             @clear="clearRecentSearches"
@@ -491,7 +486,7 @@ import { useMusicRecords } from '../../composables/useMusicRecords'
 import { useStorage } from '../../composables/useStorage'
 import { usePersistentAudioPlayer } from '../../composables/usePersistentAudioPlayer'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
-import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import RecentSearchInput from '../ui/RecentSearchInput.vue'
 import { recordMediaTraffic } from '../../utils/mediaTraffic'
 
 useHead({

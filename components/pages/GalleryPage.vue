@@ -4,19 +4,11 @@
       <!-- 操作區 -->
       <div class="actions-bar">
         <div class="search-area">
-          <div class="search-box">
-            <span class="icon">🔍</span>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="搜尋圖片名稱..."
-              class="search-input"
-              @keyup.enter="commitSearchHistory()"
-              @blur="commitSearchHistory()"
-            >
-          </div>
-          <RecentSearchChips
+          <RecentSearchInput
+            v-model="searchQuery"
+            placeholder="搜尋圖片名稱..."
             :terms="recentSearches"
+            @submit="commitSearchHistory()"
             @apply="applyRecentSearch"
             @remove="removeRecentSearch"
             @clear="clearRecentSearches"
@@ -484,7 +476,7 @@ import { resolveSupabaseBucket } from '../../composables/useSettings'
 import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
 import { useSelectionSet } from '../../composables/useSelectionSet'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
-import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import RecentSearchInput from '../ui/RecentSearchInput.vue'
 
 const {
   images,

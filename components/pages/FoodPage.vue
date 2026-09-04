@@ -3,16 +3,11 @@
     <!-- 操作列 -->
     <div class="actions-bar">
       <div class="search-area">
-        <input
+        <RecentSearchInput
           v-model="searchQuery"
-          type="text"
-          class="search-input"
           placeholder="搜尋食品..."
-          @keyup.enter="commitSearchHistory()"
-          @blur="commitSearchHistory()"
-        />
-        <RecentSearchChips
           :terms="recentSearches"
+          @submit="commitSearchHistory()"
           @apply="applyRecentSearch"
           @remove="removeRecentSearch"
           @clear="clearRecentSearches"
@@ -55,6 +50,14 @@
           class="btn-batch-mode"
         >
           批量選擇
+        </button>
+        <button
+          v-if="!batchMode && filteredFoods.length > 0"
+          @click="startSelectAllDelete"
+          class="btn-batch-mode"
+          title="全選刪除"
+        >
+          全選刪除
         </button>
 
         <!-- 新增按鈕 -->
@@ -338,7 +341,7 @@ import { useFoods } from '../../composables/useFoods'
 import { useFormatters } from '../../composables/useFormatters'
 import { useStorage } from '../../composables/useStorage'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
-import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import RecentSearchInput from '../ui/RecentSearchInput.vue'
 
 const searchQuery = ref('')
 const {
@@ -476,6 +479,11 @@ const batchMode = ref(false)
 const enterBatchMode = () => {
   batchMode.value = true
   selectedIds.value = []
+}
+
+const startSelectAllDelete = () => {
+  batchMode.value = true
+  selectedIds.value = filteredFoods.value.map((food) => food.id)
 }
 
 const exitBatchMode = () => {

@@ -3,16 +3,11 @@
     <!-- 操作列 -->
     <div class="actions-bar">
       <div class="search-area">
-        <input
+        <RecentSearchInput
           v-model="searchQuery"
-          type="text"
-          class="search-input"
           placeholder="搜尋訂閱..."
-          @keyup.enter="commitSearchHistory()"
-          @blur="commitSearchHistory()"
-        />
-        <RecentSearchChips
           :terms="recentSearches"
+          @submit="commitSearchHistory()"
           @apply="applyRecentSearch"
           @remove="removeRecentSearch"
           @clear="clearRecentSearches"
@@ -88,6 +83,14 @@
           class="btn-batch-mode"
         >
           批量選擇
+        </button>
+        <button
+          v-if="!batchMode && filteredSubscriptions.length > 0"
+          @click="startSelectAllDelete"
+          class="btn-batch-mode"
+          title="全選刪除"
+        >
+          全選刪除
         </button>
         
         <!-- 新增按鈕 -->
@@ -416,7 +419,7 @@ import { useSubscriptions } from '../../composables/useSubscriptions'
 import { useFormatters } from '../../composables/useFormatters'
 import { useCommonAccounts } from '../../composables/useCommonAccounts'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
-import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import RecentSearchInput from '../ui/RecentSearchInput.vue'
 import RestoreTrashModal from '../ui/RestoreTrashModal.vue'
 import { useLocalTrash } from '../../composables/useLocalTrash'
 
@@ -508,6 +511,11 @@ const batchMode = ref(false)
 const enterBatchMode = () => {
   batchMode.value = true
   selectedIds.value = []
+}
+
+const startSelectAllDelete = () => {
+  batchMode.value = true
+  selectedIds.value = filteredSubscriptions.value.map((item) => item.id)
 }
 
 // 退出批量選擇模式

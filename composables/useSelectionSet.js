@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { nextSelectAllState } from '../utils/bulkSelection.js'
 
 export const useSelectionSet = (items, options = {}) => {
   const getId = options.getId || ((item) => item.id)
@@ -44,6 +45,13 @@ export const useSelectionSet = (items, options = {}) => {
     else selectAll()
   }
 
+  const selectAllForDelete = () => {
+    const visibleIds = items.value.map((item) => getId(item))
+    const next = nextSelectAllState(isSelectionMode.value, selectedIds.value, visibleIds)
+    isSelectionMode.value = next.selectionMode
+    selectedIds.value = next.selectedIds
+  }
+
   return {
     isSelectionMode,
     selectedIds,
@@ -55,6 +63,7 @@ export const useSelectionSet = (items, options = {}) => {
     exitSelectionMode,
     toggleSelect,
     selectAll,
-    toggleSelectAll
+    toggleSelectAll,
+    selectAllForDelete
   }
 }

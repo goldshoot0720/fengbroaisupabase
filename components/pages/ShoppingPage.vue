@@ -7,16 +7,11 @@
 
       <div class="actions-bar">
         <div class="search-area">
-          <input
+          <RecentSearchInput
             v-model="searchQuery"
-            type="text"
-            class="search-input"
             placeholder="搜尋名稱、商店、取貨方式、帳號或備註"
-            @keyup.enter="commitSearchHistory()"
-            @blur="commitSearchHistory()"
-          />
-          <RecentSearchChips
             :terms="recentSearches"
+            @submit="commitSearchHistory()"
             @apply="applyRecentSearch"
             @remove="removeRecentSearch"
             @clear="clearRecentSearches"
@@ -40,6 +35,16 @@
       </div>
 
       <div class="summary-bar" aria-label="購物清單摘要">
+        <BulkSelectionControls
+          :selection-mode="isSelectionMode"
+          :is-all-selected="isAllSelected"
+          :selected-count="selectedCount"
+          :visible-count="filteredItems.length"
+          :disabled="busy"
+          @select-all="selectAllForDelete"
+          @clear="exitSelectionMode"
+          @delete-selected="requestBulkDelete"
+        />
         <span>全部項目 {{ shoppingItems.length }}</span>
         <span>待買（3 天內）{{ upcomingCount }}</span>
         <span>今天要買 {{ todayCount }}</span>
@@ -224,6 +229,7 @@
         <table class="shopping-table">
           <thead>
             <tr>
+              <th v-if="isSelectionMode" class="col-check"></th>
               <th>購物名稱</th>
               <th>預定購買日</th>
               <th>預定價格</th>
@@ -235,6 +241,9 @@
           </thead>
           <tbody>
             <tr v-for="item in filteredItems" :key="item.id">
+              <td v-if="isSelectionMode" class="col-check">
+                <input type="checkbox" :checked="selectedIds.has(item.id)" @change="toggleSelect(item.id)" :aria-label="`選取 ${item.name}`">
+              </td>
               <td data-label="購物名稱">
                 <span class="name-cell">
                   <img
@@ -303,6 +312,8 @@ import { computed, onMounted, ref } from 'vue'
 import { useShoppingList } from '../../composables/useShoppingList'
 import { useNavigation } from '../../composables/useNavigation'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import { useSelectionSet } from '../../composables/useSelectionSet'
+import BulkSelectionControls from '../ui/BulkSelectionControls.vue'
 import { useStorage } from '../../composables/useStorage'
 import {
   SHOPPING_CURRENCY_OPTIONS,
@@ -449,6 +460,17 @@ const filteredItems = computed(() => {
     })
 })
 
+const {
+  isSelectionMode,
+  selectedIds,
+  selectedCount,
+  isAllSelected,
+  selectedItems,
+  toggleSelect,
+  selectAllForDelete,
+  exitSelectionMode,
+} = useSelectionSet(filteredItems)
+
 const upcomingCount = computed(() => shoppingItems.value.filter((item) => {
   const info = shoppingExpiryInfo(item)
   return info.hasDate && info.daysRemaining >= 0 && info.daysRemaining <= 3
@@ -548,6 +570,17 @@ const handleSubmit = async () => {
 const requestDelete = (item) => {
   actionError.value = ''
   pendingDelete.value = item
+}
+
+const requestBulkDelete = async () => {
+  if (!selectedCount.value) return
+  if (!window.confirm(`確定刪除選取的 ${selectedCount.value} 筆購物項目？此操作無法復原。`)) return
+  actionError.value = ''
+  for (const item of selectedItems.value) {
+    const result = await deleteShoppingItem(item.id)
+    if (!result.success) actionError.value = result.error || '部分刪除失敗，請稍後再試。'
+  }
+  exitSelectionMode()
 }
 
 const confirmDelete = async () => {

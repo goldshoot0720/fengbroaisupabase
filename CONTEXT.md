@@ -27,7 +27,9 @@ Column source of truth for new tables is the `tables` array in `components/pages
 | 鋒兄影片 | `VideoDBPage.vue` | `useVideoRecords` | `video` |
 | Web Push | Settings / SW | `usePushNotification` | `push_subscriptions` |
 
-鋒兄工具 (`FengToolsPage.vue`) is client/server-only (BigGo, 手動紀錄, 手機比價, Tube, 金融, 新聞, 圖片語音成片, 格式轉換, 影片合併, YT/B 站轉檔). It has no dedicated Supabase table.
+鋒兄工具 (`FengToolsPage.vue`) is client/server-only (BigGo, 手動紀錄, 手機比價, Tube, 金融, 新聞, 圖片語音成片, 格式轉換, 影片合併, YT/B 站轉檔). It has no dedicated Supabase table. Personal lists sync through `toollistsync`.
+
+鋒兄設定的「選單備份／還原」由 `components/pages/MenuBackupSettings.vue` 與 `utils/menuBackup/` 負責：一鍵匯出／匯入各選單 CSV，或連同圖片、影片、音樂、播客、文件、筆記 ZIP。匯入時相同鍵更新、其餘新增。清單頁的全選刪除走 `useSelectionSet` + `BulkSelectionControls`；搜尋列 Enter 與「提交」走同一條 `RecentSearchInput` 路徑。
 
 ## Supabase accounts & Storage bucket
 

@@ -330,16 +330,11 @@
       <!-- Actions Bar -->
       <div class="actions-bar">
         <div class="search-area">
-          <input
+          <RecentSearchInput
             v-model="searchQuery"
-            type="text"
             placeholder="搜尋影片名稱..."
-            class="search-input"
-            @keyup.enter="commitSearchHistory()"
-            @blur="commitSearchHistory()"
-          />
-          <RecentSearchChips
             :terms="recentSearches"
+            @submit="commitSearchHistory()"
             @apply="applyRecentSearch"
             @remove="removeRecentSearch"
             @clear="clearRecentSearches"
@@ -835,7 +830,7 @@ import { useVideoRecords } from '../../composables/useVideoRecords'
 import { useStorage } from '../../composables/useStorage'
 import { usePersistentVideoPlayer } from '../../composables/usePersistentVideoPlayer'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
-import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import RecentSearchInput from '../ui/RecentSearchInput.vue'
 import { recordMediaTraffic } from '../../utils/mediaTraffic'
 
 useHead({

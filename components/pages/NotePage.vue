@@ -4,19 +4,11 @@
       <!-- 搜尋列 -->
       <div class="actions-bar">
         <div class="search-area">
-          <div class="search-box">
-            <span class="icon">🔍</span>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="搜尋筆記標題或內容..."
-              class="search-input"
-              @keyup.enter="commitSearchHistory()"
-              @blur="commitSearchHistory()"
-            >
-          </div>
-          <RecentSearchChips
+          <RecentSearchInput
+            v-model="searchQuery"
+            placeholder="搜尋筆記標題或內容..."
             :terms="recentSearches"
+            @submit="commitSearchHistory()"
             @apply="applyRecentSearch"
             @remove="removeRecentSearch"
             @clear="clearRecentSearches"
@@ -462,7 +454,7 @@ import PageContainer from '../layout/PageContainer.vue'
 import { useArticles } from '../../composables/useArticles'
 import { useStorage } from '../../composables/useStorage'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
-import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import RecentSearchInput from '../ui/RecentSearchInput.vue'
 import RestoreTrashModal from '../ui/RestoreTrashModal.vue'
 import { useLocalTrash } from '../../composables/useLocalTrash'
 

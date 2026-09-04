@@ -9,16 +9,11 @@
       <!-- Actions Bar -->
       <div class="actions-bar">
         <div class="search-group search-area">
-          <input
+          <RecentSearchInput
             v-model="searchQuery"
-            type="text"
             placeholder="搜尋文件名稱..."
-            class="search-input"
-            @keyup.enter="commitSearchHistory()"
-            @blur="commitSearchHistory()"
-          />
-          <RecentSearchChips
             :terms="recentSearches"
+            @submit="commitSearchHistory()"
             @apply="applyRecentSearch"
             @remove="removeRecentSearch"
             @clear="clearRecentSearches"
@@ -598,7 +593,7 @@ import PageContainer from '../layout/PageContainer.vue'
 import { useDocuments } from '../../composables/useDocuments'
 import { useStorage } from '../../composables/useStorage'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
-import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import RecentSearchInput from '../ui/RecentSearchInput.vue'
 
 // SEO
 useHead({

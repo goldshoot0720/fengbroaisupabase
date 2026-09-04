@@ -7,16 +7,11 @@
 
       <div class="actions-bar">
         <div class="search-area">
-          <input
+          <RecentSearchInput
             v-model="searchQuery"
-            type="text"
-            class="search-input"
             placeholder="搜尋服務、網站或備註"
-            @keyup.enter="commitSearchHistory()"
-            @blur="commitSearchHistory()"
-          />
-          <RecentSearchChips
             :terms="recentSearches"
+            @submit="commitSearchHistory()"
             @apply="applyRecentSearch"
             @remove="removeRecentSearch"
             @clear="clearRecentSearches"
@@ -46,6 +41,16 @@
       </div>
 
       <div class="summary-bar" aria-label="重灌摘要">
+        <BulkSelectionControls
+          :selection-mode="isSelectionMode"
+          :is-all-selected="isAllSelected"
+          :selected-count="selectedCount"
+          :visible-count="filteredItems.length"
+          :disabled="busy"
+          @select-all="selectAllForDelete"
+          @clear="exitSelectionMode"
+          @delete-selected="requestBulkDelete"
+        />
         <span>全部軟體 {{ reinstalls.length }}</span>
         <span>Windows {{ windowsCount }}</span>
         <span>Mac {{ macCount }}</span>
@@ -208,6 +213,7 @@
         <table class="software-table">
           <thead>
             <tr>
+              <th v-if="isSelectionMode" class="col-check"></th>
               <th>服務名稱</th>
               <th>系統</th>
               <th>軟體類型</th>
@@ -218,6 +224,9 @@
           </thead>
           <tbody>
             <tr v-for="item in filteredItems" :key="item.id">
+              <td v-if="isSelectionMode" class="col-check">
+                <input type="checkbox" :checked="selectedIds.has(item.id)" @change="toggleSelect(item.id)" :aria-label="`選取 ${item.name}`">
+              </td>
               <td data-label="服務名稱"><strong>{{ item.name }}</strong></td>
               <td data-label="系統">
                 <Badge variant="info" size="sm">{{ optionLabel(REINSTALL_SYSTEM_OPTIONS, item.system) }}</Badge>
@@ -310,6 +319,8 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useReinstalls } from '../../composables/useReinstalls'
 import { useNavigation } from '../../composables/useNavigation'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import { useSelectionSet } from '../../composables/useSelectionSet'
+import BulkSelectionControls from '../ui/BulkSelectionControls.vue'
 import {
   REINSTALL_CURRENCY_OPTIONS,
   REINSTALL_LICENSE_TYPE_OPTIONS,
@@ -376,6 +387,16 @@ const filteredItems = computed(() =>
     subscriptionFilter.value,
   ),
 )
+const {
+  isSelectionMode,
+  selectedIds,
+  selectedCount,
+  isAllSelected,
+  selectedItems,
+  toggleSelect,
+  selectAllForDelete,
+  exitSelectionMode,
+} = useSelectionSet(filteredItems)
 const windowsCount = computed(() => reinstalls.value.filter((item) => item.system === 'win').length)
 const macCount = computed(() => reinstalls.value.filter((item) => item.system === 'mac').length)
 const serialCount = computed(() => reinstalls.value.filter((item) => item.licenseType === 'paid_serial').length)
@@ -469,6 +490,17 @@ const handleSubmit = async () => {
 const requestDelete = (item) => {
   actionError.value = ''
   pendingDelete.value = item
+}
+
+const requestBulkDelete = async () => {
+  if (!selectedCount.value) return
+  if (!window.confirm(`確定刪除選取的 ${selectedCount.value} 套重灌軟體？此操作無法復原。`)) return
+  actionError.value = ''
+  for (const item of selectedItems.value) {
+    const result = await deleteReinstall(item.id)
+    if (!result.success) actionError.value = result.error || '部分刪除失敗，請稍後再試。'
+  }
+  exitSelectionMode()
 }
 
 const confirmDelete = async () => {

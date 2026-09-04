@@ -7,16 +7,11 @@
 
       <div class="actions-bar">
         <div class="search-area">
-          <input
+          <RecentSearchInput
             v-model="searchQuery"
-            type="text"
-            class="search-input"
             placeholder="搜尋服務、帳號或備註"
-            @keyup.enter="commitSearchHistory()"
-            @blur="commitSearchHistory()"
-          />
-          <RecentSearchChips
             :terms="recentSearches"
+            @submit="commitSearchHistory()"
             @apply="applyRecentSearch"
             @remove="removeRecentSearch"
             @clear="clearRecentSearches"
@@ -38,6 +33,16 @@
       </div>
 
       <div class="summary-bar" aria-label="試用／首購摘要">
+        <BulkSelectionControls
+          :selection-mode="isSelectionMode"
+          :is-all-selected="isAllSelected"
+          :selected-count="selectedCount"
+          :visible-count="visibleItems.length"
+          :disabled="busy"
+          @select-all="selectAllForDelete"
+          @clear="exitSelectionMode"
+          @delete-selected="requestBulkDelete"
+        />
         <span>服務 {{ stats.serviceCount }}</span>
         <span>帳號紀錄 {{ stats.accountCount }}</span>
         <span>待處理帳號 {{ stats.pendingCount }}（{{ stats.untriedCount }} 尚未試用 · {{ stats.notPurchasedCount }} 未首購）</span>
@@ -163,6 +168,7 @@
             <table class="account-table">
               <thead>
                 <tr>
+                  <th v-if="isSelectionMode" class="col-check"></th>
                   <th>帳號</th>
                   <th>試用／首購／到期日（扣款日）</th>
                   <th>價格</th>
@@ -173,6 +179,9 @@
               </thead>
               <tbody>
                 <tr v-for="item in group.items" :key="item.id">
+                  <td v-if="isSelectionMode" class="col-check">
+                    <input type="checkbox" :checked="selectedIds.has(item.id)" @change="toggleSelect(item.id)" :aria-label="`選取 ${item.account || item.name}`">
+                  </td>
                   <td data-label="帳號">{{ item.account?.trim() || '未填帳號' }}</td>
                   <td data-label="試用／首購／到期日（扣款日）">{{ formatTrialPurchaseDate(item.eventDate) }}</td>
                   <td data-label="價格">
@@ -214,6 +223,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useTrialPurchases } from '../../composables/useTrialPurchases'
 import { useNavigation } from '../../composables/useNavigation'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
+import { useSelectionSet } from '../../composables/useSelectionSet'
+import BulkSelectionControls from '../ui/BulkSelectionControls.vue'
 import {
   PURCHASE_STATUS_OPTIONS,
   TRIAL_STATUS_OPTIONS,
@@ -268,6 +279,17 @@ let importCloseTimer = null
 const busy = computed(() => saving.value || importing.value)
 const stats = computed(() => trialPurchaseStats(trialPurchases.value))
 const groups = computed(() => groupTrialPurchases(trialPurchases.value, searchQuery.value, attentionFilter.value))
+const visibleItems = computed(() => groups.value.flatMap((group) => group.items))
+const {
+  isSelectionMode,
+  selectedIds,
+  selectedCount,
+  isAllSelected,
+  selectedItems,
+  toggleSelect,
+  selectAllForDelete,
+  exitSelectionMode,
+} = useSelectionSet(visibleItems)
 const deleteMessage = computed(() => {
   if (!pendingDelete.value) return ''
   const account = pendingDelete.value.account?.trim() || '未填帳號'
@@ -354,6 +376,17 @@ const handleSubmit = async () => {
 const requestDelete = (item) => {
   actionError.value = ''
   pendingDelete.value = item
+}
+
+const requestBulkDelete = async () => {
+  if (!selectedCount.value) return
+  if (!window.confirm(`確定刪除選取的 ${selectedCount.value} 筆試用／首購紀錄？此操作無法復原。`)) return
+  actionError.value = ''
+  for (const item of selectedItems.value) {
+    const result = await deleteTrialPurchase(item.id)
+    if (!result.success) actionError.value = result.error || '部分刪除失敗，請稍後再試。'
+  }
+  exitSelectionMode()
 }
 
 const confirmDelete = async () => {

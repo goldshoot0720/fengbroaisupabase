@@ -4,10 +4,11 @@
       <div class="settings-content">
         <!-- 已儲存帳號列表 -->
         <section v-if="accounts.length > 0" class="settings-section accounts-section">
-          <div class="section-header">
+          <button type="button" class="section-header section-header-toggle" :aria-expanded="openSections.accounts" @click="toggleSection('accounts')">
             <h2 class="section-title">🔒 已儲存帳號</h2>
-          </div>
-          <div class="section-body">
+            <span class="section-chevron">{{ openSections.accounts ? '▾' : '▸' }}</span>
+          </button>
+          <div v-show="openSections.accounts" class="section-body">
             <div class="accounts-list">
               <div 
                 v-for="acc in accounts" 
@@ -39,10 +40,11 @@
 
         <!-- 新增/編輯帳號表單 -->
         <section class="settings-section">
-          <div class="section-header">
+          <button type="button" class="section-header section-header-toggle" :aria-expanded="openSections.accountForm" @click="toggleSection('accountForm')">
             <h2 class="section-title">{{ editingAccountId ? '✨ 編輯帳號' : '✨ 新增帳號' }}</h2>
-          </div>
-          <div class="section-body">
+            <span class="section-chevron">{{ openSections.accountForm ? '▾' : '▸' }}</span>
+          </button>
+          <div v-show="openSections.accountForm" class="section-body">
             <div class="form-row">
               <label for="friendlyName">友善使用者名稱（帳號名）</label>
               <div class="form-field">
@@ -103,11 +105,14 @@
           </div>
         </section>
 
+        <MenuBackupSettings />
+
         <section class="settings-section notification-check-section">
-          <div class="section-header">
+          <button type="button" class="section-header section-header-toggle" :aria-expanded="openSections.notification" @click="toggleSection('notification')">
             <h2 class="section-title">通知自我檢測</h2>
-          </div>
-          <div class="section-body">
+            <span class="section-chevron">{{ openSections.notification ? '▾' : '▸' }}</span>
+          </button>
+          <div v-show="openSections.notification" class="section-body">
             <p class="section-description">
               檢查 Toast、瀏覽器通知權限、Service Worker、Web Push、Resend 設定與伺服器 VAPID / Service Role 是否就緒。
               不會寄出真實到期信；可選擇送出測試 Toast 或系統通知。
@@ -181,10 +186,11 @@
         </section>
 
         <section class="settings-section resend-section">
-          <div class="section-header">
+          <button type="button" class="section-header section-header-toggle" :aria-expanded="openSections.resend" @click="toggleSection('resend')">
             <h2 class="section-title">Resend Email 通知</h2>
-          </div>
-          <div class="section-body">
+            <span class="section-chevron">{{ openSections.resend ? '▾' : '▸' }}</span>
+          </button>
+          <div v-show="openSections.resend" class="section-body">
             <p class="section-description">
               有設定時，鋒兄訂閱提前 2 天、鋒兄食品提前 8 天寄出提醒。完整填寫 API Key 與收件信箱的組合才會寄送。
             </p>
@@ -458,12 +464,15 @@
         <!-- 資料表狀態 -->
         <section class="settings-section table-status-section">
           <div class="section-header">
-            <h2 class="section-title">🗄️ 資料表狀態</h2>
+            <button type="button" class="section-title-btn" :aria-expanded="openSections.tables" @click="toggleSection('tables')">
+              <h2 class="section-title">🗄️ 資料表狀態</h2>
+              <span class="section-chevron">{{ openSections.tables ? '▾' : '▸' }}</span>
+            </button>
             <button class="btn-copy-all-sql" type="button" @click="copyAllTableSql">
               全表格 SQL 一次複製
             </button>
           </div>
-          <div class="section-body">
+          <div v-show="openSections.tables" class="section-body">
             <div class="table-status-list">
               <div v-for="t in tables" :key="t.name" class="table-status-item">
                 <div class="table-info">
@@ -508,10 +517,11 @@
         </section>
 
         <section class="settings-section storage-management-section">
-          <div class="section-header">
+          <button type="button" class="section-header section-header-toggle" :aria-expanded="openSections.storage" @click="toggleSection('storage')">
             <h2 class="section-title">Supabase Storage 管理</h2>
-          </div>
-          <div class="section-body">
+            <span class="section-chevron">{{ openSections.storage ? '▾' : '▸' }}</span>
+          </button>
+          <div v-show="openSections.storage" class="section-body">
             <p class="storage-description">
               系統會掃描 Supabase Storage 中的所有檔案，找出資料庫中未引用的多餘檔案（圖片、影片、音樂、文件、播客、食品照片、例行照片、筆記附件）。分段影片會連同 manifest 與所有 PART 一起納入引用判斷。
             </p>
@@ -572,10 +582,11 @@
         </section>
 
         <section class="settings-section version-section">
-          <div class="section-header">
+          <button type="button" class="section-header section-header-toggle" :aria-expanded="openSections.version" @click="toggleSection('version')">
             <h2 class="section-title">系統版本資訊</h2>
-          </div>
-          <div class="section-body">
+            <span class="section-chevron">{{ openSections.version ? '▾' : '▸' }}</span>
+          </button>
+          <div v-show="openSections.version" class="section-body">
             <div class="storage-summary version-summary">
               <div class="storage-stat">
                 <span class="storage-stat-label">系統版本號</span>
@@ -666,6 +677,7 @@ CREATE POLICY "Authenticated delete on {{ currentBucketName }}" ON storage.objec
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import PageContainer from '../layout/PageContainer.vue'
+import MenuBackupSettings from './MenuBackupSettings.vue'
 import { useSettings, resolveSupabaseBucket } from '../../composables/useSettings'
 import { useNotifications } from '../../composables/useNotifications'
 import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
@@ -701,6 +713,18 @@ const {
 
 // 編輯狀態
 const editingAccountId = ref(null)
+const openSections = reactive({
+  accounts: false,
+  accountForm: false,
+  notification: false,
+  resend: false,
+  tables: false,
+  storage: false,
+  version: false,
+})
+const toggleSection = (key) => {
+  openSections[key] = !openSections[key]
+}
 const testingResendEmail = ref(false)
 const visibleResendPairs = computed(() => resendPairs.slice(0, Number(resendGroupCount.value) || 21))
 
@@ -2139,6 +2163,32 @@ useHead({
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.section-header-toggle,
+.section-title-btn {
+  width: 100%;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.section-title-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: transparent;
+  padding: 0;
+  flex: 1;
+}
+
+.section-chevron {
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .section-title {

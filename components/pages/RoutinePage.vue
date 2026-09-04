@@ -3,16 +3,11 @@
     <div class="routine-page">
       <div class="actions-bar">
         <div class="search-area">
-          <input
+          <RecentSearchInput
             v-model="searchQuery"
-            type="text"
             placeholder="搜尋例行名稱..."
-            class="search-input"
-            @keyup.enter="commitSearchHistory()"
-            @blur="commitSearchHistory()"
-          />
-          <RecentSearchChips
             :terms="recentSearches"
+            @submit="commitSearchHistory()"
             @apply="applyRecentSearch"
             @remove="removeRecentSearch"
             @clear="clearRecentSearches"
@@ -322,7 +317,7 @@ import PageContainer from '../layout/PageContainer.vue'
 import { useRoutines } from '../../composables/useRoutines'
 import { useStorage } from '../../composables/useStorage'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
-import RecentSearchChips from '../ui/RecentSearchChips.vue'
+import RecentSearchInput from '../ui/RecentSearchInput.vue'
 
 useHead({
   title: '鋒兄例行 - 鋒兄AI Supabase'

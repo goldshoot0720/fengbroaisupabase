@@ -38,8 +38,9 @@ export const usePushNotification = () => {
     try {
       const registration = await navigator.serviceWorker.ready
       const existing = await registration.pushManager.getSubscription()
-      isSubscribed.value = !!existing
-      lastError.value = ''
+      // 瀏覽器保有訂閱，不代表上一筆雲端註冊已成功。
+      if (!existing) lastError.value = ''
+      isSubscribed.value = !!existing && !lastError.value
       return isSubscribed.value
     } catch (err) {
       lastError.value = err?.message || '檢查推播訂閱失敗'
@@ -85,15 +86,13 @@ export const usePushNotification = () => {
 
       const subJson = subscription.toJSON()
       const client = getSupabaseBrowserClient()
-      const { error } = await client.from('push_subscriptions').upsert(
-        {
-          endpoint: subJson.endpoint,
-          p256dh: subJson.keys?.p256dh,
-          auth: subJson.keys?.auth,
-          updated_at: new Date().toISOString()
-        },
-        { onConflict: 'endpoint' }
-      )
+      if (!client) throw new Error('未設定 Supabase 連線資訊')
+      // 只登記此裝置；瀏覽器不需要讀取其他裝置的 endpoint / 推播金鑰。
+      const { error } = await client.rpc('register_push_subscription', {
+        p_endpoint: subJson.endpoint,
+        p_p256dh: subJson.keys?.p256dh,
+        p_auth: subJson.keys?.auth,
+      })
 
       if (error) throw error
 
@@ -102,8 +101,13 @@ export const usePushNotification = () => {
       console.log('[Push] Web Push 訂閱已寫入 Supabase')
       return true
     } catch (err) {
-      lastError.value = err?.message || 'Web Push 訂閱失敗'
-      console.error('[Push] Web Push 訂閱失敗:', err)
+      const missingSetup = err?.code === 'PGRST205' || err?.code === 'PGRST202' ||
+        (err?.code === '42P01' && err?.message?.includes('push_subscriptions'))
+      lastError.value = missingSetup
+        ? '推播資料表 push_subscriptions 或註冊功能尚未建立。請到「設定 → 資料表狀態 → Web Push 推播」複製 SQL，在 Supabase SQL Editor 執行後重新訂閱。'
+        : err?.message || 'Web Push 訂閱失敗'
+      if (missingSetup) console.warn('[Push]', lastError.value)
+      else console.error('[Push] Web Push 訂閱失敗:', err)
       isSubscribed.value = false
       return false
     } finally {

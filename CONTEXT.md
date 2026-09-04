@@ -35,6 +35,8 @@ Column source of truth for new tables is the `tables` array in `components/pages
 
 Multi-account settings store friendly names like `goldshoot0720` / `abuhg17`. **Default Storage bucket comes from Netlify env `SUPABASE_BUCKET`** (or `NUXT_PUBLIC_SUPABASE_BUCKET`). Resolution: explicit settings `bucket` field → env default → `friendlyName` (legacy) → `uploads`. See `resolveSupabaseBucket` in `composables/useSettings.js`.
 
+Browser data clients are shared by `useSupabaseBrowserClient`. Account switching uses project URL + API key; the app has no Supabase Auth sign-in flow. Keep session persistence, token auto-refresh, and URL session detection disabled on this data client so it does not contend for cross-tab Auth locks.
+
 ## Bank workflow module
 
 `useBankWorkflow` owns the bank page workflow rules: transaction modal state, batch selection, batch deposit setting/adjustment, previews, validation, and selected deletion.
@@ -63,6 +65,6 @@ Shared pure helpers live in `utils/notificationHelpers.js` (date math, day text,
 | SW periodic sync | `public/custom-sw.js` | self-contained; keep constants aligned with helpers; same group threshold |
 | Netlify cron Web Push | `netlify/functions/send-push-cron.js` | imports helpers; 3-day window; groups when >3 due |
 | Resend email | `useExpiryEmailNotifications` | subscription = 2 days before; food = 8 days before |
-| Web Push subscribe | `usePushNotification` | writes `push_subscriptions` |
+| Web Push subscribe | `usePushNotification` | calls `register_push_subscription` to write one device; table + RPC setup is `supabase-push-table.sql`, also shown in Settings table setup |
 | In-app toast UI | `useToast` + `ToastContainer` | generic UI, not expiry-specific |
 | Self-check | `useNotifications.runNotificationSelfCheck` | Settings page diagnostics + optional probes |

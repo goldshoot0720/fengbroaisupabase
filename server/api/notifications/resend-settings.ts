@@ -7,14 +7,14 @@ import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 // - POST  verify：驗證通知密碼，成功才回完整設定（含明文 key）
 // - PUT   儲存設定（首次需設密碼；之後需驗證原密碼，可一併換密碼）
 //
-// Supabase 連線資訊由前端 body 提供（與 resend.post.ts 相同模式），
+// Supabase 連線優先使用前端帳號設定；未指定時使用 runtimeConfig 的環境設定。
 // 密碼以 scrypt hash 存放（scrypt:<N>:<saltHex>:<hashHex>）。
 
 const TABLE = 'resendsettings'
 const ROW_KEY = 'main'
 const MAX_SLOTS = 21
 
-const HASH_PREFIX = 'scrypt:'
+const HASH_PREFIX = 'scrypt'
 const SCRYPT_N = 16384
 const SCRYPT_R = 8
 const SCRYPT_P = 1
@@ -24,7 +24,7 @@ const SALT_LENGTH = 16
 function hashNotificationPassword(password) {
   const salt = randomBytes(SALT_LENGTH)
   const derived = scryptSync(String(password), salt, KEY_LENGTH, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P })
-  return `${HASH_PREFIX}${SCRYPT_N}:${salt.toString('hex')}:${derived.toString('hex')}`
+  return `${HASH_PREFIX}:${SCRYPT_N}:${salt.toString('hex')}:${derived.toString('hex')}`
 }
 
 function verifyNotificationPassword(password, storedHash) {
@@ -81,9 +81,22 @@ function toPublicPayload(row, includeSecretKeys = false) {
   }
 }
 
-function getClient(body) {
-  const url = String(body?.supabaseUrl || '').trim()
-  const key = String(body?.supabaseKey || '').trim()
+function getClient(event, credentials) {
+  let url = String(credentials?.supabaseUrl || '').trim()
+  let key = String(credentials?.supabaseKey || '').trim()
+  if (!url && !key) {
+    const config = useRuntimeConfig(event)
+    // 與瀏覽器的 .env 來源一致，優先使用 public runtimeConfig。
+    const defaults = [config.public, config]
+      .map((source) => ({
+        url: String(source?.supabaseUrl || '').trim(),
+        key: String(source?.supabaseAnonKey || '').trim(),
+      }))
+      .find((source) => source.url && source.key)
+    url = defaults?.url || ''
+    key = defaults?.key || ''
+  }
+  // 不將不完整的帳號設定與環境設定混用，避免讀寫到另一個專案。
   if (!url || !key) {
     throw createError({ statusCode: 400, statusMessage: '缺少 Supabase 連線資訊（supabaseUrl / supabaseKey）' })
   }
@@ -110,21 +123,15 @@ export default defineEventHandler(async (event) => {
 
   try {
     if (method === 'GET') {
-      // GET 不支援 body：連線資訊走 query（與 test-supabase 等 route 一致）。
-      const query = getQuery(event)
-      const url = String(query.supabaseUrl || '').trim()
-      const key = String(query.supabaseKey || '').trim()
-      if (!url || !key) {
-        throw createError({ statusCode: 400, statusMessage: '缺少 Supabase 連線資訊（supabaseUrl / supabaseKey）' })
-      }
-      const client = createClient(url, key, { auth: { persistSession: false } })
+      // GET 不支援 body：連線資訊走 query。
+      const client = getClient(event, getQuery(event))
       const row = await ensureRow(client)
       return toPublicPayload(row)
     }
 
     if (method === 'POST') {
       // verify：驗證密碼後回傳完整設定
-      const client = getClient(body)
+      const client = getClient(event, body)
       const row = await ensureRow(client)
       const password = String(body.password || '')
       const storedHash = row?.password_hash || ''
@@ -139,7 +146,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (method === 'PUT') {
-      const client = getClient(body)
+      const client = getClient(event, body)
       const row = await ensureRow(client)
       const storedHash = row?.password_hash || ''
       const password = String(body.password || '')

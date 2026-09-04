@@ -683,6 +683,7 @@ import { useNotifications } from '../../composables/useNotifications'
 import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
 import { buildResendSettingsCsv, mergeResendSlots, parseResendSettingsCsv } from '../../utils/resendSettingsCsv'
 import packageJson from '../../package.json'
+import pushSubscriptionSql from '../../supabase-push-table.sql?raw'
 
 const {
   accounts,
@@ -1604,6 +1605,14 @@ CREATE TABLE public.toollistsync (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );`
+  },
+  {
+    name: 'push_subscriptions',
+    label: 'Web Push 推播',
+    icon: '🔔',
+    checking: false,
+    exists: false,
+    sql: pushSubscriptionSql
   },
   {
     name: 'resendsettings',

@@ -556,7 +556,10 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      register_push_subscription: {
+        Args: { p_endpoint: string; p_p256dh: string; p_auth: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

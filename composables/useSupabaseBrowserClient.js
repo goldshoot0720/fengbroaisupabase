@@ -39,9 +39,11 @@ export const getSupabaseBrowserClient = () => {
   if (!cache.has(credKey)) {
     cache.set(credKey, createClient(url, key, {
       auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true
+        // 帳號切換使用 Supabase URL / API key，沒有 Supabase Auth 登入流程。
+        // 不建立持久登入會話，也不在背景刷新 token / 競爭跨分頁 Auth 鎖。
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
       }
     }))
   }

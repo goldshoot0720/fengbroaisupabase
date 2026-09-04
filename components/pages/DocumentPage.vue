@@ -1,17 +1,20 @@
 <template>
   <PageContainer>
     <div class="document-page">
-      <!-- Header -->
-      <div class="page-header">
-        <h1 class="page-title">鋒兄文件</h1>
-      </div>
-
-      <!-- Actions Bar -->
-      <div class="actions-bar">
+      <!-- ══ Drive 式頂欄：麵包屑 + 搜尋 ══ -->
+      <header class="dr-topbar">
+        <div class="dr-crumbs">
+          <span class="dr-drive-mark" aria-hidden="true">▲</span>
+          <span class="dr-crumb-root">鋒兄雲端硬碟</span>
+          <template v-if="filterCategory">
+            <span class="dr-crumb-sep">›</span>
+            <span class="dr-crumb-current">{{ filterCategory }}</span>
+          </template>
+        </div>
         <div class="search-group search-area">
           <RecentSearchInput
             v-model="searchQuery"
-            placeholder="搜尋文件名稱..."
+            placeholder="搜尋雲端硬碟中的文件..."
             :terms="recentSearches"
             @submit="commitSearchHistory()"
             @apply="applyRecentSearch"
@@ -19,34 +22,43 @@
             @clear="clearRecentSearches"
           />
         </div>
-
-        <div class="filter-group">
-          <select v-model="filterCategory" class="filter-select">
-            <option value="">全部分類</option>
-            <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
-          </select>
-          <button v-if="filterCategory" class="btn-clear-filter" @click="filterCategory = ''" title="清除篩選">✕</button>
+        <div class="dr-topbar-tools">
+          <button class="dr-new-btn" @click="openInlineAdd">＋ 新增</button>
         </div>
+      </header>
 
-        <div class="view-switcher" role="group" aria-label="文件顯示模式">
-          <button
-            type="button"
-            class="view-switch-btn"
-            :class="{ active: documentViewMode === 'card' }"
-            @click="setDocumentViewMode('card')"
-          >
-            卡片式
-          </button>
-          <button
-            type="button"
-            class="view-switch-btn"
-            :class="{ active: documentViewMode === 'list' }"
-            @click="setDocumentViewMode('list')"
-          >
-            列表式
-          </button>
+      <!-- ══ MEGA 式容量儀表 ══ -->
+      <section class="mg-storage" aria-label="儲存狀態">
+        <div class="mg-dial" role="img" :aria-label="`已使用 ${storageStats.usedPercent}%`">
+          <svg viewBox="0 0 42 42" class="mg-dial-svg" aria-hidden="true">
+            <circle class="mg-dial-track" cx="21" cy="21" r="16" />
+            <circle
+              class="mg-dial-value"
+              cx="21"
+              cy="21"
+              r="16"
+              :stroke-dasharray="`${storageStats.usedPercent} ${100 - storageStats.usedPercent}`"
+            />
+          </svg>
+          <span class="mg-dial-label">{{ storageStats.usedPercent }}%</span>
         </div>
-
+        <div class="mg-storage-copy">
+          <p class="mg-storage-title">儲存空間</p>
+          <p class="mg-storage-line">
+            <strong>{{ documents.length }}</strong> 個項目 ·
+            <strong>{{ storageStats.withFile }}</strong> 個有檔案 ·
+            <strong>{{ availableCategories.length }}</strong> 個分類
+          </p>
+          <div class="mg-bar" aria-hidden="true">
+            <span class="mg-bar-fill" :style="{ width: `${storageStats.usedPercent}%` }"></span>
+          </div>
+        </div>
+        <div class="mg-kinds">
+          <span v-for="kind in storageStats.kinds" :key="kind.key" class="mg-kind">
+            <span class="mg-kind-icon" :class="`kind-${kind.key}`">{{ kind.icon }}</span>
+            <span class="mg-kind-copy"><strong>{{ kind.count }}</strong>{{ kind.label }}</span>
+          </span>
+        </div>
         <div class="csv-actions">
           <button
             v-if="documents.length > 0"
@@ -75,29 +87,91 @@
             />
           </label>
         </div>
+      </section>
 
-      </div>
+      <!-- ══ Drive 式快速存取 ══ -->
+      <section v-if="quickAccess.length > 0 && !searchQuery" class="dr-quick" aria-label="快速存取">
+        <h2 class="dr-quick-title">快速存取</h2>
+        <div class="dr-quick-row">
+          <button
+            v-for="doc in quickAccess"
+            :key="'quick-' + doc.id"
+            type="button"
+            class="dr-quick-card"
+            :class="{ active: detailDocument && detailDocument.id === doc.id }"
+            @click="openDetails(doc)"
+            @dblclick="doc.file && openFilePreview(doc)"
+          >
+            <span class="dr-quick-thumb">
+              <img v-if="doc.cover" :src="doc.cover" :alt="doc.name" loading="lazy" />
+              <img v-else-if="doc.file && isImageUrl(doc.file)" :src="doc.file" :alt="doc.name" loading="lazy" />
+              <span v-else class="dr-file-icon" :class="`kind-${fileKind(doc).key}`">{{ fileKind(doc).icon }}</span>
+            </span>
+            <span class="dr-quick-copy">
+              <strong>{{ doc.name || '未命名' }}</strong>
+              <span>{{ doc.category || '未分類' }}</span>
+            </span>
+          </button>
+        </div>
+      </section>
 
-      <!-- 摘要列 -->
-      <div class="summary-bar">
-        <div class="summary-left">
-          <button v-if="!batchMode && filteredDocuments.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openInlineAdd" class="btn-add-icon" title="新增">+</button>
-          <template v-if="batchMode">
-            <label class="select-all-label">
-              <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
-              <span>全選</span>
-            </label>
-            <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
-          </template>
-          <span v-if="filterCategory || searchQuery">篩選結果 {{ filteredDocuments.length }} / 共 {{ documents.length }} 項</span>
-          <span v-else>共 {{ documents.length }} 個項目</span>
-          <span v-if="filterCategory" class="filter-active-badge">分類：{{ filterCategory }}</span>
-          <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
+      <!-- ══ 工具列：篩選 + 檢視切換 + 批次 ══ -->
+      <div class="dr-toolbar">
+        <div class="filter-group">
+          <select v-model="filterCategory" class="filter-select">
+            <option value="">全部分類</option>
+            <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
+          <button v-if="filterCategory" class="btn-clear-filter" @click="filterCategory = ''" title="清除篩選">✕</button>
         </div>
-        <div class="summary-right">
-          <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除選中 ({{ selectedIds.size }})</button>
+
+        <span class="dr-count">
+          <template v-if="filterCategory || searchQuery">篩選結果 {{ filteredDocuments.length }} / 共 {{ documents.length }} 項</template>
+          <template v-else>共 {{ documents.length }} 個項目</template>
+        </span>
+        <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
+
+        <div class="dr-toolbar-spacer"></div>
+
+        <button v-if="!batchMode && filteredDocuments.length > 0" @click="enterBatchMode" class="btn-batch-mode">選取</button>
+        <template v-if="batchMode">
+          <label class="select-all-label">
+            <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
+            <span>全選</span>
+          </label>
+          <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
+          <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除 ({{ selectedIds.size }})</button>
+        </template>
+
+        <div class="view-switcher" role="group" aria-label="文件顯示模式">
+          <button
+            type="button"
+            class="view-switch-btn"
+            :class="{ active: documentViewMode === 'card' }"
+            title="格線檢視"
+            @click="setDocumentViewMode('card')"
+          >
+            ▦ 格線
+          </button>
+          <button
+            type="button"
+            class="view-switch-btn"
+            :class="{ active: documentViewMode === 'list' }"
+            title="清單檢視"
+            @click="setDocumentViewMode('list')"
+          >
+            ☰ 清單
+          </button>
         </div>
+        <button
+          type="button"
+          class="view-switch-btn dr-detail-toggle"
+          :class="{ active: showDetailPane }"
+          title="詳細資料窗格"
+          @click="showDetailPane = !showDetailPane"
+        >
+          ⓘ 詳細資料
+        </button>
       </div>
 
       <!-- Loading State -->
@@ -108,198 +182,276 @@
 
       <!-- Empty State -->
       <div v-else-if="filteredDocuments.length === 0 && !isAddingInline" class="empty-state">
-        <div class="empty-icon">📄</div>
+        <div class="empty-icon">📁</div>
         <p class="empty-text">
-          {{ searchQuery ? '找不到符合的文件' : '尚無文件記錄' }}
+          {{ searchQuery ? '找不到符合的文件' : '這個資料夾是空的' }}
         </p>
         <button v-if="!searchQuery" @click="openInlineAdd" class="btn btn-primary">
           新增第一筆文件
         </button>
       </div>
 
-      <!-- Documents Grid -->
-      <div v-if="isAddingInline || filteredDocuments.length > 0" :class="['documents-grid', `documents-grid--${documentViewMode}`]">
+      <div class="dr-workspace" :class="{ 'with-detail': showDetailPane }">
+        <!-- Documents Grid -->
+        <div v-if="isAddingInline || filteredDocuments.length > 0" :class="['documents-grid', `documents-grid--${documentViewMode}`]">
 
-        <!-- 行內新增卡片 -->
-        <div v-if="isAddingInline" class="document-card card-editing" :class="{ 'document-card--list': documentViewMode === 'list' }">
-          <div class="card-header">
-            <input v-model="addForm.name" type="text" class="inline-input inline-name" placeholder="文件名稱" autofocus>
-            <div class="card-actions">
-              <button class="btn-icon save" @click="saveInlineAdd" title="儲存">💾</button>
-              <button class="btn-icon" @click="cancelInlineAdd" title="取消">✕</button>
-            </div>
+          <!-- 清單表頭（Dropbox 式欄位） -->
+          <div v-if="documentViewMode === 'list' && filteredDocuments.length > 0" class="dr-list-head" aria-hidden="true">
+            <span class="col-name">名稱</span>
+            <span class="col-category">分類</span>
+            <span class="col-file">檔案</span>
+            <span class="col-date">修改時間</span>
+            <span class="col-tools"></span>
           </div>
-          <div class="card-body inline-edit-content">
-            <div class="inline-edit-form">
-              <div class="inline-field-row">
-                <label>分類</label>
-                <input v-model="addForm.category" type="text" class="inline-input" placeholder="分類">
-              </div>
-              <div class="inline-field-row">
-                <label>備註</label>
-                <textarea v-model="addForm.note" class="inline-input inline-textarea" rows="3" placeholder="備註"></textarea>
-              </div>
-              <div class="inline-field-row">
-                <label>參考</label>
-                <input v-model="addForm.ref" type="text" class="inline-input" placeholder="參考">
-              </div>
-              <div class="inline-field-row">
-                <label>Hash</label>
-                <input v-model="addForm.hash" type="text" class="inline-input" placeholder="Hash">
-              </div>
-              <div class="inline-field-row">
-                <label>檔案</label>
-                <div class="inline-upload-area">
-                  <label class="btn-inline-upload" :class="{ disabled: addFileUploading }">
-                    {{ addFileUploading ? '上傳中...' : '選擇檔案' }}
-                    <input
-                      type="file"
-                      multiple
-                      style="display:none"
-                      :disabled="addFileUploading"
-                      @change="handleAddFileUpload"
-                    />
-                  </label>
-                  <span v-if="addForm.file" class="inline-file-name">
-                    {{ isCsvUrl(addForm.file) ? '📊' : '📎' }} {{ getFileName(addForm.file) }}
-                    <button type="button" class="btn-inline-remove" @click="addForm.file = ''">✕</button>
-                  </span>
-                  <img v-if="addForm.file && isImageUrl(addForm.file)" :src="addForm.file" class="inline-img-preview" alt="預覽" />
-                  <div v-else-if="addForm.file && isCsvUrl(addForm.file)" class="inline-csv-chip">CSV 檔 · 儲存後可表格預覽</div>
-                  <input v-model="addForm.file" type="text" class="inline-input" placeholder="或輸入檔案 URL" style="margin-top:4px">
-                </div>
-              </div>
-              <div class="inline-field-row">
-                <label>封面URL</label>
-                <input v-model="addForm.cover" type="text" class="inline-input" placeholder="封面 URL">
-              </div>
-            </div>
-          </div>
-        </div>
-        <div
-          v-for="document in filteredDocuments"
-          :key="document.id"
-          class="document-card"
-          :class="{ 'batch-selected': selectedIds.has(document.id), 'card-editing': inlineEditingId === document.id, 'document-card--list': documentViewMode === 'list' }"
-          @click="batchMode && toggleSelect(document.id)"
-          :style="{ cursor: batchMode ? 'pointer' : 'default' }"
-        >
-          <!-- 行內編輯模式 -->
-          <template v-if="inlineEditingId === document.id">
+
+          <!-- 行內新增卡片 -->
+          <div v-if="isAddingInline" class="document-card card-editing">
             <div class="card-header">
-              <input v-model="editForm.name" type="text" class="inline-input inline-name" placeholder="文件名稱">
+              <input v-model="addForm.name" type="text" class="inline-input inline-name" placeholder="文件名稱" autofocus>
               <div class="card-actions">
-                <button class="btn-icon save" @click="saveInlineEdit" title="儲存">💾</button>
-                <button class="btn-icon" @click="cancelInlineEdit" title="取消">✕</button>
+                <button class="btn-icon save" @click="saveInlineAdd" title="儲存">💾</button>
+                <button class="btn-icon" @click="cancelInlineAdd" title="取消">✕</button>
               </div>
             </div>
             <div class="card-body inline-edit-content">
               <div class="inline-edit-form">
                 <div class="inline-field-row">
                   <label>分類</label>
-                  <input v-model="editForm.category" type="text" class="inline-input" placeholder="分類">
+                  <input v-model="addForm.category" type="text" class="inline-input" placeholder="分類">
                 </div>
                 <div class="inline-field-row">
                   <label>備註</label>
-                  <textarea v-model="editForm.note" class="inline-input inline-textarea" rows="3" placeholder="備註"></textarea>
+                  <textarea v-model="addForm.note" class="inline-input inline-textarea" rows="3" placeholder="備註"></textarea>
                 </div>
                 <div class="inline-field-row">
                   <label>參考</label>
-                  <input v-model="editForm.ref" type="text" class="inline-input" placeholder="參考">
+                  <input v-model="addForm.ref" type="text" class="inline-input" placeholder="參考">
                 </div>
                 <div class="inline-field-row">
                   <label>Hash</label>
-                  <input v-model="editForm.hash" type="text" class="inline-input" placeholder="Hash">
+                  <input v-model="addForm.hash" type="text" class="inline-input" placeholder="Hash">
                 </div>
                 <div class="inline-field-row">
                   <label>檔案</label>
                   <div class="inline-upload-area">
-                    <label class="btn-inline-upload" :class="{ disabled: inlineFileUploading }">
-                      {{ inlineFileUploading ? '上傳中...' : '選擇檔案' }}
+                    <label class="btn-inline-upload" :class="{ disabled: addFileUploading }">
+                      {{ addFileUploading ? '上傳中...' : '選擇檔案' }}
                       <input
                         type="file"
+                        multiple
                         style="display:none"
-                        :disabled="inlineFileUploading"
-                        @change="handleInlineFileUpload"
+                        :disabled="addFileUploading"
+                        @change="handleAddFileUpload"
                       />
                     </label>
-                    <span v-if="editForm.file" class="inline-file-name">
-                      {{ isCsvUrl(editForm.file) ? '📊' : '📎' }} {{ getFileName(editForm.file) }}
-                      <button type="button" class="btn-inline-remove" @click="editForm.file = ''">✕</button>
+                    <span v-if="addForm.file" class="inline-file-name">
+                      {{ isCsvUrl(addForm.file) ? '📊' : '📎' }} {{ getFileName(addForm.file) }}
+                      <button type="button" class="btn-inline-remove" @click="addForm.file = ''">✕</button>
                     </span>
-                    <img v-if="editForm.file && isImageUrl(editForm.file)" :src="editForm.file" class="inline-img-preview" alt="預覽" />
-                    <div v-else-if="editForm.file && isCsvUrl(editForm.file)" class="inline-csv-chip">CSV 檔 · 可表格預覽</div>
-                    <input v-model="editForm.file" type="text" class="inline-input" placeholder="或輸入檔案 URL" style="margin-top:4px">
+                    <img v-if="addForm.file && isImageUrl(addForm.file)" :src="addForm.file" class="inline-img-preview" alt="預覽" />
+                    <div v-else-if="addForm.file && isCsvUrl(addForm.file)" class="inline-csv-chip">CSV 檔 · 儲存後可表格預覽</div>
+                    <input v-model="addForm.file" type="text" class="inline-input" placeholder="或輸入檔案 URL" style="margin-top:4px">
                   </div>
                 </div>
                 <div class="inline-field-row">
                   <label>封面URL</label>
-                  <input v-model="editForm.cover" type="text" class="inline-input" placeholder="封面 URL">
+                  <input v-model="addForm.cover" type="text" class="inline-input" placeholder="封面 URL">
                 </div>
               </div>
             </div>
-          </template>
-
-          <!-- 顯示模式 -->
-          <template v-else>
-          <div class="card-header">
-            <h3 class="card-title">{{ document.name || '未命名' }}</h3>
-            <div class="card-actions">
-              <button @click="startInlineEdit(document)" class="btn-icon" title="編輯">
-                ✏️
-              </button>
-              <button @click="confirmDelete(document)" class="btn-icon" title="刪除">
-                🗑️
-              </button>
-            </div>
           </div>
 
-          <div class="card-body">
-            <div v-if="document.category" class="category-badge">
-              {{ document.category }}
-            </div>
-
-            <div v-if="document.note" class="note-preview">
-              {{ truncateText(document.note, 100) }}
-            </div>
-
-            <div v-if="document.file" class="file-info">
-              <template v-if="isImageUrl(document.file)">
-                <div class="file-img-actions">
-                  <span class="file-name">{{ getFileName(document.file) }}</span>
-                  <button type="button" class="btn-download btn-preview" @click="openFilePreview(document)">預覽</button>
-                  <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載">下載</a>
+          <div
+            v-for="document in filteredDocuments"
+            :key="document.id"
+            class="document-card"
+            :class="{
+              'batch-selected': selectedIds.has(document.id),
+              'card-editing': inlineEditingId === document.id,
+              'document-card--list': documentViewMode === 'list' && inlineEditingId !== document.id,
+              'is-active': detailDocument && detailDocument.id === document.id
+            }"
+            @click="batchMode ? toggleSelect(document.id) : openDetails(document)"
+            @dblclick="!batchMode && document.file && openFilePreview(document)"
+          >
+            <!-- 行內編輯模式 -->
+            <template v-if="inlineEditingId === document.id">
+              <div class="card-header">
+                <input v-model="editForm.name" type="text" class="inline-input inline-name" placeholder="文件名稱">
+                <div class="card-actions">
+                  <button class="btn-icon save" @click="saveInlineEdit" title="儲存">💾</button>
+                  <button class="btn-icon" @click="cancelInlineEdit" title="取消">✕</button>
                 </div>
-              </template>
-              <template v-else>
-                <span class="file-icon">{{ isCsvUrl(document.file) ? '📊' : '📎' }}</span>
-                <span class="file-name">{{ getFileName(document.file) }}</span>
-                <span v-if="isCsvUrl(document.file)" class="file-type-badge">CSV</span>
-                <button type="button" class="btn-download btn-preview" @click="openFilePreview(document)">預覽</button>
-                <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載">下載</a>
-              </template>
-            </div>
+              </div>
+              <div class="card-body inline-edit-content">
+                <div class="inline-edit-form">
+                  <div class="inline-field-row">
+                    <label>分類</label>
+                    <input v-model="editForm.category" type="text" class="inline-input" placeholder="分類">
+                  </div>
+                  <div class="inline-field-row">
+                    <label>備註</label>
+                    <textarea v-model="editForm.note" class="inline-input inline-textarea" rows="3" placeholder="備註"></textarea>
+                  </div>
+                  <div class="inline-field-row">
+                    <label>參考</label>
+                    <input v-model="editForm.ref" type="text" class="inline-input" placeholder="參考">
+                  </div>
+                  <div class="inline-field-row">
+                    <label>Hash</label>
+                    <input v-model="editForm.hash" type="text" class="inline-input" placeholder="Hash">
+                  </div>
+                  <div class="inline-field-row">
+                    <label>檔案</label>
+                    <div class="inline-upload-area">
+                      <label class="btn-inline-upload" :class="{ disabled: inlineFileUploading }">
+                        {{ inlineFileUploading ? '上傳中...' : '選擇檔案' }}
+                        <input
+                          type="file"
+                          style="display:none"
+                          :disabled="inlineFileUploading"
+                          @change="handleInlineFileUpload"
+                        />
+                      </label>
+                      <span v-if="editForm.file" class="inline-file-name">
+                        {{ isCsvUrl(editForm.file) ? '📊' : '📎' }} {{ getFileName(editForm.file) }}
+                        <button type="button" class="btn-inline-remove" @click="editForm.file = ''">✕</button>
+                      </span>
+                      <img v-if="editForm.file && isImageUrl(editForm.file)" :src="editForm.file" class="inline-img-preview" alt="預覽" />
+                      <div v-else-if="editForm.file && isCsvUrl(editForm.file)" class="inline-csv-chip">CSV 檔 · 可表格預覽</div>
+                      <input v-model="editForm.file" type="text" class="inline-input" placeholder="或輸入檔案 URL" style="margin-top:4px">
+                    </div>
+                  </div>
+                  <div class="inline-field-row">
+                    <label>封面URL</label>
+                    <input v-model="editForm.cover" type="text" class="inline-input" placeholder="封面 URL">
+                  </div>
+                </div>
+              </div>
+            </template>
 
-            <div v-if="document.ref" class="ref-info">
-              <span class="label">參考:</span>
-              <span class="value">{{ document.ref }}</span>
-            </div>
+            <!-- ══ 清單列（Dropbox 式） ══ -->
+            <template v-else-if="documentViewMode === 'list'">
+              <span class="col-name">
+                <input
+                  v-if="batchMode"
+                  type="checkbox"
+                  class="row-check"
+                  :checked="selectedIds.has(document.id)"
+                  @click.stop="toggleSelect(document.id)"
+                />
+                <span class="dr-file-icon" :class="`kind-${fileKind(document).key}`">{{ fileKind(document).icon }}</span>
+                <span class="col-name-copy">
+                  <span class="card-title">{{ document.name || '未命名' }}</span>
+                  <span v-if="document.note" class="col-note">{{ truncateText(document.note, 60) }}</span>
+                </span>
+              </span>
+              <span class="col-category">
+                <span v-if="document.category" class="category-badge">{{ document.category }}</span>
+                <span v-else class="dr-muted">—</span>
+              </span>
+              <span class="col-file">
+                <span v-if="document.file" class="file-chip">
+                  <span class="file-type-badge">{{ fileKind(document).label }}</span>
+                  <span class="file-name">{{ getFileName(document.file) }}</span>
+                </span>
+                <span v-else class="dr-muted">—</span>
+              </span>
+              <span class="col-date">{{ formatDate(document.created_at) }}</span>
+              <span class="col-tools" @click.stop>
+                <button v-if="document.file" type="button" class="btn-icon" title="預覽" @click="openFilePreview(document)">👁</button>
+                <a v-if="document.file" :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-icon" title="下載">⬇</a>
+                <button class="btn-icon" title="編輯" @click="startInlineEdit(document)">✏️</button>
+                <button class="btn-icon delete" title="刪除" @click="confirmDelete(document)">🗑️</button>
+              </span>
+            </template>
 
-            <div v-if="document.cover" class="cover-preview">
-              <img :src="document.cover" :alt="document.name" class="cover-image" />
-            </div>
+            <!-- ══ 格線卡（Drive 式） ══ -->
+            <template v-else>
+              <div class="dr-card-preview">
+                <img v-if="document.cover" :src="document.cover" :alt="document.name" class="cover-image" loading="lazy" />
+                <img v-else-if="document.file && isImageUrl(document.file)" :src="document.file" :alt="document.name" class="cover-image" loading="lazy" />
+                <span v-else class="dr-file-icon dr-file-icon--lg" :class="`kind-${fileKind(document).key}`">{{ fileKind(document).icon }}</span>
+                <input
+                  v-if="batchMode"
+                  type="checkbox"
+                  class="row-check row-check--float"
+                  :checked="selectedIds.has(document.id)"
+                  @click.stop="toggleSelect(document.id)"
+                />
+                <span v-if="document.file" class="dr-card-type">{{ fileKind(document).label }}</span>
+              </div>
+              <div class="card-header">
+                <span class="dr-file-icon dr-file-icon--sm" :class="`kind-${fileKind(document).key}`">{{ fileKind(document).icon }}</span>
+                <h3 class="card-title">{{ document.name || '未命名' }}</h3>
+                <div class="card-actions" @click.stop>
+                  <button v-if="document.file" class="btn-icon" title="預覽" @click="openFilePreview(document)">👁</button>
+                  <button @click="startInlineEdit(document)" class="btn-icon" title="編輯">✏️</button>
+                  <button @click="confirmDelete(document)" class="btn-icon delete" title="刪除">🗑️</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="card-meta-row">
+                  <span v-if="document.category" class="category-badge">{{ document.category }}</span>
+                  <span class="timestamp">{{ formatDate(document.created_at) }}</span>
+                </div>
+                <p v-if="document.note" class="note-preview">{{ truncateText(document.note, 90) }}</p>
+                <div v-if="document.file" class="file-info">
+                  <span class="file-name">{{ getFileName(document.file) }}</span>
+                  <a :href="document.file" :download="getFileName(document.file)" target="_blank" class="btn-download" title="下載" @click.stop>下載</a>
+                </div>
+                <div v-if="document.ref" class="ref-info">
+                  <span class="label">參考</span>
+                  <span class="value">{{ document.ref }}</span>
+                </div>
+              </div>
+              <div class="card-footer">
+                <span class="hash-info" v-if="document.hash" title="檔案指紋">🔐 {{ truncateText(document.hash, 14) }}</span>
+              </div>
+            </template>
           </div>
-
-          <div class="card-footer">
-            <span class="hash-info" v-if="document.hash">
-              Hash: {{ truncateText(document.hash, 16) }}
-            </span>
-            <span class="timestamp">
-              {{ formatDate(document.created_at) }}
-            </span>
-          </div>
-          </template>
         </div>
+
+        <!-- ══ Dropbox 式詳細資料窗格 ══ -->
+        <aside v-if="showDetailPane" class="dr-detail" aria-label="詳細資料">
+          <header class="dr-detail-head">
+            <h2>詳細資料</h2>
+            <button class="btn-icon" title="關閉" @click="showDetailPane = false">✕</button>
+          </header>
+
+          <template v-if="detailDocument">
+            <div class="dr-detail-preview">
+              <img v-if="detailDocument.cover" :src="detailDocument.cover" :alt="detailDocument.name" />
+              <img v-else-if="detailDocument.file && isImageUrl(detailDocument.file)" :src="detailDocument.file" :alt="detailDocument.name" />
+              <span v-else class="dr-file-icon dr-file-icon--lg" :class="`kind-${fileKind(detailDocument).key}`">{{ fileKind(detailDocument).icon }}</span>
+            </div>
+            <h3 class="dr-detail-name">{{ detailDocument.name || '未命名' }}</h3>
+            <div class="dr-detail-actions">
+              <button v-if="detailDocument.file" class="btn btn-primary" @click="openFilePreview(detailDocument)">預覽</button>
+              <a
+                v-if="detailDocument.file"
+                :href="detailDocument.file"
+                :download="getFileName(detailDocument.file)"
+                target="_blank"
+                class="btn btn-secondary"
+              >下載</a>
+              <button class="btn btn-secondary" @click="startInlineEdit(detailDocument)">編輯</button>
+            </div>
+            <dl class="dr-detail-facts">
+              <div><dt>類型</dt><dd>{{ fileKind(detailDocument).label }}</dd></div>
+              <div v-if="detailDocument.category"><dt>分類</dt><dd>{{ detailDocument.category }}</dd></div>
+              <div v-if="detailDocument.file"><dt>檔名</dt><dd>{{ getFileName(detailDocument.file) }}</dd></div>
+              <div><dt>建立</dt><dd>{{ formatDate(detailDocument.created_at) }}</dd></div>
+              <div v-if="detailDocument.ref"><dt>參考</dt><dd>{{ detailDocument.ref }}</dd></div>
+              <div v-if="detailDocument.hash"><dt>指紋</dt><dd class="dr-hash">{{ detailDocument.hash }}</dd></div>
+            </dl>
+            <div v-if="detailDocument.note" class="dr-detail-note">
+              <h4>備註</h4>
+              <p>{{ detailDocument.note }}</p>
+            </div>
+          </template>
+          <p v-else class="dr-detail-empty">選取一個項目以檢視詳細資料。</p>
+        </aside>
       </div>
 
       <!-- 匯入進度 Overlay -->
@@ -624,6 +776,8 @@ const {
 const filterCategory = ref('')
 const DOCUMENT_VIEW_MODE_KEY = 'feng-document-view-mode'
 const documentViewMode = ref('card')
+const showDetailPane = ref(false)
+const detailDocument = ref(null)
 const previewDocument = ref(null)
 const previewText = ref('')
 const previewTextLoading = ref(false)
@@ -637,6 +791,51 @@ const availableCategories = computed(() => {
   documents.value.forEach(doc => { if (doc.category) cats.add(doc.category) })
   return [...cats].sort()
 })
+
+/** Drive 式彩色檔案型別圖示 */
+const FILE_KINDS = {
+  image: { key: 'image', icon: '🖼', label: '圖片' },
+  pdf: { key: 'pdf', icon: '📕', label: 'PDF' },
+  csv: { key: 'sheet', icon: '📊', label: 'CSV' },
+  text: { key: 'text', icon: '📝', label: '文字' },
+  video: { key: 'video', icon: '🎬', label: '影片' },
+  audio: { key: 'audio', icon: '🎧', label: '音訊' },
+  office: { key: 'doc', icon: '📄', label: 'Office' },
+  file: { key: 'file', icon: '📎', label: '檔案' }
+}
+
+const fileKind = (documentItem) => {
+  if (!documentItem?.file) return { key: 'file', icon: '🗂', label: '無檔案' }
+  const type = getFilePreviewType(documentItem.file)
+  return FILE_KINDS[type] || FILE_KINDS.file
+}
+
+/** MEGA 式容量統計：以「有檔案的比例」當作使用率 */
+const storageStats = computed(() => {
+  const total = documents.value.length
+  const withFile = documents.value.filter((doc) => doc.file).length
+  const counts = new Map()
+  documents.value.forEach((doc) => {
+    if (!doc.file) return
+    const kind = fileKind(doc)
+    const entry = counts.get(kind.key) || { ...kind, count: 0 }
+    entry.count += 1
+    counts.set(kind.key, entry)
+  })
+  return {
+    withFile,
+    usedPercent: total ? Math.min(100, Math.round((withFile / total) * 100)) : 0,
+    kinds: Array.from(counts.values()).sort((a, b) => b.count - a.count).slice(0, 4)
+  }
+})
+
+/** Drive 式快速存取：最近 6 筆 */
+const quickAccess = computed(() => documents.value.slice(0, 6))
+
+const openDetails = (documentItem) => {
+  detailDocument.value = documentItem
+  showDetailPane.value = true
+}
 
 const setDocumentViewMode = (mode) => {
   if (!['card', 'list'].includes(mode)) return
@@ -1744,1115 +1943,1734 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 行內編輯樣式 */
-.card-editing {
-  box-shadow: var(--elevation-1);
-  border-left: 4px solid var(--primary);
+/* ============================================================
+   鋒兄文件 — Google Drive × MEGA × Dropbox 融合介面
+   · Drive：麵包屑、快速存取、彩色檔案型別圖示、格線／清單
+   · MEGA：紅色容量儀表、加密指紋徽章
+   · Dropbox：藍色主動作、乾淨清單列、右側詳細資料窗格
+   ============================================================ */
+.document-page {
+  --dc-bg: var(--bg-canvas);
+  --dc-surface: var(--bg-surface);
+  --dc-inset: var(--bg-muted);
+  --dc-line: var(--border-subtle);
+  --dc-text: var(--text-primary);
+  --dc-text-2: var(--text-secondary);
+  --dc-text-3: var(--text-muted);
+  --dc-blue: #0061ff;          /* Dropbox */
+  --dc-blue-soft: color-mix(in oklab, #0061ff 12%, transparent);
+  --dc-red: #d9272e;           /* MEGA */
+  --dc-green: #0f9d58;         /* Drive */
+  --dc-yellow: #f4b400;
+  --dc-drive-blue: #4285f4;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  color: var(--dc-text);
+  font-family: var(--font-body);
 }
 
-/* 圖片預覽 */
-.inline-img-preview {
-  display: block;
-  max-width: 100%;
-  max-height: 160px;
-  border-radius: var(--radius-sm);
-  margin-top: 6px;
-  object-fit: contain;
-  border: 1px solid color-mix(in oklab, var(--bg-surface) 10%, transparent);
+.dark .document-page {
+  --dc-bg: #131316;
+  --dc-surface: #1b1b1f;
+  --dc-inset: #232329;
+  --dc-line: #2e2e35;
+  --dc-text: #ededf0;
+  --dc-text-2: #b4b4be;
+  --dc-text-3: #82828d;
+  --dc-blue-soft: color-mix(in oklab, #0061ff 22%, transparent);
 }
-.file-img-preview {
-  display: block;
-  width: 100%;
-  max-height: 180px;
-  object-fit: cover;
-  border-radius: var(--radius-md);
-  margin-bottom: 6px;
-}
-.file-img-actions {
+
+/* ══════════ Drive 頂欄 ══════════ */
+.dr-topbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--dc-line);
 }
 
-.inline-input {
-  width: 100%;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--border-subtle);
+.dr-crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-lg);
+}
+
+.dr-drive-mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
   border-radius: var(--radius-xs);
-  font-size: 0.9rem;
-  transition: border-color 0.2s;
+  background: linear-gradient(135deg, var(--dc-drive-blue) 0%, var(--dc-green) 55%, var(--dc-yellow) 100%);
+  color: #fff;
+  font-size: 0.75rem;
 }
 
-.inline-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px var(--primary-ring);
-}
-
-.inline-name {
-  flex: 1;
+.dr-crumb-root {
+  font-family: var(--font-display);
   font-weight: 600;
+  color: var(--dc-text);
+}
+
+.dr-crumb-sep {
+  color: var(--dc-text-3);
+}
+
+.dr-crumb-current {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--dc-text-2);
+}
+
+.search-area {
+  flex: 1 1 260px;
+  min-width: 200px;
+}
+
+.search-area :deep(input) {
+  height: 40px;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  background: var(--dc-inset);
+  color: var(--dc-text);
+  font-size: var(--text-sm);
+}
+
+.search-area :deep(input:focus) {
+  outline: none;
+  background: var(--dc-surface);
+  border-color: var(--dc-line);
+  box-shadow: var(--elevation-2);
+}
+
+.dr-topbar-tools {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.dr-new-btn {
+  height: 40px;
+  padding: 0 var(--sp-5);
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--dc-blue);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--elevation-1);
+  transition: filter var(--transition-fast);
+}
+
+.dr-new-btn:hover {
+  filter: brightness(1.08);
+}
+
+/* ══════════ MEGA 容量儀表 ══════════ */
+.mg-storage {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+  padding: var(--sp-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--dc-line);
+  background: var(--dc-surface);
+}
+
+.mg-dial {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  flex: 0 0 auto;
+}
+
+.mg-dial-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.mg-dial-track,
+.mg-dial-value {
+  fill: none;
+  stroke-width: 4;
+}
+
+.mg-dial-track {
+  stroke: var(--dc-inset);
+}
+
+.mg-dial-value {
+  stroke: var(--dc-red);
+  stroke-linecap: round;
+  transition: stroke-dasharray var(--transition-slow);
+}
+
+.mg-dial-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--dc-text);
+}
+
+.mg-storage-copy {
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.mg-storage-title {
+  margin: 0 0 var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--dc-text-3);
+}
+
+.mg-storage-line {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--dc-text-2);
+}
+
+.mg-storage-line strong {
+  color: var(--dc-text);
+  font-family: var(--font-mono);
+}
+
+.mg-bar {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--dc-inset);
+  overflow: hidden;
+}
+
+.mg-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--dc-red), #ff6b4a);
+  transition: width var(--transition-normal);
+}
+
+.mg-kinds {
+  display: flex;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.mg-kind {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.mg-kind-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+
+.mg-kind-copy {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-2xs);
+  color: var(--dc-text-3);
+  line-height: 1.3;
+}
+
+.mg-kind-copy strong {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--dc-text);
+}
+
+.csv-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+/* ══════════ 檔案型別圖示（Drive 配色） ══════════ */
+.dr-file-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
   font-size: 1rem;
+  flex: 0 0 auto;
+}
+
+.dr-file-icon--lg {
+  width: 64px;
+  height: 64px;
+  font-size: 1.75rem;
+  border-radius: var(--radius-md);
+}
+
+.dr-file-icon--sm {
+  width: 24px;
+  height: 24px;
+  font-size: 0.8125rem;
+  border-radius: var(--radius-xs);
+}
+
+.kind-doc { background: color-mix(in oklab, var(--dc-drive-blue) 16%, transparent); color: var(--dc-drive-blue); }
+.kind-sheet { background: color-mix(in oklab, var(--dc-green) 16%, transparent); color: var(--dc-green); }
+.kind-image { background: color-mix(in oklab, #a142f4 16%, transparent); color: #8b32d8; }
+.kind-pdf { background: color-mix(in oklab, var(--dc-red) 16%, transparent); color: var(--dc-red); }
+.kind-video { background: color-mix(in oklab, #ff6d00 16%, transparent); color: #e05f00; }
+.kind-audio { background: color-mix(in oklab, #00acc1 16%, transparent); color: #00838f; }
+.kind-text { background: color-mix(in oklab, var(--dc-yellow) 20%, transparent); color: #a97b00; }
+.kind-file { background: var(--dc-inset); color: var(--dc-text-2); }
+
+/* ══════════ Drive 快速存取 ══════════ */
+.dr-quick-title {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--dc-text-2);
+}
+
+.dr-quick-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: var(--sp-3);
+}
+
+.dr-quick-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--dc-line);
+  background: var(--dc-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dr-quick-card:hover {
+  background: var(--dc-inset);
+}
+
+.dr-quick-card.active {
+  border-color: var(--dc-blue);
+  background: var(--dc-blue-soft);
+}
+
+.dr-quick-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--dc-inset);
+  flex: 0 0 auto;
+}
+
+.dr-quick-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dr-quick-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dr-quick-copy strong {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--dc-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dr-quick-copy span {
+  font-size: var(--text-2xs);
+  color: var(--dc-text-3);
+}
+
+/* ══════════ 工具列 ══════════ */
+.dr-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--dc-line);
+  border-bottom: 1px solid var(--dc-line);
+}
+
+.filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.filter-select {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--dc-line);
+  background: var(--dc-surface);
+  color: var(--dc-text);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.btn-clear-filter {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: var(--dc-inset);
+  color: var(--dc-text-2);
+  font-size: 0.6875rem;
+  cursor: pointer;
+}
+
+.dr-count {
+  font-size: var(--text-xs);
+  color: var(--dc-text-3);
+}
+
+.selected-count {
+  font-size: var(--text-xs);
+  color: var(--dc-blue);
+  font-weight: 600;
+}
+
+.dr-toolbar-spacer {
+  flex: 1;
+}
+
+.btn-batch-mode,
+.btn-cancel-batch {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--dc-line);
+  background: var(--dc-surface);
+  color: var(--dc-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.btn-batch-mode:hover,
+.btn-cancel-batch:hover {
+  background: var(--dc-inset);
+  color: var(--dc-text);
+}
+
+.select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--dc-text-2);
+  cursor: pointer;
+}
+
+.select-all-label input,
+.row-check {
+  accent-color: var(--dc-blue);
+  cursor: pointer;
+}
+
+.btn-batch-delete {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--dc-red);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-batch-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.view-switcher {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  background: var(--dc-inset);
+}
+
+.view-switch-btn {
+  height: 26px;
+  padding: 0 var(--sp-3);
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--dc-text-3);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.view-switch-btn:hover {
+  color: var(--dc-text);
+}
+
+.view-switch-btn.active {
+  background: var(--dc-surface);
+  color: var(--dc-blue);
+  font-weight: 600;
+  box-shadow: var(--elevation-1);
+}
+
+.dr-detail-toggle {
+  border: 1px solid var(--dc-line);
+  height: 32px;
+  background: var(--dc-surface);
+}
+
+.dr-detail-toggle.active {
+  border-color: var(--dc-blue);
+  color: var(--dc-blue);
+}
+
+/* ══════════ 狀態 ══════════ */
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-16) var(--sp-4);
+  color: var(--dc-text-3);
+}
+
+.empty-icon {
+  font-size: 2.75rem;
+  opacity: 0.5;
+}
+
+.empty-text {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid var(--dc-inset);
+  border-top-color: var(--dc-blue);
+  animation: dcSpin 0.8s linear infinite;
+}
+
+@keyframes dcSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ══════════ 工作區 + 詳細窗格 ══════════ */
+.dr-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.dr-workspace.with-detail {
+  grid-template-columns: minmax(0, 1fr) 316px;
+}
+
+/* ══════════ 格線 / 清單 ══════════ */
+.documents-grid {
+  min-width: 0;
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.documents-grid--card {
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+
+.documents-grid--list {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.dr-list-head,
+.document-card--list {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) 130px minmax(0, 1.3fr) 116px 132px;
+  gap: var(--sp-3);
+  align-items: center;
+}
+
+.dr-list-head {
+  padding: 0 var(--sp-3) var(--sp-2);
+  border-bottom: 1px solid var(--dc-line);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dc-text-3);
+}
+
+.document-card {
+  min-width: 0;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.document-card--list {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--dc-line);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.document-card--list:hover {
+  background: var(--dc-inset);
+}
+
+.document-card--list.is-active {
+  background: var(--dc-blue-soft);
+}
+
+.document-card--list.batch-selected {
+  background: var(--dc-blue-soft);
+}
+
+.documents-grid--card .document-card:not(.card-editing) {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--dc-line);
+  background: var(--dc-surface);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.documents-grid--card .document-card:not(.card-editing):hover {
+  box-shadow: var(--elevation-2);
+}
+
+.documents-grid--card .document-card.is-active {
+  border-color: var(--dc-blue);
+  box-shadow: 0 0 0 2px var(--dc-blue-soft);
+}
+
+.documents-grid--card .document-card.batch-selected {
+  border-color: var(--dc-blue);
+  background: var(--dc-blue-soft);
+}
+
+.dr-card-preview {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  display: grid;
+  place-items: center;
+  background: var(--dc-inset);
+  border-bottom: 1px solid var(--dc-line);
+  overflow: hidden;
+}
+
+.cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.row-check--float {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 18px;
+  height: 18px;
+}
+
+.dr-card-type {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-3) var(--sp-1);
+}
+
+.card-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--dc-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.document-card:hover .card-actions,
+.card-editing .card-actions {
+  opacity: 1;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3) var(--sp-3);
+}
+
+.card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.category-badge {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--dc-blue-soft);
+  color: var(--dc-blue);
+  font-size: var(--text-2xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timestamp {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--dc-text-3);
+}
+
+.note-preview {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  color: var(--dc-text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--radius-sm);
+  background: var(--dc-inset);
+  font-size: var(--text-xs);
+}
+
+.file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dc-text-2);
+}
+
+.file-type-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--dc-inset);
+  color: var(--dc-text-2);
+}
+
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.btn-download,
+.btn-preview {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--dc-line);
+  background: var(--dc-surface);
+  color: var(--dc-text-2);
+  font-size: var(--text-2xs);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-download:hover,
+.btn-preview:hover {
+  border-color: var(--dc-blue);
+  color: var(--dc-blue);
+}
+
+.ref-info {
+  display: flex;
+  gap: var(--sp-2);
+  font-size: var(--text-2xs);
+  color: var(--dc-text-3);
+  overflow: hidden;
+}
+
+.ref-info .label {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+
+.ref-info .value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--dc-line);
+  min-height: 32px;
+}
+
+.hash-info {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--dc-text-3);
+}
+
+/* 清單列欄位 */
+.col-name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.col-name-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.col-note {
+  font-size: var(--text-2xs);
+  color: var(--dc-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-category,
+.col-file,
+.col-date {
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--dc-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-date {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--dc-text-3);
+}
+
+.col-tools {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.document-card--list:hover .col-tools,
+.document-card--list.is-active .col-tools {
+  opacity: 1;
+}
+
+.dr-muted {
+  color: var(--dc-text-3);
+}
+
+.btn-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--dc-text-2);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.btn-icon:hover {
+  background: var(--dc-inset);
+  color: var(--dc-text);
+}
+
+.btn-icon.delete:hover {
+  color: var(--dc-red);
+}
+
+.btn-icon.save:hover {
+  color: var(--dc-blue);
+}
+
+/* ══════════ Dropbox 詳細窗格 ══════════ */
+.dr-detail {
+  position: sticky;
+  top: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--dc-line);
+  background: var(--dc-surface);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.dr-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dr-detail-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.dr-detail-preview {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-md);
+  background: var(--dc-inset);
+  overflow: hidden;
+}
+
+.dr-detail-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dr-detail-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.dr-detail-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.dr-detail-facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--dc-line);
+}
+
+.dr-detail-facts > div {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+}
+
+.dr-detail-facts dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  color: var(--dc-text-3);
+}
+
+.dr-detail-facts dd {
+  margin: 0;
+  color: var(--dc-text-2);
+  overflow-wrap: anywhere;
+}
+
+.dr-hash {
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.dr-detail-note {
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--dc-line);
+}
+
+.dr-detail-note h4 {
+  margin: 0 0 var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  color: var(--dc-text-3);
+}
+
+.dr-detail-note p {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--dc-text-2);
+  white-space: pre-wrap;
+}
+
+.dr-detail-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--dc-text-3);
+}
+
+/* ══════════ 按鈕 ══════════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary {
+  background: var(--dc-blue);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn-secondary {
+  background: var(--dc-surface);
+  border-color: var(--dc-line);
+  color: var(--dc-text-2);
+}
+
+.btn-secondary:hover {
+  background: var(--dc-inset);
+  color: var(--dc-text);
+}
+
+.btn-export,
+.btn-import,
+.btn-upload {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--dc-line);
+  background: var(--dc-surface);
+  color: var(--dc-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.btn-export:hover:not(:disabled),
+.btn-import:hover,
+.btn-upload:hover:not(:disabled) {
+  border-color: var(--dc-blue);
+  color: var(--dc-blue);
+}
+
+.btn-export:disabled,
+.btn-upload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-import.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ══════════ 行內編輯 ══════════ */
+.document-card.card-editing {
+  grid-column: 1 / -1;
+  border: 1px solid var(--dc-line);
+  border-left: 4px solid var(--dc-blue);
+  border-radius: var(--radius-md);
+  background: var(--dc-surface);
+  box-shadow: var(--elevation-2);
+  padding: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.card-editing .card-header,
+.card-editing .card-body {
+  padding: 0;
 }
 
 .inline-edit-content {
-  max-height: 400px;
+  max-height: 440px;
   overflow-y: auto;
 }
 
 .inline-edit-form {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--sp-3);
 }
 
 .inline-field-row {
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
 }
 
-.inline-field-row label {
-  min-width: 60px;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  padding-top: 0.4rem;
-  flex-shrink: 0;
+.inline-field-row > label {
+  flex: 0 0 68px;
+  padding-top: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--dc-text-3);
+}
+
+.inline-input,
+.inline-textarea {
+  flex: 1;
+  min-width: 160px;
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--dc-line);
+  background: var(--dc-inset);
+  color: var(--dc-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+
+.inline-input:focus,
+.inline-textarea:focus {
+  outline: none;
+  border-color: var(--dc-blue);
+  background: var(--dc-surface);
+  box-shadow: 0 0 0 3px var(--dc-blue-soft);
 }
 
 .inline-textarea {
   resize: vertical;
-  min-height: 60px;
 }
 
-.btn-icon.save:hover {
-  background: var(--success-light);
+.inline-name {
+  font-size: var(--text-md);
+  font-weight: 600;
 }
 
-/* Filter select */
-.filter-group {
-  display: flex;
-  align-items: center;
-}
-
-.filter-select {
-  padding: 0.65rem 0.8rem;
-  border: 2px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  font-size: 0.95rem;
-  background: var(--bg-surface);
-  cursor: pointer;
-  transition: border-color 0.2s;
-  min-width: 130px;
-}
-
-.filter-select:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-
-/* Inline upload */
 .inline-upload-area {
+  flex: 1;
+  min-width: 200px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  width: 100%;
+  gap: var(--sp-2);
+  align-items: flex-start;
 }
 
 .btn-inline-upload {
-  padding: 0.3rem 0.7rem;
-  font-size: 0.82rem;
-  border: 1px solid var(--primary);
-  border-radius: var(--radius-xs);
-  background: var(--bg-surface);
-  color: var(--primary-text);
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px dashed var(--dc-line);
+  color: var(--dc-text-2);
+  font-size: var(--text-xs);
   cursor: pointer;
-  align-self: flex-start;
-  transition: background 0.2s;
 }
 
-.btn-inline-upload:hover:not(:disabled) {
-  background: var(--primary-light);
+.btn-inline-upload:hover {
+  border-color: var(--dc-blue);
+  color: var(--dc-blue);
 }
 
-.btn-inline-upload:disabled {
-  opacity: 0.6;
+.btn-inline-upload.disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .inline-file-name {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
+  font-size: var(--text-xs);
+  color: var(--dc-text-2);
+  overflow-wrap: anywhere;
 }
 
 .btn-inline-remove {
-  background: none;
+  width: 22px;
+  height: 22px;
   border: none;
-  color: var(--danger-text);
-  cursor: pointer;
-  font-size: 0.8rem;
-  padding: 0 2px;
-}
-
-.document-page {
-  animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Header */
-.page-header {
-  margin-bottom: 2rem;
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: bold;
-  background: var(--primary-strong);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Actions Bar */
-.actions-bar {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.search-group {
-  flex: 1;
-  min-width: 200px;
-}
-
-.search-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 2px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  font-size: 1rem;
-  transition: all 0.3s ease;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-}
-
-.csv-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-/* Buttons */
-.btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.btn:disabled,
-.btn.disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-.btn-primary {
-  background: var(--primary-solid);
-  color: var(--on-primary);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--elevation-2);
-}
-
-.btn-secondary {
-  background: var(--bg-inset);
-  color: var(--text-secondary);
-}
-
-.btn-secondary:hover {
-  background: var(--border-strong);
-}
-
-.btn-export {
-  background: var(--success-solid);
-  color: var(--on-solid);
-}
-
-.btn-export:hover {
-  background: var(--success-solid-hover);
-  transform: translateY(-2px);
-}
-
-.btn-export-secondary {
-  background: var(--success-solid);
-}
-
-.btn-export-secondary:hover {
-  background: var(--success-solid-hover);
-}
-
-.btn-import {
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  display: inline-block;
-  text-align: center;
-}
-
-.btn-import:hover {
-  background: var(--primary-solid-hover);
-  transform: translateY(-2px);
-}
-
-.btn-import.disabled {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.btn-icon {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.25rem;
-  opacity: 0.7;
-  transition: all 0.2s ease;
-}
-
-.btn-icon:hover {
-  opacity: 1;
-  transform: scale(1.1);
-}
-
-/* Loading State */
-.loading-state {
-  text-align: center;
-  padding: 4rem 2rem;
-}
-
-.spinner {
-  width: 50px;
-  height: 50px;
-  margin: 0 auto 1rem;
-  border: 4px solid var(--border-subtle);
-  border-top-color: var(--primary);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Empty State */
-.empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-}
-
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-}
-
-.empty-text {
-  font-size: 1.25rem;
-  color: var(--text-secondary);
-  margin-bottom: 2rem;
-}
-
-.view-switcher {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem;
-  background: var(--primary-light);
-  border-radius: 999px;
-}
-
-.view-switch-btn {
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  padding: 0.45rem 0.85rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  background: var(--dc-inset);
+  color: var(--dc-text-2);
+  font-size: 0.6875rem;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.view-switch-btn.active {
-  background: var(--bg-surface);
-  color: var(--primary-text);
-  box-shadow: var(--elevation-1);
+.btn-inline-remove:hover {
+  background: var(--dc-red);
+  color: #fff;
 }
 
-/* Documents Grid */
-.documents-grid {
+.inline-img-preview {
+  max-width: 180px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--dc-line);
+}
+
+.inline-csv-chip {
+  font-size: var(--text-2xs);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--dc-green) 14%, transparent);
+  color: var(--dc-green);
+}
+
+/* ══════════ 匯入 Overlay ══════════ */
+.import-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
+  place-items: center;
+  background: rgba(12, 12, 16, 0.68);
+  backdrop-filter: blur(3px);
 }
 
-.documents-grid--list {
-  grid-template-columns: 1fr;
-}
-
-.document-card {
-  background: var(--bg-surface);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  box-shadow: var(--elevation-1);
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-}
-
-.document-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--elevation-3);
-  border-color: var(--primary);
-}
-
-.document-card--list {
-  padding: 1.1rem 1.25rem;
-}
-
-.document-card--list:hover {
-  transform: none;
-}
-
-.document-card--list .card-header {
-  margin-bottom: 0.75rem;
-}
-
-.document-card--list .card-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.9fr);
-  gap: 1rem 1.25rem;
-  align-items: start;
-}
-
-.document-card--list .card-footer {
-  margin-top: 0.5rem;
-}
-
-.document-card--list .cover-preview {
-  margin-top: 0;
-}
-
-.document-card--list .cover-image,
-.document-card--list .file-img-preview {
-  max-height: 120px;
-  object-fit: contain;
-  background: var(--bg-surface);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-  gap: 0.5rem;
-}
-
-.card-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-  flex: 1;
-  word-break: break-word;
-}
-
-.card-actions {
-  display: flex;
-  gap: 0.25rem;
-  flex-shrink: 0;
-}
-
-.card-body {
+.import-modal-box {
+  width: min(420px, 90vw);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.category-badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  align-self: flex-start;
-}
-
-.note-preview {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.file-info {
-  display: flex;
   align-items: center;
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  gap: 0.5rem;
-  padding: 0.65rem;
-  background: var(--bg-surface);
-  border-radius: var(--radius-md);
-  font-size: 0.9rem;
-}
-
-.file-preview-frame {
-  width: 100%;
-  min-height: 92px;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-}
-
-.file-embed-preview {
-  display: block;
-  width: 100%;
-  height: 240px;
-  border: 0;
-  background: var(--bg-surface);
-}
-
-.file-text-preview {
-  background: var(--bg-surface);
-}
-
-.file-media-preview {
-  display: block;
-  width: 100%;
-  max-height: 260px;
-  background: var(--neutral-solid);
-}
-
-.file-audio-preview {
-  display: block;
-  width: 100%;
-  padding: 1rem;
-  background: var(--bg-surface);
-}
-
-.file-generic-preview {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
-  min-height: 92px;
-  justify-content: center;
-  color: var(--text-secondary);
-  font-weight: 600;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  border-radius: var(--radius-lg);
+  background: var(--dc-surface);
+  border: 1px solid var(--dc-line);
   text-align: center;
-  padding: 1rem;
-  flex-wrap: wrap;
 }
 
-.file-generic-icon {
-  font-size: 1.7rem;
+.import-spinner-anim {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid var(--dc-inset);
+  border-top-color: var(--dc-blue);
+  animation: dcSpin 0.8s linear infinite;
 }
 
-.btn-office-preview {
-  color: var(--primary-text);
-  font-size: 0.85rem;
-  text-decoration: none;
-  border: 1px solid color-mix(in oklab, var(--primary) 32%, transparent);
-  background: var(--bg-surface);
-  border-radius: 999px;
-  padding: 0.25rem 0.65rem;
+.import-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
 }
 
-.file-icon {
-  font-size: 1.2rem;
+.import-step,
+.import-percent,
+.import-item-name {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--dc-text-2);
 }
 
-.file-name {
-  color: var(--text-secondary);
-  word-break: break-all;
-  flex: 1;
+.import-item-name {
+  color: var(--dc-text-3);
+  overflow-wrap: anywhere;
 }
 
-.btn-download {
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  color: var(--primary-text);
-  font-size: 1rem;
-  text-decoration: none;
-  opacity: 0.7;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.btn-preview {
-  font-weight: 700;
-}
-
-.btn-download:hover {
-  opacity: 1;
-  transform: scale(1.15);
-}
-
-.ref-info {
-  display: flex;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-.ref-info .label {
-  font-weight: 500;
-}
-
-.cover-preview {
-  margin-top: 0.5rem;
-}
-
-.cover-image {
+.import-progress-bar {
   width: 100%;
-  height: 150px;
-  object-fit: cover;
-  border-radius: var(--radius-md);
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--dc-inset);
+  overflow: hidden;
 }
 
-.card-footer {
+.import-progress-fill {
+  height: 100%;
+  background: var(--dc-blue);
+  transition: width var(--transition-normal);
+}
+
+.import-stats {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-subtle);
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  gap: 0.5rem;
+  gap: var(--sp-2);
   flex-wrap: wrap;
+  justify-content: center;
 }
 
-.hash-info {
-  font-family: monospace;
-  color: var(--text-secondary);
+.stat-tag {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
 }
 
-.timestamp {
-  color: var(--text-muted);
+.stat-ok {
+  background: color-mix(in oklab, var(--dc-green) 16%, transparent);
+  color: var(--dc-green);
 }
 
-/* Modal */
+.stat-fail {
+  background: color-mix(in oklab, var(--dc-red) 16%, transparent);
+  color: var(--dc-red);
+}
+
+/* ══════════ Modal ══════════ */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: color-mix(in oklab, var(--overlay-scrim) 50%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-  animation: fadeIn 0.2s ease-in;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+  background: rgba(12, 12, 16, 0.68);
+  backdrop-filter: blur(3px);
 }
 
 .modal-content {
-  background: var(--bg-surface);
-  border-radius: var(--radius-xl);
-  max-width: 600px;
-  width: 100%;
+  width: min(620px, 100%);
   max-height: 90vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  background: var(--dc-surface);
+  border: 1px solid var(--dc-line);
   box-shadow: var(--elevation-3);
-  animation: slideUp 0.3s ease-out;
+  overflow: hidden;
 }
 
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--dc-line);
+}
+
+.modal-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--dc-text-2);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.btn-close:hover {
+  background: var(--dc-inset);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  overflow-y: auto;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.form-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--dc-text-3);
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--dc-line);
+  background: var(--dc-inset);
+  color: var(--dc-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--dc-blue);
+  background: var(--dc-surface);
+  box-shadow: 0 0 0 3px var(--dc-blue-soft);
+}
+
+.form-textarea {
+  resize: vertical;
+}
+
+.upload-area {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.file-preview,
+.cover-upload-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  color: var(--dc-text-2);
+}
+
+.preview-image {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--dc-line);
+}
+
+.btn-remove {
+  height: 28px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--dc-line);
+  background: transparent;
+  color: var(--dc-text-2);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.btn-remove:hover {
+  color: var(--dc-red);
+  border-color: var(--dc-red);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--dc-line);
+}
+
+/* ══════════ 檔案預覽 Modal ══════════ */
 .file-preview-modal {
-  max-width: min(1040px, 94vw);
-  max-height: 92vh;
+  width: min(1040px, 100%);
+  height: min(88vh, 900px);
 }
 
 .file-preview-modal-body {
-  padding: 1rem;
-  background: var(--bg-surface);
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+  background: var(--dc-inset);
+  overflow: auto;
 }
 
 .file-preview-large-img {
-  display: block;
-  width: 100%;
-  max-height: 72vh;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
 }
 
 .file-preview-large-frame {
-  display: block;
   width: 100%;
-  height: min(72vh, 720px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  height: 100%;
+  border: none;
+  background: #fff;
+  border-radius: var(--radius-sm);
 }
 
+.file-preview-large-media {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.file-preview-large-audio {
+  width: min(560px, 100%);
+}
+
+.file-preview-csv-panel,
 .file-preview-text-panel {
   width: 100%;
-  max-height: 72vh;
-  overflow: auto;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
-}
-
-.file-preview-csv-panel {
-  width: 100%;
-  max-height: 72vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  overflow: hidden;
+  gap: var(--sp-2);
+  min-height: 0;
 }
 
 .csv-preview-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--sp-3);
   flex-wrap: wrap;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
 }
 
 .csv-preview-meta {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--dc-text-3);
 }
 
 .csv-preview-mode-switch {
   display: inline-flex;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--bg-surface);
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  background: var(--dc-surface);
+  border: 1px solid var(--dc-line);
 }
 
 .csv-mode-btn {
+  height: 24px;
+  padding: 0 var(--sp-3);
   border: none;
+  border-radius: var(--radius-full);
   background: transparent;
-  color: var(--text-secondary);
-  padding: 0.35rem 0.75rem;
-  font-size: 0.85rem;
+  color: var(--dc-text-3);
+  font-size: var(--text-2xs);
   cursor: pointer;
 }
 
 .csv-mode-btn.active {
-  background: var(--success-solid);
-  color: var(--on-solid);
+  background: var(--dc-blue);
+  color: #fff;
+  font-weight: 600;
 }
 
 .csv-preview-table-wrap {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
-  max-height: calc(72vh - 52px);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--dc-line);
+  background: var(--dc-surface);
 }
 
 .csv-preview-table {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
-  color: var(--text-primary);
+  font-size: var(--text-xs);
 }
 
 .csv-preview-table th,
 .csv-preview-table td {
-  border: 1px solid var(--border-subtle);
-  padding: 0.45rem 0.65rem;
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--dc-line);
   text-align: left;
   white-space: nowrap;
-  max-width: 280px;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .csv-preview-table thead th {
   position: sticky;
   top: 0;
-  background: var(--bg-surface);
+  background: var(--dc-inset);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  color: var(--dc-text-3);
   z-index: 1;
-  font-weight: 600;
 }
 
-.csv-preview-table tbody tr:nth-child(even) {
-  background: var(--bg-surface);
-}
-
-.csv-preview-table .csv-row-index {
-  color: var(--text-muted);
-  background: var(--bg-surface);
-  text-align: right;
-  width: 3rem;
+.csv-row-index {
+  font-family: var(--font-mono);
+  color: var(--dc-text-3);
+  width: 48px;
 }
 
 .file-preview-text-content {
+  flex: 1;
+  min-height: 0;
   margin: 0;
-  padding: 1rem;
-  color: var(--text-primary);
-  font-family: Consolas, "Courier New", monospace;
-  font-size: 0.95rem;
-  line-height: 1.7;
+  padding: var(--sp-3);
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--dc-line);
+  background: var(--dc-surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.file-type-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.1rem 0.4rem;
-  border-radius: var(--radius-xs);
-  background: color-mix(in oklab, var(--success) 15%, transparent);
-  color: var(--success-text);
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-right: 0.25rem;
-}
-
-.inline-csv-chip {
-  margin-top: 4px;
-  font-size: 0.8rem;
-  color: var(--success-text);
-  background: color-mix(in oklab, var(--success) 12%, transparent);
-  border-radius: var(--radius-sm);
-  padding: 0.25rem 0.5rem;
-  width: fit-content;
-}
-
-.file-preview-large-media {
-  display: block;
-  width: 100%;
-  max-height: 72vh;
-  border-radius: var(--radius-md);
-  background: var(--neutral-solid);
-}
-
-.file-preview-large-audio {
-  display: block;
-  width: 100%;
-  margin: 2rem 0;
-}
-
 .file-preview-fallback {
-  min-height: 280px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  color: var(--text-secondary);
+  gap: var(--sp-3);
+  color: var(--dc-text-2);
   text-align: center;
+}
+
+.file-generic-icon {
+  font-size: 3rem;
 }
 
 .file-preview-modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 1rem;
-  border-top: 1px solid var(--border-subtle);
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--dc-line);
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+/* ══════════ 響應式 ══════════ */
+@media (max-width: 1100px) {
+  .dr-workspace.with-detail {
+    grid-template-columns: minmax(0, 1fr);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .dr-detail {
+    position: static;
+    max-height: none;
   }
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.modal-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 2rem;
-  cursor: pointer;
-  color: var(--text-muted);
-  line-height: 1;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  transition: all 0.2s ease;
-}
-
-.btn-close:hover {
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-}
-
-.modal-form {
-  padding: 1.5rem;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.form-input,
-.form-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  font-family: inherit;
-}
-
-.form-input:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-}
-
-.form-textarea {
-  resize: vertical;
-  min-height: 100px;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border-subtle);
-}
-
-/* Responsive */
 @media (max-width: 768px) {
-  .page-title {
-    font-size: 1.5rem;
-  }
-
-  .actions-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .search-group {
-    width: 100%;
+  .mg-storage {
+    gap: var(--sp-3);
   }
 
   .csv-actions {
+    margin-left: 0;
     width: 100%;
   }
 
-  .csv-actions .btn {
-    flex: 1;
+  .dr-list-head {
+    display: none;
   }
 
-  .view-switcher {
-    width: 100%;
-    justify-content: center;
+  .document-card--list {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--sp-1);
   }
 
-  .documents-grid {
-    grid-template-columns: 1fr;
+  .col-category,
+  .col-file,
+  .col-date {
+    grid-column: 1 / -1;
   }
 
-  .document-card--list .card-body {
-    grid-template-columns: 1fr;
-  }
-
-  .modal-content {
-    margin: 1rem;
-  }
-
-  .modal-actions {
-    flex-direction: column;
-  }
-
-  .modal-actions .btn {
-    width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .card-header {
-    flex-direction: column;
+  .col-tools {
+    opacity: 1;
   }
 
   .card-actions {
-    align-self: flex-end;
+    opacity: 1;
+  }
+
+  .documents-grid--card {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
 }
 
-/* Upload Area Styles */
-.upload-area {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .import-spinner-anim {
+    animation: none;
+  }
 }
-
-.btn-upload {
-  background: var(--primary-solid);
-  color: var(--on-primary);
-}
-
-.file-preview, .cover-upload-preview {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 0.75rem 0;
-  padding: 0.75rem;
-  background: var(--bg-surface);
-  border-radius: var(--radius-md);
-}
-
-.preview-image {
-  max-width: 150px;
-  max-height: 100px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-  box-shadow: var(--elevation-1);
-}
-
-.btn-remove {
-  padding: 0.5rem 1rem;
-  background: var(--danger-solid);
-  color: var(--on-solid);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  transition: all 0.3s;
-}
-
-.btn-remove:hover {
-  transform: scale(1.05);
-  box-shadow: var(--elevation-2);
-}
-
-/* Summary Bar */
-.summary-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--success-light); border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.95rem; color: var(--text-secondary); flex-wrap: wrap; gap: 0.5rem; }
-.summary-left, .summary-right { display: flex; align-items: center; gap: 1rem; }
-.select-all-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500; }
-.select-all-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-.selected-count { background: var(--primary-solid); color: var(--on-primary); padding: 0.25rem 0.75rem; border-radius: var(--radius-lg); font-size: 0.85rem; font-weight: 600; }
-.btn-batch-mode { padding: 0.5rem 1rem; background: var(--primary-solid); color: var(--on-primary); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
-.btn-batch-mode:hover { transform: translateY(-2px); box-shadow: var(--elevation-2); }
-.btn-add-icon { width: 36px; height: 36px; border: none; border-radius: 50%; background: var(--success-solid); color: var(--on-solid); font-size: 1.5rem; font-weight: 300; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; line-height: 1; padding-bottom: 4px; }
-.btn-add-icon:hover { transform: translateY(-2px) scale(1.1); box-shadow: var(--elevation-2); }
-.btn-cancel-batch { padding: 0.35rem 0.75rem; background: var(--bg-inset); color: var(--text-secondary); border: none; border-radius: var(--radius-xs); cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
-.btn-cancel-batch:hover { background: var(--border-strong); }
-.btn-batch-delete { padding: 0.5rem 1rem; background: var(--danger-solid); color: var(--on-solid); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
-.btn-batch-delete:hover { transform: translateY(-2px); box-shadow: var(--elevation-2); }
-.btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
-.document-card.batch-selected { border-color: var(--primary); background: var(--success-light); }
-
-/* ── Import Progress Overlay ── */
-.import-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: color-mix(in oklab, var(--overlay-scrim) 55%, transparent); backdrop-filter: blur(6px);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 9999; animation: fadeIn 0.2s ease;
-}
-.import-modal-box {
-  background: var(--bg-surface); border-radius: 20px;
-  padding: 2.5rem 2rem; width: 90%; max-width: 420px;
-  text-align: center;
-  box-shadow: var(--elevation-3);
-  animation: slideUp 0.3s ease;
-}
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.import-spinner-anim {
-  width: 48px; height: 48px; margin: 0 auto 1.25rem;
-  border: 4px solid var(--border-subtle); border-top-color: var(--primary);
-  border-radius: 50%; animation: spin 0.8s linear infinite;
-}
-.import-title { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.5rem; }
-.import-step { font-size: 0.95rem; color: var(--text-secondary); margin: 0 0 1.25rem; }
-.import-progress-bar {
-  width: 100%; height: 10px; background: var(--bg-inset);
-  border-radius: 99px; overflow: hidden; margin-bottom: 0.75rem;
-}
-.import-progress-fill {
-  height: 100%; background: var(--primary-solid);
-  border-radius: 99px; transition: width 0.3s ease;
-}
-.import-percent { font-size: 0.9rem; color: var(--text-secondary); font-weight: 600; margin: 0 0 0.25rem; }
-.import-item-name {
-  font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1rem;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.import-stats { display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; }
-.stat-tag { font-size: 0.8rem; padding: 0.25rem 0.6rem; border-radius: var(--radius-lg); font-weight: 500; }
-.stat-ok { background: var(--success-light); color: var(--success-text); }
-.stat-fail { background: var(--danger-light); color: var(--danger-text); }
 </style>

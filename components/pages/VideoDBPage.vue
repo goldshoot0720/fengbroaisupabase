@@ -2,43 +2,22 @@
   <PageContainer>
     <div
       class="video-page"
-      :class="[
-        `mode-${videoDisplayMode}`,
-        { 'is-watching': Boolean(watchingVideo) }
-      ]"
+      :class="{ 'is-watching': Boolean(watchingVideo) }"
     >
-      <!-- ── Watch Stage（YouTube / Bilibili 雙模式主舞台）── -->
+      <!-- ══ 觀看主舞台：YouTube 播放結構 × Netflix 影廳質感 × Bilibili 資訊列 ══ -->
       <section
         v-if="watchingVideo"
         class="watch-stage"
-        :class="[
-          `watch-stage--${videoDisplayMode}`,
-          { 'watch-stage--theater': theaterMode }
-        ]"
+        :class="{ 'watch-stage--theater': theaterMode }"
         aria-label="影片播放"
       >
         <header class="watch-toolbar">
           <button type="button" class="watch-back-btn" @click="exitWatchStage()">
-            ← 返回影片庫
+            <span aria-hidden="true">‹</span> 返回影片庫
           </button>
-          <div class="view-switcher" role="group" aria-label="播放版型">
-            <button
-              type="button"
-              class="view-switch-btn"
-              :class="{ active: videoDisplayMode === 'youtube' }"
-              @click="setVideoDisplayMode('youtube')"
-            >
-              YouTube
-            </button>
-            <button
-              type="button"
-              class="view-switch-btn"
-              :class="{ active: videoDisplayMode === 'bilibili' }"
-              @click="setVideoDisplayMode('bilibili')"
-            >
-              Bilibili
-            </button>
-          </div>
+          <p class="watch-hotkeys" title="空白/K 播放暫停 · ←→ 上一支/下一支 · Shift+←→ 快轉 · ↑↓ 音量 · M 靜音 · F 全螢幕 · T 劇場 · P/N 上一/下一 · Esc 返回">
+            空白 播放 · ←→ 上一/下一 · F 全螢幕 · Esc 返回
+          </p>
           <button
             type="button"
             class="watch-theater-btn"
@@ -47,9 +26,6 @@
           >
             {{ theaterMode ? '退出劇場' : '劇場模式' }}
           </button>
-          <p class="watch-hotkeys" title="空白/K 播放暫停 · ←→ 上一支/下一支 · Shift+←→ 快轉 · ↑↓ 音量 · M 靜音 · F 全螢幕 · T 劇場 · P/N 上一/下一 · Esc 返回">
-            快捷鍵：空白 播放 · ←→ 上一/下一 · F 全螢幕 · Esc 返回
-          </p>
         </header>
 
         <div class="watch-layout">
@@ -88,7 +64,7 @@
                 class="watch-player-loading"
                 role="status"
               >
-                影片準備中…
+                <span class="watch-loading-dot"></span> 影片準備中…
               </div>
 
               <button
@@ -131,6 +107,7 @@
                     :max="Math.max(watchDuration, 0.1)"
                     step="0.1"
                     :value="watchCurrentTime"
+                    :style="{ '--played': `${watchProgressPercent}%` }"
                     :aria-valuetext="`${formatWatchTime(watchCurrentTime)} / ${formatWatchTime(watchDuration)}`"
                     aria-label="播放進度"
                     @input="seekWatchVideo($event.target.value)"
@@ -151,7 +128,7 @@
                     </button>
                     <button
                       type="button"
-                      class="watch-ctrl-btn"
+                      class="watch-ctrl-btn watch-ctrl-btn--play"
                       :aria-label="watchIsPlaying ? '暫停' : '播放'"
                       @click="toggleWatchPlayback"
                     >
@@ -232,18 +209,23 @@
             </div>
 
             <div class="watch-info">
-              <div v-if="videoDisplayMode === 'bilibili'" class="watch-avatar" aria-hidden="true">鋒</div>
+              <div class="watch-avatar" aria-hidden="true">鋒</div>
               <div class="watch-info-copy">
                 <h1 class="watch-title">{{ watchingVideo.name || '未命名' }}</h1>
+                <div class="watch-channel-row">
+                  <span class="watch-channel">鋒兄頻道</span>
+                  <span class="watch-dot">·</span>
+                  <span class="bilibili-stats watch-stats">
+                    <span>{{ watchingVideo.filetype ? watchingVideo.filetype.toUpperCase() : 'VIDEO' }}</span>
+                    <span>{{ watchingVideo.category || '未分類' }}</span>
+                    <span>{{ formatWatchTime(watchDuration) }}</span>
+                  </span>
+                </div>
                 <div class="watch-meta-row">
                   <span v-if="watchingVideo.category" class="category-chip">{{ watchingVideo.category }}</span>
                   <span v-if="watchingVideo.filetype" class="filetype-chip">{{ watchingVideo.filetype.toUpperCase() }}</span>
-                  <span v-if="watchingVideo.ref" class="meta-ref" :title="watchingVideo.ref">🔗 參考</span>
+                  <a v-if="watchingVideo.ref" class="meta-ref" :href="watchingVideo.ref" target="_blank" rel="noopener" :title="watchingVideo.ref">🔗 參考</a>
                   <span v-if="videoCache.has(watchingVideo.id)" class="cache-chip">已快取</span>
-                </div>
-                <div v-if="videoDisplayMode === 'bilibili'" class="bilibili-stats watch-stats">
-                  <span>{{ watchingVideo.filetype ? watchingVideo.filetype.toUpperCase() : 'VIDEO' }}</span>
-                  <span>{{ watchingVideo.category || '鋒兄頻道' }}</span>
                 </div>
                 <p v-if="watchingVideo.note" class="watch-desc">{{ watchingVideo.note }}</p>
               </div>
@@ -254,7 +236,7 @@
                   :disabled="downloadingVideoId === watchingVideo.id"
                   @click="downloadVideo(watchingVideo)"
                 >
-                  {{ downloadingVideoId === watchingVideo.id ? '下載中…' : '下載' }}
+                  {{ downloadingVideoId === watchingVideo.id ? '下載中…' : '⬇ 下載' }}
                 </button>
                 <button
                   v-if="videoCache.has(watchingVideo.id)"
@@ -271,7 +253,7 @@
                   :disabled="cachingVideoId === watchingVideo.id"
                   @click="cacheVideo(watchingVideo)"
                 >
-                  {{ cachingVideoId === watchingVideo.id ? '快取中…' : '快取' }}
+                  {{ cachingVideoId === watchingVideo.id ? '快取中…' : '📥 快取' }}
                 </button>
                 <button type="button" class="watch-action-btn watch-action-btn--muted" @click="editFromWatch(watchingVideo)">
                   編輯
@@ -283,10 +265,8 @@
             </div>
           </div>
 
-          <aside v-if="!theaterMode" class="watch-related" :aria-label="videoDisplayMode === 'bilibili' ? '相關推薦' : '接下來'">
-            <h2 class="watch-related-title">
-              {{ videoDisplayMode === 'bilibili' ? '相關推薦' : '接下來' }}
-            </h2>
+          <aside v-if="!theaterMode" class="watch-related" aria-label="接下來播放">
+            <h2 class="watch-related-title">接下來播放 <span class="watch-related-count">{{ relatedVideos.length }}</span></h2>
             <p v-if="relatedVideos.length === 0" class="watch-related-empty">沒有其他可播放影片</p>
             <button
               v-for="item in relatedVideos"
@@ -317,6 +297,7 @@
               </div>
               <div class="watch-related-copy">
                 <strong>{{ item.name || '未命名' }}</strong>
+                <span class="watch-related-channel">鋒兄頻道</span>
                 <span>{{ item.category || '未分類' }}</span>
               </div>
             </button>
@@ -325,7 +306,58 @@
       </section>
 
       <template v-else>
-      <h1 class="page-title">鋒兄影片</h1>
+      <!-- ══ Netflix 主打橫幅 ══ -->
+      <section v-if="heroVideo && videoLayoutMode === 'rail'" class="hero-billboard">
+        <div class="hero-backdrop">
+          <img
+            v-if="heroVideo.cover"
+            :src="resolveMediaUrl(heroVideo.cover)"
+            :alt="heroVideo.name || '主打影片'"
+            class="hero-backdrop-img"
+          />
+          <video
+            v-else-if="heroVideo.file && canRenderVideoThumbnail(heroVideo)"
+            :src="getThumbnailVideoSrc(heroVideo)"
+            class="hero-backdrop-img"
+            preload="metadata"
+            muted
+            playsinline
+            @loadedmetadata="seekThumbnailFrame"
+          ></video>
+          <div v-else class="hero-backdrop-fallback" aria-hidden="true">🎬</div>
+          <div class="hero-scrim" aria-hidden="true"></div>
+        </div>
+        <div class="hero-copy">
+          <p class="hero-eyebrow"><span class="hero-mark">鋒</span> 鋒兄影院 · 主打</p>
+          <h2 class="hero-title">{{ heroVideo.name || '未命名' }}</h2>
+          <div class="hero-meta">
+            <span v-if="heroVideo.category" class="hero-badge">{{ heroVideo.category }}</span>
+            <span v-if="heroVideo.filetype" class="hero-badge hero-badge--ghost">{{ heroVideo.filetype.toUpperCase() }}</span>
+            <span v-if="videoCache.has(heroVideo.id)" class="hero-badge hero-badge--ok">已快取</span>
+            <span class="hero-badge hero-badge--ghost">共 {{ videosWithFile.length }} 部可播放</span>
+          </div>
+          <p v-if="heroVideo.note" class="hero-desc">{{ truncateText(heroVideo.note, 130) }}</p>
+          <div class="hero-actions">
+            <button type="button" class="hero-btn hero-btn--play" :disabled="!heroVideo.file" @click="handlePlay(heroVideo)">
+              ▶ 播放
+            </button>
+            <button type="button" class="hero-btn" @click="openEditModal(heroVideo)">
+              ⓘ 詳細資訊
+            </button>
+            <button
+              v-if="heroVideo.file && !videoCache.has(heroVideo.id)"
+              type="button"
+              class="hero-btn hero-btn--ghost"
+              :disabled="cachingVideoId === heroVideo.id"
+              @click="cacheVideo(heroVideo)"
+            >
+              {{ cachingVideoId === heroVideo.id ? '快取中…' : '📥 快取' }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <h1 v-else class="page-title">鋒兄影院</h1>
 
       <!-- Actions Bar -->
       <div class="actions-bar">
@@ -341,24 +373,6 @@
           />
         </div>
         <div class="csv-actions">
-          <div class="view-switcher" role="group" aria-label="影片顯示風格">
-            <button
-              type="button"
-              class="view-switch-btn"
-              :class="{ active: videoDisplayMode === 'youtube' }"
-              @click="setVideoDisplayMode('youtube')"
-            >
-              YouTube
-            </button>
-            <button
-              type="button"
-              class="view-switch-btn"
-              :class="{ active: videoDisplayMode === 'bilibili' }"
-              @click="setVideoDisplayMode('bilibili')"
-            >
-              Bilibili
-            </button>
-          </div>
           <button @click="exportZip" class="btn-export" title="匯出 ZIP">
             <span>📤</span> 匯出 ZIP
           </button>
@@ -374,16 +388,32 @@
         </div>
       </div>
 
+      <!-- YouTube 式分類膠囊列 -->
+      <div v-if="categoryChips.length > 1" class="chip-rail" role="tablist" aria-label="影片分類">
+        <button
+          v-for="chip in categoryChips"
+          :key="chip.value"
+          type="button"
+          role="tab"
+          class="chip"
+          :class="{ active: activeCategory === chip.value }"
+          :aria-selected="activeCategory === chip.value"
+          @click="activeCategory = chip.value"
+        >
+          {{ chip.label }}<span class="chip-count">{{ chip.count }}</span>
+        </button>
+      </div>
+
       <!-- 摘要列 -->
       <div class="summary-bar">
         <div class="summary-left">
-          <button v-if="!batchMode && filteredVideos.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
           <button @click="openInlineAdd" class="btn-add-icon" title="新增">+</button>
+          <button v-if="!batchMode && filteredVideos.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
           <template v-if="batchMode">
             <label class="select-all-label"><input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" /><span>全選</span></label>
             <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
           </template>
-          <span>共 {{ videos.length }} 個項目</span>
+          <span class="summary-count">共 {{ videos.length }} 個項目</span>
           <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
         </div>
         <div class="summary-right">
@@ -394,7 +424,7 @@
               type="button"
               class="layout-switch-btn"
               :class="{ active: videoLayoutMode === option.value }"
-              @click="videoLayoutMode = option.value"
+              @click="setVideoLayoutMode(option.value)"
             >
               {{ option.label }}
             </button>
@@ -409,6 +439,9 @@
           <span class="cache-icon">💾</span>
           <span>已快取 <strong>{{ cachedCount }}</strong> / {{ videosWithFile.length }} 部影片</span>
           <span v-if="totalCacheSize > 0" class="cache-size">({{ (totalCacheSize / 1024 / 1024).toFixed(1) }} MB)</span>
+          <span class="cache-meter" aria-hidden="true">
+            <span class="cache-meter-fill" :style="{ width: `${cachePercent}%` }"></span>
+          </span>
         </div>
         <div class="cache-actions">
           <button
@@ -430,19 +463,93 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="loading">載入中...</div>
+      <div v-if="loading" class="loading">
+        <span class="loading-spinner" aria-hidden="true"></span> 載入中...
+      </div>
 
       <!-- Empty State -->
       <div v-else-if="filteredVideos.length === 0 && !isAddingInline" class="empty-state">
-        <p v-if="searchQuery">找不到符合的影片</p>
+        <span class="empty-icon" aria-hidden="true">🎬</span>
+        <p v-if="searchQuery || activeCategory !== 'all'">找不到符合的影片</p>
         <p v-else>尚無影片記錄，點擊「新增」開始</p>
       </div>
 
-      <!-- Video Grid -->
+      <!-- ══ 劇院模式：Netflix 橫向片列 ══ -->
+      <div v-if="videoLayoutMode === 'rail' && !isAddingInline && filteredVideos.length > 0" class="rail-stack">
+        <section v-for="rail in videoRails" :key="rail.key" class="rail">
+          <header class="rail-head">
+            <h3 class="rail-title">{{ rail.title }}</h3>
+            <span class="rail-count">{{ rail.items.length }} 部</span>
+          </header>
+          <div class="rail-track">
+            <article
+              v-for="video in rail.items"
+              :key="rail.key + '-' + video.id"
+              class="poster-card"
+              :class="{ 'is-selected': selectedIds.has(video.id), 'is-playing': playingVideoId === video.id }"
+              @click="batchMode ? toggleSelection(video.id) : handlePlay(video)"
+              @mouseenter="warmThumbnail(video)"
+            >
+              <div class="poster-thumb">
+                <input v-if="batchMode" type="checkbox" :checked="selectedIds.has(video.id)" @click.stop="toggleSelection(video.id)" class="batch-checkbox" />
+                <img v-if="video.cover" :src="resolveMediaUrl(video.cover)" :alt="video.name" class="thumbnail-img" loading="lazy" />
+                <video
+                  v-else-if="video.file && canRenderVideoThumbnail(video)"
+                  :src="getThumbnailVideoSrc(video)"
+                  preload="metadata"
+                  class="thumbnail-video"
+                  muted
+                  playsinline
+                  @loadedmetadata="seekThumbnailFrame"
+                ></video>
+                <div v-else class="thumbnail-placeholder"><span class="placeholder-icon">🎬</span></div>
+                <span v-if="video.filetype" class="filetype-tag">{{ video.filetype.toUpperCase() }}</span>
+                <span v-if="videoCache.has(video.id)" class="poster-cached" title="已快取">●</span>
+                <div class="poster-hover">
+                  <span class="play-btn">{{ resolvingVideoIds.has(video.id) ? '…' : '▶' }}</span>
+                  <div v-if="!batchMode" class="poster-tools" @click.stop>
+                    <button class="action-btn edit-btn" title="編輯" @click="openEditModal(video)">✏️</button>
+                    <button
+                      v-if="video.file"
+                      class="action-btn download-btn"
+                      :disabled="downloadingVideoId === video.id"
+                      title="下載"
+                      @click="downloadVideo(video)"
+                    >{{ downloadingVideoId === video.id ? '⏬' : '⬇️' }}</button>
+                    <button
+                      v-if="video.file && videoCache.has(video.id)"
+                      class="action-btn cached-btn"
+                      title="已快取 (點擊清除)"
+                      @click="uncacheVideo(video.id)"
+                    >✅</button>
+                    <button
+                      v-else-if="video.file"
+                      class="action-btn cache-btn"
+                      :disabled="cachingVideoId === video.id"
+                      title="快取影片"
+                      @click="cacheVideo(video)"
+                    >{{ cachingVideoId === video.id ? '⏳' : '📥' }}</button>
+                    <button class="action-btn delete-btn" title="刪除" @click="handleDelete(video)">🗑️</button>
+                  </div>
+                </div>
+              </div>
+              <div class="poster-copy">
+                <h4 class="poster-title">{{ video.name || '未命名' }}</h4>
+                <p class="poster-sub">
+                  <span>{{ video.category || '未分類' }}</span>
+                  <span v-if="video.note" class="poster-note">{{ truncateText(video.note, 34) }}</span>
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+
+      <!-- ══ 網格／列表模式：YouTube 卡片 × Bilibili 資訊列 ══ -->
       <div
-        v-if="isAddingInline || filteredVideos.length > 0"
+        v-if="(videoLayoutMode !== 'rail' && filteredVideos.length > 0) || isAddingInline"
         class="video-grid"
-        :class="[`video-grid--${videoDisplayMode}`, `video-grid--${videoLayoutMode}`]"
+        :class="[`video-grid--${videoLayoutMode === 'rail' ? 'card' : videoLayoutMode}`]"
       >
 
         <!-- 行內新增卡片 -->
@@ -502,14 +609,11 @@
           </div>
         </div>
         <div
-          v-for="video in filteredVideos"
+          v-for="video in (videoLayoutMode === 'rail' ? [] : filteredVideos)"
           :key="video.id"
           class="video-card"
           :class="[
-            {
-              'is-selected': selectedIds.has(video.id),
-              'video-card--bilibili': videoDisplayMode === 'bilibili'
-            },
+            { 'is-selected': selectedIds.has(video.id), 'is-playing': playingVideoId === video.id },
             getVideoLayoutClass(video.id)
           ]"
           @click="batchMode && toggleSelection(video.id)"
@@ -599,12 +703,12 @@
             </div>
           </template>
 
-          <!-- YouTube/Bilibili 風格顯示模式（點擊進觀看主舞台） -->
+          <!-- 顯示模式（點擊進觀看主舞台） -->
           <template v-else>
             <div class="thumbnail-wrapper" @click="handlePlay(video)" @mouseenter="warmThumbnail(video)">
               <input v-if="batchMode" type="checkbox" :checked="selectedIds.has(video.id)" @click.stop="toggleSelection(video.id)" class="batch-checkbox" />
               <template v-if="video.cover">
-                <img :src="resolveMediaUrl(video.cover)" :alt="video.name" class="thumbnail-img" />
+                <img :src="resolveMediaUrl(video.cover)" :alt="video.name" class="thumbnail-img" loading="lazy" />
               </template>
               <template v-else-if="video.file && canRenderVideoThumbnail(video)">
                 <video
@@ -627,29 +731,31 @@
                 <span class="play-btn">{{ resolvingVideoIds.has(video.id) ? '...' : '▶' }}</span>
               </div>
               <span v-if="video.filetype" class="filetype-tag">{{ video.filetype.toUpperCase() }}</span>
+              <span v-if="videoCache.has(video.id)" class="cached-tag" title="已快取">已快取</span>
             </div>
 
-            <!-- 影片資訊區 -->
+            <!-- 影片資訊區（Bilibili 式頭像 + 統計） -->
             <div class="video-meta">
-              <div v-if="videoDisplayMode === 'bilibili'" class="bilibili-avatar">鋒</div>
+              <div class="bilibili-avatar" aria-hidden="true">鋒</div>
               <div class="video-copy">
                 <h3 class="video-title">{{ video.name || '未命名' }}</h3>
-                <div class="meta-row">
-                  <span v-if="video.category" class="category-chip">{{ video.category }}</span>
-                  <span v-if="video.ref" class="meta-ref" :title="video.ref">🔗 參考</span>
-                </div>
-                <p v-if="video.note" class="video-desc">{{ truncateText(video.note, videoDisplayMode === 'bilibili' ? 56 : 80) }}</p>
-                <div v-if="videoDisplayMode === 'bilibili'" class="bilibili-stats">
+                <div class="bilibili-stats">
+                  <span>鋒兄頻道</span>
                   <span>{{ video.filetype ? video.filetype.toUpperCase() : 'VIDEO' }}</span>
-                  <span>{{ video.category || '鋒兄頻道' }}</span>
+                  <span>{{ video.category || '未分類' }}</span>
                 </div>
+                <div v-if="video.category || video.ref" class="meta-row">
+                  <span v-if="video.category" class="category-chip">{{ video.category }}</span>
+                  <a v-if="video.ref" class="meta-ref" :href="video.ref" target="_blank" rel="noopener" :title="video.ref" @click.stop>🔗 參考</a>
+                </div>
+                <p v-if="video.note" class="video-desc">{{ truncateText(video.note, 80) }}</p>
               </div>
             </div>
 
             <!-- 操作列 -->
             <div v-if="!batchMode" class="card-actions-bar">
-              <button @click="startInlineEdit(video)" class="action-btn edit-btn" title="編輯">✏️</button>
-              <button @click="handleDelete(video)" class="action-btn delete-btn" title="刪除">🗑️</button>
+              <button @click.stop="startInlineEdit(video)" class="action-btn edit-btn" title="編輯">✏️</button>
+              <button @click.stop="handleDelete(video)" class="action-btn delete-btn" title="刪除">🗑️</button>
               <template v-if="video.file">
                 <button @click.stop="downloadVideo(video)" class="action-btn download-btn" :disabled="downloadingVideoId === video.id" :title="downloadingVideoId === video.id ? '下載中...' : '下載影片'">{{ downloadingVideoId === video.id ? '⏬' : '⬇️' }}</button>
                 <button v-if="videoCache.has(video.id)" @click.stop="uncacheVideo(video.id)" class="action-btn cached-btn" title="已快取 (點擊清除)">✅</button>
@@ -857,11 +963,13 @@ const {
   removeRecentSearch,
   clearRecentSearches,
 } = useRecentSearchHistory('fengbro-video-search-history', searchQuery)
-const VIDEO_DISPLAY_MODE_KEY = 'feng-video-display-mode'
-const videoDisplayMode = ref('youtube')
-const videoLayoutMode = ref('card')
+const VIDEO_LAYOUT_MODE_KEY = 'feng-video-layout-mode'
+/** 劇院（Netflix 橫向片列）／網格（YouTube 卡片）／列表 */
+const videoLayoutMode = ref('rail')
+const activeCategory = ref('all')
 const layoutOptions = [
-  { value: 'card', label: '卡片' },
+  { value: 'rail', label: '劇院' },
+  { value: 'card', label: '網格' },
   { value: 'list', label: '列表' }
 ]
 
@@ -2002,13 +2110,79 @@ async function handleInlineCoverUpload(event) {
 
 // Computed
 const filteredVideos = computed(() => {
-  if (!searchQuery.value.trim()) {
-    return videos.value
+  const query = searchQuery.value.trim().toLowerCase()
+  const category = activeCategory.value
+  return videos.value.filter((video) => {
+    if (query && !video.name?.toLowerCase().includes(query)) return false
+    if (category === 'all') return true
+    if (category === '__uncategorized__') return !video.category
+    return video.category === category
+  })
+})
+
+/** YouTube 式分類膠囊：全部 + 依分類統計 */
+const categoryChips = computed(() => {
+  const counts = new Map()
+  let uncategorized = 0
+  videos.value.forEach((video) => {
+    if (video.category) {
+      counts.set(video.category, (counts.get(video.category) || 0) + 1)
+    } else {
+      uncategorized += 1
+    }
+  })
+  const chips = [{ value: 'all', label: '全部', count: videos.value.length }]
+  Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .forEach(([label, count]) => chips.push({ value: label, label, count }))
+  if (uncategorized > 0) {
+    chips.push({ value: '__uncategorized__', label: '未分類', count: uncategorized })
   }
-  const query = searchQuery.value.toLowerCase()
-  return videos.value.filter((video) =>
-    video.name?.toLowerCase().includes(query)
+  return chips
+})
+
+/** Netflix 主打橫幅：優先挑有封面且可播放的第一部 */
+const heroVideo = computed(() => {
+  const pool = filteredVideos.value
+  if (pool.length === 0) return null
+  return (
+    pool.find((video) => video.cover && video.file) ||
+    pool.find((video) => video.file) ||
+    pool[0]
   )
+})
+
+/** Netflix 橫向片列：最新加入 + 依分類分列 */
+const videoRails = computed(() => {
+  const pool = filteredVideos.value
+  if (pool.length === 0) return []
+  const rails = []
+  if (pool.length > 4) {
+    rails.push({ key: 'latest', title: '最新加入', items: pool.slice(0, 14) })
+  }
+  const groups = new Map()
+  pool.forEach((video) => {
+    const key = video.category || '未分類'
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(video)
+  })
+  Array.from(groups.entries())
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+    .forEach(([title, items]) => {
+      rails.push({ key: `cat-${title}`, title, items })
+    })
+  return rails
+})
+
+const cachePercent = computed(() => {
+  const total = videosWithFile.value.length
+  if (!total) return 0
+  return Math.min(100, Math.round((cachedCount.value / total) * 100))
+})
+
+const watchProgressPercent = computed(() => {
+  if (!watchDuration.value) return 0
+  return Math.min(100, (watchCurrentTime.value / watchDuration.value) * 100)
 })
 
 const relatedVideos = computed(() => {
@@ -2045,9 +2219,9 @@ const prevRelatedVideo = computed(() => {
   return playlistVideos.value[idx - 1] || null
 })
 
-function getVideoLayoutClass(videoId) {
-  if (videoLayoutMode.value === 'card') return 'video-card--card'
-  return 'video-card--list'
+function getVideoLayoutClass() {
+  if (videoLayoutMode.value === 'list') return 'video-card--list'
+  return 'video-card--card'
 }
 
 const isAllSelected = computed(() => {
@@ -2126,11 +2300,11 @@ function truncateText(text, maxLength) {
   return text.substring(0, maxLength) + '...'
 }
 
-function setVideoDisplayMode(mode) {
-  if (!['youtube', 'bilibili'].includes(mode)) return
-  videoDisplayMode.value = mode
+function setVideoLayoutMode(mode) {
+  if (!layoutOptions.some((option) => option.value === mode)) return
+  videoLayoutMode.value = mode
   if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(VIDEO_DISPLAY_MODE_KEY, mode)
+    localStorage.setItem(VIDEO_LAYOUT_MODE_KEY, mode)
   }
 }
 
@@ -2643,9 +2817,9 @@ async function handleImport(event) {
 onMounted(() => {
   ;(async () => {
     if (typeof localStorage !== 'undefined') {
-      const savedMode = localStorage.getItem(VIDEO_DISPLAY_MODE_KEY)
-      if (savedMode === 'youtube' || savedMode === 'bilibili') {
-        videoDisplayMode.value = savedMode
+      const savedMode = localStorage.getItem(VIDEO_LAYOUT_MODE_KEY)
+      if (layoutOptions.some((option) => option.value === savedMode)) {
+        videoLayoutMode.value = savedMode
       }
     }
     await loadVideos()
@@ -2698,1642 +2872,42 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* ============================================================
+   鋒兄影院 — YouTube × Bilibili × Netflix 融合介面
+   · Netflix：黑幕影廳、主打橫幅、橫向片列、海報懸停放大
+   · YouTube：播放主舞台 + 右側「接下來播放」、分類膠囊、網格卡
+   · Bilibili：UP 主頭像、資訊統計列、粉藍雙色點綴
+   ============================================================ */
 .video-page {
-  animation: fadeIn 0.3s ease-in;
-}
+  --vp-bg: #0a0a0e;
+  --vp-surface: #15151c;
+  --vp-surface-2: #1e1e28;
+  --vp-surface-3: #262633;
+  --vp-line: #2c2c39;
+  --vp-line-soft: rgba(255, 255, 255, 0.08);
+  --vp-text: #f3f3f6;
+  --vp-text-2: #a9a9b8;
+  --vp-text-3: #71717f;
+  --vp-red: #e50914;
+  --vp-red-hi: #ff3b45;
+  --vp-pink: #fb7299;
+  --vp-blue: #23ade5;
+  --vp-ok: #3ecf8e;
+  --vp-radius: 14px;
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  background: var(--warning-solid);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 2rem;
-}
-
-/* ── Actions Bar ── */
-.actions-bar {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.search-area {
-  flex: 1 1 320px;
-  min-width: 260px;
-}
-
-.search-input {
-  width: 100%;
-  min-width: 200px;
-  padding: 0.6rem 1rem;
-  border: 2px solid var(--border-subtle);
-  border-radius: 20px;
-  font-size: 0.95rem;
-  transition: all 0.2s;
-  background: var(--bg-surface);
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--danger);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-  background: var(--bg-surface);
-}
-
-.csv-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.btn-export,
-.btn-import {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 1rem;
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-export:hover,
-.btn-import:hover {
-  background: var(--bg-inset);
-  border-color: var(--border-strong);
-}
-
-.btn-import { cursor: pointer; }
-
-.view-switcher {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.2rem;
-  border-radius: 999px;
-  background: var(--neutral-solid);
-  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--text-inverse) 8%, transparent);
-}
-
-.view-switch-btn {
-  border: none;
-  background: transparent;
-  color: color-mix(in oklab, var(--on-solid) 72%, transparent);
-  padding: 0.45rem 0.9rem;
-  border-radius: 999px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.view-switch-btn.active {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  box-shadow: var(--elevation-1);
-}
-
-/* ── Cache Bar ── */
-.cache-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.6rem 1rem;
-  margin-bottom: 1rem;
-  background: var(--primary-light);
-  border: 1px solid color-mix(in oklab, var(--primary) 32%, transparent);
-  border-radius: var(--radius-lg);
-  flex-wrap: wrap;
-}
-
-.cache-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--primary-text);
-}
-
-.cache-icon {
-  font-size: 1.1rem;
-}
-
-.cache-size {
-  color: var(--primary-text);
-  font-weight: 500;
-}
-
-.cache-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-cache-all {
-  padding: 0.35rem 0.85rem;
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  border: none;
-  border-radius: var(--radius-xl);
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-cache-all:hover:not(:disabled) {
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  transform: translateY(-1px);
-}
-
-.btn-cache-all:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-clear-cache {
-  padding: 0.35rem 0.85rem;
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-clear-cache:hover {
-  background: var(--bg-surface);
-  color: var(--danger-text);
-  border-color: var(--danger);
-}
-
-.loading,
-.empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: var(--text-muted);
-  font-size: 1.1rem;
-}
-
-/* ── YouTube/Bilibili Grid ── */
-.video-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.25rem;
-}
-
-.video-grid--card {
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-}
-
-.video-grid--list {
-  grid-template-columns: 1fr;
-}
-
-.video-grid--hybrid {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-}
-
-.video-grid--bilibili {
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem 1.1rem;
-}
-
-@media (min-width: 1200px) {
-  .video-grid--card,
-  .video-grid--bilibili {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  }
-
-  .video-grid--list {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ── Video Card ── */
-.video-card {
-  background: var(--bg-surface);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: default;
   position: relative;
-  box-shadow: var(--elevation-1);
-}
-
-.video-card--editor {
-  grid-column: 1 / -1;
-}
-
-.video-card--card {
-  min-height: 100%;
-}
-
-.video-grid--hybrid .video-card--card:nth-of-type(1),
-.video-grid--hybrid .video-card--card:nth-of-type(2) {
-  grid-column: span 6;
-}
-
-.video-grid--hybrid .video-card--list {
-  grid-column: 1 / -1;
-}
-
-.video-card--list {
-  display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
-  align-items: stretch;
-  width: 100%;
-}
-
-.video-card--bilibili {
-  border-radius: var(--radius-xl);
-  background: var(--bg-surface);
-  box-shadow: var(--elevation-1);
-}
-
-.video-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--elevation-3);
-}
-
-.video-card--list .thumbnail-wrapper,
-.video-card--list .player-wrapper {
-  height: 100%;
-  min-height: 210px;
-}
-
-.video-card--list .video-meta,
-.video-card--list .card-actions-bar {
-  grid-column: 2;
-}
-
-.video-card--list .card-actions-bar {
-  opacity: 1;
-  transform: none;
-  padding-top: 0;
-}
-
-.video-grid--list .video-card {
-  border-radius: 14px;
-}
-
-.video-grid--list .video-card:hover {
-  transform: none;
-}
-
-/* ── Thumbnail Area ── */
-.thumbnail-wrapper {
-  position: relative;
-  width: 100%;
-  padding-top: 56.25%; /* 16: 9 aspect ratio */
-  background: var(--surface-strong);
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.thumbnail-img,
-.thumbnail-video {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.video-card:hover .thumbnail-img,
-.video-card:hover .thumbnail-video {
-  transform: scale(1.05);
-}
-
-.mode-bilibili .thumbnail-wrapper,
-.mode-bilibili .player-wrapper {
-  padding-top: 0;
-  aspect-ratio: 9 / 16;
-  min-height: 420px;
-  max-height: 620px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-strong);
-}
-
-.mode-bilibili .thumbnail-img,
-.mode-bilibili .thumbnail-video,
-.mode-bilibili .active-player {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: var(--surface-strong);
-}
-
-.mode-bilibili .video-card:hover .thumbnail-img,
-.mode-bilibili .video-card:hover .thumbnail-video {
-  transform: none;
-}
-
-.thumbnail-placeholder {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--neutral-solid);
-}
-
-.placeholder-icon {
-  font-size: 3rem;
-  opacity: 0.6;
-}
-
-/* Play Overlay */
-.play-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in oklab, var(--overlay-scrim) 0%, transparent);
-  transition: all 0.25s ease;
-  opacity: 0;
-}
-
-.video-card:hover .play-overlay {
-  opacity: 1;
-  background: color-mix(in oklab, var(--overlay-scrim) 35%, transparent);
-}
-
-.play-overlay--loading,
-.video-card:hover .play-overlay--loading {
-  opacity: 1;
-  background: color-mix(in oklab, var(--text-primary) 48%, transparent);
-  cursor: wait;
-}
-
-.play-btn {
-  width: 52px;
-  height: 52px;
-  background: color-mix(in oklab, var(--bg-surface) 95%, transparent);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.3rem;
-  color: var(--text-primary);
-  transform: scale(0.8);
-  transition: all 0.25s ease;
-  box-shadow: var(--elevation-1);
-  padding-left: 4px;
-}
-
-.video-card:hover .play-btn {
-  transform: scale(1);
-}
-
-.play-overlay--loading .play-btn {
-  padding-left: 0;
-  font-size: 0.9rem;
-  letter-spacing: 0.08em;
-}
-
-/* Filetype Tag */
-.filetype-tag {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: color-mix(in oklab, var(--overlay-scrim) 75%, transparent);
-  color: var(--text-inverse);
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: var(--radius-xs);
-  letter-spacing: 0.04em;
-}
-
-/* Batch Checkbox */
-.batch-checkbox {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  z-index: 2;
-  accent-color: var(--danger-solid);
-}
-
-/* ── Video Meta ── */
-.video-meta {
-  padding: 0.75rem 0.875rem 0.5rem;
-}
-
-.mode-bilibili .video-meta {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  gap: 0.75rem;
-  align-items: start;
-  padding: 0.9rem 0.95rem 0.7rem;
-}
-
-.video-copy {
-  min-width: 0;
-}
-
-.bilibili-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--danger-solid);
-  color: var(--on-solid);
-  font-size: 0.95rem;
-  font-weight: 800;
-  box-shadow: var(--elevation-1);
-}
-
-.video-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 0.4rem;
-  line-height: 1.35;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.meta-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.25rem;
-}
-
-.category-chip {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  background: var(--bg-muted);
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-md);
-  font-weight: 500;
-}
-
-.meta-ref {
-  font-size: 0.75rem;
-  color: var(--primary-text);
-  cursor: pointer;
-}
-
-.video-desc {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  margin: 0.25rem 0 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  background: radial-gradient(120% 90% at 50% 0%, #16161f 0%, var(--vp-bg) 62%);
+  color: var(--vp-text);
+  border: 1px solid var(--vp-line);
+  border-radius: var(--vp-radius);
+  padding: var(--sp-5);
+  font-family: var(--font-body);
   overflow: hidden;
 }
 
-.bilibili-stats {
-  display: flex;
-  gap: 0.55rem;
-  flex-wrap: wrap;
-  margin-top: 0.45rem;
-  color: var(--text-muted);
-  font-size: 0.73rem;
-}
-
-.bilibili-stats span {
-  padding: 0.18rem 0.45rem;
-  border-radius: 999px;
-  background: var(--bg-surface);
-  color: var(--danger-text);
-}
-
-/* ── Action Buttons (hover reveal) ── */
-.card-actions-bar {
-  display: flex;
-  gap: 0.25rem;
-  padding: 0 0.75rem 0.75rem;
-  opacity: 0;
-  transform: translateY(4px);
-  transition: all 0.2s ease;
-}
-
-.mode-bilibili .card-actions-bar {
-  opacity: 1;
-  transform: none;
-  padding: 0 0.9rem 0.95rem;
-  gap: 0.4rem;
-}
-
-.mode-bilibili .action-btn {
-  background: var(--bg-surface);
-}
-
-.video-card:hover .card-actions-bar {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.action-btn {
-  background: none;
-  border: 1px solid var(--border-subtle);
-  border-radius: 18px;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.edit-btn:hover {
-  background: var(--bg-surface);
-  border-color: var(--primary);
-}
-
-.delete-btn:hover {
-  background: var(--bg-surface);
-  border-color: var(--danger);
-}
-
-/* ── Selected Card ── */
-.video-card.is-selected {
-  box-shadow: 0 0 0 2px var(--primary-ring);
-  cursor: pointer;
-}
-
-/* ── Modal Styles ── */
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: color-mix(in oklab, var(--overlay-scrim) 60%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-  animation: fadeIn 0.2s ease-in;
-}
-
-.modal-content {
-  background: var(--bg-surface);
-  border-radius: var(--radius-lg);
-  max-width: 600px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: var(--elevation-3);
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.modal-header h2 {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 1.75rem;
-  color: var(--text-muted);
-  cursor: pointer;
+.video-page.is-watching {
   padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.2s;
-}
-
-.btn-close:hover {
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-}
-
-.modal-body {
-  padding: 1.5rem;
-}
-
-.form-group {
-  margin-bottom: 1.25rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.4rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.form-group input,
-.form-group textarea {
-  width: 100%;
-  padding: 0.65rem 0.75rem;
-  border: 1.5px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  font-size: 0.9rem;
-  transition: all 0.2s;
-  box-sizing: border-box;
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: var(--danger);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-}
-
-.modal-actions {
-  display: flex;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border-subtle);
-  justify-content: flex-end;
-}
-
-.btn-cancel {
-  padding: 0.6rem 1.25rem;
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 20px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-cancel:hover { background: var(--bg-inset); }
-
-.btn-submit {
-  padding: 0.6rem 1.25rem;
-  background: var(--danger-solid);
-  color: var(--on-solid);
-  border: none;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-submit:hover {
-  background: var(--danger-solid-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--elevation-2);
-}
-
-/* ── Video/Cover Preview in Modal ── */
-.video-preview,
-.cover-preview {
-  margin-top: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.preview-video {
-  width: 100%;
-  max-height: 200px;
-  border-radius: var(--radius-md);
-  background: var(--surface-strong);
-}
-
-.preview-image {
-  max-width: 200px;
-  max-height: 120px;
-  border-radius: var(--radius-md);
-  object-fit: cover;
-}
-
-.btn-remove {
-  padding: 0.3rem 0.75rem;
-  background: var(--danger-light);
-  color: var(--danger-text);
-  border: 1px solid color-mix(in oklab, var(--danger) 32%, transparent);
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  align-self: flex-start;
-}
-
-.btn-remove:hover {
-  background: var(--danger-solid);
-  color: var(--on-solid);
-}
-
-.upload-progress {
-  font-size: 0.85rem;
-  color: var(--danger-text);
-  font-weight: 600;
-}
-
-.upload-progress-block {
-  margin-top: 0.5rem;
-}
-
-.upload-progress-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.35rem;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-}
-
-.upload-progress-head span:first-child {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.upload-progress-bar {
-  width: 100%;
-  height: 8px;
-  background: var(--danger-light);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.upload-progress-fill {
-  height: 100%;
-  width: 0;
-  background: var(--warning-solid);
-  border-radius: 999px;
-  transition: width 0.2s ease;
-}
-
-/* ── Summary Bar ── */
-.summary-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding: 0.75rem 1rem;
-  background: var(--bg-surface);
-  border-radius: var(--radius-md);
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.summary-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.summary-right {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.layout-switcher {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
-}
-
-.layout-switch-btn {
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  padding: 0.45rem 0.85rem;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 0.84rem;
-  font-weight: 700;
-  transition: all var(--transition-fast);
-}
-
-.layout-switch-btn.active {
-  background: var(--surface-strong);
-  color: var(--text-inverse);
-}
-
-.selected-count {
-  color: var(--danger-text);
-  font-weight: 600;
-}
-
-.btn-add-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid var(--danger);
-  background: var(--bg-surface);
-  color: var(--danger-text);
-  font-size: 1.25rem;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.btn-add-icon:hover {
-  background: var(--danger-solid);
-  color: var(--on-solid);
-  transform: rotate(90deg);
-}
-
-.btn-batch-mode {
-  padding: 0.4rem 0.75rem;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 18px;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-batch-mode:hover { background: var(--bg-surface); }
-
-.select-all-label {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.btn-cancel-batch {
-  padding: 0.3rem 0.6rem;
-  background: none;
-  border: 1px solid var(--border-subtle);
-  border-radius: 15px;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.btn-cancel-batch:hover { background: var(--bg-surface); }
-
-.btn-batch-delete {
-  padding: 0.4rem 0.75rem;
-  background: var(--danger-solid);
-  color: var(--on-solid);
-  border: none;
-  border-radius: 18px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-batch-delete:hover {
-  background: var(--danger-solid-hover);
-  transform: translateY(-1px);
-}
-
-.btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* ── Inline Edit Styles ── */
-.inline-edit-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem;
-}
-
-.inline-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.inline-form-group label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.inline-input {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1.5px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  font-size: 0.85rem;
-  transition: all 0.2s;
-  box-sizing: border-box;
-}
-
-.inline-input:focus {
-  outline: none;
-  border-color: var(--danger);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-}
-
-.inline-textarea {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1.5px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  font-size: 0.85rem;
-  resize: vertical;
-  font-family: inherit;
-  transition: all 0.2s;
-  box-sizing: border-box;
-}
-
-.inline-textarea:focus {
-  outline: none;
-  border-color: var(--danger);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-}
-
-.inline-video-preview {
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  margin-top: 0.25rem;
-}
-
-.card-video {
-  width: 100%;
-  display: block;
-}
-
-.inline-cover-preview {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
-}
-
-.preview-cover-img {
-  width: 80px;
-  height: 45px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
-}
-
-.btn-remove-sm {
-  padding: 0.2rem 0.5rem;
-  font-size: 0.7rem;
-  background: var(--danger-light);
-  color: var(--danger-text);
-  border: none;
-  border-radius: var(--radius-xs);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-remove-sm:hover { background: var(--danger-solid); color: var(--on-solid); }
-
-.inline-edit-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.btn-save {
-  padding: 0.45rem 1rem;
-  background: var(--danger-solid);
-  color: var(--on-solid);
-  border: none;
-  border-radius: 18px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-save:hover {
-  background: var(--danger-solid-hover);
-  transform: translateY(-1px);
-}
-
-.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-cancel-inline {
-  padding: 0.45rem 1rem;
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: 18px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-cancel-inline:hover { background: var(--bg-inset); }
-
-.upload-area {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.btn-upload {
-  padding: 0.35rem 0.7rem;
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-upload:hover { background: var(--bg-inset); }
-.btn-upload:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.selected-file-list {
-  margin-top: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.selected-file-summary {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.selected-file-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.selected-file-chip {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  background: var(--bg-surface);
-  color: var(--danger-text);
-  font-size: 0.75rem;
-  line-height: 1.3;
-  word-break: break-all;
-}
-
-/* Active Player */
-.player-wrapper {
-  position: relative;
-  width: 100%;
-  background: var(--surface-strong);
-}
-
-.active-player {
-  width: 100%;
-  display: block;
-  max-height: 300px;
-}
-
-.mode-bilibili .active-player {
-  max-height: none;
-}
-
-.close-player-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
-  background: color-mix(in oklab, var(--overlay-scrim) 65%, transparent);
-  color: var(--text-inverse);
-  border: none;
-  border-radius: 50%;
-  font-size: 0.85rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  z-index: 2;
-}
-
-.close-player-btn:hover {
-  background: color-mix(in oklab, var(--danger) 90%, transparent);
-  transform: scale(1.1);
-}
-
-@media (max-width: 960px) {
-  .video-grid--hybrid {
-    grid-template-columns: 1fr;
-  }
-
-  .video-grid--hybrid .video-card--card,
-  .video-grid--hybrid .video-card--list {
-    grid-column: 1 / -1;
-  }
-}
-
-@media (max-width: 760px) {
-  .summary-right,
-  .csv-actions {
-    width: 100%;
-  }
-
-  .layout-switcher {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .layout-switch-btn {
-    flex: 1;
-  }
-
-  .video-card--list {
-    grid-template-columns: 1fr;
-  }
-
-  .video-card--list .video-meta,
-  .video-card--list .card-actions-bar {
-    grid-column: 1;
-  }
-
-  .mode-bilibili .thumbnail-wrapper,
-  .mode-bilibili .player-wrapper {
-    min-height: 320px;
-    max-height: 520px;
-  }
-}
-
-/* ── Watch Stage ── */
-.watch-stage {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  animation: fadeIn 0.25s var(--ease-out-expo, ease-out);
-}
-
-.watch-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.watch-back-btn,
-.watch-theater-btn {
-  appearance: none;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  border-radius: var(--radius-md);
-  padding: 0.55rem 0.9rem;
-  font: inherit;
-  font-weight: 600;
-  font-size: var(--text-sm, 0.875rem);
-  cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
-}
-
-.watch-back-btn:hover,
-.watch-theater-btn:hover {
-  background: var(--bg-muted);
-  border-color: var(--border-strong);
-}
-
-.watch-back-btn:focus-visible,
-.watch-theater-btn:focus-visible,
-.watch-action-btn:focus-visible,
-.watch-related-item:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-.watch-theater-btn {
-  margin-left: auto;
-}
-
-.watch-theater-btn[aria-pressed='true'] {
-  background: var(--primary-muted);
-  border-color: color-mix(in oklab, var(--primary) 40%, transparent);
-  color: var(--primary-text);
-}
-
-.watch-hotkeys {
-  margin: 0;
-  width: 100%;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: 1.4;
-}
-
-@media (min-width: 901px) {
-  .watch-hotkeys {
-    width: auto;
-    margin-left: 0;
-  }
-}
-
-.watch-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
-  gap: var(--spacing-lg);
-  align-items: start;
-}
-
-.watch-stage--theater .watch-layout {
-  grid-template-columns: 1fr;
-}
-
-.watch-primary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  min-width: 0;
-}
-
-.watch-player-shell {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: oklch(0.14 0 0);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  box-shadow: var(--elevation-1);
-  cursor: pointer;
-  user-select: none;
-}
-
-.watch-player-shell.is-fullscreen {
-  aspect-ratio: auto;
-  width: 100%;
-  height: 100%;
-  max-height: none;
-  min-height: 100%;
-  border-radius: 0;
-}
-
-.watch-stage--bilibili .watch-player-shell:not(.is-fullscreen) {
-  aspect-ratio: 16 / 9;
-  min-height: clamp(280px, 48vw, 560px);
-}
-
-.watch-stage--theater .watch-player-shell:not(.is-fullscreen) {
-  max-height: min(82vh, 920px);
-  aspect-ratio: auto;
-  min-height: min(56vh, 720px);
-}
-
-.watch-player {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
-  background: var(--surface-strong);
-}
-
-.watch-player-loading {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: color-mix(in oklab, oklch(0.14 0 0) 72%, transparent);
-  color: var(--text-inverse);
-  font-weight: 600;
-  font-size: var(--text-sm, 0.875rem);
-  pointer-events: none;
-  z-index: 3;
-}
-
-.watch-center-play {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 72px;
-  height: 72px;
-  border: none;
-  border-radius: var(--radius-full);
-  background: color-mix(in oklab, var(--primary) 88%, black 12%);
-  color: var(--on-primary);
-  font-size: 1.5rem;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  z-index: 2;
-  box-shadow: var(--elevation-3);
-  transition: transform var(--duration-fast) var(--ease-out-expo), opacity var(--duration-fast) var(--ease-out-expo);
-}
-
-.watch-center-play:hover {
-  transform: scale(1.06);
-}
-
-.watch-center-play:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-
-.watch-skip-edge {
-  position: absolute;
-  top: 50%;
-  z-index: 3;
-  transform: translateY(-50%);
-  width: 2.75rem;
-  height: 2.75rem;
-  border: none;
-  border-radius: var(--radius-full);
-  background: color-mix(in oklab, oklch(0.14 0 0) 55%, transparent);
-  color: var(--on-solid);
-  font-size: 1.75rem;
-  line-height: 1;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity var(--duration-fast) var(--ease-out-expo),
-    background-color var(--duration-fast) ease,
-    transform var(--duration-fast) var(--ease-out-expo);
-}
-
-.watch-player-shell.is-controls-visible .watch-skip-edge:not(:disabled),
-.watch-player-shell:hover .watch-skip-edge:not(:disabled) {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.watch-skip-edge--prev {
-  left: 0.65rem;
-}
-
-.watch-skip-edge--next {
-  right: 0.65rem;
-}
-
-.watch-skip-edge:hover:not(:disabled) {
-  background: color-mix(in oklab, oklch(0.14 0 0) 78%, transparent);
-  transform: translateY(-50%) scale(1.06);
-}
-
-.watch-skip-edge:focus-visible {
-  opacity: 1;
-  pointer-events: auto;
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.watch-skip-edge:disabled {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.watch-chrome {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 4;
-  padding: 2.25rem 0.75rem 0.55rem;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    color-mix(in oklab, oklch(0.14 0 0) 55%, transparent) 42%,
-    color-mix(in oklab, oklch(0.11 0 0) 92%, transparent) 100%
-  );
-  opacity: 0;
-  transform: translateY(6px);
-  pointer-events: none;
-  transition:
-    opacity var(--duration-fast) var(--ease-out-expo),
-    transform var(--duration-fast) var(--ease-out-expo);
-}
-
-.watch-player-shell.is-controls-visible .watch-chrome,
-.watch-player-shell:focus-within .watch-chrome {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-.watch-progress-block {
-  padding: 0 0.35rem 0.35rem;
-}
-
-.watch-progress {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 5px;
-  border-radius: var(--radius-full);
-  background: color-mix(in oklab, var(--bg-surface) 22%, transparent);
-  outline: none;
-  cursor: pointer;
-}
-
-.watch-stage--bilibili .watch-progress {
-  height: 4px;
-  background: color-mix(in oklab, var(--bg-surface) 18%, transparent);
-}
-
-.watch-progress::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--primary);
-  border: 2px solid var(--border-subtle);
-  box-shadow: var(--elevation-1);
-  cursor: pointer;
-}
-
-.watch-stage--bilibili .watch-progress::-webkit-slider-thumb {
-  background: color-mix(in oklab, var(--primary) 70%, var(--accent) 30%);
-}
-
-.watch-progress::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--primary);
-  border: 2px solid var(--border-subtle);
-  cursor: pointer;
-}
-
-.watch-progress::-moz-range-track {
-  height: 5px;
-  border-radius: var(--radius-full);
-  background: color-mix(in oklab, var(--bg-surface) 22%, transparent);
-}
-
-.watch-chrome-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  padding: 0 0.15rem 0.15rem;
-}
-
-.watch-chrome-left,
-.watch-chrome-right {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-width: 0;
-}
-
-.watch-chrome-right {
-  margin-left: auto;
-}
-
-.watch-ctrl-btn {
-  appearance: none;
-  border: none;
-  background: transparent;
-  color: var(--on-solid);
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  display: grid;
-  place-items: center;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background-color var(--duration-fast) ease;
-}
-
-.watch-ctrl-btn:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--bg-surface) 14%, transparent);
-}
-
-.watch-ctrl-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.watch-ctrl-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.watch-ctrl-btn--compact {
-  width: 32px;
-}
-
-.watch-time {
-  color: color-mix(in oklab, var(--on-solid) 92%, transparent);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  padding: 0 0.25rem;
-  white-space: nowrap;
-}
-
-.watch-time-sep {
-  opacity: 0.55;
-  margin: 0 0.15rem;
-}
-
-.watch-volume {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  color: var(--on-solid);
-}
-
-.watch-volume input[type='range'] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 72px;
-  height: 4px;
-  border-radius: var(--radius-full);
-  background: color-mix(in oklab, var(--bg-surface) 24%, transparent);
-  outline: none;
-  cursor: pointer;
-}
-
-.watch-volume input[type='range']::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--bg-surface);
-  cursor: pointer;
-}
-
-.watch-volume input[type='range']::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border: none;
-  border-radius: 50%;
-  background: var(--bg-surface);
-  cursor: pointer;
-}
-
-.watch-speed select {
-  appearance: none;
-  border: 1px solid color-mix(in oklab, var(--border-subtle) 22%, transparent);
-  background: color-mix(in oklab, oklch(0.20 0 0) 70%, transparent);
-  color: var(--on-solid);
-  border-radius: var(--radius-sm);
-  padding: 0.3rem 0.45rem;
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.watch-speed select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  background: #000;
 }
 
 .sr-only {
@@ -4343,227 +2917,1751 @@ onBeforeUnmount(() => {
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
 }
 
-.watch-info {
+.page-title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  color: var(--vp-text);
+  margin: 0 0 var(--sp-4);
+}
+
+/* ══════════ Netflix 主打橫幅 ══════════ */
+.hero-billboard {
+  position: relative;
+  margin: calc(var(--sp-5) * -1) calc(var(--sp-5) * -1) var(--sp-5);
+  min-height: 340px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.hero-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.hero-backdrop-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  filter: saturate(1.05);
+}
+
+.hero-backdrop-fallback {
+  width: 100%;
+  height: 100%;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--spacing-sm) var(--spacing-md);
-  padding: var(--spacing-md);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
+  place-items: center;
+  font-size: 5rem;
+  background: linear-gradient(135deg, #1d1d29, #0d0d14);
+}
+
+.hero-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(8, 8, 12, 0.95) 0%, rgba(8, 8, 12, 0.72) 42%, rgba(8, 8, 12, 0.15) 100%),
+    linear-gradient(0deg, var(--vp-bg) 0%, rgba(10, 10, 14, 0) 55%);
+}
+
+.hero-copy {
+  position: relative;
+  padding: var(--sp-8) var(--sp-6) var(--sp-6);
+  max-width: 640px;
+}
+
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--vp-text-2);
+  margin: 0 0 var(--sp-3);
+}
+
+.hero-mark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: var(--vp-red);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8125rem;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 1.1rem + 2.4vw, 3rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--sp-3);
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.6);
+}
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.hero-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--vp-text);
+}
+
+.hero-badge--ghost {
+  background: transparent;
+  color: var(--vp-text-2);
+}
+
+.hero-badge--ok {
+  background: color-mix(in oklab, var(--vp-ok) 22%, transparent);
+  border-color: color-mix(in oklab, var(--vp-ok) 45%, transparent);
+  color: var(--vp-ok);
+}
+
+.hero-desc {
+  font-size: var(--text-md);
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.82);
+  margin: 0 0 var(--sp-5);
+  max-width: 52ch;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.hero-btn {
+  height: var(--control-h-lg);
+  padding: 0 var(--sp-6);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(60, 60, 72, 0.75);
+  backdrop-filter: blur(6px);
+  color: var(--vp-text);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.hero-btn:hover:not(:disabled) {
+  background: rgba(90, 90, 106, 0.9);
+  transform: translateY(-1px);
+}
+
+.hero-btn--play {
+  background: #fff;
+  border-color: #fff;
+  color: #0a0a0e;
+}
+
+.hero-btn--play:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.hero-btn--ghost {
+  background: transparent;
+}
+
+.hero-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ══════════ 操作列 / 搜尋 ══════════ */
+.actions-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+.search-area {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+.search-area :deep(input) {
+  background: var(--vp-surface-2);
+  border: 1px solid var(--vp-line);
+  color: var(--vp-text);
+  border-radius: var(--radius-full);
+  height: var(--control-h);
+}
+
+.search-area :deep(input::placeholder) {
+  color: var(--vp-text-3);
+}
+
+.search-area :deep(input:focus) {
+  outline: none;
+  border-color: var(--vp-blue);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--vp-blue) 25%, transparent);
+}
+
+.csv-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.btn-export,
+.btn-import {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: var(--control-h);
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--vp-line);
+  background: var(--vp-surface-2);
+  color: var(--vp-text-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-export:hover,
+.btn-import:hover {
+  background: var(--vp-surface-3);
+  color: var(--vp-text);
+  border-color: var(--vp-line-soft);
+}
+
+/* ══════════ YouTube 分類膠囊 ══════════ */
+.chip-rail {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  padding-bottom: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  scrollbar-width: none;
+}
+
+.chip-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 32px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  background: var(--vp-surface-2);
+  color: var(--vp-text-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.chip:hover {
+  background: var(--vp-surface-3);
+  color: var(--vp-text);
+}
+
+.chip.active {
+  background: var(--vp-text);
+  color: #0a0a0e;
+  font-weight: 600;
+}
+
+.chip-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  opacity: 0.65;
+}
+
+/* ══════════ 摘要列 ══════════ */
+.summary-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--vp-line);
+  border-bottom: 1px solid var(--vp-line);
+  margin-bottom: var(--sp-4);
+}
+
+.summary-left,
+.summary-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.summary-count,
+.selected-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--vp-text-3);
+}
+
+.selected-count {
+  color: var(--vp-pink);
+}
+
+.btn-add-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--vp-red);
+  color: #fff;
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.btn-add-icon:hover {
+  background: var(--vp-red-hi);
+  transform: scale(1.06);
+}
+
+.btn-batch-mode,
+.btn-cancel-batch {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--vp-line);
+  background: transparent;
+  color: var(--vp-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-batch-mode:hover,
+.btn-cancel-batch:hover {
+  background: var(--vp-surface-2);
+  color: var(--vp-text);
+}
+
+.select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--vp-text-2);
+  cursor: pointer;
+}
+
+.select-all-label input {
+  accent-color: var(--vp-pink);
+}
+
+.btn-batch-delete {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid color-mix(in oklab, var(--vp-red) 55%, transparent);
+  background: color-mix(in oklab, var(--vp-red) 18%, transparent);
+  color: #ff8b91;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-batch-delete:hover:not(:disabled) {
+  background: var(--vp-red);
+  color: #fff;
+}
+
+.layout-switcher {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--radius-full);
+  background: var(--vp-surface-2);
+  border: 1px solid var(--vp-line);
+}
+
+.layout-switch-btn {
+  height: 26px;
+  padding: 0 var(--sp-3);
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--vp-text-3);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.layout-switch-btn:hover {
+  color: var(--vp-text);
+}
+
+.layout-switch-btn.active {
+  background: var(--vp-red);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ══════════ 快取列 ══════════ */
+.cache-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  background: var(--vp-surface);
+  border: 1px solid var(--vp-line);
+  margin-bottom: var(--sp-5);
+}
+
+.cache-info {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--vp-text-2);
+}
+
+.cache-info strong {
+  color: var(--vp-ok);
+  font-family: var(--font-mono);
+}
+
+.cache-size {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--vp-text-3);
+}
+
+.cache-meter {
+  display: block;
+  width: 120px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--vp-surface-3);
+  overflow: hidden;
+}
+
+.cache-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--vp-ok), var(--vp-blue));
+  transition: width var(--transition-normal);
+}
+
+.cache-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.btn-cache-all,
+.btn-clear-cache {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--vp-line);
+  background: var(--vp-surface-2);
+  color: var(--vp-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-cache-all:hover:not(:disabled) {
+  border-color: var(--vp-ok);
+  color: var(--vp-ok);
+}
+
+.btn-clear-cache:hover {
+  border-color: var(--vp-red);
+  color: #ff8b91;
+}
+
+.btn-cache-all:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ══════════ 狀態 ══════════ */
+.loading,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-16) var(--sp-4);
+  color: var(--vp-text-3);
+  font-size: var(--text-md);
+}
+
+.empty-icon {
+  font-size: 2.5rem;
+  opacity: 0.5;
+}
+
+.loading-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--vp-line);
+  border-top-color: var(--vp-red);
+  animation: vpSpin 0.8s linear infinite;
+}
+
+@keyframes vpSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ══════════ Netflix 橫向片列 ══════════ */
+.rail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+
+.rail-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.rail-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--vp-text);
+  margin: 0;
+}
+
+.rail-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--vp-text-3);
+}
+
+.rail-track {
+  display: flex;
+  gap: var(--sp-3);
+  overflow-x: auto;
+  padding: var(--sp-2) var(--sp-1) var(--sp-5);
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vp-surface-3) transparent;
+}
+
+.rail-track::-webkit-scrollbar {
+  height: 6px;
+}
+
+.rail-track::-webkit-scrollbar-thumb {
+  background: var(--vp-surface-3);
+  border-radius: var(--radius-full);
+}
+
+.poster-card {
+  flex: 0 0 232px;
+  scroll-snap-align: start;
+  cursor: pointer;
+  transition: transform var(--duration-normal) var(--ease-out-expo);
+}
+
+.poster-card:hover {
+  transform: scale(1.055);
+  z-index: 2;
+}
+
+.poster-card.is-selected {
+  outline: 2px solid var(--vp-pink);
+  outline-offset: 3px;
   border-radius: var(--radius-md);
 }
 
-.watch-stage--bilibili .watch-info {
-  grid-template-columns: auto 1fr;
-  grid-template-areas:
-    'avatar copy'
-    'actions actions';
+.poster-thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--vp-surface-2);
+  border: 1px solid var(--vp-line);
 }
 
-.watch-stage--youtube .watch-avatar {
-  display: none;
+.poster-card.is-playing .poster-thumb {
+  border-color: var(--vp-red);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--vp-red) 45%, transparent);
+}
+
+.poster-thumb .thumbnail-img,
+.poster-thumb .thumbnail-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.poster-cached {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  color: var(--vp-ok);
+  font-size: 0.75rem;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+.poster-hover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.15));
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.poster-card:hover .poster-hover {
+  opacity: 1;
+}
+
+.poster-tools {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: flex;
+  gap: 4px;
+}
+
+.poster-copy {
+  padding: var(--sp-2) 2px 0;
+}
+
+.poster-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--vp-text);
+  margin: 0 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poster-sub {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  font-size: var(--text-2xs);
+  color: var(--vp-text-3);
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.poster-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ══════════ YouTube 網格 / 列表 ══════════ */
+.video-grid {
+  display: grid;
+  gap: var(--sp-5) var(--sp-4);
+}
+
+.video-grid--card {
+  grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+}
+
+.video-grid--list {
+  grid-template-columns: 1fr;
+  gap: var(--sp-3);
+}
+
+.video-card {
+  position: relative;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.video-card.is-selected {
+  outline: 2px solid var(--vp-pink);
+  outline-offset: 4px;
+}
+
+.video-card--card .thumbnail-wrapper {
+  aspect-ratio: 16 / 9;
+}
+
+.video-card--card:hover .video-title {
+  color: #fff;
+}
+
+.video-card--list {
+  display: grid;
+  grid-template-columns: 240px 1fr auto;
+  align-items: start;
+  gap: var(--sp-4);
+  padding: var(--sp-3);
+  background: var(--vp-surface);
+  border: 1px solid var(--vp-line);
+}
+
+.video-card--list:hover {
+  background: var(--vp-surface-2);
+}
+
+.video-card--list .thumbnail-wrapper {
+  aspect-ratio: 16 / 9;
+}
+
+.video-card--list .card-actions-bar {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.video-card--editor {
+  grid-column: 1 / -1;
+  background: var(--vp-surface);
+  border: 1px solid var(--vp-line);
+  padding: var(--sp-4);
+}
+
+.thumbnail-wrapper {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--vp-surface-2);
+  border: 1px solid var(--vp-line);
+  cursor: pointer;
+}
+
+.thumbnail-img,
+.thumbnail-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.thumbnail-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 130px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #1b1b26, #101017);
+}
+
+.placeholder-icon {
+  font-size: 2rem;
+  opacity: 0.4;
+}
+
+.play-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.thumbnail-wrapper:hover .play-overlay {
+  opacity: 1;
+}
+
+.play-btn {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--vp-red);
+  color: #fff;
+  font-size: 1.125rem;
+  padding-left: 3px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.play-overlay--loading .play-btn {
+  background: var(--vp-surface-3);
+}
+
+.filetype-tag,
+.cached-tag {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+}
+
+.cached-tag {
+  right: auto;
+  left: 6px;
+  background: color-mix(in oklab, var(--vp-ok) 88%, black);
+  color: #08120d;
+  font-weight: 600;
+}
+
+.batch-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--vp-pink);
+  cursor: pointer;
+}
+
+/* Bilibili 資訊列 */
+.video-meta {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 2px 0;
+}
+
+.bilibili-avatar,
+.watch-avatar {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--vp-pink), var(--vp-blue));
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-sm);
 }
 
 .watch-avatar {
   width: 44px;
   height: 44px;
+  font-size: var(--text-lg);
+}
+
+.video-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.video-title {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.32;
+  color: var(--vp-text);
+  margin: 0 0 var(--sp-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color var(--transition-fast);
+}
+
+.bilibili-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--vp-text-3);
+}
+
+.bilibili-stats span + span::before {
+  content: '·';
+  margin-right: var(--sp-2);
+  color: var(--vp-line);
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.category-chip {
+  font-size: var(--text-2xs);
+  padding: 2px 8px;
   border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--vp-pink) 18%, transparent);
+  color: var(--vp-pink);
+  border: 1px solid color-mix(in oklab, var(--vp-pink) 32%, transparent);
+}
+
+.filetype-chip {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--vp-surface-3);
+  color: var(--vp-text-2);
+}
+
+.cache-chip {
+  font-size: var(--text-2xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--vp-ok) 18%, transparent);
+  color: var(--vp-ok);
+}
+
+.meta-ref {
+  font-size: var(--text-2xs);
+  color: var(--vp-blue);
+  text-decoration: none;
+}
+
+.meta-ref:hover {
+  text-decoration: underline;
+}
+
+.video-desc {
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--vp-text-3);
+  margin: var(--sp-2) 0 0;
+}
+
+.card-actions-bar {
+  display: flex;
+  gap: var(--sp-1);
+  padding: var(--sp-2) 0 0;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.video-card:hover .card-actions-bar,
+.video-card--list .card-actions-bar {
+  opacity: 1;
+}
+
+.action-btn {
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, var(--primary), color-mix(in oklab, var(--primary) 55%, oklch(0.35 0.08 280)));
-  color: var(--on-primary);
-  font-weight: 700;
-  font-size: 1rem;
-  flex-shrink: 0;
-  grid-area: avatar;
-  align-self: start;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--vp-line);
+  background: var(--vp-surface-2);
+  color: var(--vp-text-2);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.watch-stage--bilibili .watch-info-copy {
-  grid-area: copy;
+.action-btn:hover:not(:disabled) {
+  background: var(--vp-surface-3);
+  transform: translateY(-1px);
 }
 
-.watch-stage--bilibili .watch-actions {
-  grid-area: actions;
+.action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.delete-btn:hover:not(:disabled) {
+  border-color: var(--vp-red);
+}
+
+.cached-btn {
+  border-color: color-mix(in oklab, var(--vp-ok) 45%, transparent);
+}
+
+/* ══════════ 行內編輯表單 ══════════ */
+.inline-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.video-card--list .inline-edit-form,
+.video-card--card .inline-edit-form {
+  grid-column: 1 / -1;
+  background: var(--vp-surface);
+  border: 1px solid var(--vp-line);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+}
+
+.inline-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.inline-form-group label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--vp-text-3);
+}
+
+.inline-input,
+.inline-textarea {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--vp-line);
+  background: var(--vp-surface-2);
+  color: var(--vp-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+
+.inline-input:focus,
+.inline-textarea:focus {
+  outline: none;
+  border-color: var(--vp-blue);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--vp-blue) 22%, transparent);
+}
+
+.inline-textarea {
+  resize: vertical;
+}
+
+.upload-area {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.btn-upload {
+  height: var(--control-h-sm);
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--vp-line);
+  background: transparent;
+  color: var(--vp-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.btn-upload:hover:not(:disabled) {
+  border-color: var(--vp-blue);
+  color: var(--vp-blue);
+}
+
+.btn-upload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.selected-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--radius-sm);
+  background: var(--vp-surface-2);
+}
+
+.selected-file-summary {
+  font-size: var(--text-xs);
+  color: var(--vp-text-2);
+}
+
+.selected-file-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.selected-file-chip {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--vp-surface-3);
+  color: var(--vp-text-2);
+}
+
+.btn-remove-sm {
+  align-self: flex-start;
+  height: 24px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--vp-line);
+  background: transparent;
+  color: var(--vp-text-3);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.btn-remove-sm:hover {
+  color: #ff8b91;
+  border-color: var(--vp-red);
+}
+
+.upload-progress-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.upload-progress-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-2xs);
+  color: var(--vp-text-3);
+}
+
+.upload-progress {
+  font-family: var(--font-mono);
+  color: var(--vp-blue);
+}
+
+.upload-progress-bar {
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--vp-surface-3);
+  overflow: hidden;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--vp-blue), var(--vp-pink));
+  transition: width var(--transition-normal);
+}
+
+.inline-video-preview,
+.video-preview {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #000;
+}
+
+.card-video,
+.preview-video {
+  width: 100%;
+  display: block;
+  max-height: 240px;
+}
+
+.inline-cover-preview,
+.cover-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.preview-cover-img,
+.preview-image {
+  width: 96px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--vp-line);
+}
+
+.inline-edit-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.btn-save,
+.btn-submit {
+  height: var(--control-h-sm);
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--vp-red);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-save:hover:not(:disabled),
+.btn-submit:hover {
+  background: var(--vp-red-hi);
+}
+
+.btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-cancel-inline,
+.btn-cancel,
+.btn-remove {
+  height: var(--control-h-sm);
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--vp-line);
+  background: transparent;
+  color: var(--vp-text-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.btn-cancel-inline:hover,
+.btn-cancel:hover,
+.btn-remove:hover {
+  background: var(--vp-surface-2);
+  color: var(--vp-text);
+}
+
+/* ══════════ 觀看主舞台 ══════════ */
+.watch-stage {
+  display: flex;
+  flex-direction: column;
+  min-height: 70vh;
+  background: #000;
+  border-radius: var(--vp-radius);
+  overflow: hidden;
+}
+
+.watch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--vp-line);
+  background: linear-gradient(180deg, #14141b, #0c0c11);
+}
+
+.watch-back-btn {
+  height: var(--control-h-sm);
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--vp-line);
+  background: var(--vp-surface-2);
+  color: var(--vp-text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.watch-back-btn:hover {
+  background: var(--vp-red);
+  border-color: var(--vp-red);
+  color: #fff;
+}
+
+.watch-hotkeys {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--vp-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watch-theater-btn {
+  height: var(--control-h-sm);
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--vp-line);
+  background: transparent;
+  color: var(--vp-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.watch-theater-btn:hover,
+.watch-theater-btn[aria-pressed='true'] {
+  background: var(--vp-surface-2);
+  color: var(--vp-text);
+}
+
+.watch-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
+  align-items: start;
+}
+
+.watch-stage--theater .watch-layout {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 0 var(--sp-5);
+}
+
+.watch-primary {
+  min-width: 0;
+}
+
+.watch-player-shell {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--vp-line);
+}
+
+.watch-stage--theater .watch-player-shell {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  max-height: 78vh;
+}
+
+.watch-player-shell.is-fullscreen {
+  border-radius: 0;
+  aspect-ratio: auto;
+  height: 100vh;
+}
+
+.watch-player {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  cursor: pointer;
+}
+
+.watch-player-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  color: var(--vp-text-2);
+  font-size: var(--text-sm);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.watch-loading-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--vp-line);
+  border-top-color: var(--vp-red);
+  animation: vpSpin 0.8s linear infinite;
+}
+
+.watch-center-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(229, 9, 20, 0.92);
+  color: #fff;
+  font-size: 1.75rem;
+  padding-left: 5px;
+  cursor: pointer;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.watch-center-play:hover {
+  transform: translate(-50%, -50%) scale(1.08);
+  background: var(--vp-red-hi);
+}
+
+.watch-skip-edge {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 68px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), background var(--transition-fast);
+}
+
+.watch-player-shell:hover .watch-skip-edge:not(:disabled) {
+  opacity: 1;
+}
+
+.watch-skip-edge:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.watch-skip-edge:disabled {
+  cursor: not-allowed;
+}
+
+.watch-skip-edge--prev { left: var(--sp-3); }
+.watch-skip-edge--next { right: var(--sp-3); }
+
+.watch-chrome {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--sp-6) var(--sp-4) var(--sp-3);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0));
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  pointer-events: none;
+}
+
+.watch-player-shell.is-controls-visible .watch-chrome {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.watch-progress-block {
+  margin-bottom: var(--sp-2);
+}
+
+.watch-progress {
+  width: 100%;
+  height: 4px;
+  appearance: none;
+  border-radius: var(--radius-full);
+  background: linear-gradient(
+    90deg,
+    var(--vp-red) 0%,
+    var(--vp-red) var(--played, 0%),
+    rgba(255, 255, 255, 0.28) var(--played, 0%),
+    rgba(255, 255, 255, 0.28) 100%
+  );
+  cursor: pointer;
+}
+
+.watch-progress::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--vp-red);
+  border: none;
+  box-shadow: 0 0 0 4px rgba(229, 9, 20, 0.25);
+}
+
+.watch-progress::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--vp-red);
+  border: none;
+}
+
+.watch-chrome-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.watch-chrome-left,
+.watch-chrome-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.watch-ctrl-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 var(--sp-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #fff;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.watch-ctrl-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.watch-ctrl-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.watch-ctrl-btn--play {
+  background: var(--vp-red);
+}
+
+.watch-ctrl-btn--play:hover {
+  background: var(--vp-red-hi);
+}
+
+.watch-ctrl-btn--compact {
+  min-width: 28px;
+  height: 28px;
+}
+
+.watch-time {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.86);
+  margin-left: var(--sp-2);
+}
+
+.watch-time-sep {
+  opacity: 0.45;
+  margin: 0 2px;
+}
+
+.watch-volume {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.watch-volume input[type='range'] {
+  width: 78px;
+  height: 4px;
+  accent-color: var(--vp-red);
+  cursor: pointer;
+}
+
+.watch-speed select {
+  height: 28px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.watch-info {
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-5) 0 0;
+  flex-wrap: wrap;
+}
+
+.watch-stage--theater .watch-info {
+  padding: var(--sp-5) var(--sp-5) 0;
 }
 
 .watch-info-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  flex: 1;
+  min-width: 240px;
 }
 
 .watch-title {
-  margin: 0;
-  font-family: var(--font-body, inherit);
-  font-size: clamp(1.15rem, 1rem + 0.6vw, 1.5rem);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
   font-weight: 700;
-  line-height: 1.3;
-  color: var(--text-primary);
-  text-wrap: balance;
+  line-height: 1.25;
+  color: var(--vp-text);
+  margin: 0 0 var(--sp-2);
+}
+
+.watch-channel-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--vp-text-2);
+  margin-bottom: var(--sp-3);
+}
+
+.watch-channel {
+  font-weight: 600;
+  color: var(--vp-text);
+}
+
+.watch-dot {
+  color: var(--vp-line);
 }
 
 .watch-meta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
   align-items: center;
-}
-
-.filetype-chip,
-.cache-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.15rem 0.55rem;
-  border-radius: var(--radius-full);
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: var(--bg-muted);
-  color: var(--text-secondary);
-}
-
-.cache-chip {
-  background: var(--success-light);
-  color: var(--success-text);
-}
-
-.watch-stats {
-  margin-top: 0.15rem;
+  gap: var(--sp-2);
 }
 
 .watch-desc {
-  margin: 0.25rem 0 0;
-  color: var(--text-secondary);
-  font-size: var(--text-sm, 0.875rem);
-  line-height: 1.55;
-  max-width: 75ch;
+  margin: var(--sp-3) 0 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--vp-surface);
+  border: 1px solid var(--vp-line);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--vp-text-2);
   white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .watch-actions {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  padding-top: 0.25rem;
-  border-top: 1px solid var(--border-subtle);
-  margin-top: 0.15rem;
+  gap: var(--sp-2);
+  align-content: flex-start;
 }
 
 .watch-action-btn {
-  appearance: none;
-  border: 1px solid var(--border-subtle);
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  border-radius: var(--radius-md);
-  padding: 0.5rem 0.85rem;
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  height: var(--control-h);
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--vp-surface-3);
+  color: var(--vp-text);
+  font-size: var(--text-sm);
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 150ms ease, opacity 150ms ease;
+  transition: all var(--transition-fast);
 }
 
 .watch-action-btn:hover:not(:disabled) {
-  background: var(--primary-hover);
+  background: #333343;
 }
 
 .watch-action-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .watch-action-btn--muted {
-  background: var(--bg-muted);
-  color: var(--text-primary);
-}
-
-.watch-action-btn--muted:hover:not(:disabled) {
-  background: var(--bg-inset);
+  background: transparent;
+  border: 1px solid var(--vp-line);
+  color: var(--vp-text-2);
 }
 
 .watch-action-btn--danger {
-  background: var(--danger-light);
-  color: var(--danger-text);
-  border-color: transparent;
-  margin-left: auto;
+  background: color-mix(in oklab, var(--vp-red) 20%, transparent);
+  color: #ff8b91;
 }
 
-.watch-action-btn--danger:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--danger) 22%, transparent);
+.watch-action-btn--danger:hover {
+  background: var(--vp-red);
+  color: #fff;
 }
 
+/* 右側「接下來播放」 */
 .watch-related {
-  position: sticky;
-  top: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  max-height: calc(100vh - 5rem);
-  overflow: auto;
-  padding: var(--spacing-sm);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  min-width: 0;
+  gap: var(--sp-2);
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  padding-right: var(--sp-1);
+  scrollbar-width: thin;
+  scrollbar-color: var(--vp-surface-3) transparent;
 }
 
-.watch-stage--bilibili .watch-related {
-  gap: 0.4rem;
-  padding: 0.55rem;
+.watch-related::-webkit-scrollbar {
+  width: 6px;
+}
+
+.watch-related::-webkit-scrollbar-thumb {
+  background: var(--vp-surface-3);
+  border-radius: var(--radius-full);
 }
 
 .watch-related-title {
-  margin: 0 0 0.15rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--vp-text);
+  margin: 0 0 var(--sp-1);
+}
+
+.watch-related-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--vp-text-3);
 }
 
 .watch-related-empty {
+  font-size: var(--text-sm);
+  color: var(--vp-text-3);
   margin: 0;
-  color: var(--text-muted);
-  font-size: 0.8125rem;
-  padding: 0.5rem 0.15rem;
 }
 
 .watch-related-item {
   display: grid;
-  grid-template-columns: 148px minmax(0, 1fr);
-  gap: 0.65rem;
-  align-items: start;
-  width: 100%;
-  padding: 0.4rem;
+  grid-template-columns: 152px 1fr;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: inherit;
   text-align: left;
-  font: inherit;
   cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease;
-}
-
-.watch-stage--bilibili .watch-related-item {
-  grid-template-columns: 120px minmax(0, 1fr);
-  gap: 0.5rem;
-  padding: 0.3rem;
+  transition: background var(--transition-fast);
 }
 
 .watch-related-item:hover {
-  background: var(--bg-muted);
+  background: var(--vp-surface);
 }
 
 .watch-related-item.is-active {
-  background: var(--primary-muted);
-  border-color: color-mix(in oklab, var(--primary) 28%, transparent);
+  background: var(--vp-surface-2);
+  border-color: color-mix(in oklab, var(--vp-red) 55%, transparent);
 }
 
 .watch-related-thumb {
@@ -4571,7 +4669,7 @@ onBeforeUnmount(() => {
   aspect-ratio: 16 / 9;
   border-radius: var(--radius-xs);
   overflow: hidden;
-  background: var(--bg-inset);
+  background: var(--vp-surface-2);
 }
 
 .watch-related-thumb img,
@@ -4583,147 +4681,232 @@ onBeforeUnmount(() => {
 }
 
 .watch-related-placeholder {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
-  width: 100%;
-  height: 100%;
-  color: var(--text-muted);
-  font-size: 1rem;
+  color: var(--vp-text-3);
 }
 
 .watch-related-type {
   position: absolute;
   right: 4px;
   bottom: 4px;
-  padding: 0.1rem 0.35rem;
-  border-radius: var(--radius-xs);
-  background: color-mix(in oklab, oklch(0.17 0 0) 72%, transparent);
-  color: var(--text-inverse);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
 }
 
 .watch-related-copy {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  padding-top: 0.1rem;
+  gap: 2px;
 }
 
 .watch-related-copy strong {
-  font-size: 0.875rem;
-  font-weight: 650;
-  line-height: 1.35;
-  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--vp-text);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.watch-stage--bilibili .watch-related-copy strong {
-  -webkit-line-clamp: 2;
-  font-size: 0.8125rem;
-}
-
 .watch-related-copy span {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  font-size: var(--text-2xs);
+  color: var(--vp-text-3);
 }
 
-.watch-stage--bilibili .watch-related-item:hover .watch-related-copy strong {
-  color: var(--primary-text);
+.watch-related-channel {
+  color: var(--vp-text-2) !important;
 }
 
+/* ══════════ Modal ══════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+  background: rgba(4, 4, 8, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  width: min(620px, 100%);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--vp-surface);
+  border: 1px solid var(--vp-line);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  color: var(--vp-text);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--vp-line);
+}
+
+.modal-header h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.btn-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--vp-text-2);
+  font-size: 1.375rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-close:hover {
+  background: var(--vp-surface-2);
+  color: var(--vp-text);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  overflow-y: auto;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.form-group label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--vp-text-3);
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--vp-line);
+  background: var(--vp-surface-2);
+  color: var(--vp-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--vp-blue);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--vp-blue) 22%, transparent);
+}
+
+.form-group textarea {
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--vp-line);
+}
+
+/* ══════════ 響應式 ══════════ */
 @media (max-width: 1100px) {
   .watch-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
-  }
-}
-
-@media (max-width: 900px) {
-  .watch-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .watch-related {
-    position: static;
     max-height: none;
   }
-
-  .watch-related-item {
-    grid-template-columns: 132px minmax(0, 1fr);
-  }
-
-  .watch-theater-btn {
-    margin-left: 0;
-  }
-
-  .watch-toolbar {
-    gap: 0.5rem;
-  }
-
-  .watch-action-btn--danger {
-    margin-left: 0;
-  }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 768px) {
+  .video-page {
+    padding: var(--sp-4);
+    border-radius: var(--radius-md);
+  }
+
+  .hero-billboard {
+    margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) var(--sp-4);
+    min-height: 260px;
+  }
+
+  .hero-copy {
+    padding: var(--sp-6) var(--sp-4) var(--sp-4);
+  }
+
+  .video-grid--card {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
+  .video-card--list {
+    grid-template-columns: 1fr;
+  }
+
+  .poster-card {
+    flex-basis: 180px;
+  }
+
+  .watch-layout {
+    padding: var(--sp-3);
+    gap: var(--sp-4);
+  }
+
   .watch-related-item {
-    grid-template-columns: 108px minmax(0, 1fr);
+    grid-template-columns: 120px 1fr;
   }
 
-  .watch-info {
-    padding: var(--spacing-sm);
-  }
-
-  .watch-player-shell {
-    border-radius: var(--radius-sm);
-  }
-
-  .watch-volume input[type='range'] {
-    width: 52px;
-  }
-
-  .watch-center-play {
-    width: 60px;
-    height: 60px;
-    font-size: 1.25rem;
-  }
-
-  .watch-chrome {
-    padding-top: 1.5rem;
-  }
-
-  .watch-time {
-    font-size: 0.7rem;
-  }
-}
-
-@media (max-width: 420px) {
-  .watch-volume input[type='range'] {
+  .watch-hotkeys {
     display: none;
+  }
+
+  .card-actions-bar {
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .watch-stage {
-    animation: none;
-  }
-
-  .watch-chrome,
-  .watch-center-play {
+  .poster-card,
+  .hero-btn,
+  .action-btn {
     transition: none;
   }
-}
 
-:global(.dark) .watch-player-shell {
-  box-shadow: var(--elevation-1);
-}
+  .poster-card:hover {
+    transform: none;
+  }
 
-:global(.dark) .watch-related-item:hover {
-  background: var(--bg-muted);
+  .loading-spinner,
+  .watch-loading-dot {
+    animation: none;
+  }
 }
 </style>

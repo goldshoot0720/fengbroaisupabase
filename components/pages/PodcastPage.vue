@@ -1,13 +1,42 @@
 <template>
   <PageContainer>
     <div class="podcast-page">
-      <!-- Header -->
-      <div class="page-header">
-        <h1 class="page-title">鋒兄播客</h1>
-      </div>
+      <!-- ══ Spotify 式節目標頭 ══ -->
+      <header class="pc-hero">
+        <div class="pc-hero-art" aria-hidden="true">
+          <img v-if="heroCover" :src="heroCover" alt="" class="pc-hero-img" />
+          <span v-else class="pc-hero-note">🎙</span>
+        </div>
+        <div class="pc-hero-copy">
+          <p class="pc-hero-label">Podcast</p>
+          <h1 class="pc-hero-title">鋒兄播客</h1>
+          <p class="pc-hero-meta">
+            <span class="pc-hero-owner"><span class="pc-owner-dot">鋒</span> 鋒兄</span>
+            <span class="pc-dot">·</span>
+            <span>{{ podcasts.length }} 集</span>
+            <span class="pc-dot">·</span>
+            <span>{{ categoryChips.length - 1 }} 個分類</span>
+          </p>
+        </div>
+      </header>
 
-      <!-- Actions Bar -->
-      <div class="actions-bar">
+      <!-- ══ 控制列 ══ -->
+      <div class="pc-actions">
+        <button
+          class="pc-play-big"
+          :title="isPlaying ? '暫停' : '從第一集開始播放'"
+          :disabled="playableEpisodes.length === 0"
+          @click="isPlaying ? togglePlay() : playAll()"
+        >
+          {{ isPlaying ? '❚❚' : '▶' }}
+        </button>
+        <button class="pc-ghost-btn" title="新增播客" @click="openInlineAdd">＋</button>
+        <button class="pc-ghost-btn" title="匯出 ZIP" @click="exportToZIP">📤</button>
+        <label class="pc-ghost-btn" title="匯入 ZIP">
+          📥
+          <input type="file" accept=".zip" @change="handleImportZIP" style="display: none" />
+        </label>
+        <div class="pc-actions-spacer"></div>
         <div class="search-box search-area">
           <RecentSearchInput
             v-model="searchQuery"
@@ -19,37 +48,28 @@
             @clear="clearRecentSearches"
           />
         </div>
-        <div class="csv-actions">
-          <button @click="exportToZIP" class="btn btn-export">
-            匯出 ZIP
-          </button>
-          <label class="btn btn-import">
-            匯入 ZIP
-            <input
-              type="file"
-              accept=".zip"
-              @change="handleImportZIP"
-              style="display: none"
-            />
-          </label>
-        </div>
+        <button v-if="!batchMode && filteredPodcasts.length > 0" @click="enterBatchMode" class="pc-text-btn">選取</button>
+        <template v-if="batchMode">
+          <label class="select-all-label"><input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" /><span>全選</span></label>
+          <button @click="exitBatchMode" class="pc-text-btn">取消</button>
+          <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除 ({{ selectedIds.size }})</button>
+        </template>
       </div>
 
-      <!-- 摘要列 -->
-      <div class="summary-bar">
-        <div class="summary-left">
-          <button v-if="!batchMode && filteredPodcasts.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openInlineAdd" class="btn-add-icon" title="新增">+</button>
-          <template v-if="batchMode">
-            <label class="select-all-label"><input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" /><span>全選</span></label>
-            <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
-          </template>
-          <span>共 {{ podcasts.length }} 個項目</span>
-          <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
-        </div>
-        <div class="summary-right">
-          <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除選中 ({{ selectedIds.size }})</button>
-        </div>
+      <!-- 分類膠囊 -->
+      <div v-if="categoryChips.length > 1" class="pc-chips" role="tablist" aria-label="分類篩選">
+        <button
+          v-for="chip in categoryChips"
+          :key="chip.value"
+          type="button"
+          role="tab"
+          class="pc-chip"
+          :class="{ active: activeCategory === chip.value }"
+          :aria-selected="activeCategory === chip.value"
+          @click="activeCategory = chip.value"
+        >
+          {{ chip.label }} <span class="pc-chip-count">{{ chip.count }}</span>
+        </button>
       </div>
 
       <!-- Loading State -->
@@ -60,12 +80,14 @@
 
       <!-- Empty State -->
       <div v-else-if="filteredPodcasts.length === 0 && !isAddingInline" class="empty-state">
-        <p v-if="searchQuery">找不到符合的播客</p>
-        <p v-else>尚無播客記錄，點擊「新增播客」開始建立</p>
+        <span class="empty-icon" aria-hidden="true">🎙</span>
+        <p v-if="searchQuery || activeCategory !== 'all'">找不到符合的播客</p>
+        <p v-else>尚無播客記錄，點擊「＋」開始建立</p>
       </div>
 
-      <!-- Podcasts Grid -->
+      <!-- ══ 集數列表 ══ -->
       <div v-if="isAddingInline || filteredPodcasts.length > 0" class="podcasts-grid">
+        <h2 v-if="filteredPodcasts.length > 0" class="pc-section-title">所有集數</h2>
 
         <!-- 行內新增卡片 -->
         <div v-if="isAddingInline" class="podcast-card card-editing">
@@ -120,14 +142,86 @@
             <div class="inline-row"><label>參考</label><input v-model="addForm.ref" class="inline-input" placeholder="參考連結" /></div>
           </div>
         </div>
+
         <div
-          v-for="podcast in filteredPodcasts"
+          v-for="(podcast, pi) in filteredPodcasts"
           :key="podcast.id"
           class="podcast-card"
-          :class="{ 'selected': selectedIds.has(podcast.id) }"
+          :class="{
+            selected: selectedIds.has(podcast.id),
+            'card-editing': inlineEditId === podcast.id,
+            'is-current': currentEpisodeId === podcast.id
+          }"
         >
-          <div class="card-header">
-            <div class="card-header-left">
+          <!-- 行內編輯模式 -->
+          <template v-if="inlineEditId === podcast.id">
+            <div class="card-header">
+              <div class="card-header-left">
+                <input v-model="inlineForm.name" class="inline-input inline-title-input" placeholder="名稱" />
+              </div>
+            </div>
+            <div class="inline-edit-form">
+              <div class="inline-row">
+                <label>分類</label>
+                <input v-model="inlineForm.category" class="inline-input" placeholder="分類" />
+              </div>
+              <div class="inline-row">
+                <label>備註</label>
+                <textarea v-model="inlineForm.note" class="inline-textarea" rows="2" placeholder="備註"></textarea>
+              </div>
+              <div class="inline-row">
+                <label>音檔</label>
+                <div class="inline-upload-group">
+                  <input
+                    :ref="el => inlineAudioInputs[podcast.id] = el"
+                    type="file"
+                    accept="audio/*"
+                    @change="(e) => handleInlineAudioUpload(e, podcast.id)"
+                    style="display:none"
+                  />
+                  <button type="button" @click="inlineAudioInputs[podcast.id]?.click()" class="btn-inline-upload" :disabled="inlineAudioUploading">
+                    {{ inlineAudioUploading ? '上傳中...' : '🎵 上傳音檔' }}
+                  </button>
+                  <input v-model="inlineForm.file" class="inline-input" placeholder="或輸入音檔 URL" />
+                </div>
+              </div>
+              <div class="inline-row">
+                <label>格式</label>
+                <input v-model="inlineForm.filetype" class="inline-input" placeholder="例如 mp3" />
+              </div>
+              <div class="inline-row">
+                <label>封面</label>
+                <div class="inline-upload-group">
+                  <input
+                    :ref="el => inlineCoverInputs[podcast.id] = el"
+                    type="file"
+                    accept="image/*"
+                    @change="(e) => handleInlineCoverUpload(e, podcast.id)"
+                    style="display:none"
+                  />
+                  <button type="button" @click="inlineCoverInputs[podcast.id]?.click()" class="btn-inline-upload" :disabled="inlineCoverUploading">
+                    {{ inlineCoverUploading ? '上傳中...' : '🖼️ 上傳封面' }}
+                  </button>
+                  <input v-model="inlineForm.cover" class="inline-input" placeholder="或輸入封面 URL" />
+                </div>
+              </div>
+              <div v-if="inlineForm.cover" class="inline-cover-preview">
+                <img :src="inlineForm.cover" alt="封面預覽" />
+              </div>
+              <div class="inline-row">
+                <label>參考</label>
+                <input v-model="inlineForm.ref" class="inline-input" placeholder="參考連結" />
+              </div>
+              <div class="inline-actions">
+                <button @click="saveInlineEdit" class="btn-inline-save">💾 儲存</button>
+                <button @click="cancelInlineEdit" class="btn-inline-cancel">取消</button>
+              </div>
+            </div>
+          </template>
+
+          <!-- ══ 集數列 ══ -->
+          <template v-else>
+            <div class="pc-episode" @dblclick="podcast.file && playEpisode(podcast)">
               <input
                 v-if="batchMode"
                 type="checkbox"
@@ -135,107 +229,130 @@
                 @change="toggleSelect(podcast.id)"
                 class="card-checkbox"
               />
-              <h3 v-if="inlineEditId !== podcast.id" class="card-title">{{ podcast.name || '未命名' }}</h3>
-              <input v-else v-model="inlineForm.name" class="inline-input inline-title-input" placeholder="名稱" />
-            </div>
-            <div class="card-header-right">
-              <span v-if="podcast.category && inlineEditId !== podcast.id" class="category-badge">
-                {{ podcast.category }}
-              </span>
-              <button v-if="inlineEditId !== podcast.id" @click="startInlineEdit(podcast)" class="btn-icon" title="編輯">✎</button>
-              <button v-if="inlineEditId !== podcast.id" @click="confirmDelete(podcast)" class="btn-icon btn-icon-delete" title="刪除">✕</button>
-            </div>
-          </div>
+              <div class="pc-ep-art">
+                <img v-if="podcast.cover" :src="resolveMediaUrl(podcast.cover)" :alt="podcast.name" loading="lazy" />
+                <span v-else class="pc-ep-art-note">🎙</span>
+              </div>
 
-          <!-- 行內編輯模式 -->
-          <div v-if="inlineEditId === podcast.id" class="inline-edit-form">
-            <div class="inline-row">
-              <label>分類</label>
-              <input v-model="inlineForm.category" class="inline-input" placeholder="分類" />
-            </div>
-            <div class="inline-row">
-              <label>備註</label>
-              <textarea v-model="inlineForm.note" class="inline-textarea" rows="2" placeholder="備註"></textarea>
-            </div>
-            <div class="inline-row">
-              <label>音檔</label>
-              <div class="inline-upload-group">
-                <input
-                  :ref="el => inlineAudioInputs[podcast.id] = el"
-                  type="file"
-                  accept="audio/*"
-                  @change="(e) => handleInlineAudioUpload(e, podcast.id)"
-                  style="display:none"
-                />
-                <button type="button" @click="inlineAudioInputs[podcast.id]?.click()" class="btn-inline-upload" :disabled="inlineAudioUploading">
-                  {{ inlineAudioUploading ? '上傳中...' : '🎵 上傳音檔' }}
-                </button>
-                <input v-model="inlineForm.file" class="inline-input" placeholder="或輸入音檔 URL" />
+              <div class="pc-ep-copy">
+                <h3 class="card-title">{{ podcast.name || '未命名' }}</h3>
+                <div class="pc-ep-meta">
+                  <span class="pc-ep-index">EP {{ String(pi + 1).padStart(2, '0') }}</span>
+                  <span v-if="podcast.category" class="category-badge">{{ podcast.category }}</span>
+                  <span v-if="podcast.filetype" class="pc-type-badge">{{ podcast.filetype.toUpperCase() }}</span>
+                  <span v-if="currentEpisodeId === podcast.id" class="pc-now-tag">播放中</span>
+                </div>
+                <p v-if="podcast.note" class="note-preview">{{ truncateText(podcast.note, 130) }}</p>
+                <div class="pc-ep-tools">
+                  <button
+                    class="pc-ep-play"
+                    :disabled="!podcast.file"
+                    :title="currentEpisodeId === podcast.id && isPlaying ? '暫停' : '播放'"
+                    @click="currentEpisodeId === podcast.id ? togglePlay() : playEpisode(podcast)"
+                  >
+                    <span aria-hidden="true">{{ currentEpisodeId === podcast.id && isPlaying ? '❚❚' : '▶' }}</span>
+                    {{ currentEpisodeId === podcast.id && isPlaying ? '暫停' : '播放' }}
+                  </button>
+                  <a
+                    v-if="podcast.file"
+                    :href="resolveMediaUrl(podcast.file)"
+                    :download="podcast.name || 'podcast'"
+                    target="_blank"
+                    rel="noopener"
+                    class="btn-icon"
+                    title="下載"
+                  >⬇</a>
+                  <a
+                    v-if="podcast.ref"
+                    :href="podcast.ref"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn-icon"
+                    title="參考連結"
+                  >🔗</a>
+                  <button @click="startInlineEdit(podcast)" class="btn-icon" title="編輯">✎</button>
+                  <button @click="confirmDelete(podcast)" class="btn-icon btn-icon-delete" title="刪除">✕</button>
+                </div>
               </div>
             </div>
-            <div class="inline-row">
-              <label>格式</label>
-              <input v-model="inlineForm.filetype" class="inline-input" placeholder="例如 mp3" />
-            </div>
-            <div class="inline-row">
-              <label>封面</label>
-              <div class="inline-upload-group">
-                <input
-                  :ref="el => inlineCoverInputs[podcast.id] = el"
-                  type="file"
-                  accept="image/*"
-                  @change="(e) => handleInlineCoverUpload(e, podcast.id)"
-                  style="display:none"
-                />
-                <button type="button" @click="inlineCoverInputs[podcast.id]?.click()" class="btn-inline-upload" :disabled="inlineCoverUploading">
-                  {{ inlineCoverUploading ? '上傳中...' : '🖼️ 上傳封面' }}
-                </button>
-                <input v-model="inlineForm.cover" class="inline-input" placeholder="或輸入封面 URL" />
-              </div>
-            </div>
-            <div v-if="inlineForm.cover" class="inline-cover-preview">
-              <img :src="inlineForm.cover" alt="封面預覽" />
-            </div>
-            <div class="inline-row">
-              <label>參考</label>
-              <input v-model="inlineForm.ref" class="inline-input" placeholder="參考連結" />
-            </div>
-            <div class="inline-actions">
-              <button @click="saveInlineEdit" class="btn-inline-save">💾 儲存</button>
-              <button @click="cancelInlineEdit" class="btn-inline-cancel">取消</button>
-            </div>
-          </div>
-
-          <!-- 正常顯示模式 -->
-          <div v-else class="card-body">
-            <div v-if="podcast.cover" class="cover-preview">
-              <img :src="resolveMediaUrl(podcast.cover)" :alt="podcast.name" />
-            </div>
-
-            <div v-if="podcast.file" class="card-audio">
-              <audio
-                :ref="(el) => setPodcastAudioRef(podcast.id, el)"
-                controls
-                :src="resolveMediaUrl(podcast.file)"
-                class="audio-player"
-                @play="handlePodcastPlay($event, podcast)"
-                @pause="handlePodcastPause($event, podcast)"
-                @timeupdate="handlePodcastProgress($event, podcast)"
-              ></audio>
-            </div>
-
-            <div v-if="podcast.note" class="note-preview">
-              {{ truncateText(podcast.note, 100) }}
-            </div>
-
-            <div v-if="podcast.ref" class="ref-link">
-              <a :href="podcast.ref" target="_blank" rel="noopener noreferrer">
-                參考連結
-              </a>
-            </div>
-          </div>
+          </template>
         </div>
       </div>
+
+      <!-- ══ 底部播放列 ══ -->
+      <footer v-if="currentEpisode" class="pc-player">
+        <div class="pc-player-now">
+          <span class="pc-player-art">
+            <img v-if="currentEpisode.cover" :src="resolveMediaUrl(currentEpisode.cover)" :alt="currentEpisode.name" />
+            <span v-else class="pc-ep-art-note">🎙</span>
+          </span>
+          <span class="pc-player-copy">
+            <strong>{{ currentEpisode.name || '未命名' }}</strong>
+            <span>{{ currentEpisode.category || '鋒兄播客' }}</span>
+          </span>
+        </div>
+
+        <div class="pc-player-center">
+          <div class="pc-transport">
+            <button class="pc-t-btn" title="倒轉 15 秒" @click="skipSeconds(-15)">↺15</button>
+            <button class="pc-t-btn" title="上一集" :disabled="playableEpisodes.length < 2" @click="playPrevEpisode">⏮</button>
+            <button class="pc-t-btn pc-t-btn--play" :title="isPlaying ? '暫停' : '播放'" @click="togglePlay">
+              {{ isPlaying ? '❚❚' : '▶' }}
+            </button>
+            <button class="pc-t-btn" title="下一集" :disabled="playableEpisodes.length < 2" @click="playNextEpisode">⏭</button>
+            <button class="pc-t-btn" title="快轉 30 秒" @click="skipSeconds(30)">30↻</button>
+          </div>
+          <div class="pc-scrub">
+            <span class="pc-time">{{ formatTime(playerCurrentTime) }}</span>
+            <input
+              class="pc-progress"
+              type="range"
+              min="0"
+              :max="Math.max(playerDuration, 0.1)"
+              step="0.1"
+              :value="playerCurrentTime"
+              :style="{ '--played': `${playedPercent}%` }"
+              aria-label="播放進度"
+              @input="seekTo($event.target.value)"
+            />
+            <span class="pc-time">{{ formatTime(playerDuration) }}</span>
+          </div>
+        </div>
+
+        <div class="pc-player-right">
+          <label class="pc-speed">
+            <span class="sr-only">播放速度</span>
+            <select :value="playbackRate" aria-label="播放速度" @change="setPlaybackRate($event.target.value)">
+              <option v-for="rate in speedOptions" :key="rate" :value="rate">{{ rate }}x</option>
+            </select>
+          </label>
+          <button class="pc-t-btn" :title="isMuted ? '取消靜音' : '靜音'" @click="toggleMute">
+            {{ isMuted || volume === 0 ? '🔇' : volume < 0.45 ? '🔉' : '🔊' }}
+          </button>
+          <input
+            class="pc-volume"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            :value="isMuted ? 0 : volume"
+            aria-label="音量"
+            @input="setVolume($event.target.value)"
+          />
+        </div>
+
+        <audio
+          ref="playerAudioRef"
+          class="audio-player pc-audio"
+          :src="currentEpisode.file ? resolveMediaUrl(currentEpisode.file) : ''"
+          @play="onPlayerPlay"
+          @pause="onPlayerPause"
+          @timeupdate="onPlayerTimeUpdate"
+          @loadedmetadata="onPlayerLoaded"
+          @volumechange="onPlayerVolumeChange"
+          @ended="onPlayerEnded"
+        ></audio>
+      </footer>
 
       <!-- 匯入進度 Overlay -->
       <div v-if="importProgress.active" class="import-overlay">
@@ -418,7 +535,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { usePodcasts } from '../../composables/usePodcasts'
@@ -675,13 +792,191 @@ const handlePodcastProgress = (event, podcast) => {
   snapshotFromElement(element, track, { playing: !element.paused })
 }
 
+const activeCategory = ref('all')
+
 const filteredPodcasts = computed(() => {
-  if (!searchQuery.value) return podcasts.value
-  const query = searchQuery.value.toLowerCase()
-  return podcasts.value.filter(podcast =>
-    podcast.name?.toLowerCase().includes(query)
-  )
+  const query = searchQuery.value.trim().toLowerCase()
+  const category = activeCategory.value
+  return podcasts.value.filter((podcast) => {
+    if (query && !podcast.name?.toLowerCase().includes(query)) return false
+    if (category === 'all') return true
+    if (category === '__uncategorized__') return !podcast.category
+    return podcast.category === category
+  })
 })
+
+/** 分類膠囊 */
+const categoryChips = computed(() => {
+  const counts = new Map()
+  let uncategorized = 0
+  podcasts.value.forEach((podcast) => {
+    if (podcast.category) counts.set(podcast.category, (counts.get(podcast.category) || 0) + 1)
+    else uncategorized += 1
+  })
+  const chips = [{ value: 'all', label: '全部', count: podcasts.value.length }]
+  Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .forEach(([label, count]) => chips.push({ value: label, label, count }))
+  if (uncategorized > 0) chips.push({ value: '__uncategorized__', label: '未分類', count: uncategorized })
+  return chips
+})
+
+const heroCover = computed(() => {
+  const withCover = podcasts.value.find((podcast) => podcast.cover)
+  return withCover ? resolveMediaUrl(withCover.cover) : ''
+})
+
+/* ══════════ Spotify 式單一播放器 ══════════ */
+const playerAudioRef = ref(null)
+const currentEpisodeId = ref(null)
+const isPlaying = ref(false)
+const playerCurrentTime = ref(0)
+const playerDuration = ref(0)
+const volume = ref(1)
+const isMuted = ref(false)
+const playbackRate = ref(1)
+const speedOptions = [0.75, 1, 1.25, 1.5, 1.75, 2]
+
+const playableEpisodes = computed(() => filteredPodcasts.value.filter((podcast) => podcast.file))
+const currentEpisode = computed(() =>
+  podcasts.value.find((podcast) => podcast.id === currentEpisodeId.value) || null
+)
+const playedPercent = computed(() => {
+  if (!playerDuration.value) return 0
+  return Math.min(100, (playerCurrentTime.value / playerDuration.value) * 100)
+})
+
+function formatTime(seconds) {
+  const total = Number(seconds)
+  if (!Number.isFinite(total) || total < 0) return '0:00'
+  const hours = Math.floor(total / 3600)
+  const mins = Math.floor((total % 3600) / 60)
+  const secs = Math.floor(total % 60)
+  if (hours > 0) return `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  return `${mins}:${String(secs).padStart(2, '0')}`
+}
+
+async function playEpisode(podcast) {
+  if (!podcast?.file) return
+  if (currentEpisodeId.value !== podcast.id) {
+    currentEpisodeId.value = podcast.id
+    playerCurrentTime.value = 0
+    playerDuration.value = 0
+    await nextTick()
+  }
+  const element = playerAudioRef.value
+  if (!element) return
+  try {
+    element.volume = isMuted.value ? 0 : volume.value
+    element.playbackRate = playbackRate.value
+    await element.play()
+  } catch (err) {
+    console.error('播放失敗:', err)
+  }
+}
+
+function playAll() {
+  const first = playableEpisodes.value[0]
+  if (first) playEpisode(first)
+}
+
+async function togglePlay() {
+  const element = playerAudioRef.value
+  if (!element) {
+    playAll()
+    return
+  }
+  if (element.paused) {
+    try { await element.play() } catch (err) { console.error('播放失敗:', err) }
+  } else {
+    element.pause()
+  }
+}
+
+function stepEpisode(step) {
+  const list = playableEpisodes.value
+  if (list.length === 0) return
+  const index = list.findIndex((podcast) => podcast.id === currentEpisodeId.value)
+  const next = index < 0 ? 0 : (index + step + list.length) % list.length
+  playEpisode(list[next])
+}
+
+const playNextEpisode = () => stepEpisode(1)
+const playPrevEpisode = () => stepEpisode(-1)
+
+function skipSeconds(offset) {
+  const element = playerAudioRef.value
+  if (!element) return
+  const next = Math.min(Math.max(0, element.currentTime + offset), element.duration || Infinity)
+  element.currentTime = next
+  playerCurrentTime.value = next
+}
+
+function seekTo(value) {
+  const element = playerAudioRef.value
+  const time = Number(value)
+  if (!element || !Number.isFinite(time)) return
+  element.currentTime = time
+  playerCurrentTime.value = time
+}
+
+function setVolume(value) {
+  const next = Math.min(1, Math.max(0, Number(value) || 0))
+  volume.value = next
+  isMuted.value = next === 0
+  if (playerAudioRef.value) {
+    playerAudioRef.value.volume = next
+    playerAudioRef.value.muted = next === 0
+  }
+}
+
+function toggleMute() {
+  isMuted.value = !isMuted.value
+  if (playerAudioRef.value) {
+    playerAudioRef.value.muted = isMuted.value
+    if (!isMuted.value && volume.value === 0) {
+      volume.value = 0.6
+      playerAudioRef.value.volume = 0.6
+    }
+  }
+}
+
+function setPlaybackRate(rate) {
+  const next = Number(rate) || 1
+  playbackRate.value = next
+  if (playerAudioRef.value) playerAudioRef.value.playbackRate = next
+}
+
+async function onPlayerPlay(event) {
+  isPlaying.value = true
+  await handlePodcastPlay(event, currentEpisode.value)
+}
+
+function onPlayerPause(event) {
+  isPlaying.value = false
+  handlePodcastPause(event, currentEpisode.value)
+}
+
+function onPlayerTimeUpdate(event) {
+  playerCurrentTime.value = event.target.currentTime || 0
+  handlePodcastProgress(event, currentEpisode.value)
+}
+
+function onPlayerLoaded(event) {
+  playerDuration.value = event.target.duration || 0
+  event.target.volume = isMuted.value ? 0 : volume.value
+  event.target.playbackRate = playbackRate.value
+}
+
+function onPlayerVolumeChange(event) {
+  volume.value = event.target.volume
+  isMuted.value = event.target.muted || event.target.volume === 0
+}
+
+function onPlayerEnded() {
+  if (playableEpisodes.value.length > 1) playNextEpisode()
+  else isPlaying.value = false
+}
 
 const isAllSelected = computed(() => {
   return filteredPodcasts.value.length > 0 &&
@@ -1191,14 +1486,11 @@ onMounted(() => {
 })
 
 onBeforeUnmount(async () => {
-  for (const [id, element] of podcastAudioRefs.entries()) {
-    if (!element || element.paused || element.ended) continue
-    const podcast = podcasts.value.find((item) => item.id === id)
-    const track = getPodcastTrackMeta(podcast)
-    if (track?.src) {
-      await takeoverFromElement(element, track)
-      return
-    }
+  const element = playerAudioRef.value
+  const track = getPodcastTrackMeta(currentEpisode.value)
+  if (element && track?.src && !element.paused && !element.ended) {
+    await takeoverFromElement(element, track)
+    return
   }
   // Not actively playing: drop local session so the bar does not pop up after leave.
   releaseLocalSession()
@@ -1206,766 +1498,1242 @@ onBeforeUnmount(async () => {
 </script>
 
 <style scoped>
+/* ============================================================
+   鋒兄播客 — Spotify Podcast 風格
+   · 節目標頭、綠色播放鍵、集數清單、底部播放列（含 15/30 秒跳轉與變速）
+   ============================================================ */
 .podcast-page {
-  animation: fadeIn 0.3s ease-in;
-}
+  --pc-green: #1db954;
+  --pc-green-hi: #1ed760;
+  --pc-bg: #121212;
+  --pc-bg-2: #181818;
+  --pc-bg-3: #242424;
+  --pc-bg-4: #2c2c2c;
+  --pc-line: rgba(255, 255, 255, 0.09);
+  --pc-text: #ffffff;
+  --pc-text-2: #b3b3b3;
+  --pc-text-3: #7d7d7d;
+  --pc-danger: #f15e6c;
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.page-header {
-  margin-bottom: 2rem;
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  background: var(--success-solid);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.actions-bar {
+  position: relative;
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-4);
+  border-radius: var(--radius-lg);
+  overflow: clip; /* clip 不建立捲動容器，底部播放列的 sticky 才有效 */
+  background: var(--pc-bg);
+  color: var(--pc-text);
+  font-family: var(--font-body);
 }
 
-.search-box {
-  flex: 1;
-  min-width: 200px;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-.search-input {
+/* ══════════ 節目標頭 ══════════ */
+.pc-hero {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-5);
+  padding: var(--sp-8) var(--sp-6) var(--sp-5);
+  background: linear-gradient(180deg, #4a2f6b 0%, #2c1f43 42%, var(--pc-bg) 100%);
+}
+
+.pc-hero-art {
+  flex: 0 0 auto;
+  width: 168px;
+  height: 168px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #3d3d3d, #1a1a1a);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+}
+
+.pc-hero-img {
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 2px solid var(--border-subtle);
-  border-radius: 0.5rem;
-  font-size: 0.95rem;
-  transition: all 0.2s;
+  height: 100%;
+  object-fit: cover;
 }
 
-.search-input:focus {
-  outline: none;
-  border-color: var(--success);
-  box-shadow: 0 0 0 3px var(--primary-ring);
+.pc-hero-note {
+  font-size: 3.25rem;
 }
 
-.csv-actions {
+.pc-hero-copy {
+  min-width: 0;
+  padding-bottom: var(--sp-2);
+}
+
+.pc-hero-label {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--pc-text-2);
+}
+
+.pc-hero-title {
+  margin: 0 0 var(--sp-3);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 1.2rem + 3vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+}
+
+.pc-hero-meta {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--pc-text-2);
 }
 
-.btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 0.5rem;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: var(--success-solid);
-  color: var(--on-solid);
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--elevation-2);
-}
-
-.btn-export {
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-}
-
-.btn-export:hover {
-  background: var(--bg-inset);
-}
-
-.btn-import {
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  cursor: pointer;
+.pc-hero-owner {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: var(--sp-2);
+  font-weight: 600;
+  color: var(--pc-text);
 }
 
-.btn-import:hover {
-  background: var(--bg-inset);
+.pc-owner-dot {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--pc-green);
+  color: #06120b;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
 }
 
+.pc-dot {
+  color: var(--pc-text-3);
+}
+
+/* ══════════ 控制列 ══════════ */
+.pc-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: 0 var(--sp-6);
+}
+
+.pc-play-big {
+  width: 54px;
+  height: 54px;
+  border: none;
+  border-radius: 50%;
+  background: var(--pc-green);
+  color: #06120b;
+  font-size: 1.25rem;
+  padding-left: 3px;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.pc-play-big:hover:not(:disabled) {
+  transform: scale(1.06);
+  background: var(--pc-green-hi);
+}
+
+.pc-play-big:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pc-ghost-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pc-text-2);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.pc-ghost-btn:hover {
+  color: var(--pc-text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pc-actions-spacer {
+  flex: 1;
+}
+
+.search-area {
+  flex: 0 1 260px;
+  min-width: 180px;
+}
+
+.search-area :deep(input) {
+  height: 34px;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  background: var(--pc-bg-3);
+  color: var(--pc-text);
+  font-size: var(--text-sm);
+}
+
+.search-area :deep(input::placeholder) {
+  color: var(--pc-text-3);
+}
+
+.search-area :deep(input:focus) {
+  outline: none;
+  border-color: var(--pc-text-2);
+  background: var(--pc-bg-4);
+}
+
+.pc-text-btn {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--pc-line);
+  background: transparent;
+  color: var(--pc-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.pc-text-btn:hover {
+  color: var(--pc-text);
+  border-color: var(--pc-text-2);
+}
+
+.select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--pc-text-2);
+  cursor: pointer;
+}
+
+.select-all-label input,
+.card-checkbox {
+  accent-color: var(--pc-green);
+  cursor: pointer;
+}
+
+.btn-batch-delete {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid color-mix(in oklab, var(--pc-danger) 50%, transparent);
+  background: transparent;
+  color: var(--pc-danger);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-batch-delete:hover:not(:disabled) {
+  background: var(--pc-danger);
+  color: #fff;
+}
+
+.btn-batch-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ══════════ 分類膠囊 ══════════ */
+.pc-chips {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  padding: 0 var(--sp-6) var(--sp-1);
+  scrollbar-width: none;
+}
+
+.pc-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.pc-chip {
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 var(--sp-4);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--pc-bg-3);
+  color: var(--pc-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pc-chip:hover {
+  background: var(--pc-bg-4);
+  color: var(--pc-text);
+}
+
+.pc-chip.active {
+  background: var(--pc-text);
+  color: #121212;
+  font-weight: 600;
+}
+
+.pc-chip-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* ══════════ 狀態 ══════════ */
 .loading-state,
 .empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-16) var(--sp-4);
+  color: var(--pc-text-3);
+}
+
+.empty-icon {
+  font-size: 2.5rem;
+  opacity: 0.5;
 }
 
 .spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid var(--border-subtle);
-  border-top-color: var(--success);
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
+  border: 3px solid var(--pc-bg-4);
+  border-top-color: var(--pc-green);
+  animation: pcSpin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes pcSpin {
+  to { transform: rotate(360deg); }
 }
 
+/* ══════════ 集數列表 ══════════ */
 .podcasts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--sp-6);
+}
+
+.pc-section-title {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
 }
 
 .podcast-card {
-  background: var(--bg-surface);
-  border-radius: 0.75rem;
-  box-shadow: var(--elevation-1);
-  overflow: hidden;
-  transition: all 0.2s;
-}
-
-.podcast-card:hover {
-  box-shadow: var(--elevation-2);
-  transform: translateY(-2px);
-}
-
-.card-header {
-  padding: 1.25rem;
-  background: var(--success-solid);
-  color: var(--on-solid);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex: 1;
-}
-
-.card-checkbox {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.card-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0;
+  border-bottom: 1px solid var(--pc-line);
 }
 
 .podcast-card.selected {
-  outline: 3px solid var(--primary);
-  outline-offset: 2px;
+  background: rgba(29, 185, 84, 0.1);
+}
+
+.pc-episode {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-3);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.pc-episode:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.podcast-card.is-current .card-title {
+  color: var(--pc-green);
+}
+
+.pc-ep-art {
+  flex: 0 0 auto;
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--pc-bg-3);
+}
+
+.pc-ep-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pc-ep-art-note {
+  font-size: 1.75rem;
+  color: var(--pc-text-3);
+}
+
+.pc-ep-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.card-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--pc-text);
+  line-height: 1.3;
+}
+
+.pc-ep-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.pc-ep-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  color: var(--pc-text-3);
 }
 
 .category-badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  background: color-mix(in oklab, var(--bg-surface) 20%, transparent);
-  border-radius: 1rem;
-  font-size: 0.85rem;
+  font-size: var(--text-2xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(29, 185, 84, 0.16);
+  color: var(--pc-green);
+}
+
+.pc-type-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--pc-bg-3);
+  color: var(--pc-text-2);
+}
+
+.pc-now-tag {
+  font-size: var(--text-2xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--pc-green);
+  color: #06120b;
+  font-weight: 600;
+}
+
+.note-preview {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--pc-text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pc-ep-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.pc-ep-play {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 32px;
+  padding: 0 var(--sp-4);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--pc-text);
+  color: #121212;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.pc-ep-play:hover:not(:disabled) {
+  background: var(--pc-green);
+  color: #06120b;
+  transform: scale(1.03);
+}
+
+.pc-ep-play:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--pc-text-2);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-icon:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--pc-text);
+}
+
+.btn-icon-delete:hover {
+  color: var(--pc-danger);
+}
+
+/* ══════════ 行內編輯 ══════════ */
+.podcast-card.card-editing {
+  border: 1px solid var(--pc-line);
+  border-left: 4px solid var(--pc-green);
+  border-radius: var(--radius-md);
+  background: var(--pc-bg-2);
+  padding: var(--sp-4);
+  margin: var(--sp-2) 0;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.card-header-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
 }
 
 .card-header-right {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
+  gap: var(--sp-2);
 }
 
-.btn-icon {
-  background: none;
-  border: none;
-  color: color-mix(in oklab, var(--on-solid) 80%, transparent);
-  font-size: 1.1rem;
-  cursor: pointer;
-  padding: 0.2rem;
-  transition: all 0.2s;
-  line-height: 1;
-}
-
-.btn-icon:hover {
-  color: var(--on-solid);
-  transform: scale(1.2);
-}
-
-.btn-icon-delete:hover {
-  color: var(--danger-text);
-}
-
-/* Audio player */
-.card-audio {
-  margin-bottom: 0.75rem;
-}
-
-.audio-player {
-  width: 100%;
-  height: 40px;
-  border-radius: var(--radius-md);
-}
-
-/* Inline editing */
 .inline-edit-form {
-  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
 }
 
 .inline-row {
-  margin-bottom: 0.6rem;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
 }
 
-.inline-row label {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.15rem;
-  font-weight: 500;
+.inline-row > label {
+  flex: 0 0 60px;
+  padding-top: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--pc-text-3);
 }
 
-.inline-input {
-  width: 100%;
-  padding: 0.45rem 0.6rem;
-  border: 1.5px solid var(--border-subtle);
+.inline-input,
+.inline-textarea {
+  flex: 1;
+  min-width: 160px;
+  padding: var(--sp-2) var(--sp-3);
   border-radius: var(--radius-sm);
-  font-size: 0.9rem;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
+  border: 1px solid var(--pc-line);
+  background: var(--pc-bg-3);
+  color: var(--pc-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
 }
 
-.inline-input:focus {
+.inline-input:focus,
+.inline-textarea:focus {
   outline: none;
-  border-color: var(--success);
-  box-shadow: 0 0 0 2px var(--primary-ring);
-}
-
-.inline-title-input {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--on-solid);
-  background: color-mix(in oklab, var(--bg-surface) 15%, transparent);
-  border-color: color-mix(in oklab, var(--bg-surface) 30%, transparent);
-}
-
-.inline-title-input:focus {
-  border-color: color-mix(in oklab, var(--bg-surface) 60%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--text-primary) 18%, transparent);
-}
-
-.inline-title-input::placeholder {
-  color: color-mix(in oklab, var(--on-solid) 50%, transparent);
+  border-color: var(--pc-green);
+  box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.2);
 }
 
 .inline-textarea {
-  width: 100%;
-  padding: 0.45rem 0.6rem;
-  border: 1.5px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
   resize: vertical;
-  font-family: inherit;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
 }
 
-.inline-textarea:focus {
-  outline: none;
-  border-color: var(--success);
-  box-shadow: 0 0 0 2px var(--primary-ring);
+.inline-title-input {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.inline-upload-group {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-inline-upload {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px dashed var(--pc-line);
+  background: transparent;
+  color: var(--pc-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.btn-inline-upload:hover:not(:disabled) {
+  border-color: var(--pc-green);
+  color: var(--pc-green);
+}
+
+.btn-inline-upload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.inline-cover-preview img {
+  width: 110px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--pc-line);
 }
 
 .inline-actions {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--pc-line);
 }
 
 .btn-inline-save {
-  padding: 0.4rem 1rem;
-  background: var(--success-solid);
-  color: var(--on-solid);
+  height: 32px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-full);
   border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  font-weight: 500;
+  background: var(--pc-green);
+  color: #06120b;
+  font-size: var(--text-sm);
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .btn-inline-save:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--elevation-2);
+  background: var(--pc-green-hi);
 }
 
 .btn-inline-cancel {
-  padding: 0.4rem 1rem;
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  height: 32px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--pc-line);
+  background: transparent;
+  color: var(--pc-text-2);
+  font-size: var(--text-sm);
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .btn-inline-cancel:hover {
-  background: var(--bg-muted);
+  color: var(--pc-text);
+  border-color: var(--pc-text-2);
 }
 
-.card-body {
-  padding: 1.25rem;
+/* ══════════ 底部播放列 ══════════ */
+.pc-player {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5);
+  background: #000;
+  border-top: 1px solid var(--pc-line);
 }
 
-.cover-preview {
-  margin-bottom: 1rem;
-  border-radius: 0.5rem;
+.pc-player-now {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.pc-player-art {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--pc-bg-3);
 }
 
-.cover-preview img {
+.pc-player-art img {
   width: 100%;
-  height: 180px;
+  height: 100%;
   object-fit: cover;
 }
 
-.note-preview {
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-  line-height: 1.6;
-  margin-bottom: 1rem;
-}
-
-.file-info {
+.pc-player-copy {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
 }
 
-.info-item {
+.pc-player-copy strong {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-player-copy span {
+  font-size: var(--text-2xs);
+  color: var(--pc-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-player-center {
   display: flex;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
 }
 
-.info-item .label {
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.info-item .value {
-  color: var(--text-secondary);
-  word-break: break-all;
-}
-
-.info-item .hash {
-  font-family: monospace;
-  font-size: 0.85rem;
-}
-
-.ref-link {
-  margin-top: 0.5rem;
-}
-
-.ref-link a {
-  color: var(--success-text);
-  text-decoration: none;
-  font-size: 0.9rem;
-}
-
-.ref-link a:hover {
-  text-decoration: underline;
-}
-
-.card-actions {
-  display: flex;
-  gap: 0.5rem;
-  padding: 1rem 1.25rem;
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border-subtle);
-}
-
-.btn-edit {
-  flex: 1;
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-}
-
-.btn-edit:hover {
-  background: var(--bg-inset);
-}
-
-.btn-delete {
-  flex: 1;
-  background: var(--danger-light);
-  color: var(--danger-text);
-}
-
-.btn-delete:hover {
-  background: color-mix(in oklab, var(--danger) 30%, transparent);
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: color-mix(in oklab, var(--overlay-scrim) 50%, transparent);
+.pc-transport {
   display: flex;
   align-items: center;
+  gap: var(--sp-3);
+}
+
+.pc-t-btn {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 30px;
+  padding: 0 var(--sp-1);
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--pc-text-2);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  cursor: pointer;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.pc-t-btn:hover:not(:disabled) {
+  color: var(--pc-text);
+  transform: scale(1.08);
+}
+
+.pc-t-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pc-t-btn--play {
+  width: 36px;
+  height: 36px;
+  background: var(--pc-text);
+  color: #000;
+  font-family: inherit;
+  font-size: 0.8125rem;
+}
+
+.pc-t-btn--play:hover {
+  background: #fff;
+  transform: scale(1.06);
+}
+
+.pc-scrub {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  max-width: 600px;
+}
+
+.pc-time {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--pc-text-3);
+  min-width: 40px;
+  text-align: center;
+}
+
+.pc-progress {
+  flex: 1;
+  height: 4px;
+  appearance: none;
+  border-radius: var(--radius-full);
+  background: linear-gradient(
+    90deg,
+    var(--pc-text) 0%,
+    var(--pc-text) var(--played, 0%),
+    rgba(255, 255, 255, 0.24) var(--played, 0%),
+    rgba(255, 255, 255, 0.24) 100%
+  );
+  cursor: pointer;
+}
+
+.pc-scrub:hover .pc-progress {
+  background: linear-gradient(
+    90deg,
+    var(--pc-green) 0%,
+    var(--pc-green) var(--played, 0%),
+    rgba(255, 255, 255, 0.24) var(--played, 0%),
+    rgba(255, 255, 255, 0.24) 100%
+  );
+}
+
+.pc-progress::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--pc-text);
+  border: none;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.pc-scrub:hover .pc-progress::-webkit-slider-thumb {
+  opacity: 1;
+}
+
+.pc-progress::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--pc-text);
+  border: none;
+}
+
+.pc-player-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+.pc-speed select {
+  height: 28px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--pc-line);
+  background: var(--pc-bg-3);
+  color: var(--pc-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.pc-volume {
+  width: 90px;
+  height: 4px;
+  accent-color: var(--pc-green);
+  cursor: pointer;
+}
+
+.pc-audio {
+  display: none;
+}
+
+/* ══════════ 匯入 Overlay ══════════ */
+.import-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(3px);
+}
+
+.import-modal-box {
+  width: min(420px, 90vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  border-radius: var(--radius-lg);
+  background: var(--pc-bg-2);
+  border: 1px solid var(--pc-line);
+  color: var(--pc-text);
+  text-align: center;
+}
+
+.import-spinner-anim {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid var(--pc-bg-4);
+  border-top-color: var(--pc-green);
+  animation: pcSpin 0.8s linear infinite;
+}
+
+.import-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.import-step,
+.import-percent,
+.import-item-name {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--pc-text-2);
+}
+
+.import-item-name {
+  color: var(--pc-text-3);
+  overflow-wrap: anywhere;
+}
+
+.import-progress-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--pc-bg-4);
+  overflow: hidden;
+}
+
+.import-progress-fill {
+  height: 100%;
+  background: var(--pc-green);
+  transition: width var(--transition-normal);
+}
+
+.import-stats {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
   justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.2s ease-in;
+}
+
+.stat-tag {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.stat-ok {
+  background: rgba(29, 185, 84, 0.16);
+  color: var(--pc-green);
+}
+
+.stat-fail {
+  background: rgba(241, 94, 108, 0.16);
+  color: var(--pc-danger);
+}
+
+/* ══════════ Modal ══════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(3px);
 }
 
 .modal-content {
-  background: var(--bg-surface);
-  border-radius: 0.75rem;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow: hidden;
+  width: min(600px, 100%);
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--elevation-3);
+  border-radius: var(--radius-lg);
+  background: var(--pc-bg-2);
+  border: 1px solid var(--pc-line);
+  color: var(--pc-text);
+  overflow: hidden;
 }
 
 .modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  background: var(--success-solid);
-  color: var(--on-solid);
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--pc-line);
 }
 
 .modal-header h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 
 .close-btn {
-  background: none;
+  width: 30px;
+  height: 30px;
   border: none;
-  color: var(--on-solid);
-  font-size: 2rem;
-  cursor: pointer;
-  padding: 0;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--pc-text-2);
+  font-size: 1.375rem;
   line-height: 1;
+  cursor: pointer;
 }
 
 .close-btn:hover {
-  opacity: 0.8;
+  background: var(--pc-bg-4);
+  color: var(--pc-text);
 }
 
 .modal-body {
-  padding: 1.5rem;
+  padding: var(--sp-5);
   overflow-y: auto;
 }
 
 .form-group {
-  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
 }
 
 .form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-  font-size: 0.95rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--pc-text-3);
 }
 
 .form-input,
 .form-textarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 2px solid var(--border-subtle);
-  border-radius: 0.5rem;
-  font-size: 0.95rem;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--pc-line);
+  background: var(--pc-bg-3);
+  color: var(--pc-text);
   font-family: inherit;
-  transition: all 0.2s;
+  font-size: var(--text-sm);
 }
 
 .form-input:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: var(--success);
-  box-shadow: 0 0 0 3px var(--primary-ring);
+  border-color: var(--pc-green);
+  box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.2);
 }
 
 .form-textarea {
   resize: vertical;
-  min-height: 100px;
+}
+
+.upload-area {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.audio-preview,
+.cover-upload-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-top: var(--sp-2);
+}
+
+.preview-audio {
+  flex: 1;
+  min-width: 200px;
+  filter: invert(0.9) hue-rotate(180deg);
+}
+
+.preview-image {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--pc-line);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--pc-line);
+  background: transparent;
+  color: var(--pc-text-2);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn:hover {
+  color: var(--pc-text);
+  border-color: var(--pc-text-2);
+}
+
+.btn-primary {
+  background: var(--pc-green);
+  border-color: var(--pc-green);
+  color: #06120b;
+  font-weight: 700;
+}
+
+.btn-primary:hover {
+  background: var(--pc-green-hi);
+  color: #06120b;
+}
+
+.btn-upload {
+  height: 32px;
+  border-style: dashed;
+  font-size: var(--text-xs);
+}
+
+.btn-upload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-remove {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--pc-line);
+  background: transparent;
+  color: var(--pc-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.btn-remove:hover {
+  color: var(--pc-danger);
+  border-color: var(--pc-danger);
 }
 
 .modal-actions {
   display: flex;
-  gap: 1rem;
   justify-content: flex-end;
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border-subtle);
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--pc-line);
 }
 
-.btn-cancel {
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-}
-
-.btn-cancel:hover {
-  background: var(--bg-inset);
-}
-
-/* Responsive */
+/* ══════════ 響應式 ══════════ */
 @media (max-width: 768px) {
-  .podcasts-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .actions-bar {
+  .pc-hero {
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
+    padding: var(--sp-5) var(--sp-4) var(--sp-4);
   }
 
-  .search-box {
-    width: 100%;
+  .pc-hero-art {
+    width: 128px;
+    height: 128px;
   }
 
-  .csv-actions {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+  .pc-actions,
+  .pc-chips,
+  .podcasts-grid {
+    padding-left: var(--sp-4);
+    padding-right: var(--sp-4);
   }
 
-  .modal-content {
-    width: 95%;
-    max-height: 95vh;
+  .pc-episode {
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-1);
+  }
+
+  .pc-ep-art {
+    width: 68px;
+    height: 68px;
+  }
+
+  .card-title {
+    font-size: var(--text-md);
+  }
+
+  .pc-player {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  .pc-player-right {
+    display: none;
   }
 }
 
-/* Upload Area Styles */
-.upload-area {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-}
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .import-spinner-anim {
+    animation: none;
+  }
 
-.btn-upload {
-  background: var(--success-solid);
-  color: var(--on-solid);
+  .pc-play-big:hover,
+  .pc-t-btn:hover,
+  .pc-ep-play:hover {
+    transform: none;
+  }
 }
-
-.audio-preview {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 0.75rem 0;
-  padding: 0.75rem;
-  background: var(--bg-surface);
-  border-radius: var(--radius-md);
-}
-
-.preview-audio {
-  max-width: 250px;
-  height: 40px;
-}
-
-.cover-upload-preview {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 0.75rem 0;
-  padding: 0.75rem;
-  background: var(--bg-surface);
-  border-radius: var(--radius-md);
-}
-
-.preview-image {
-  max-width: 150px;
-  max-height: 100px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-  box-shadow: var(--elevation-1);
-}
-
-.btn-remove {
-  padding: 0.5rem 1rem;
-  background: var(--danger-solid);
-  color: var(--on-solid);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  transition: all 0.3s;
-}
-
-.btn-remove:hover {
-  transform: scale(1.05);
-  box-shadow: var(--elevation-2);
-}
-
-/* Summary Bar Styles */
-.summary-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--success-light); border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.95rem; color: var(--text-secondary); flex-wrap: wrap; gap: 0.5rem; }
-.summary-left, .summary-right { display: flex; align-items: center; gap: 1rem; }
-.select-all-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500; }
-.select-all-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-.selected-count { background: var(--primary-solid); color: var(--on-primary); padding: 0.25rem 0.75rem; border-radius: var(--radius-lg); font-size: 0.85rem; font-weight: 600; }
-.btn-batch-mode { padding: 0.5rem 1rem; background: var(--primary-solid); color: var(--on-primary); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
-.btn-batch-mode:hover { transform: translateY(-2px); box-shadow: var(--elevation-2); }
-.btn-add-icon { width: 36px; height: 36px; border: none; border-radius: 50%; background: var(--success-solid); color: var(--on-solid); font-size: 1.5rem; font-weight: 300; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; line-height: 1; padding-bottom: 4px; }
-.btn-add-icon:hover { transform: translateY(-2px) scale(1.1); box-shadow: var(--elevation-2); }
-.btn-cancel-batch { padding: 0.35rem 0.75rem; background: var(--bg-inset); color: var(--text-secondary); border: none; border-radius: var(--radius-xs); cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
-.btn-cancel-batch:hover { background: var(--border-strong); }
-.btn-batch-delete { padding: 0.5rem 1rem; background: var(--danger-solid); color: var(--on-solid); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
-.btn-batch-delete:hover { transform: translateY(-2px); box-shadow: var(--elevation-2); }
-.btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* ── Import Progress Overlay ── */
-.import-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: color-mix(in oklab, var(--overlay-scrim) 55%, transparent); backdrop-filter: blur(6px);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 9999; animation: fadeIn 0.2s ease;
-}
-.import-modal-box {
-  background: var(--bg-surface); border-radius: 20px;
-  padding: 2.5rem 2rem; width: 90%; max-width: 420px;
-  text-align: center;
-  box-shadow: var(--elevation-3);
-  animation: slideUp 0.3s ease;
-}
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.import-spinner-anim {
-  width: 48px; height: 48px; margin: 0 auto 1.25rem;
-  border: 4px solid var(--border-subtle); border-top-color: var(--success);
-  border-radius: 50%; animation: spin 0.8s linear infinite;
-}
-.import-title { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.5rem; }
-.import-step { font-size: 0.95rem; color: var(--text-secondary); margin: 0 0 1.25rem; }
-.import-progress-bar {
-  width: 100%; height: 10px; background: var(--bg-inset);
-  border-radius: 99px; overflow: hidden; margin-bottom: 0.75rem;
-}
-.import-progress-fill {
-  height: 100%; background: var(--success-solid);
-  border-radius: 99px; transition: width 0.3s ease;
-}
-.import-percent { font-size: 0.9rem; color: var(--text-secondary); font-weight: 600; margin: 0 0 0.25rem; }
-.import-item-name {
-  font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1rem;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.import-stats { display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; }
-.stat-tag { font-size: 0.8rem; padding: 0.25rem 0.6rem; border-radius: var(--radius-lg); font-weight: 500; }
-.stat-ok { background: var(--success-light); color: var(--success-text); }
-.stat-fail { background: var(--danger-light); color: var(--danger-text); }
-
-/* ── Inline Upload Group ── */
-.inline-upload-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  flex-wrap: wrap;
-}
-.btn-inline-upload {
-  padding: 0.3rem 0.75rem;
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.btn-inline-upload:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: var(--elevation-2);
-}
-.btn-inline-upload:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.inline-cover-preview {
-  padding: 0.5rem 0;
-}
-.inline-cover-preview img {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: var(--radius-md);
-  border: 2px solid var(--border-subtle);
-}
-/* ── Inline Actions ── */
-.inline-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  padding-top: 0.5rem;
-}
-.btn-inline-save {
-  padding: 0.4rem 1rem;
-  background: var(--success-solid);
-  color: var(--on-solid);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-inline-save:hover { transform: translateY(-1px); box-shadow: var(--elevation-2); }
-.btn-inline-cancel {
-  padding: 0.4rem 1rem;
-  background: var(--bg-inset);
-  color: var(--text-secondary);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: 0.88rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-inline-cancel:hover { background: var(--border-strong); }
 </style>

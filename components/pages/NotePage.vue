@@ -1,32 +1,81 @@
 <template>
   <PageContainer>
     <div class="note-page">
-      <!-- 搜尋列 -->
-      <div class="actions-bar">
-        <div class="search-area">
-          <RecentSearchInput
-            v-model="searchQuery"
-            placeholder="搜尋筆記標題或內容..."
-            :terms="recentSearches"
-            @submit="commitSearchHistory()"
-            @apply="applyRecentSearch"
-            @remove="removeRecentSearch"
-            @clear="clearRecentSearches"
-          />
+      <!-- ══ Notion 式側欄 ══ -->
+      <aside class="nb-sidebar">
+        <div class="nb-workspace">
+          <span class="nb-ws-icon" aria-hidden="true">鋒</span>
+          <div class="nb-ws-copy">
+            <strong>鋒兄筆記</strong>
+            <span>{{ articles.length }} 篇 · {{ categoryOptions.length }} 個分類</span>
+          </div>
         </div>
-        <select v-model="selectedCategoryFilter" class="category-filter-select">
-          <option value="">全部分類</option>
-          <option :value="ATTACHMENT_FILTER_VALUE">有附件</option>
-          <option v-for="category in categoryOptions" :key="'filter-' + category" :value="category">
-            {{ category }}
-          </option>
-        </select>
-        <div class="action-buttons">
-          <button v-if="articles.length > 0" @click="exportArticlesZip" class="btn-export" :disabled="zipExporting">
-            <span class="icon">📦</span> {{ zipExporting ? '匯出中...' : '匯出 ZIP' }}
+
+        <nav class="nb-nav" aria-label="筆記導覽">
+          <button
+            type="button"
+            class="nb-nav-item"
+            :class="{ active: selectedCategoryFilter === '' }"
+            @click="selectedCategoryFilter = ''"
+          >
+            <span class="nb-nav-icon">📄</span>
+            <span class="nb-nav-label">所有筆記</span>
+            <span class="nb-nav-count">{{ articles.length }}</span>
           </button>
-          <button @click="$refs.zipFileInput.click()" class="btn-import" :disabled="zipImporting">
-            <span class="icon">📦</span> {{ zipImportButtonLabel }}
+          <button
+            type="button"
+            class="nb-nav-item"
+            :class="{ active: selectedCategoryFilter === PINNED_CATEGORY }"
+            @click="selectedCategoryFilter = PINNED_CATEGORY"
+          >
+            <span class="nb-nav-icon">📌</span>
+            <span class="nb-nav-label">置頂</span>
+            <span class="nb-nav-count">{{ pinnedCount }}</span>
+          </button>
+          <button
+            type="button"
+            class="nb-nav-item"
+            :class="{ active: selectedCategoryFilter === ATTACHMENT_FILTER_VALUE }"
+            @click="selectedCategoryFilter = ATTACHMENT_FILTER_VALUE"
+          >
+            <span class="nb-nav-icon">📎</span>
+            <span class="nb-nav-label">有附件</span>
+            <span class="nb-nav-count">{{ attachmentCountTotal }}</span>
+          </button>
+        </nav>
+
+        <div class="nb-section">
+          <p class="nb-section-title">分類</p>
+          <div class="nb-nav">
+            <button
+              v-for="category in categoryOptions"
+              :key="'nav-' + category"
+              type="button"
+              class="nb-nav-item"
+              :class="{ active: selectedCategoryFilter === category }"
+              @click="selectedCategoryFilter = category"
+            >
+              <span class="nb-nav-icon">#</span>
+              <span class="nb-nav-label">{{ category }}</span>
+              <span class="nb-nav-count">{{ categoryCount(category) }}</span>
+            </button>
+            <p v-if="categoryOptions.length === 0" class="nb-nav-empty">尚未建立分類</p>
+          </div>
+        </div>
+
+        <div class="nb-sidebar-foot">
+          <button type="button" class="nb-nav-item" @click="trashOpen = true">
+            <span class="nb-nav-icon">🗑</span>
+            <span class="nb-nav-label">垃圾桶</span>
+            <span v-if="trashedArticles.length" class="nb-nav-count">{{ trashedArticles.length }}</span>
+          </button>
+          <button type="button" class="nb-nav-item" :disabled="zipExporting" @click="exportArticlesZip">
+            <span class="nb-nav-icon">📦</span>
+            <span class="nb-nav-label">{{ zipExporting ? '匯出中...' : '匯出 ZIP' }}</span>
+          </button>
+          <button type="button" class="nb-nav-item" :disabled="zipImporting" @click="$refs.zipFileInput.click()">
+            <span class="nb-nav-icon">📥</span>
+            <span class="nb-nav-label">{{ zipImportButtonLabel }}</span>
           </button>
           <input
             ref="zipFileInput"
@@ -36,238 +85,164 @@
             @change="handleImportZip"
           >
         </div>
-      </div>
+      </aside>
 
-      <!-- 摘要列：批量選擇 + 新增 + 項目數 -->
-      <div v-if="zipImporting" class="zip-import-progress" role="status" aria-live="polite">
-        <div class="zip-import-progress-head">
-          <span>{{ zipImportStatus }}</span>
-          <strong>{{ zipImportProgress }}%</strong>
-        </div>
-        <div class="zip-import-progress-bar" aria-hidden="true">
-          <div class="zip-import-progress-fill" :style="{ width: `${zipImportProgress}%` }"></div>
-        </div>
-      </div>
+      <!-- ══ 主要頁面 ══ -->
+      <main class="nb-main">
+        <nav class="nb-breadcrumb" aria-label="路徑">
+          <span>鋒兄筆記</span>
+          <span class="nb-crumb-sep">/</span>
+          <span class="nb-crumb-current">{{ currentViewLabel }}</span>
+        </nav>
 
-      <div class="summary-bar">
-        <div class="summary-left">
-          <button
-            v-if="!batchMode && filteredArticles.length > 0"
-            @click="enterBatchMode"
-            class="btn-batch-mode"
-          >
-            批量選擇
-          </button>
-          <button @click="startAddRow" class="btn-add-icon" title="新增筆記">+</button>
-          <template v-if="batchMode">
-            <label class="select-all-label">
-              <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
-              <span>全選</span>
-            </label>
-            <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
-          </template>
-          <span>共 {{ articles.length }} 個項目</span>
-          <span v-if="selectedIds.size > 0" class="selected-count">
-            已選 {{ selectedIds.size }} 項
-          </span>
-        </div>
-        <div class="summary-right">
-          <button type="button" class="btn-trash" @click="trashOpen = true">
-            垃圾桶<span v-if="trashedArticles.length"> ({{ trashedArticles.length }})</span>
-          </button>
-          <div v-if="filteredArticles.length > 0 || showAddRow" class="view-switcher" role="tablist" aria-label="筆記版型切換">
+        <header class="nb-page-head">
+          <span class="nb-page-icon" aria-hidden="true">📝</span>
+          <div class="nb-page-copy">
+            <h1 class="nb-page-title">{{ currentViewLabel }}</h1>
+            <p class="nb-page-sub">{{ filteredArticles.length }} 筆 · 依置頂與日期排序</p>
+          </div>
+          <button class="nb-new-btn" @click="startAddRow">＋ 新增筆記</button>
+        </header>
+
+        <div class="nb-toolbar">
+          <div class="nb-view-tabs" role="tablist" aria-label="資料庫檢視">
             <button
               v-for="option in viewOptions"
               :key="option.value"
               type="button"
-              class="view-chip"
+              role="tab"
+              class="nb-view-tab"
               :class="{ active: viewMode === option.value }"
+              :aria-selected="viewMode === option.value"
               @click="viewMode = option.value"
             >
-              {{ option.label }}
+              <span aria-hidden="true">{{ option.icon }}</span> {{ option.label }}
             </button>
           </div>
-          <button
-            v-if="selectedIds.size > 0"
-            class="btn-batch-delete"
-            @click="deleteSelected"
-            :disabled="loading"
-          >
-            刪除選中 ({{ selectedIds.size }})
-          </button>
-        </div>
-      </div>
-
-      <!-- 載入中 -->
-      <div v-if="batchMode" class="batch-category-bar">
-        <label class="select-all-label">
-          <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
-          <span>全選 ({{ selectedIds.size }}/{{ filteredArticles.length }})</span>
-        </label>
-        <input
-          v-model="batchCategoryInput"
-          type="text"
-          class="batch-category-input"
-          placeholder="輸入要套用的分類，使用逗號分隔"
-          @keydown.enter.prevent="applyCategoriesToSelected"
-        >
-        <button
-          type="button"
-          class="btn-batch-apply"
-          @click="applyCategoriesToSelected"
-          :disabled="loading || selectedIds.size === 0"
-        >
-          套用分類 ({{ selectedIds.size }})
-        </button>
-        <button
-          type="button"
-          class="btn-batch-clear"
-          @click="clearCategoriesFromSelected"
-          :disabled="loading || selectedIds.size === 0"
-        >
-          清除分類
-        </button>
-      </div>
-
-      <div v-if="loading && articles.length === 0" class="loading-state">
-        <div class="spinner"></div>
-        <p>載入資料中...</p>
-      </div>
-
-      <!-- 空狀態 -->
-      <div v-if="!loading && filteredArticles.length === 0 && !showAddRow" class="empty-state">
-        <p>沒有找到相關筆記 🍃</p>
-      </div>
-
-      <!-- 筆記列表 -->
-      <div
-        class="notes-container"
-        :class="[`notes-container--${viewMode}`]"
-        v-if="filteredArticles.length > 0 || showAddRow"
-      >
-
-        <!-- 行內新增卡片 -->
-        <div v-if="showAddRow" class="note-card note-card-editing add-card note-card--editor">
-          <div class="inline-form">
-            <div class="inline-row">
-              <input v-model="addForm.title" type="text" class="inline-input" placeholder="標題 *" />
-              <input v-model="addForm.newdate" type="date" class="inline-input inline-date" />
+          <div class="nb-toolbar-right">
+            <div class="search-area">
+              <RecentSearchInput
+                v-model="searchQuery"
+                placeholder="搜尋筆記標題或內容..."
+                :terms="recentSearches"
+                @submit="commitSearchHistory()"
+                @apply="applyRecentSearch"
+                @remove="removeRecentSearch"
+                @clear="clearRecentSearches"
+              />
             </div>
-            <div class="category-picker">
-              <div class="category-picker-label">分類</div>
-              <div v-if="selectedCategories(addForm).length > 0" class="category-selected-list">
-                <button
-                  v-for="category in selectedCategories(addForm)"
-                  :key="'add-selected-' + category"
-                  type="button"
-                  class="category-chip selected"
-                  @click="toggleCategory(addForm, category)"
-                >
-                  {{ category }} ×
-                </button>
-              </div>
-              <div v-if="categoryOptions.length > 0" class="category-option-list">
-                <button
-                  v-for="category in categoryOptions"
-                  :key="'add-option-' + category"
-                  type="button"
-                  class="category-chip"
-                  :class="{ selected: hasCategory(addForm, category) }"
-                  @click="toggleCategory(addForm, category)"
-                >
-                  {{ category }}
-                </button>
-              </div>
-              <div class="category-input-row">
-                <input
-                  v-model="newAddCategory"
-                  type="text"
-                  class="inline-input"
-                  placeholder="新增分類"
-                  @keydown.enter.prevent="appendCategory(addForm, newAddCategory, 'add')"
-                />
-                <button type="button" class="btn-category-add" @click="appendCategory(addForm, newAddCategory, 'add')">加入</button>
-              </div>
-            </div>
-            <textarea v-model="addForm.content" class="inline-textarea" rows="4" placeholder="內容..."></textarea>
-            <div class="inline-section">
-              <h4 @click="addSection.urls = !addSection.urls" class="section-toggle">
-                🔗 連結 {{ addSection.urls ? '▼' : '▶' }}
-              </h4>
-              <div v-if="addSection.urls" class="section-content">
-                <input v-model="addForm.url1" type="url" class="inline-input mb-2" placeholder="連結 1" />
-                <input v-model="addForm.url2" type="url" class="inline-input mb-2" placeholder="連結 2" />
-                <input v-model="addForm.url3" type="url" class="inline-input" placeholder="連結 3" />
-              </div>
-            </div>
-            <div class="inline-section">
-              <h4 @click="addSection.files = !addSection.files" class="section-toggle">
-                📎 附件 (最多 3 個) {{ addSection.files ? '▼' : '▶' }}
-              </h4>
-              <div v-if="addSection.files" class="section-content">
-                <div v-for="n in 3" :key="'add-file-' + n" class="attachment-upload-item" :class="{ 'mb-3': n < 3 }">
-                  <label class="attachment-label">附件 {{ n }}</label>
-                  <div v-if="addForm['file' + n]" class="attachment-preview">
-                    <div class="attachment-preview-content">
-                      <img v-if="isImageType(addForm['file' + n + 'type'])" :src="addForm['file' + n]" alt="預覽" class="attachment-thumb" />
-                      <div v-else class="attachment-file-icon">📄</div>
-                      <div class="attachment-info">
-                        <span class="attachment-name">{{ addForm['file' + n + 'name'] || '已上傳' }}</span>
-                        <span class="attachment-type-badge">{{ addForm['file' + n + 'type'] || 'FILE' }}</span>
-                      </div>
-                    </div>
-                    <button type="button" class="btn-remove-attachment" @click="addForm['file' + n] = ''; addForm['file' + n + 'name'] = ''; addForm['file' + n + 'type'] = ''">✕</button>
-                  </div>
-                  <div v-else class="attachment-drop-zone" @click="triggerFileInput(n, 'add')" @dragover.prevent @drop.prevent="handleFileDrop($event, n, 'add')">
-                    <span class="drop-icon">📎</span>
-                    <span class="drop-text">點擊或拖曳上傳</span>
-                  </div>
-                  <input :ref="el => { if (el) addFileInputRefs[n] = el }" type="file" style="display:none" @change="handleFileUpload($event, n, 'add')" />
-                  <div v-if="uploadingSlot === 'add-' + n" class="attachment-progress">
-                    <div class="progress-bar"><div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div></div>
-                    <span class="progress-text">上傳中...</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="inline-actions">
-              <button @click="saveAddRow" class="btn-save-icon" title="新增">✓ 新增</button>
-              <button @click="cancelAddRow" class="btn-cancel-icon" title="取消">✕ 取消</button>
-            </div>
+            <select v-model="selectedCategoryFilter" class="category-filter-select">
+              <option value="">全部分類</option>
+              <option :value="ATTACHMENT_FILTER_VALUE">有附件</option>
+              <option v-for="category in categoryOptions" :key="'filter-' + category" :value="category">
+                {{ category }}
+              </option>
+            </select>
+            <button
+              v-if="!batchMode && filteredArticles.length > 0"
+              @click="enterBatchMode"
+              class="btn-batch-mode"
+            >
+              選取
+            </button>
+            <template v-if="batchMode">
+              <button @click="exitBatchMode" class="btn-cancel-batch">取消選取</button>
+              <button
+                v-if="selectedIds.size > 0"
+                class="btn-batch-delete"
+                @click="deleteSelected"
+                :disabled="loading"
+              >
+                刪除 ({{ selectedIds.size }})
+              </button>
+            </template>
           </div>
         </div>
 
-        <!-- 筆記卡片列表 -->
-        <div
-          v-for="article in filteredArticles"
-          :key="article.id"
-          class="note-card"
-          :class="[
-            {
-              'note-selected': selectedIds.has(article.id),
-              'note-card-editing': editingRowId === article.id,
-              'note-pinned': isPinnedArticle(article)
-            },
-            noteCardModeClass(article.id)
-          ]"
-        >
+        <div v-if="zipImporting" class="zip-import-progress" role="status" aria-live="polite">
+          <div class="zip-import-progress-head">
+            <span>{{ zipImportStatus }}</span>
+            <strong>{{ zipImportProgress }}%</strong>
+          </div>
+          <div class="zip-import-progress-bar" aria-hidden="true">
+            <div class="zip-import-progress-fill" :style="{ width: `${zipImportProgress}%` }"></div>
+          </div>
+        </div>
 
-          <!-- 編輯模式 -->
-          <template v-if="editingRowId === article.id">
+        <div v-if="batchMode" class="batch-category-bar">
+          <label class="select-all-label">
+            <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
+            <span>全選 ({{ selectedIds.size }}/{{ filteredArticles.length }})</span>
+          </label>
+          <input
+            v-model="batchCategoryInput"
+            type="text"
+            class="batch-category-input"
+            placeholder="輸入要套用的分類，使用逗號分隔"
+            @keydown.enter.prevent="applyCategoriesToSelected"
+          >
+          <button
+            type="button"
+            class="btn-batch-apply"
+            @click="applyCategoriesToSelected"
+            :disabled="loading || selectedIds.size === 0"
+          >
+            套用分類 ({{ selectedIds.size }})
+          </button>
+          <button
+            type="button"
+            class="btn-batch-clear"
+            @click="clearCategoriesFromSelected"
+            :disabled="loading || selectedIds.size === 0"
+          >
+            清除分類
+          </button>
+        </div>
+
+        <!-- 載入中 -->
+        <div v-if="loading && articles.length === 0" class="loading-state">
+          <div class="spinner"></div>
+          <p>載入資料中...</p>
+        </div>
+
+        <!-- 空狀態 -->
+        <div v-if="!loading && filteredArticles.length === 0 && !showAddRow" class="empty-state">
+          <span class="empty-icon" aria-hidden="true">🍃</span>
+          <p>這個檢視還沒有內容</p>
+          <button class="nb-new-btn nb-new-btn--ghost" @click="startAddRow">＋ 新增一頁</button>
+        </div>
+
+        <!-- 筆記資料庫 -->
+        <div
+          class="notes-container"
+          :class="[`notes-container--${viewMode}`]"
+          v-if="filteredArticles.length > 0 || showAddRow"
+        >
+          <!-- 表格檢視表頭 -->
+          <div v-if="viewMode === 'table'" class="table-head" role="row">
+            <span class="th th-title">名稱</span>
+            <span class="th th-tags">分類</span>
+            <span class="th th-date">日期</span>
+            <span class="th th-files">附件</span>
+            <span class="th th-tools"></span>
+          </div>
+
+          <!-- 行內新增卡片 -->
+          <div v-if="showAddRow" class="note-card note-card-editing add-card note-card--editor">
             <div class="inline-form">
               <div class="inline-row">
-                <input v-model="editForm.title" type="text" class="inline-input" placeholder="標題 *" />
-                <input v-model="editForm.newdate" type="date" class="inline-input inline-date" />
+                <input v-model="addForm.title" type="text" class="inline-input inline-title" placeholder="無標題" />
+                <input v-model="addForm.newdate" type="date" class="inline-input inline-date" />
               </div>
               <div class="category-picker">
                 <div class="category-picker-label">分類</div>
-                <div v-if="selectedCategories(editForm).length > 0" class="category-selected-list">
+                <div v-if="selectedCategories(addForm).length > 0" class="category-selected-list">
                   <button
-                    v-for="category in selectedCategories(editForm)"
-                    :key="'edit-selected-' + category"
+                    v-for="category in selectedCategories(addForm)"
+                    :key="'add-selected-' + category"
                     type="button"
                     class="category-chip selected"
-                    @click="toggleCategory(editForm, category)"
+                    @click="toggleCategory(addForm, category)"
                   >
                     {{ category }} ×
                   </button>
@@ -275,61 +250,61 @@
                 <div v-if="categoryOptions.length > 0" class="category-option-list">
                   <button
                     v-for="category in categoryOptions"
-                    :key="'edit-option-' + category"
+                    :key="'add-option-' + category"
                     type="button"
                     class="category-chip"
-                    :class="{ selected: hasCategory(editForm, category) }"
-                    @click="toggleCategory(editForm, category)"
+                    :class="{ selected: hasCategory(addForm, category) }"
+                    @click="toggleCategory(addForm, category)"
                   >
                     {{ category }}
                   </button>
                 </div>
                 <div class="category-input-row">
                   <input
-                    v-model="newEditCategory"
+                    v-model="newAddCategory"
                     type="text"
                     class="inline-input"
                     placeholder="新增分類"
-                    @keydown.enter.prevent="appendCategory(editForm, newEditCategory, 'edit')"
+                    @keydown.enter.prevent="appendCategory(addForm, newAddCategory, 'add')"
                   />
-                  <button type="button" class="btn-category-add" @click="appendCategory(editForm, newEditCategory, 'edit')">加入</button>
+                  <button type="button" class="btn-category-add" @click="appendCategory(addForm, newAddCategory, 'add')">加入</button>
                 </div>
               </div>
-              <textarea v-model="editForm.content" class="inline-textarea" rows="4" placeholder="內容..."></textarea>
+              <textarea v-model="addForm.content" class="inline-textarea" rows="4" placeholder="輸入內容，或貼上想記住的東西…"></textarea>
               <div class="inline-section">
-                <h4 @click="editSection.urls = !editSection.urls" class="section-toggle">
-                  🔗 連結 {{ editSection.urls ? '▼' : '▶' }}
+                <h4 @click="addSection.urls = !addSection.urls" class="section-toggle">
+                  <span class="section-caret">{{ addSection.urls ? '▾' : '▸' }}</span> 🔗 連結
                 </h4>
-                <div v-if="editSection.urls" class="section-content">
-                  <input v-model="editForm.url1" type="url" class="inline-input mb-2" placeholder="連結 1" />
-                  <input v-model="editForm.url2" type="url" class="inline-input mb-2" placeholder="連結 2" />
-                  <input v-model="editForm.url3" type="url" class="inline-input" placeholder="連結 3" />
+                <div v-if="addSection.urls" class="section-content">
+                  <input v-model="addForm.url1" type="url" class="inline-input mb-2" placeholder="連結 1" />
+                  <input v-model="addForm.url2" type="url" class="inline-input mb-2" placeholder="連結 2" />
+                  <input v-model="addForm.url3" type="url" class="inline-input" placeholder="連結 3" />
                 </div>
               </div>
               <div class="inline-section">
-                <h4 @click="editSection.files = !editSection.files" class="section-toggle">
-                  📎 附件 (最多 3 個) {{ editSection.files ? '▼' : '▶' }}
+                <h4 @click="addSection.files = !addSection.files" class="section-toggle">
+                  <span class="section-caret">{{ addSection.files ? '▾' : '▸' }}</span> 📎 附件 (最多 3 個)
                 </h4>
-                <div v-if="editSection.files" class="section-content">
-                  <div v-for="n in 3" :key="'edit-file-' + n" class="attachment-upload-item" :class="{ 'mb-3': n < 3 }">
+                <div v-if="addSection.files" class="section-content">
+                  <div v-for="n in 3" :key="'add-file-' + n" class="attachment-upload-item" :class="{ 'mb-3': n < 3 }">
                     <label class="attachment-label">附件 {{ n }}</label>
-                    <div v-if="editForm['file' + n]" class="attachment-preview">
+                    <div v-if="addForm['file' + n]" class="attachment-preview">
                       <div class="attachment-preview-content">
-                        <img v-if="isImageType(editForm['file' + n + 'type'])" :src="editForm['file' + n]" alt="預覽" class="attachment-thumb" />
+                        <img v-if="isImageType(addForm['file' + n + 'type'])" :src="addForm['file' + n]" alt="預覽" class="attachment-thumb" />
                         <div v-else class="attachment-file-icon">📄</div>
                         <div class="attachment-info">
-                          <span class="attachment-name">{{ editForm['file' + n + 'name'] || '已上傳' }}</span>
-                          <span class="attachment-type-badge">{{ editForm['file' + n + 'type'] || 'FILE' }}</span>
+                          <span class="attachment-name">{{ addForm['file' + n + 'name'] || '已上傳' }}</span>
+                          <span class="attachment-type-badge">{{ addForm['file' + n + 'type'] || 'FILE' }}</span>
                         </div>
                       </div>
-                      <button type="button" class="btn-remove-attachment" @click="editForm['file' + n] = ''; editForm['file' + n + 'name'] = ''; editForm['file' + n + 'type'] = ''">✕</button>
+                      <button type="button" class="btn-remove-attachment" @click="addForm['file' + n] = ''; addForm['file' + n + 'name'] = ''; addForm['file' + n + 'type'] = ''">✕</button>
                     </div>
-                    <div v-else class="attachment-drop-zone" @click="triggerFileInput(n, 'edit')" @dragover.prevent @drop.prevent="handleFileDrop($event, n, 'edit')">
+                    <div v-else class="attachment-drop-zone" @click="triggerFileInput(n, 'add')" @dragover.prevent @drop.prevent="handleFileDrop($event, n, 'add')">
                       <span class="drop-icon">📎</span>
                       <span class="drop-text">點擊或拖曳上傳</span>
                     </div>
-                    <input :ref="el => { if (el) editFileInputRefs[n] = el }" type="file" style="display:none" @change="handleFileUpload($event, n, 'edit')" />
-                    <div v-if="uploadingSlot === 'edit-' + n" class="attachment-progress">
+                    <input :ref="el => { if (el) addFileInputRefs[n] = el }" type="file" style="display:none" @change="handleFileUpload($event, n, 'add')" />
+                    <div v-if="uploadingSlot === 'add-' + n" class="attachment-progress">
                       <div class="progress-bar"><div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div></div>
                       <span class="progress-text">上傳中...</span>
                     </div>
@@ -337,97 +312,291 @@
                 </div>
               </div>
               <div class="inline-actions">
-                <button @click="saveInlineEdit(article.id)" class="btn-save-icon" title="儲存">✓ 儲存</button>
-                <button @click="cancelInlineEdit" class="btn-cancel-icon" title="取消">✕ 取消</button>
+                <button @click="saveAddRow" class="btn-save-icon" title="新增">✓ 新增</button>
+                <button @click="cancelAddRow" class="btn-cancel-icon" title="取消">✕ 取消</button>
               </div>
             </div>
-          </template>
+          </div>
 
-          <!-- 顯示模式 -->
-          <template v-else>
-            <div class="note-header">
-              <div class="note-meta">
+          <!-- 筆記列表 -->
+          <div
+            v-for="article in filteredArticles"
+            :key="article.id"
+            class="note-card"
+            :class="[
+              {
+                'note-selected': selectedIds.has(article.id),
+                'note-card-editing': editingRowId === article.id,
+                'note-pinned': isPinnedArticle(article),
+                'is-expanded': expandedNoteId === article.id
+              },
+              noteCardModeClass(article.id)
+            ]"
+          >
+
+            <!-- 編輯模式 -->
+            <template v-if="editingRowId === article.id">
+              <div class="inline-form">
+                <div class="inline-row">
+                  <input v-model="editForm.title" type="text" class="inline-input inline-title" placeholder="無標題" />
+                  <input v-model="editForm.newdate" type="date" class="inline-input inline-date" />
+                </div>
+                <div class="category-picker">
+                  <div class="category-picker-label">分類</div>
+                  <div v-if="selectedCategories(editForm).length > 0" class="category-selected-list">
+                    <button
+                      v-for="category in selectedCategories(editForm)"
+                      :key="'edit-selected-' + category"
+                      type="button"
+                      class="category-chip selected"
+                      @click="toggleCategory(editForm, category)"
+                    >
+                      {{ category }} ×
+                    </button>
+                  </div>
+                  <div v-if="categoryOptions.length > 0" class="category-option-list">
+                    <button
+                      v-for="category in categoryOptions"
+                      :key="'edit-option-' + category"
+                      type="button"
+                      class="category-chip"
+                      :class="{ selected: hasCategory(editForm, category) }"
+                      @click="toggleCategory(editForm, category)"
+                    >
+                      {{ category }}
+                    </button>
+                  </div>
+                  <div class="category-input-row">
+                    <input
+                      v-model="newEditCategory"
+                      type="text"
+                      class="inline-input"
+                      placeholder="新增分類"
+                      @keydown.enter.prevent="appendCategory(editForm, newEditCategory, 'edit')"
+                    />
+                    <button type="button" class="btn-category-add" @click="appendCategory(editForm, newEditCategory, 'edit')">加入</button>
+                  </div>
+                </div>
+                <textarea v-model="editForm.content" class="inline-textarea" rows="4" placeholder="輸入內容…"></textarea>
+                <div class="inline-section">
+                  <h4 @click="editSection.urls = !editSection.urls" class="section-toggle">
+                    <span class="section-caret">{{ editSection.urls ? '▾' : '▸' }}</span> 🔗 連結
+                  </h4>
+                  <div v-if="editSection.urls" class="section-content">
+                    <input v-model="editForm.url1" type="url" class="inline-input mb-2" placeholder="連結 1" />
+                    <input v-model="editForm.url2" type="url" class="inline-input mb-2" placeholder="連結 2" />
+                    <input v-model="editForm.url3" type="url" class="inline-input" placeholder="連結 3" />
+                  </div>
+                </div>
+                <div class="inline-section">
+                  <h4 @click="editSection.files = !editSection.files" class="section-toggle">
+                    <span class="section-caret">{{ editSection.files ? '▾' : '▸' }}</span> 📎 附件 (最多 3 個)
+                  </h4>
+                  <div v-if="editSection.files" class="section-content">
+                    <div v-for="n in 3" :key="'edit-file-' + n" class="attachment-upload-item" :class="{ 'mb-3': n < 3 }">
+                      <label class="attachment-label">附件 {{ n }}</label>
+                      <div v-if="editForm['file' + n]" class="attachment-preview">
+                        <div class="attachment-preview-content">
+                          <img v-if="isImageType(editForm['file' + n + 'type'])" :src="editForm['file' + n]" alt="預覽" class="attachment-thumb" />
+                          <div v-else class="attachment-file-icon">📄</div>
+                          <div class="attachment-info">
+                            <span class="attachment-name">{{ editForm['file' + n + 'name'] || '已上傳' }}</span>
+                            <span class="attachment-type-badge">{{ editForm['file' + n + 'type'] || 'FILE' }}</span>
+                          </div>
+                        </div>
+                        <button type="button" class="btn-remove-attachment" @click="editForm['file' + n] = ''; editForm['file' + n + 'name'] = ''; editForm['file' + n + 'type'] = ''">✕</button>
+                      </div>
+                      <div v-else class="attachment-drop-zone" @click="triggerFileInput(n, 'edit')" @dragover.prevent @drop.prevent="handleFileDrop($event, n, 'edit')">
+                        <span class="drop-icon">📎</span>
+                        <span class="drop-text">點擊或拖曳上傳</span>
+                      </div>
+                      <input :ref="el => { if (el) editFileInputRefs[n] = el }" type="file" style="display:none" @change="handleFileUpload($event, n, 'edit')" />
+                      <div v-if="uploadingSlot === 'edit-' + n" class="attachment-progress">
+                        <div class="progress-bar"><div class="progress-fill" :style="{ width: uploadProgress + '%' }"></div></div>
+                        <span class="progress-text">上傳中...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="inline-actions">
+                  <button @click="saveInlineEdit(article.id)" class="btn-save-icon" title="儲存">✓ 儲存</button>
+                  <button @click="cancelInlineEdit" class="btn-cancel-icon" title="取消">✕ 取消</button>
+                </div>
+              </div>
+            </template>
+
+            <!-- ══ 表格 / 列表檢視：Notion 資料庫列 ══ -->
+            <template v-else-if="viewMode === 'table' || viewMode === 'list'">
+              <div class="db-row" @click="toggleExpandNote(article.id)">
+                <span class="row-handle" aria-hidden="true">⠿</span>
                 <label v-if="batchMode" class="card-checkbox" @click.stop>
                   <input type="checkbox" :checked="selectedIds.has(article.id)" @change="toggleSelect(article.id)" />
                 </label>
-                <span class="note-date">{{ formatDate(article.newdate) }}</span>
+                <span class="row-title">
+                  <span class="row-page-icon" aria-hidden="true">{{ isPinnedArticle(article) ? '📌' : '📄' }}</span>
+                  <span class="row-title-text">{{ article.title || '無標題' }}</span>
+                  <span class="row-open-hint">開啟</span>
+                </span>
+                <span class="row-tags">
+                  <span
+                    v-for="category in splitCategories(article.category)"
+                    :key="article.id + '-' + category"
+                    class="note-category"
+                    :class="{ pinned: category === PINNED_CATEGORY }"
+                  >{{ category }}</span>
+                </span>
+                <span class="row-date">{{ formatDate(article.newdate) }}</span>
+                <span class="row-files">
+                  <span v-if="attachmentCount(article) > 0" class="files-chip">📎 {{ attachmentCount(article) }}</span>
+                  <span v-else class="files-empty">—</span>
+                </span>
+                <span class="row-tools" @click.stop>
+                  <button
+                    class="btn-icon pin"
+                    :class="{ active: isPinnedArticle(article) }"
+                    @click="togglePinnedArticle(article)"
+                    :title="isPinnedArticle(article) ? '取消置頂' : '置頂'"
+                    :disabled="loading"
+                  >📌</button>
+                  <button class="btn-icon" @click="startInlineEdit(article)" title="編輯">✏️</button>
+                  <button class="btn-icon delete" @click="confirmDelete(article)" title="刪除">🗑️</button>
+                </span>
               </div>
-              <div class="note-actions">
-                <button
-                  class="btn-icon pin"
-                  :class="{ active: isPinnedArticle(article) }"
-                  @click="togglePinnedArticle(article)"
-                  :title="isPinnedArticle(article) ? '取消置頂' : '置頂'"
-                  :disabled="loading"
-                >
-                  📌
-                </button>
-                <button class="btn-icon" @click="startInlineEdit(article)" title="編輯">✏️</button>
-                <button class="btn-icon delete" @click="confirmDelete(article)" title="刪除">🗑️</button>
-              </div>
-            </div>
 
-            <h3 class="note-title">{{ article.title || '無標題' }}</h3>
-            <div v-if="article.category" class="note-category-list">
-              <div
-                v-for="category in splitCategories(article.category)"
-                :key="article.id + '-' + category"
-                class="note-category"
-                :class="{ pinned: category === PINNED_CATEGORY }"
-              >
-                {{ category }}
-              </div>
-            </div>
-
-            <div class="note-content">
-              <p>{{ article.content }}</p>
-            </div>
-
-            <!-- 連結與附件區 -->
-            <div class="note-attachments" v-if="hasAttachments(article)">
-              <div class="attachment-group" v-if="article.url1 || article.url2 || article.url3">
-                <h4>🔗 相關連結</h4>
-                <div class="links-list">
-                  <a v-if="article.url1" :href="article.url1" target="_blank" class="link-item">{{ article.url1 }}</a>
-                  <a v-if="article.url2" :href="article.url2" target="_blank" class="link-item">{{ article.url2 }}</a>
-                  <a v-if="article.url3" :href="article.url3" target="_blank" class="link-item">{{ article.url3 }}</a>
+              <!-- 展開的頁面內容（Notion Peek） -->
+              <div v-if="expandedNoteId === article.id" class="db-peek">
+                <div class="note-content">
+                  <p>{{ article.content || '（沒有內容）' }}</p>
                 </div>
-              </div>
-
-              <div class="attachment-group" v-if="article.file1 || article.file2 || article.file3">
-                <h4>📎 附件檔案</h4>
-                <div class="files-list">
-                  <template v-for="n in 3" :key="'file' + n">
-                    <div v-if="article['file' + n]" class="file-item-card">
-                      <img
-                        v-if="isImageType(article['file' + n + 'type']) && !isMultipartAttachment(article['file' + n])"
-                        :src="article['file' + n]"
-                        :alt="article['file' + n + 'name'] || '附件'"
-                        class="file-preview-img"
-                        @click="openPreview(article['file' + n])"
-                      />
-                      <div v-else class="file-icon-box">📄</div>
-                      <div class="file-detail">
-                        <span class="file-name">{{ article['file' + n + 'name'] || '附件 ' + n }}</span>
-                        <span class="file-type">{{ article['file' + n + 'type'] || 'FILE' }}</span>
-                      </div>
-                      <button
-                        type="button"
-                        class="btn-download"
-                        title="開啟/下載"
-                        :disabled="isAttachmentDownloading(article, n)"
-                        @click="downloadAttachment(article, n)"
-                      >
-                        {{ isAttachmentDownloading(article, n) ? '下載中' : '⬇️' }}
-                      </button>
+                <div class="note-attachments" v-if="hasAttachments(article)">
+                  <div class="attachment-group" v-if="article.url1 || article.url2 || article.url3">
+                    <h4>🔗 相關連結</h4>
+                    <div class="links-list">
+                      <a v-if="article.url1" :href="article.url1" target="_blank" class="link-item">{{ article.url1 }}</a>
+                      <a v-if="article.url2" :href="article.url2" target="_blank" class="link-item">{{ article.url2 }}</a>
+                      <a v-if="article.url3" :href="article.url3" target="_blank" class="link-item">{{ article.url3 }}</a>
                     </div>
-                  </template>
+                  </div>
+                  <div class="attachment-group" v-if="article.file1 || article.file2 || article.file3">
+                    <h4>📎 附件檔案</h4>
+                    <div class="files-list">
+                      <template v-for="n in 3" :key="'peek-file' + n">
+                        <div v-if="article['file' + n]" class="file-item-card">
+                          <img
+                            v-if="isImageType(article['file' + n + 'type']) && !isMultipartAttachment(article['file' + n])"
+                            :src="article['file' + n]"
+                            :alt="article['file' + n + 'name'] || '附件'"
+                            class="file-preview-img"
+                            @click="openPreview(article['file' + n])"
+                          />
+                          <div v-else class="file-icon-box">📄</div>
+                          <div class="file-detail">
+                            <span class="file-name">{{ article['file' + n + 'name'] || '附件 ' + n }}</span>
+                            <span class="file-type">{{ article['file' + n + 'type'] || 'FILE' }}</span>
+                          </div>
+                          <button
+                            type="button"
+                            class="btn-download"
+                            title="開啟/下載"
+                            :disabled="isAttachmentDownloading(article, n)"
+                            @click="downloadAttachment(article, n)"
+                          >
+                            {{ isAttachmentDownloading(article, n) ? '下載中' : '⬇️' }}
+                          </button>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </template>
+            </template>
+
+            <!-- ══ 圖庫檢視：Notion Gallery 卡片 ══ -->
+            <template v-else>
+              <div class="note-header">
+                <div class="note-meta">
+                  <label v-if="batchMode" class="card-checkbox" @click.stop>
+                    <input type="checkbox" :checked="selectedIds.has(article.id)" @change="toggleSelect(article.id)" />
+                  </label>
+                  <span class="note-page-icon" aria-hidden="true">{{ isPinnedArticle(article) ? '📌' : '📄' }}</span>
+                  <span class="note-date">{{ formatDate(article.newdate) }}</span>
+                </div>
+                <div class="note-actions">
+                  <button
+                    class="btn-icon pin"
+                    :class="{ active: isPinnedArticle(article) }"
+                    @click="togglePinnedArticle(article)"
+                    :title="isPinnedArticle(article) ? '取消置頂' : '置頂'"
+                    :disabled="loading"
+                  >
+                    📌
+                  </button>
+                  <button class="btn-icon" @click="startInlineEdit(article)" title="編輯">✏️</button>
+                  <button class="btn-icon delete" @click="confirmDelete(article)" title="刪除">🗑️</button>
+                </div>
+              </div>
+
+              <h3 class="note-title">{{ article.title || '無標題' }}</h3>
+              <div v-if="article.category" class="note-category-list">
+                <div
+                  v-for="category in splitCategories(article.category)"
+                  :key="article.id + '-' + category"
+                  class="note-category"
+                  :class="{ pinned: category === PINNED_CATEGORY }"
+                >
+                  {{ category }}
+                </div>
+              </div>
+
+              <div class="note-content">
+                <p>{{ article.content }}</p>
+              </div>
+
+              <div class="note-attachments" v-if="hasAttachments(article)">
+                <div class="attachment-group" v-if="article.url1 || article.url2 || article.url3">
+                  <h4>🔗 相關連結</h4>
+                  <div class="links-list">
+                    <a v-if="article.url1" :href="article.url1" target="_blank" class="link-item">{{ article.url1 }}</a>
+                    <a v-if="article.url2" :href="article.url2" target="_blank" class="link-item">{{ article.url2 }}</a>
+                    <a v-if="article.url3" :href="article.url3" target="_blank" class="link-item">{{ article.url3 }}</a>
+                  </div>
+                </div>
+
+                <div class="attachment-group" v-if="article.file1 || article.file2 || article.file3">
+                  <h4>📎 附件檔案</h4>
+                  <div class="files-list">
+                    <template v-for="n in 3" :key="'file' + n">
+                      <div v-if="article['file' + n]" class="file-item-card">
+                        <img
+                          v-if="isImageType(article['file' + n + 'type']) && !isMultipartAttachment(article['file' + n])"
+                          :src="article['file' + n]"
+                          :alt="article['file' + n + 'name'] || '附件'"
+                          class="file-preview-img"
+                          @click="openPreview(article['file' + n])"
+                        />
+                        <div v-else class="file-icon-box">📄</div>
+                        <div class="file-detail">
+                          <span class="file-name">{{ article['file' + n + 'name'] || '附件 ' + n }}</span>
+                          <span class="file-type">{{ article['file' + n + 'type'] || 'FILE' }}</span>
+                        </div>
+                        <button
+                          type="button"
+                          class="btn-download"
+                          title="開啟/下載"
+                          :disabled="isAttachmentDownloading(article, n)"
+                          @click="downloadAttachment(article, n)"
+                        >
+                          {{ isAttachmentDownloading(article, n) ? '下載中' : '⬇️' }}
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
         </div>
-      </div>
+      </main>
 
       <!-- 圖片預覽 Lightbox -->
       <div v-if="previewUrl" class="lightbox-overlay" @click="closePreview">
@@ -518,7 +687,8 @@ const {
 const selectedCategoryFilter = ref('')
 const ATTACHMENT_FILTER_VALUE = '__with_attachments__'
 const PINNED_CATEGORY = '置頂'
-const viewMode = ref('card')
+const viewMode = ref('table')
+const expandedNoteId = ref(null)
 const uploadingSlot = ref(null)
 const previewUrl = ref(null)
 const batchMode = ref(false)
@@ -529,9 +699,26 @@ const newAddCategory = ref('')
 const newEditCategory = ref('')
 
 const viewOptions = [
-  { value: 'card', label: '卡片' },
-  { value: 'list', label: '列表' }
+  { value: 'table', label: '表格', icon: '▦' },
+  { value: 'gallery', label: '圖庫', icon: '▤' },
+  { value: 'list', label: '列表', icon: '☰' }
 ]
+
+const currentViewLabel = computed(() => {
+  if (selectedCategoryFilter.value === ATTACHMENT_FILTER_VALUE) return '有附件'
+  if (selectedCategoryFilter.value) return selectedCategoryFilter.value
+  return '所有筆記'
+})
+
+const toggleExpandNote = (id) => {
+  expandedNoteId.value = expandedNoteId.value === id ? null : id
+}
+
+/** 單篇附件數量（供資料庫列顯示） */
+const attachmentCount = (article) => {
+  if (!article) return 0
+  return [1, 2, 3].filter((n) => article['file' + n]).length
+}
 
 // 行內新增
 const showAddRow = ref(false)
@@ -704,10 +891,13 @@ const clearCategoriesFromSelected = async () => {
   }
 }
 
-const noteCardModeClass = (articleId) => {
-  if (viewMode.value === 'card') return 'note-card--card'
-  return 'note-card--list'
-}
+const noteCardModeClass = () => `note-card--${viewMode.value}`
+
+/** 側欄統計 */
+const pinnedCount = computed(() => articles.value.filter((article) => isPinnedArticle(article)).length)
+const attachmentCountTotal = computed(() => articles.value.filter((article) => hasFileAttachments(article)).length)
+const categoryCount = (category) =>
+  articles.value.filter((article) => splitCategories(article.category).includes(category)).length
 
 // 格式化日期
 const formatDate = (dateStr) => {
@@ -1366,611 +1556,897 @@ useHead({
 </script>
 
 <style scoped>
+/* ============================================================
+   鋒兄筆記 — Notion 風格
+   · 左側工作區側欄、麵包屑、大標題頁首
+   · 資料庫檢視分頁：表格／圖庫／列表
+   · 幾乎無彩、髮絲線、pastel 標籤、hover 才浮現的操作
+   ============================================================ */
 .note-page {
-  animation: fadeIn 0.3s ease-in;
-}
+  --nb-bg: #ffffff;
+  --nb-sidebar: #f7f7f5;
+  --nb-hover: rgba(55, 53, 47, 0.06);
+  --nb-active: rgba(55, 53, 47, 0.1);
+  --nb-line: rgba(55, 53, 47, 0.12);
+  --nb-line-soft: rgba(55, 53, 47, 0.07);
+  --nb-text: #37352f;
+  --nb-text-2: #6b6960;
+  --nb-text-3: #9b9a97;
+  --nb-blue: #2383e2;
+  --nb-red: #eb5757;
+  --nb-yellow: #fbf3db;
+  --nb-yellow-text: #8a6d20;
+  --nb-tag-bg: rgba(55, 53, 47, 0.08);
 
-.page-header {
-  text-align: center;
-  margin-bottom: 2rem;
-  padding: 2rem;
-  background: var(--success-solid);
-  border-radius: var(--radius-lg);
-  color: var(--text-primary);
-}
-
-.page-title {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
-  font-weight: 700;
-}
-
-.page-description {
-  font-size: 1.1rem;
-  opacity: 0.8;
-  margin-bottom: 0;
-}
-
-.summary-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  background: var(--success-light);
-  border-radius: var(--radius-md);
-  margin-bottom: 1.5rem;
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.zip-import-progress {
-  margin-bottom: 1rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid color-mix(in oklab, var(--success) 28%, transparent);
-  border-radius: var(--radius-md);
-  background: color-mix(in oklab, var(--success) 92%, transparent);
-  color: var(--success-text);
-}
-
-.zip-import-progress-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.55rem;
-  font-size: 0.92rem;
-  font-weight: 700;
-}
-
-.zip-import-progress-head strong {
-  min-width: 3.2rem;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.zip-import-progress-bar {
-  height: 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--success) 14%, transparent);
-}
-
-.zip-import-progress-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--success-solid);
-  transition: width 0.25s ease;
-}
-
-.summary-left,
-.summary-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.batch-category-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 18px;
-  background: color-mix(in oklab, var(--bg-secondary) 94%, transparent);
-  flex-wrap: wrap;
-}
-
-.batch-category-input {
-  flex: 1;
-  min-width: 260px;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  font-size: 0.96rem;
-  background: var(--bg-surface);
-}
-
-.btn-batch-apply,
-.btn-batch-clear {
-  border: none;
-  border-radius: 999px;
-  padding: 0.75rem 1.15rem;
-  font-size: 0.92rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-batch-apply {
-  background: var(--primary-solid);
-  color: var(--on-primary);
-}
-
-.btn-batch-clear {
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-}
-
-.btn-batch-apply:disabled,
-.btn-batch-clear:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.view-switcher {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
-}
-
-.view-chip {
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  padding: 0.45rem 0.9rem;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 0.84rem;
-  font-weight: 700;
-  transition: all var(--transition-fast);
-}
-
-.view-chip.active {
-  background: var(--surface-strong);
-  color: var(--text-inverse);
-}
-
-.select-all-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.select-all-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.selected-count {
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-lg);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.btn-batch-mode {
-  padding: 0.5rem 1rem;
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  transition: all 0.3s;
-}
-
-.btn-batch-mode:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--elevation-2);
-}
-
-.btn-cancel-batch {
-  padding: 0.35rem 0.75rem;
-  background: var(--bg-inset);
-  color: var(--text-secondary);
-  border: none;
-  border-radius: var(--radius-xs);
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-cancel-batch:hover {
-  background: var(--border-strong);
-}
-
-.btn-batch-delete {
-  padding: 0.5rem 1rem;
-  background: var(--danger-solid);
-  color: var(--on-solid);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  transition: all 0.3s;
-}
-
-.btn-trash {
-  min-height: 40px;
-  padding: 0 var(--spacing-md);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  background: var(--bg-muted);
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.btn-trash:hover { background: var(--danger-light); color: var(--danger-text); }
-
-.btn-batch-delete:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--elevation-2);
-}
-
-.btn-batch-delete:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.card-checkbox {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.card-checkbox input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  margin-right: 0.5rem;
-}
-
-.note-selected {
-  border-color: color-mix(in oklab, var(--danger) 38%, var(--border-color)) !important;
-  background: color-mix(in oklab, var(--danger-light) 28%, var(--bg-secondary));
-}
-
-.actions-bar {
-  margin-bottom: 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.action-buttons {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.category-filter-select {
-  min-width: 150px;
-  padding: 0.72rem 0.95rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  background: var(--bg-surface);
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-}
-
-.category-filter-select:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-}
-
-.btn-export, .btn-import {
-  padding: 0.6rem 1rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  cursor: pointer;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  transition: all 0.2s;
-}
-
-.btn-export:hover {
-  background: var(--success-light);
-  border-color: color-mix(in oklab, var(--success) 32%, transparent);
-}
-
-.btn-import:hover {
-  background: var(--warning-light);
-  border-color: color-mix(in oklab, var(--warning) 32%, transparent);
-}
-
-.search-area {
-  flex: 1 1 320px;
-  min-width: 250px;
-}
-
-.search-box {
-  width: 100%;
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-box .icon {
-  position: absolute;
-  left: 12px;
-  color: var(--text-muted);
-}
-
-.search-input {
-  width: 100%;
-  padding: 0.75rem 0.75rem 0.75rem 2.5rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  font-size: 1rem;
-  transition: all 0.2s;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: color-mix(in oklab, var(--success) 32%, transparent);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-}
-
-.notes-container {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1.5rem;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 0;
+  min-height: 70vh;
+  border: 1px solid var(--nb-line-soft);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--nb-bg);
+  color: var(--nb-text);
+  font-family: var(--font-body);
 }
 
-.notes-container--card {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+.dark .note-page {
+  --nb-bg: #191919;
+  --nb-sidebar: #202020;
+  --nb-hover: rgba(255, 255, 255, 0.055);
+  --nb-active: rgba(255, 255, 255, 0.1);
+  --nb-line: rgba(255, 255, 255, 0.13);
+  --nb-line-soft: rgba(255, 255, 255, 0.08);
+  --nb-text: #e9e9e7;
+  --nb-text-2: #a5a49f;
+  --nb-text-3: #7b7a76;
+  --nb-yellow: #3a2f14;
+  --nb-yellow-text: #e5c07b;
+  --nb-tag-bg: rgba(255, 255, 255, 0.09);
 }
 
-.notes-container--list {
-  grid-template-columns: 1fr;
+/* ══════════ 側欄 ══════════ */
+.nb-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-3);
+  background: var(--nb-sidebar);
+  border-right: 1px solid var(--nb-line-soft);
 }
 
-.note-card--editor {
-  grid-column: 1 / -1;
+.nb-workspace {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--radius-sm);
 }
 
-.note-card {
-  background: color-mix(in oklab, var(--bg-secondary) 94%, transparent);
-  border-radius: 24px;
-  padding: 1.5rem;
-  box-shadow: var(--shadow-soft);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
-  border: 1px solid var(--border-color);
+.nb-ws-icon {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-xs);
+  background: var(--nb-text);
+  color: var(--nb-bg);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-xs);
+}
+
+.nb-ws-copy {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.note-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-  border-color: var(--border-strong);
+.nb-ws-copy strong {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--nb-text);
 }
 
-.note-pinned {
-  border-color: color-mix(in oklab, var(--warning) 55%, var(--border-color));
-  box-shadow: var(--elevation-1);
+.nb-ws-copy span {
+  font-size: var(--text-2xs);
+  color: var(--nb-text-3);
 }
 
-.note-card--card {
-  min-height: 340px;
+.nb-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
-.note-card--list {
+.nb-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  height: 30px;
+  padding: 0 var(--sp-2);
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--nb-text-2);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.nb-nav-item:hover:not(:disabled) {
+  background: var(--nb-hover);
+  color: var(--nb-text);
+}
+
+.nb-nav-item.active {
+  background: var(--nb-active);
+  color: var(--nb-text);
+  font-weight: 500;
+}
+
+.nb-nav-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nb-nav-icon {
+  flex: 0 0 18px;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--nb-text-3);
+}
+
+.nb-nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nb-nav-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--nb-text-3);
+}
+
+.nb-nav-empty {
+  margin: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--nb-text-3);
+}
+
+.nb-section-title {
+  margin: 0 var(--sp-2) var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--nb-text-3);
+}
+
+.nb-section {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.nb-sidebar-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--nb-line-soft);
+}
+
+/* ══════════ 主要頁面 ══════════ */
+.nb-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-6) var(--sp-8);
+  overflow-x: hidden;
+}
+
+.nb-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--nb-text-3);
+}
+
+.nb-crumb-sep {
+  opacity: 0.6;
+}
+
+.nb-crumb-current {
+  color: var(--nb-text-2);
+}
+
+.nb-page-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding-top: var(--sp-2);
+}
+
+.nb-page-icon {
+  font-size: 2.25rem;
+  line-height: 1;
+}
+
+.nb-page-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.nb-page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 1.1rem + 1.4vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--nb-text);
+}
+
+.nb-page-sub {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--nb-text-3);
+}
+
+.nb-new-btn {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--nb-blue);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter var(--transition-fast);
+}
+
+.nb-new-btn:hover {
+  filter: brightness(1.08);
+}
+
+.nb-new-btn--ghost {
+  background: transparent;
+  border: 1px solid var(--nb-line);
+  color: var(--nb-text-2);
+}
+
+.nb-new-btn--ghost:hover {
+  background: var(--nb-hover);
+  color: var(--nb-text);
+}
+
+/* ══════════ 工具列 + 檢視分頁 ══════════ */
+.nb-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--nb-line-soft);
+  padding-bottom: var(--sp-2);
+}
+
+.nb-view-tabs {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.nb-view-tab {
+  height: 28px;
+  padding: 0 var(--sp-2);
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--nb-text-3);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.nb-view-tab:hover {
+  background: var(--nb-hover);
+  color: var(--nb-text);
+}
+
+.nb-view-tab.active {
+  color: var(--nb-text);
+  font-weight: 600;
+  border-bottom-color: var(--nb-text);
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+
+.nb-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.search-area {
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+
+.search-area :deep(input) {
+  height: 30px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: var(--nb-hover);
+  color: var(--nb-text);
+  font-size: var(--text-sm);
+}
+
+.search-area :deep(input:focus) {
+  outline: none;
+  border-color: var(--nb-blue);
+  background: var(--nb-bg);
+}
+
+.category-filter-select {
+  height: 30px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--nb-line);
+  background: var(--nb-bg);
+  color: var(--nb-text);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.btn-batch-mode,
+.btn-cancel-batch,
+.btn-batch-apply,
+.btn-batch-clear {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--nb-line);
+  background: var(--nb-bg);
+  color: var(--nb-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.btn-batch-mode:hover,
+.btn-cancel-batch:hover,
+.btn-batch-apply:hover:not(:disabled),
+.btn-batch-clear:hover:not(:disabled) {
+  background: var(--nb-hover);
+  color: var(--nb-text);
+}
+
+.btn-batch-apply:disabled,
+.btn-batch-clear:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-batch-delete {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in oklab, var(--nb-red) 40%, transparent);
+  background: color-mix(in oklab, var(--nb-red) 10%, transparent);
+  color: var(--nb-red);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-batch-delete:hover:not(:disabled) {
+  background: var(--nb-red);
+  color: #fff;
+}
+
+.batch-category-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--nb-yellow);
+  border: 1px solid var(--nb-line-soft);
+}
+
+.batch-category-input {
+  flex: 1;
+  min-width: 200px;
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--nb-line);
+  background: var(--nb-bg);
+  color: var(--nb-text);
+  font-size: var(--text-sm);
+}
+
+.select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--nb-yellow-text);
+  cursor: pointer;
+}
+
+.select-all-label input,
+.card-checkbox input {
+  accent-color: var(--nb-blue);
+  cursor: pointer;
+}
+
+/* ══════════ 匯入進度 ══════════ */
+.zip-import-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--nb-line-soft);
+  background: var(--nb-hover);
+}
+
+.zip-import-progress-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--nb-text-2);
+}
+
+.zip-import-progress-bar {
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--nb-line-soft);
+  overflow: hidden;
+}
+
+.zip-import-progress-fill {
+  height: 100%;
+  background: var(--nb-blue);
+  transition: width var(--transition-normal);
+}
+
+/* ══════════ 狀態 ══════════ */
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-16) var(--sp-4);
+  color: var(--nb-text-3);
+  font-size: var(--text-sm);
+}
+
+.empty-icon {
+  font-size: 2rem;
+  opacity: 0.5;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--nb-line);
+  border-top-color: var(--nb-blue);
+  animation: nbSpin 0.8s linear infinite;
+}
+
+@keyframes nbSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ══════════ 資料庫容器 ══════════ */
+.notes-container--table,
+.notes-container--list {
+  display: flex;
+  flex-direction: column;
+}
+
+.notes-container--gallery {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem 1.25rem;
-  align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: var(--sp-3);
 }
 
-.note-card--list .note-header,
-.note-card--list .note-title,
-.note-card--list .note-content,
-.note-card--list .note-attachments {
-  grid-column: 1;
+.table-head {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 2.2fr) minmax(0, 1.4fr) 108px 76px 104px;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: 0 var(--sp-2) var(--sp-2);
+  border-bottom: 1px solid var(--nb-line);
 }
 
-.note-card--list .note-actions {
+.th {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nb-text-3);
+}
+
+.th-title {
   grid-column: 2;
 }
 
-.note-card--list .note-header {
-  margin-bottom: 0;
-  padding-bottom: 0.25rem;
-  border-bottom: none;
+/* ══════════ 資料庫列 ══════════ */
+.note-card {
+  min-width: 0;
 }
 
-.note-card--list .note-title {
-  margin-bottom: 0.35rem;
-  font-size: 1.05rem;
+.notes-container--table .note-card:not(.note-card-editing),
+.notes-container--list .note-card:not(.note-card-editing) {
+  border-bottom: 1px solid var(--nb-line-soft);
 }
 
-.note-card--list .note-content {
-  max-height: 96px;
-  margin-bottom: 0;
+.db-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 2.2fr) minmax(0, 1.4fr) 108px 76px 104px;
+  gap: var(--sp-3);
+  align-items: center;
+  min-height: 38px;
+  padding: var(--sp-2);
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+  transition: background var(--transition-fast);
 }
 
-.note-card--list .note-attachments {
-  margin-top: 0.4rem;
-  padding-top: 0.8rem;
+.db-row:hover {
+  background: var(--nb-hover);
+}
+
+.note-selected .db-row {
+  background: color-mix(in oklab, var(--nb-blue) 10%, transparent);
+}
+
+.notes-container--list .db-row,
+.notes-container--list .table-head {
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+}
+
+.notes-container--list .row-tags,
+.notes-container--list .row-date,
+.notes-container--list .row-files {
+  display: none;
+}
+
+.row-handle {
+  color: var(--nb-text-3);
+  opacity: 0;
+  font-size: 0.75rem;
+  cursor: grab;
+  transition: opacity var(--transition-fast);
+}
+
+.db-row:hover .row-handle {
+  opacity: 0.6;
+}
+
+.card-checkbox {
+  display: inline-flex;
+  align-items: center;
+}
+
+.row-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.row-page-icon {
+  font-size: 0.8125rem;
+}
+
+.row-title-text {
+  font-size: var(--text-sm);
+  color: var(--nb-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: 1px solid transparent;
+}
+
+.db-row:hover .row-title-text {
+  border-bottom-color: var(--nb-line);
+}
+
+.row-open-hint {
+  flex: 0 0 auto;
+  font-size: var(--text-2xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--nb-line);
+  color: var(--nb-text-3);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.db-row:hover .row-open-hint {
+  opacity: 1;
+}
+
+.row-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  overflow: hidden;
+}
+
+.row-date {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--nb-text-3);
+}
+
+.row-files {
+  font-size: var(--text-2xs);
+  color: var(--nb-text-3);
+}
+
+.files-chip {
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--nb-tag-bg);
+}
+
+.row-tools {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.db-row:hover .row-tools,
+.note-card.is-expanded .row-tools {
+  opacity: 1;
+}
+
+.db-peek {
+  padding: var(--sp-3) var(--sp-4) var(--sp-5) calc(18px + var(--sp-3) + var(--sp-2));
+  border-left: 2px solid var(--nb-line);
+  margin: 0 0 var(--sp-3) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* ══════════ 圖庫卡片 ══════════ */
+.notes-container--gallery .note-card:not(.note-card-editing) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--nb-line-soft);
+  border-radius: var(--radius-md);
+  background: var(--nb-bg);
+  box-shadow: 0 1px 2px rgba(15, 15, 15, 0.05);
+  transition: box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.notes-container--gallery .note-card:not(.note-card-editing):hover {
+  background: var(--nb-hover);
+  box-shadow: 0 2px 6px rgba(15, 15, 15, 0.08);
+}
+
+.notes-container--gallery .note-selected {
+  outline: 2px solid var(--nb-blue);
+  outline-offset: 1px;
+}
+
+.note-pinned .note-title::before {
+  content: '📌 ';
 }
 
 .note-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.note-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.note-page-icon {
+  font-size: 0.8125rem;
 }
 
 .note-date {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  background: color-mix(in oklab, var(--bg-tertiary) 88%, transparent);
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--nb-text-3);
 }
 
 .note-actions {
   display: flex;
-  gap: 0.25rem;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.note-card:hover .note-actions {
+  opacity: 1;
 }
 
 .btn-icon {
-  background: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
   border: none;
-  cursor: pointer;
-  font-size: 1.1rem;
-  padding: 0.25rem;
   border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--nb-text-2);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: var(--nb-active);
+}
+
+.btn-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-icon.pin {
+  filter: grayscale(1);
   opacity: 0.6;
-  transition: all 0.2s;
-}
-
-.btn-icon:hover {
-  opacity: 1;
-  background: var(--bg-muted);
-}
-
-.btn-icon.delete:hover {
-  background: var(--danger-light);
 }
 
 .btn-icon.pin.active {
+  filter: none;
   opacity: 1;
-  background: color-mix(in oklab, var(--warning-solid) 18%, var(--bg-tertiary));
 }
 
-.btn-icon.pin:hover {
-  background: color-mix(in oklab, var(--warning-solid) 14%, var(--bg-tertiary));
+.btn-icon.delete:hover {
+  color: var(--nb-red);
 }
 
 .note-title {
-  font-size: 1.28rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 0.75rem 0;
-  line-height: 1.4;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--nb-text);
 }
 
 .note-category-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
-  margin: 0 0 0.85rem 0;
+  gap: 4px;
 }
 
 .note-category {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 0.22rem 0.65rem;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--accent) 16%, var(--bg-tertiary));
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: var(--text-2xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--nb-tag-bg);
+  color: var(--nb-text-2);
+  white-space: nowrap;
 }
 
 .note-category.pinned {
-  background: color-mix(in oklab, var(--warning-solid) 24%, var(--bg-tertiary));
-  color: var(--warning-text);
+  background: var(--nb-yellow);
+  color: var(--nb-yellow-text);
 }
 
 .note-content {
-  flex: 1;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  font-size: 0.95rem;
-  white-space: pre-wrap;
-  margin-bottom: 1rem;
-  max-height: 200px;
-  overflow-y: auto;
+  font-size: var(--text-sm);
+  line-height: 1.68;
+  color: var(--nb-text-2);
 }
 
+.note-content p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.notes-container--gallery .note-content p {
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ══════════ 連結與附件 ══════════ */
 .note-attachments {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px dashed var(--border-color);
-  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--nb-line-soft);
 }
 
 .attachment-group h4 {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  margin: 0.5rem 0;
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nb-text-3);
 }
 
-.links-list, .files-list {
+.links-list {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 2px;
 }
 
 .link-item {
-  color: var(--primary-text);
+  font-size: var(--text-xs);
+  color: var(--nb-blue);
   text-decoration: none;
-  white-space: nowrap;
+  border-bottom: 1px solid color-mix(in oklab, var(--nb-blue) 30%, transparent);
+  align-self: flex-start;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: block;
+  white-space: nowrap;
 }
 
 .link-item:hover {
-  text-decoration: underline;
+  background: var(--nb-hover);
 }
 
-/* 附件卡片（列表顯示） */
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
 .file-item-card {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: var(--bg-surface);
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--nb-line-soft);
+  background: var(--nb-hover);
 }
 
 .file-preview-img {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   object-fit: cover;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: transform 0.2s;
-  flex-shrink: 0;
-}
-
-.file-preview-img:hover {
-  transform: scale(1.1);
+  border-radius: var(--radius-xs);
+  cursor: zoom-in;
 }
 
 .file-icon-box {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  background: var(--bg-inset);
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-xs);
+  background: var(--nb-tag-bg);
 }
 
 .file-detail {
@@ -1978,366 +2454,408 @@ useHead({
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-}
-
-.file-type {
-  font-size: 0.7rem;
-  background: var(--bg-inset);
-  color: var(--text-secondary);
-  padding: 0.1rem 0.3rem;
-  border-radius: var(--radius-xs);
-  text-transform: uppercase;
-  width: fit-content;
 }
 
 .file-name {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--nb-text);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-type {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--nb-text-3);
 }
 
 .btn-download {
-  text-decoration: none;
-  font-size: 1.1rem;
-  opacity: 0.6;
-  transition: opacity 0.2s;
-  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--nb-line);
+  border-radius: var(--radius-xs);
+  background: var(--nb-bg);
+  color: var(--nb-text-2);
+  font-size: 0.75rem;
+  cursor: pointer;
 }
 
-.btn-download:hover {
-  opacity: 1;
+.btn-download:hover:not(:disabled) {
+  background: var(--nb-hover);
 }
 
 .btn-download:disabled {
-  opacity: 0.4;
-  cursor: wait;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-/* 行內編輯卡片 */
+/* ══════════ 行內編輯表單 ══════════ */
 .note-card-editing {
-  border-color: color-mix(in oklab, var(--warning) 40%, var(--border-color)) !important;
-  background: color-mix(in oklab, var(--warning-light) 40%, var(--bg-secondary));
-}
-
-.add-card {
-  border-color: color-mix(in oklab, var(--success) 40%, var(--border-color)) !important;
-  background: color-mix(in oklab, var(--success-light) 35%, var(--bg-secondary));
+  grid-column: 1 / -1;
+  padding: var(--sp-4);
+  border: 1px solid var(--nb-line);
+  border-radius: var(--radius-md);
+  background: var(--nb-bg);
+  box-shadow: 0 4px 16px rgba(15, 15, 15, 0.09);
+  margin: var(--sp-2) 0;
 }
 
 .inline-form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--sp-3);
 }
 
 .inline-row {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.inline-input,
+.inline-textarea,
+.batch-category-input {
+  font-family: inherit;
+}
+
+.inline-input {
+  flex: 1;
+  min-width: 140px;
+  height: 32px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--nb-line-soft);
+  background: var(--nb-hover);
+  color: var(--nb-text);
+  font-size: var(--text-sm);
+}
+
+.inline-input:focus,
+.inline-textarea:focus {
+  outline: none;
+  border-color: var(--nb-blue);
+  background: var(--nb-bg);
+}
+
+.inline-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  height: 42px;
+  border-color: transparent;
+  background: transparent;
+  padding-left: 0;
+}
+
+.inline-date {
+  flex: 0 0 150px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.inline-textarea {
+  width: 100%;
+  padding: var(--sp-2);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--nb-line-soft);
+  background: var(--nb-hover);
+  color: var(--nb-text);
+  font-size: var(--text-sm);
+  line-height: 1.68;
+  resize: vertical;
 }
 
 .category-picker {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--nb-line-soft);
+  background: var(--nb-hover);
 }
 
 .category-picker-label {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--nb-text-3);
 }
 
 .category-selected-list,
 .category-option-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: 4px;
 }
 
 .category-chip {
-  border: 1px solid color-mix(in oklab, var(--border-color) 78%, transparent);
-  background: color-mix(in oklab, var(--bg-tertiary) 88%, transparent);
-  color: var(--text-secondary);
-  border-radius: 999px;
-  padding: 0.34rem 0.7rem;
-  font-size: 0.82rem;
-  font-weight: 600;
+  height: 24px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+  background: var(--nb-tag-bg);
+  color: var(--nb-text-2);
+  font-size: var(--text-2xs);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .category-chip:hover {
-  border-color: color-mix(in oklab, var(--accent) 45%, var(--border-color));
-  color: var(--text-primary);
+  border-color: var(--nb-line);
+  color: var(--nb-text);
 }
 
 .category-chip.selected {
-  background: color-mix(in oklab, var(--accent) 18%, var(--bg-tertiary));
-  border-color: color-mix(in oklab, var(--accent) 40%, var(--border-color));
-  color: var(--text-primary);
+  background: color-mix(in oklab, var(--nb-blue) 16%, transparent);
+  color: var(--nb-blue);
 }
 
 .category-input-row {
   display: flex;
-  gap: 0.6rem;
+  gap: var(--sp-2);
 }
 
 .btn-category-add {
-  flex-shrink: 0;
-  border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--border-color));
-  background: color-mix(in oklab, var(--accent) 12%, var(--bg-secondary));
-  color: var(--text-primary);
-  border-radius: var(--radius-md);
-  padding: 0.55rem 0.85rem;
-  font-size: 0.88rem;
-  font-weight: 700;
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--nb-line);
+  background: var(--nb-bg);
+  color: var(--nb-text-2);
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
-.inline-input {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  font-size: 0.95rem;
-  transition: border-color 0.2s;
-}
-
-.inline-input:focus {
-  outline: none;
-  border-color: color-mix(in oklab, var(--success) 32%, transparent);
-  box-shadow: 0 0 0 2px var(--primary-ring);
-}
-
-.inline-date {
-  width: 160px;
-  flex-shrink: 0;
-}
-
-.inline-textarea {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  font-size: 0.95rem;
-  font-family: inherit;
-  resize: vertical;
-  transition: border-color 0.2s;
-}
-
-.inline-textarea:focus {
-  outline: none;
-  border-color: color-mix(in oklab, var(--success) 32%, transparent);
-  box-shadow: 0 0 0 2px var(--primary-ring);
+.btn-category-add:hover {
+  background: var(--nb-hover);
+  color: var(--nb-text);
 }
 
 .inline-section {
-  border-top: 1px solid var(--border-subtle);
-  padding-top: 0.5rem;
+  border-top: 1px solid var(--nb-line-soft);
+  padding-top: var(--sp-2);
 }
 
-.inline-actions {
+.section-toggle {
   display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.btn-save-icon {
-  padding: 0.4rem 1rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--success-solid);
-  color: var(--on-solid);
-  font-weight: 600;
-  font-size: 0.85rem;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--nb-text-2);
   cursor: pointer;
-  transition: all 0.2s;
+  user-select: none;
 }
 
-.btn-save-icon:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--elevation-2);
+.section-caret {
+  color: var(--nb-text-3);
+  font-size: 0.6875rem;
 }
 
-.btn-cancel-icon {
-  padding: 0.4rem 1rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--neutral-solid);
-  color: var(--on-solid);
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s;
+.section-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
 }
 
-.btn-cancel-icon:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--elevation-2);
-}
+.mb-2 { margin-bottom: var(--sp-2); }
+.mb-3 { margin-bottom: var(--sp-3); }
 
-/* 上傳區域 */
 .attachment-upload-item {
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 0.75rem;
-  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
 }
 
 .attachment-label {
-  display: block;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  color: var(--nb-text-3);
 }
-
-.attachment-drop-zone {
-  border: 2px dashed var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.attachment-drop-zone:hover {
-  border-color: color-mix(in oklab, var(--success) 32%, transparent);
-  background: var(--bg-surface);
-}
-
-.drop-icon { font-size: 1.2rem; }
-.drop-text { font-size: 0.9rem; color: var(--text-muted); }
 
 .attachment-preview {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--nb-line-soft);
+  background: var(--nb-hover);
 }
 
 .attachment-preview-content {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  flex: 1;
+  gap: var(--sp-2);
   min-width: 0;
 }
 
 .attachment-thumb {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   object-fit: cover;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
+  border-radius: var(--radius-xs);
 }
 
 .attachment-file-icon {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  background: var(--bg-inset);
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-xs);
+  background: var(--nb-tag-bg);
 }
 
 .attachment-info {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
   min-width: 0;
 }
 
 .attachment-name {
-  font-size: 0.85rem;
-  color: var(--text-primary);
-  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--nb-text);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .attachment-type-badge {
-  font-size: 0.7rem;
-  background: color-mix(in oklab, var(--success) 30%, transparent);
-  color: var(--text-secondary);
-  padding: 0.1rem 0.4rem;
-  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: 10px;
   text-transform: uppercase;
-  width: fit-content;
+  color: var(--nb-text-3);
 }
 
 .btn-remove-attachment {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
   border: none;
-  background: var(--danger-solid);
-  color: var(--on-solid);
-  font-size: 0.75rem;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--nb-text-3);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 .btn-remove-attachment:hover {
-  background: var(--danger-solid-hover);
+  background: var(--nb-active);
+  color: var(--nb-red);
+}
+
+.attachment-drop-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 52px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--nb-line);
+  color: var(--nb-text-3);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.attachment-drop-zone:hover {
+  border-color: var(--nb-blue);
+  color: var(--nb-blue);
+  background: var(--nb-hover);
 }
 
 .attachment-progress {
-  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
 }
 
 .progress-bar {
-  height: 5px;
-  background: var(--bg-inset);
-  border-radius: var(--radius-xs);
+  flex: 1;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--nb-line-soft);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: var(--success-solid);
-  border-radius: var(--radius-xs);
-  transition: width 0.3s;
+  background: var(--nb-blue);
+  transition: width var(--transition-normal);
 }
 
 .progress-text {
-  font-size: 0.75rem;
-  color: var(--success-text);
-  margin-top: 0.2rem;
-  display: block;
+  font-size: var(--text-2xs);
+  color: var(--nb-text-3);
 }
 
-/* Lightbox 預覽 */
+.inline-actions {
+  display: flex;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--nb-line-soft);
+}
+
+.btn-save-icon {
+  height: 32px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--nb-blue);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-save-icon:hover {
+  filter: brightness(1.08);
+}
+
+.btn-cancel-icon {
+  height: 32px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--nb-line);
+  background: transparent;
+  color: var(--nb-text-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.btn-cancel-icon:hover {
+  background: var(--nb-hover);
+  color: var(--nb-text);
+}
+
+/* ══════════ Lightbox ══════════ */
 .lightbox-overlay {
   position: fixed;
   inset: 0;
-  background: color-mix(in oklab, var(--overlay-scrim) 80%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 2rem;
+  z-index: var(--z-popover);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-6);
+  background: rgba(15, 15, 15, 0.8);
 }
 
 .lightbox-content {
   position: relative;
-  max-width: 90vw;
-  max-height: 90vh;
+  max-width: min(90vw, 1000px);
+  max-height: 88vh;
+}
+
+.lightbox-img {
+  max-width: 100%;
+  max-height: 88vh;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  display: block;
 }
 
 .lightbox-close {
@@ -2346,154 +2864,102 @@ useHead({
   right: -12px;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--elevation-2);
-  z-index: 1;
-}
-
-.lightbox-close:hover {
-  background: var(--bg-muted);
-}
-
-.lightbox-img {
-  max-width: 90vw;
-  max-height: 85vh;
-  object-fit: contain;
-  border-radius: var(--radius-md);
-  box-shadow: var(--elevation-3);
-}
-
-.section-toggle {
-  cursor: pointer;
-  user-select: none;
-  color: var(--text-secondary);
-  margin: 0 0 0.75rem 0;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.section-toggle:hover {
-  color: var(--text-primary);
-}
-
-.section-content {
-  margin-bottom: 0.5rem;
-}
-
-.mb-2 { margin-bottom: 0.5rem; }
-.mb-3 { margin-bottom: 0.75rem; }
-
-.btn-add-icon {
-  width: 36px;
-  height: 36px;
   border: none;
   border-radius: 50%;
-  background: var(--success-solid);
-  color: var(--on-solid);
-  font-size: 1.5rem;
-  font-weight: 300;
+  background: #fff;
+  color: #37352f;
+  font-size: 0.875rem;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
-  line-height: 1;
-  padding-bottom: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
 }
 
-.btn-add-icon:hover {
-  transform: translateY(-2px) scale(1.1);
-  box-shadow: var(--elevation-2);
-}
-
-.loading-state {
-  text-align: center;
-  padding: 4rem;
-  color: var(--text-secondary);
-}
-
-.spinner {
-  border: 4px solid var(--border-subtle);
-  border-top: 4px solid color-mix(in oklab, var(--success) 32%, transparent);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem;
-  color: var(--text-muted);
-  font-size: 1.1rem;
-  background: var(--bg-surface);
-  border-radius: var(--radius-lg);
-  grid-column: 1 / -1;
-}
-
-@media (max-width: 960px) {
-}
-
-@media (max-width: 720px) {
-  .summary-bar,
-  .summary-left,
-  .summary-right,
-  .actions-bar {
-    align-items: stretch;
+/* ══════════ 響應式 ══════════ */
+@media (max-width: 1024px) {
+  .note-page {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .summary-right,
-  .action-buttons {
-    width: 100%;
+  .nb-sidebar {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--sp-3);
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--nb-line-soft);
   }
 
-  .category-filter-select {
-    width: 100%;
+  .nb-section {
+    overflow: visible;
   }
 
-  .view-switcher {
-    width: 100%;
-    justify-content: space-between;
+  .nb-nav {
+    flex-direction: row;
   }
 
-  .view-chip {
-    flex: 1;
+  .nb-nav-item {
+    width: auto;
+    white-space: nowrap;
   }
 
-  .note-card--list {
-    grid-template-columns: 1fr;
+  .nb-section-title {
+    display: none;
   }
 
-  .note-card--list .note-actions {
-    grid-column: 1;
-    justify-self: end;
+  .nb-sidebar-foot {
+    flex-direction: row;
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .nb-main {
+    padding: var(--sp-4);
   }
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+@media (max-width: 768px) {
+  .table-head {
+    display: none;
   }
-  to {
+
+  .db-row,
+  .notes-container--list .db-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--sp-1);
+  }
+
+  .row-handle,
+  .row-open-hint {
+    display: none;
+  }
+
+  .row-tags,
+  .row-date,
+  .row-files {
+    grid-column: 1 / -1;
+  }
+
+  .row-tools {
     opacity: 1;
-    transform: translateY(0);
+  }
+
+  .note-actions {
+    opacity: 1;
+  }
+
+  .notes-container--gallery {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .db-row,
+  .btn-icon,
+  .nb-nav-item {
+    transition: none;
+  }
+
+  .spinner {
+    animation: none;
   }
 }
 </style>

@@ -1,8 +1,14 @@
 <template>
   <PageContainer>
     <div class="gallery-page">
-      <!-- 操作區 -->
-      <div class="actions-bar">
+      <!-- ══ Instagram 式頂欄 ══ -->
+      <header class="ig-topbar">
+        <div class="ig-brand">
+          <span class="ig-logo" aria-hidden="true">
+            <span class="ig-logo-dot"></span>
+          </span>
+          <h1 class="ig-wordmark">鋒兄圖片</h1>
+        </div>
         <div class="search-area">
           <RecentSearchInput
             v-model="searchQuery"
@@ -14,26 +20,44 @@
             @clear="clearRecentSearches"
           />
         </div>
-        <div class="action-buttons">
-          <div class="csv-actions">
-            <button v-if="images.length > 0" @click="exportImagesZip" class="btn-export">
-              <span class="icon">📤</span> 匯出 ZIP
-            </button>
-            <button @click="$refs.zipFileInput.click()" class="btn-import">
-              <span class="icon">📥</span> 匯入 ZIP
-            </button>
-            <input
-              ref="zipFileInput"
-              type="file"
-              accept=".zip"
-              style="display:none"
-              @change="handleImportZipWithProgress"
-            >
-          </div>
+        <div class="ig-tools">
+          <button class="ig-icon-btn ig-icon-btn--primary" title="新增圖片" @click="openInlineAdd">＋</button>
+          <button v-if="images.length > 0" @click="exportImagesZip" class="ig-icon-btn" title="匯出 ZIP">📤</button>
+          <button @click="$refs.zipFileInput.click()" class="ig-icon-btn" title="匯入 ZIP">📥</button>
+          <input
+            ref="zipFileInput"
+            type="file"
+            accept=".zip"
+            style="display:none"
+            @change="handleImportZipWithProgress"
+          >
         </div>
+      </header>
+
+      <!-- ══ 限時動態式分類列 ══ -->
+      <div v-if="categoryStories.length > 1" class="story-rail" role="tablist" aria-label="圖片分類">
+        <button
+          v-for="story in categoryStories"
+          :key="story.value"
+          type="button"
+          role="tab"
+          class="story"
+          :class="{ active: activeCategory === story.value }"
+          :aria-selected="activeCategory === story.value"
+          @click="activeCategory = story.value"
+        >
+          <span class="story-ring">
+            <span class="story-thumb">
+              <img v-if="story.cover" :src="resolveMediaUrl(story.cover)" :alt="story.label" loading="lazy" />
+              <span v-else class="story-initial">{{ story.label.slice(0, 1) }}</span>
+            </span>
+          </span>
+          <span class="story-label">{{ story.label }}</span>
+          <span class="story-count">{{ story.count }}</span>
+        </button>
       </div>
 
-      <!-- 摘要列 -->
+      <!-- 匯入 / 上傳進度 -->
       <div
         v-if="importProgress.active || importProgress.completed"
         class="import-progress-card"
@@ -82,21 +106,16 @@
         </div>
       </div>
 
-      <div class="summary-bar">
-        <div class="summary-left">
-          <button v-if="!batchMode && filteredImages.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
-          <button @click="openInlineAdd" class="btn-add-icon" title="新增">+</button>
-          <template v-if="batchMode">
-            <label class="select-all-label">
-              <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
-              <span>全選</span>
-            </label>
-            <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
-          </template>
-          <span>共 {{ images.length }} 個項目</span>
-          <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
+      <!-- ══ 個人檔案式統計列 ══ -->
+      <div class="ig-profile-bar">
+        <div class="ig-stats">
+          <span class="ig-stat"><strong>{{ images.length }}</strong> 張圖片</span>
+          <span class="ig-stat"><strong>{{ categoryStories.length - 1 }}</strong> 個分類</span>
+          <span class="ig-stat"><strong>{{ filteredImages.length }}</strong> 顯示中</span>
+          <span v-if="selectedIds.size > 0" class="ig-stat selected-count">已選 {{ selectedIds.size }} 項</span>
+          <span v-if="imageSizeLoading" class="size-loading">讀取大小中...</span>
         </div>
-        <div class="summary-right">
+        <div class="ig-profile-tools">
           <div class="view-switcher" role="group" aria-label="圖片顯示模式">
             <button
               v-for="option in viewOptions"
@@ -104,9 +123,11 @@
               type="button"
               class="view-chip"
               :class="{ active: viewMode === option.value }"
+              :title="option.label"
               @click="viewMode = option.value"
             >
-              {{ option.label }}
+              <span class="view-chip-icon" aria-hidden="true">{{ option.icon }}</span>
+              <span class="view-chip-text">{{ option.label }}</span>
             </button>
           </div>
           <label class="sort-control">
@@ -116,8 +137,15 @@
               <option value="size-desc">檔案大小：大到小</option>
             </select>
           </label>
-          <span v-if="imageSizeLoading" class="size-loading">讀取大小中...</span>
-          <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除選中 ({{ selectedIds.size }})</button>
+          <button v-if="!batchMode && filteredImages.length > 0" @click="enterBatchMode" class="btn-batch-mode">選取</button>
+          <template v-if="batchMode">
+            <label class="select-all-label">
+              <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
+              <span>全選</span>
+            </label>
+            <button @click="exitBatchMode" class="btn-cancel-batch">取消</button>
+          </template>
+          <button v-if="selectedIds.size > 0" class="btn-batch-delete" @click="deleteSelected" :disabled="loading">刪除 ({{ selectedIds.size }})</button>
         </div>
       </div>
 
@@ -200,10 +228,19 @@
         </div>
 
         <div v-if="filteredImages.length === 0 && !isAddingInline" class="empty-state">
+          <span class="empty-icon" aria-hidden="true">🖼</span>
           <p>沒有找到相關圖片</p>
         </div>
 
-        <div v-for="image in filteredImages" :key="image.id" class="image-card" :class="[{ 'card-editing': editingId === image.id }, imageCardModeClass(image.id)]">
+        <div
+          v-for="image in filteredImages"
+          :key="image.id"
+          class="image-card"
+          :class="[
+            { 'card-editing': editingId === image.id, 'is-selected': selectedIds.has(image.id) },
+            imageCardModeClass(image.id)
+          ]"
+        >
 
           <!-- 行內編輯模式 -->
           <template v-if="editingId === image.id">
@@ -215,11 +252,9 @@
               </div>
             </div>
             <div class="inline-add-form">
-              <!-- 圖片預覽 -->
               <div v-if="editForm.file" class="inline-img-preview-wrap">
                 <img :src="resolveMediaUrl(editForm.file)" class="inline-img-preview" alt="預覽" />
               </div>
-              <!-- 上傳圖片 -->
               <div class="inline-field-row">
                 <label>上傳圖片</label>
                 <label class="btn-inline-upload" :class="{ disabled: editUploading }">
@@ -228,7 +263,6 @@
                 </label>
                 <button v-if="editForm.file" type="button" class="btn-inline-remove" @click="editForm.file = ''" title="移除圖片">✕</button>
               </div>
-              <!-- 輸入 URL -->
               <div class="inline-field-row">
                 <label>或輸入URL</label>
                 <input v-model="editForm.file" type="text" class="inline-input" placeholder="https://..." />
@@ -248,56 +282,117 @@
             </div>
           </template>
 
-          <!-- 一般顯示模式 -->
-          <template v-else>
-            <div class="image-header">
-              <div class="image-meta">
-                <span v-if="image.category" class="category-badge">{{ image.category }}</span>
+          <!-- ══ 方格模式：Instagram 相片牆 ══ -->
+          <template v-else-if="viewMode === 'grid'">
+            <div class="tile" @click="batchMode ? toggleSelect(image.id) : openLightbox(image)">
+              <img
+                v-if="image.file"
+                :src="resolveMediaUrl(image.file)"
+                :alt="image.name || '圖片'"
+                class="tile-img"
+                loading="lazy"
+              />
+              <div v-else class="tile-empty"><span>🖼</span></div>
+              <input
+                v-if="batchMode"
+                type="checkbox"
+                class="tile-check"
+                :checked="selectedIds.has(image.id)"
+                @click.stop="toggleSelect(image.id)"
+              />
+              <div class="tile-overlay">
+                <p class="tile-name">{{ image.name || '無名稱' }}</p>
+                <p class="tile-sub">
+                  <span v-if="image.category">#{{ image.category }}</span>
+                  <span>{{ formatImageSize(image) }}</span>
+                </p>
+                <div class="tile-tools" @click.stop>
+                  <button class="btn-icon" title="編輯" @click="openInlineEdit(image)">✏️</button>
+                  <button class="btn-icon delete" title="刪除" @click="confirmDelete(image)">🗑️</button>
+                </div>
               </div>
+              <span v-if="image.filetype" class="tile-type">{{ image.filetype }}</span>
+            </div>
+          </template>
+
+          <!-- ══ 貼文模式：Instagram Feed ══ -->
+          <template v-else-if="viewMode === 'feed'">
+            <header class="post-head">
+              <span class="post-avatar" aria-hidden="true">鋒</span>
+              <div class="post-identity">
+                <strong class="post-author">鋒兄</strong>
+                <span class="post-place">{{ image.category ? '#' + image.category : '未分類' }}</span>
+              </div>
+              <input
+                v-if="batchMode"
+                type="checkbox"
+                class="post-check"
+                :checked="selectedIds.has(image.id)"
+                @click.stop="toggleSelect(image.id)"
+              />
               <div class="image-actions">
                 <button class="btn-icon" @click="openInlineEdit(image)" title="行內編輯">✏️</button>
                 <button class="btn-icon delete" @click="confirmDelete(image)" title="刪除">🗑️</button>
               </div>
+            </header>
+
+            <div class="post-media" @click="image.file && openLightbox(image)">
+              <img
+                v-if="image.file"
+                :src="resolveMediaUrl(image.file)"
+                :alt="image.name || '圖片'"
+                class="post-img"
+                loading="lazy"
+              />
+              <div v-else class="tile-empty post-empty"><span>🖼</span></div>
             </div>
 
-            <h3 class="image-name">{{ image.name || '無名稱' }}</h3>
-
-            <div class="image-details">
-              <div v-if="image.note" class="detail-row">
-                <span class="detail-label">備註:</span>
-                <p class="detail-value">{{ image.note }}</p>
-              </div>
-              <div v-if="image.file" class="card-image-wrapper">
-                <img
-                  :src="resolveMediaUrl(image.file)"
-                  :alt="image.name || '圖片'"
-                  class="card-image"
-                  @click="openLightbox(image)"
-                />
-              </div>
-              <div v-if="image.filetype" class="detail-row">
-                <span class="file-type-badge">{{ image.filetype }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">檔案大小:</span>
-                <p class="detail-value">{{ formatImageSize(image) }}</p>
-              </div>
+            <div class="post-actions">
+              <button class="post-action" title="放大檢視" :disabled="!image.file" @click="openLightbox(image)">🔍</button>
+              <button class="post-action" title="下載" :disabled="!image.file" @click="downloadImage(image)">⬇️</button>
+              <button class="post-action" title="複製網址" :disabled="!image.file" @click="copyImageUrl(image)">🔗</button>
+              <span class="post-spacer"></span>
+              <span v-if="image.filetype" class="file-type-badge">{{ image.filetype }}</span>
+              <span class="post-size">{{ formatImageSize(image) }}</span>
             </div>
 
-            <!-- 其他資訊 -->
-            <div class="image-extra" v-if="hasExtra(image)">
-              <div v-if="image.ref" class="extra-item">
-                <span class="extra-label">參考:</span>
-                <span class="extra-value">{{ image.ref }}</span>
+            <div class="post-caption">
+              <p class="post-title"><strong>鋒兄</strong> {{ image.name || '無名稱' }}</p>
+              <p v-if="image.note" class="post-note">{{ image.note }}</p>
+              <div v-if="hasExtra(image)" class="post-extra">
+                <span v-if="image.ref" class="extra-item"><span class="extra-label">參考</span>{{ image.ref }}</span>
+                <span v-if="image.hash" class="extra-item"><span class="extra-label">Hash</span><span class="hash-value">{{ image.hash }}</span></span>
+                <span v-if="image.cover" class="extra-item"><span class="extra-label">封面</span>{{ image.cover }}</span>
               </div>
-              <div v-if="image.hash" class="extra-item">
-                <span class="extra-label">Hash:</span>
-                <span class="extra-value hash-value">{{ image.hash }}</span>
+            </div>
+          </template>
+
+          <!-- ══ 列表模式 ══ -->
+          <template v-else>
+            <input
+              v-if="batchMode"
+              type="checkbox"
+              class="row-check"
+              :checked="selectedIds.has(image.id)"
+              @click.stop="toggleSelect(image.id)"
+            />
+            <div class="row-thumb" @click="image.file && openLightbox(image)">
+              <img v-if="image.file" :src="resolveMediaUrl(image.file)" :alt="image.name || '圖片'" loading="lazy" />
+              <span v-else class="row-thumb-empty">🖼</span>
+            </div>
+            <div class="row-copy">
+              <h3 class="image-name">{{ image.name || '無名稱' }}</h3>
+              <div class="row-meta">
+                <span v-if="image.category" class="category-badge">{{ image.category }}</span>
+                <span v-if="image.filetype" class="file-type-badge">{{ image.filetype }}</span>
+                <span class="row-size">{{ formatImageSize(image) }}</span>
               </div>
-              <div v-if="image.cover" class="extra-item">
-                <span class="extra-label">封面:</span>
-                <span class="extra-value">{{ image.cover }}</span>
-              </div>
+              <p v-if="image.note" class="row-note">{{ image.note }}</p>
+            </div>
+            <div class="image-actions">
+              <button class="btn-icon" :disabled="!image.file" @click="downloadImage(image)" title="下載">⬇️</button>
+              <button class="btn-icon" @click="openInlineEdit(image)" title="行內編輯">✏️</button>
+              <button class="btn-icon delete" @click="confirmDelete(image)" title="刪除">🗑️</button>
             </div>
           </template>
 
@@ -436,21 +531,38 @@
           ‹
         </button>
         <div class="lightbox-content">
-          <img
-            v-if="currentLightboxImage?.file"
-            :src="resolveMediaUrl(currentLightboxImage.file)"
-            :alt="currentLightboxImage.name || '圖片預覽'"
-            class="lightbox-image"
-          />
-          <div class="lightbox-meta">
-            <h3>{{ currentLightboxImage?.name || '無名稱' }}</h3>
-            <p v-if="currentLightboxImage?.category">{{ currentLightboxImage.category }}</p>
-            <p class="lightbox-counter">{{ lightboxIndex + 1 }} / {{ lightboxImages.length }}</p>
+          <div class="lightbox-stage">
+            <img
+              v-if="currentLightboxImage?.file"
+              :src="resolveMediaUrl(currentLightboxImage.file)"
+              :alt="currentLightboxImage.name || '圖片預覽'"
+              class="lightbox-image"
+            />
           </div>
-          <div class="lightbox-actions">
-            <button type="button" class="btn-lightbox" @click="downloadLightboxImage">下載</button>
-            <button type="button" class="btn-lightbox" @click="copyLightboxUrl">複製網址</button>
-          </div>
+          <aside class="lightbox-side">
+            <header class="lightbox-side-head">
+              <span class="post-avatar" aria-hidden="true">鋒</span>
+              <div class="post-identity">
+                <strong class="post-author">鋒兄</strong>
+                <span class="post-place">{{ currentLightboxImage?.category ? '#' + currentLightboxImage.category : '未分類' }}</span>
+              </div>
+            </header>
+            <div class="lightbox-meta">
+              <h3>{{ currentLightboxImage?.name || '無名稱' }}</h3>
+              <p v-if="currentLightboxImage?.note" class="lightbox-note">{{ currentLightboxImage.note }}</p>
+              <dl class="lightbox-facts">
+                <div v-if="currentLightboxImage?.filetype"><dt>類型</dt><dd>{{ currentLightboxImage.filetype }}</dd></div>
+                <div v-if="currentLightboxImage"><dt>大小</dt><dd>{{ formatImageSize(currentLightboxImage) }}</dd></div>
+                <div v-if="currentLightboxImage?.ref"><dt>參考</dt><dd>{{ currentLightboxImage.ref }}</dd></div>
+                <div v-if="currentLightboxImage?.hash"><dt>Hash</dt><dd class="hash-value">{{ currentLightboxImage.hash }}</dd></div>
+              </dl>
+              <p class="lightbox-counter">{{ lightboxIndex + 1 }} / {{ lightboxImages.length }}</p>
+            </div>
+            <div class="lightbox-actions">
+              <button type="button" class="btn-lightbox" @click="downloadLightboxImage">下載</button>
+              <button type="button" class="btn-lightbox" @click="copyLightboxUrl">複製網址</button>
+            </div>
+          </aside>
         </div>
         <button
           type="button"
@@ -500,7 +612,8 @@ const {
   removeRecentSearch,
   clearRecentSearches,
 } = useRecentSearchHistory('fengbro-gallery-search-history', searchQuery)
-const viewMode = ref('card')
+const viewMode = ref('grid')
+const activeCategory = ref('all')
 const sortMode = ref('created-desc')
 const imageSizeMap = ref({})
 const imageSizeLoading = ref(false)
@@ -595,9 +708,9 @@ const finishUploadStatus = ({ message, error = false }) => {
   })
 }
 const viewOptions = [
-  { value: 'hybrid', label: '混合' },
-  { value: 'card', label: '卡片' },
-  { value: 'list', label: '列表' }
+  { value: 'grid', label: '方格', icon: '▦' },
+  { value: 'feed', label: '貼文', icon: '▤' },
+  { value: 'list', label: '列表', icon: '☰' }
 ]
 
 // 燈箱狀態
@@ -807,6 +920,12 @@ onUnmounted(() => {
 const filteredImages = computed(() => {
   let result = images.value
 
+  if (activeCategory.value !== 'all') {
+    result = activeCategory.value === '__uncategorized__'
+      ? result.filter((image) => !image.category)
+      : result.filter((image) => image.category === activeCategory.value)
+  }
+
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(image =>
@@ -826,6 +945,72 @@ const filteredImages = computed(() => {
   return result
 })
 
+/** Instagram 限時動態式分類：以該分類第一張有圖的當封面 */
+const categoryStories = computed(() => {
+  const groups = new Map()
+  let uncategorized = []
+  images.value.forEach((image) => {
+    if (image.category) {
+      if (!groups.has(image.category)) groups.set(image.category, [])
+      groups.get(image.category).push(image)
+    } else {
+      uncategorized.push(image)
+    }
+  })
+  const stories = [{
+    value: 'all',
+    label: '全部',
+    count: images.value.length,
+    cover: images.value.find((image) => image.file)?.file || ''
+  }]
+  Array.from(groups.entries())
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+    .forEach(([label, items]) => {
+      stories.push({
+        value: label,
+        label,
+        count: items.length,
+        cover: items.find((image) => image.file)?.file || ''
+      })
+    })
+  if (uncategorized.length > 0) {
+    stories.push({
+      value: '__uncategorized__',
+      label: '未分類',
+      count: uncategorized.length,
+      cover: uncategorized.find((image) => image.file)?.file || ''
+    })
+  }
+  return stories
+})
+
+/** 貼文／列表列直接下載單張圖片 */
+const downloadImage = (image) => {
+  if (!image?.file) return
+  const link = document.createElement('a')
+  link.href = resolveMediaUrl(image.file)
+  link.download = image.name || 'image'
+  link.target = '_blank'
+  link.rel = 'noopener'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+/** 複製單張圖片網址 */
+const copyImageUrl = async (image) => {
+  if (!image?.file) return
+  try {
+    const url = resolveMediaUrl(image.file)
+    const fullUrl = /^https?:\/\//i.test(url) ? url : `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`
+    await navigator.clipboard.writeText(fullUrl)
+    alert('圖片網址已複製到剪貼簿！')
+  } catch (err) {
+    console.error('複製失敗:', err)
+    alert('複製失敗，請手動複製網址')
+  }
+}
+
 const {
   isSelectionMode: batchMode,
   selectedIds,
@@ -836,13 +1021,7 @@ const {
   toggleSelectAll
 } = useSelectionSet(filteredImages)
 
-const imageCardModeClass = (imageId) => {
-  if (viewMode.value === 'card') return 'image-card--card'
-  if (viewMode.value === 'list') return 'image-card--list'
-
-  const index = filteredImages.value.findIndex((image) => image.id === imageId)
-  return index >= 0 && index < 2 ? 'image-card--card' : 'image-card--list'
-}
+const imageCardModeClass = () => `image-card--${viewMode.value}`
 
 const resolveMediaUrl = (value) => {
   if (!value) return ''
@@ -1599,873 +1778,1006 @@ useHead({
 </script>
 
 <style scoped>
+/* ============================================================
+   鋒兄圖片 — Instagram 風格
+   · 限時動態式分類環、方格相片牆、貼文流、深色燈箱
+   · IG 漸層（琥珀→洋紅→紫）只用在「身分」與「主要動作」上
+   ============================================================ */
 .gallery-page {
-  animation: fadeIn 0.3s ease-in;
-}
+  --ig-bg: var(--bg-canvas);
+  --ig-surface: var(--bg-surface);
+  --ig-inset: var(--bg-muted);
+  --ig-line: var(--border-subtle);
+  --ig-text: var(--text-primary);
+  --ig-text-2: var(--text-secondary);
+  --ig-text-3: var(--text-muted);
+  --ig-blue: #0095f6;
+  --ig-blue-hover: #1877f2;
+  --ig-red: #ed4956;
+  --ig-gradient: linear-gradient(45deg, #f9ce34 0%, #ee2a7b 45%, #6228d7 100%);
+  --ig-tile-gap: 4px;
 
-.actions-bar {
-  margin-bottom: 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.action-buttons {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.summary-left,
-.summary-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.view-switcher {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
-}
-
-.view-chip {
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  padding: 0.45rem 0.9rem;
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 0.84rem;
-  font-weight: 700;
-  transition: all var(--transition-fast);
-}
-
-.view-chip.active {
-  background: var(--surface-strong, var(--neutral-solid));
-  color: var(--text-inverse, var(--text-inverse));
-}
-
-/* 燈箱預覽 */
-.lightbox-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in oklab, var(--text-primary) 88%, transparent);
-  padding: 1.5rem;
-  gap: 0.75rem;
-}
-
-.lightbox-content {
-  max-width: min(92vw, 1100px);
-  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
+  gap: var(--sp-4);
+  color: var(--ig-text);
+  font-family: var(--font-body);
 }
 
-.lightbox-image {
-  max-width: 100%;
-  max-height: min(82vh, 960px);
-  object-fit: contain;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--elevation-3);
-  background: linear-gradient(45deg, color-mix(in oklab, var(--text-primary) 20%, transparent) 25%, transparent 25%),
-    linear-gradient(-45deg, color-mix(in oklab, var(--text-primary) 20%, transparent) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, color-mix(in oklab, var(--text-primary) 20%, transparent) 75%),
-    linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--text-primary) 20%, transparent) 75%);
-  background-size: 18px 18px;
-  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
-  background-color: var(--neutral-solid);
+.dark .gallery-page {
+  --ig-bg: #000;
+  --ig-surface: #121212;
+  --ig-inset: #1c1c1e;
+  --ig-line: #2a2a2d;
+  --ig-text: #f5f5f7;
+  --ig-text-2: #b0b0b8;
+  --ig-text-3: #7a7a83;
 }
 
-.lightbox-meta {
-  text-align: center;
-  color: var(--on-solid);
-}
-
-.lightbox-meta h3 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
-.lightbox-meta p {
-  margin: 0.25rem 0 0;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
-.lightbox-counter {
-  opacity: 0.85;
-}
-
-.lightbox-actions {
+/* ══════════ 頂欄 ══════════ */
+.ig-topbar {
   display: flex;
-  gap: 0.6rem;
+  align-items: center;
+  gap: var(--sp-4);
   flex-wrap: wrap;
-  justify-content: center;
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--ig-line);
 }
 
-.btn-lightbox {
-  border: 1px solid color-mix(in oklab, var(--bg-surface) 25%, transparent);
-  background: color-mix(in oklab, var(--bg-surface) 10%, transparent);
-  color: var(--on-solid);
-  border-radius: 999px;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.btn-lightbox:hover {
-  background: color-mix(in oklab, var(--bg-surface) 20%, transparent);
-}
-
-.lightbox-close {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  width: 42px;
-  height: 42px;
-  border: none;
-  border-radius: 50%;
-  background: color-mix(in oklab, var(--bg-surface) 12%, transparent);
-  color: var(--on-solid);
-  font-size: 1.35rem;
-  cursor: pointer;
-}
-
-.lightbox-nav {
-  width: 48px;
-  height: 48px;
-  border: none;
-  border-radius: 50%;
-  background: color-mix(in oklab, var(--bg-surface) 12%, transparent);
-  color: var(--on-solid);
-  font-size: 1.8rem;
-  line-height: 1;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.lightbox-nav:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.lightbox-nav:not(:disabled):hover,
-.lightbox-close:hover {
-  background: color-mix(in oklab, var(--bg-surface) 22%, transparent);
-}
-
-@media (max-width: 768px) {
-  .lightbox-overlay {
-    flex-direction: column;
-    padding: 3.5rem 0.75rem 1rem;
-  }
-
-  .lightbox-nav {
-    position: absolute;
-    bottom: 1rem;
-  }
-
-  .lightbox-prev {
-    left: 1rem;
-  }
-
-  .lightbox-next {
-    right: 1rem;
-  }
-}
-
-.csv-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-export, .btn-import {
-  padding: 0.6rem 1rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  cursor: pointer;
-  font-size: 0.9rem;
+.ig-brand {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  transition: all 0.2s;
+  gap: var(--sp-3);
 }
 
-.btn-export:hover {
-  background: var(--success-light);
-  border-color: color-mix(in oklab, var(--success) 32%, transparent);
+.ig-logo {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: var(--ig-gradient);
+  display: grid;
+  place-items: center;
 }
 
-.btn-import:hover {
-  background: var(--warning-light);
-  border-color: color-mix(in oklab, var(--warning) 32%, transparent);
+.ig-logo::after {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  border: 2px solid #fff;
+}
+
+.ig-logo-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.ig-wordmark {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+  color: var(--ig-text);
 }
 
 .search-area {
-  flex: 1 1 320px;
-  min-width: 250px;
+  flex: 1 1 240px;
+  min-width: 200px;
 }
 
-.search-box {
-  width: 100%;
-  position: relative;
+.search-area :deep(input) {
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--ig-inset);
+  border: 1px solid transparent;
+  color: var(--ig-text);
+}
+
+.search-area :deep(input:focus) {
+  outline: none;
+  border-color: var(--ig-line);
+  background: var(--ig-surface);
+}
+
+.ig-tools {
   display: flex;
   align-items: center;
+  gap: var(--sp-2);
 }
 
-.search-box .icon {
-  position: absolute;
-  left: 12px;
-  color: var(--text-muted);
-}
-
-.search-input {
-  width: 100%;
-  padding: 0.75rem 0.75rem 0.75rem 2.5rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  font-size: 1rem;
-  transition: all 0.2s;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-}
-
-.images-container {
+.ig-icon-btn {
+  width: 36px;
+  height: 36px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1.5rem;
+  place-items: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ig-line);
+  background: var(--ig-surface);
+  color: var(--ig-text-2);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.images-container--card {
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+.ig-icon-btn:hover {
+  background: var(--ig-inset);
+  color: var(--ig-text);
 }
 
-.images-container--list {
-  grid-template-columns: 1fr;
+.ig-icon-btn--primary {
+  background: var(--ig-blue);
+  border-color: var(--ig-blue);
+  color: #fff;
+  font-size: 1.25rem;
+  line-height: 1;
 }
 
-.images-container--hybrid {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+.ig-icon-btn--primary:hover {
+  background: var(--ig-blue-hover);
+  color: #fff;
 }
 
-.image-card--editor {
-  grid-column: 1 / -1;
+/* ══════════ 限時動態分類列 ══════════ */
+.story-rail {
+  display: flex;
+  gap: var(--sp-4);
+  overflow-x: auto;
+  padding: var(--sp-1) var(--sp-1) var(--sp-3);
+  scrollbar-width: none;
 }
 
-.image-card {
-  background: color-mix(in oklab, var(--bg-secondary) 94%, transparent);
-  border-radius: 24px;
-  padding: 1.5rem;
-  box-shadow: var(--shadow-soft);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
-  border: 1px solid var(--border-color);
+.story-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.story {
+  flex: 0 0 auto;
+  width: 74px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  min-width: 0;
-}
-
-.image-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-  border-color: var(--border-strong);
-}
-
-.image-card--card {
-  min-height: 360px;
-}
-
-.image-card--card .card-image-wrapper {
-  aspect-ratio: 4 / 3;
-  min-height: 200px;
-  background:
-    linear-gradient(45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
-    linear-gradient(-45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%),
-    linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%);
-  background-size: 16px 16px;
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-  background-color: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
-}
-
-.image-card--card .card-image {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.images-container--hybrid .image-card--card {
-  grid-column: span 6;
-}
-
-.images-container--hybrid .image-card--list {
-  grid-column: 1 / -1;
-}
-
-.image-card--list {
-  display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 1rem 1.25rem;
-  align-items: start;
-}
-
-.image-card--list .image-header,
-.image-card--list .image-name,
-.image-card--list .image-details,
-.image-card--list .image-extra {
-  grid-column: 2;
-}
-
-.image-card--list .card-image-wrapper {
-  grid-column: 1;
-  grid-row: 1 / span 4;
-  margin-top: 0;
-  width: 100%;
-  max-width: 280px;
-  min-height: 180px;
-  display: flex;
   align-items: center;
-  justify-content: center;
-}
-
-.image-card--list .card-image {
-  aspect-ratio: 4 / 3;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
-}
-
-.image-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.category-badge {
-  font-size: 0.85rem;
-  color: var(--on-primary);
-  background: linear-gradient(135deg, var(--primary) 0%, color-mix(in oklab, var(--primary) 72%, black 28%) 100%);
-  padding: 0.3rem 0.8rem;
-  border-radius: var(--radius-lg);
-  font-weight: 500;
-}
-
-.image-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.btn-icon {
-  background: none;
+  gap: 4px;
   border: none;
+  background: none;
+  padding: 0;
   cursor: pointer;
-  font-size: 1.1rem;
-  padding: 0.25rem;
-  border-radius: var(--radius-xs);
-  opacity: 0.6;
-  transition: all 0.2s;
 }
 
-.btn-icon:hover {
-  opacity: 1;
-  background: var(--bg-muted);
+.story-ring {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  padding: 2px;
+  background: var(--ig-inset);
+  transition: transform var(--transition-fast);
 }
 
-.btn-icon.delete:hover {
-  background: var(--danger-light);
+.story.active .story-ring {
+  background: var(--ig-gradient);
 }
 
-.image-name {
-  font-size: 1.3rem;
+.story:hover .story-ring {
+  transform: scale(1.05);
+}
+
+.story-thumb {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--ig-surface);
+  border: 2px solid var(--ig-surface);
+}
+
+.story-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.story-initial {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: 700;
-  color: var(--text-primary, var(--text-primary));
-  margin: 0 0 0.75rem 0;
-  line-height: 1.4;
+  color: var(--ig-text-2);
+}
+
+.story-label {
+  font-size: var(--text-xs);
+  color: var(--ig-text);
+  max-width: 74px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.image-details {
-  flex: 1;
-  margin-bottom: 1rem;
-}
-
-.detail-row {
-  margin-bottom: 0.75rem;
-}
-
-.detail-label {
-  font-size: 0.85rem;
-  color: var(--text-secondary, var(--text-secondary));
-  font-weight: 500;
-  display: block;
-  margin-bottom: 0.25rem;
-}
-
-.detail-value {
-  color: var(--text-primary, var(--text-primary));
-  font-size: 0.95rem;
-  line-height: 1.5;
-  margin: 0;
-  word-break: break-all;
-}
-
-.card-image-wrapper {
-  margin-bottom: 0.75rem;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
-}
-
-.card-image {
-  width: 100%;
-  height: auto;
-  max-height: none;
-  object-fit: contain;
-  display: block;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.card-image:hover {
-  transform: scale(1.02);
-}
-
-.file-type-badge {
-  display: inline-block;
-  font-size: 0.75rem;
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--radius-xs);
-  text-transform: uppercase;
+.story.active .story-label {
   font-weight: 600;
 }
 
-.image-extra {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px dashed var(--border-subtle);
-  font-size: 0.85rem;
+.story-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ig-text-3);
 }
 
-.extra-item {
+/* ══════════ 個人檔案統計列 ══════════ */
+.ig-profile-bar {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
-}
-
-.extra-label {
-  color: var(--text-secondary);
-  font-weight: 500;
-  min-width: 50px;
-}
-
-.extra-value {
-  color: var(--text-primary);
-  word-break: break-all;
-}
-
-.hash-value {
-  font-family: monospace;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-/* Modal & Form Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: color-mix(in oklab, var(--overlay-scrim) 50%, transparent);
-  display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 1000;
-  padding: 1rem;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--ig-line);
+  border-bottom: 1px solid var(--ig-line);
 }
 
-.modal-content {
-  background: var(--bg-surface);
-  border-radius: var(--radius-lg);
+.ig-stats {
+  display: flex;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--ig-text-2);
+}
+
+.ig-stat strong {
+  color: var(--ig-text);
+  font-weight: 600;
+}
+
+.selected-count {
+  color: var(--ig-blue);
+}
+
+.size-loading {
+  font-size: var(--text-xs);
+  color: var(--ig-text-3);
+}
+
+.ig-profile-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.view-switcher {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--ig-inset);
+}
+
+.view-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: 28px;
+  padding: 0 var(--sp-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ig-text-3);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.view-chip:hover {
+  color: var(--ig-text);
+}
+
+.view-chip.active {
+  background: var(--ig-surface);
+  color: var(--ig-text);
+  font-weight: 600;
+  box-shadow: var(--elevation-1);
+}
+
+.view-chip-icon {
+  font-size: 0.75rem;
+}
+
+.sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--ig-text-3);
+}
+
+.sort-select {
+  height: 30px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ig-line);
+  background: var(--ig-surface);
+  color: var(--ig-text);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.btn-batch-mode,
+.btn-cancel-batch {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ig-line);
+  background: var(--ig-surface);
+  color: var(--ig-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.btn-batch-mode:hover,
+.btn-cancel-batch:hover {
+  background: var(--ig-inset);
+  color: var(--ig-text);
+}
+
+.select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--ig-text-2);
+  cursor: pointer;
+}
+
+.select-all-label input,
+.tile-check,
+.post-check,
+.row-check {
+  accent-color: var(--ig-blue);
+  cursor: pointer;
+}
+
+.btn-batch-delete {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--ig-red);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-batch-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ══════════ 進度卡 ══════════ */
+.import-progress-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--ig-line);
+  background: var(--ig-surface);
+}
+
+.import-progress-card.is-complete {
+  border-color: color-mix(in oklab, var(--success) 45%, transparent);
+}
+
+.import-progress-card.is-error {
+  border-color: color-mix(in oklab, var(--ig-red) 55%, transparent);
+}
+
+.import-progress-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.import-progress-label {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ig-text);
+}
+
+.import-progress-stage {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  color: var(--ig-text-3);
+}
+
+.import-progress-percent {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--ig-blue);
+}
+
+.import-progress-bar {
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--ig-inset);
+  overflow: hidden;
+}
+
+.import-progress-fill {
+  height: 100%;
+  background: var(--ig-gradient);
+  transition: width var(--transition-normal);
+}
+
+.import-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--text-xs);
+  color: var(--ig-text-3);
+}
+
+/* ══════════ 狀態 ══════════ */
+.loading-state,
+.empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-16) var(--sp-4);
+  color: var(--ig-text-3);
+}
+
+.empty-icon {
+  font-size: 2.5rem;
+  opacity: 0.45;
+}
+
+.spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid var(--ig-inset);
+  border-top-color: var(--ig-blue);
+  animation: igSpin 0.8s linear infinite;
+}
+
+@keyframes igSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ══════════ 容器版型 ══════════ */
+.images-container {
+  display: grid;
+}
+
+.images-container--grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--ig-tile-gap);
+}
+
+.images-container--feed {
+  grid-template-columns: minmax(0, 560px);
+  justify-content: center;
+  gap: var(--sp-6);
+}
+
+.images-container--list {
+  grid-template-columns: 1fr;
+  gap: var(--sp-2);
+}
+
+.image-card {
+  min-width: 0;
+}
+
+.image-card.is-selected {
+  outline: 2px solid var(--ig-blue);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ══════════ 方格模式 ══════════ */
+.tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: var(--ig-inset);
+  cursor: pointer;
+}
+
+.images-container--grid .image-card:first-child .tile,
+.images-container--grid .image-card:last-child .tile {
+  border-radius: 0;
+}
+
+.tile-img {
   width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: var(--elevation-3);
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform var(--duration-slow) var(--ease-out-expo);
+}
+
+.tile:hover .tile-img {
+  transform: scale(1.04);
+}
+
+.tile-empty {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 1.75rem;
+  opacity: 0.35;
+  background: var(--ig-inset);
+}
+
+.tile-check {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 18px;
+  height: 18px;
+  z-index: 2;
+}
+
+.tile-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: var(--sp-3);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.1) 60%, rgba(0, 0, 0, 0));
+  color: #fff;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.tile:hover .tile-overlay,
+.tile:focus-within .tile-overlay {
+  opacity: 1;
+}
+
+.tile-name {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile-sub {
+  display: flex;
+  gap: var(--sp-2);
+  margin: 0;
+  font-size: var(--text-2xs);
+  opacity: 0.85;
+}
+
+.tile-tools {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.tile-type {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+}
+
+/* ══════════ 貼文模式 ══════════ */
+.images-container--feed .image-card {
+  border: 1px solid var(--ig-line);
+  border-radius: var(--radius-lg);
+  background: var(--ig-surface);
+  overflow: hidden;
+}
+
+.post-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.post-avatar {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ig-gradient);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.post-identity {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-.modal-header {
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border-subtle);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.post-author {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ig-text);
 }
 
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.25rem;
+.post-place {
+  font-size: var(--text-2xs);
+  color: var(--ig-text-3);
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-secondary);
+.post-media {
+  background: #000;
+  cursor: zoom-in;
+  max-height: 620px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 }
 
-.modal-body {
-  padding: 1.5rem;
-  overflow-y: auto;
-}
-
-.modal-footer {
-  padding: 1.25rem 1.5rem;
-  border-top: 1px solid var(--border-subtle);
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.required {
-  color: var(--danger-text);
-}
-
-.form-input, .form-textarea {
+.post-img {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  font-size: 1rem;
-  transition: border-color 0.2s;
-}
-
-.form-input:focus, .form-textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-}
-
-.form-section {
-  margin-top: 1.5rem;
-  border-top: 1px solid var(--border-subtle);
-  padding-top: 1rem;
-}
-
-.section-toggle {
-  cursor: pointer;
-  user-select: none;
-  color: var(--text-secondary);
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.section-toggle:hover {
-  color: var(--text-primary);
-}
-
-.btn-primary {
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: opacity 0.2s;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-.btn-submit {
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-submit:disabled {
-  background: var(--bg-inset);
-  cursor: not-allowed;
-}
-
-.btn-cancel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.btn-cancel:hover {
-  background: var(--bg-surface);
-}
-
-.loading-state {
-  text-align: center;
-  padding: 4rem;
-  color: var(--text-secondary);
-}
-
-.spinner {
-  border: 4px solid var(--border-subtle);
-  border-top: 4px solid var(--primary);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem;
-  color: var(--text-muted);
-  font-size: 1.1rem;
-  background: var(--bg-surface);
-  border-radius: var(--radius-lg);
-  grid-column: 1 / -1;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Upload Area Styles */
-.upload-area {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-}
-
-.btn-upload {
-  padding: 0.75rem 1.5rem;
-  background: var(--warning-solid);
-  color: var(--on-solid);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 0.95rem;
-  font-weight: 500;
-  transition: all 0.3s;
-}
-
-.btn-upload:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--elevation-2);
-}
-
-.btn-upload:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.upload-progress {
-  font-size: 0.9rem;
-  color: var(--primary-text);
-  font-weight: 500;
-}
-
-.image-preview {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 0.75rem 0;
-  padding: 0.75rem;
-  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-}
-
-.preview-image {
-  max-width: min(100%, 320px);
-  max-height: 240px;
-  width: auto;
-  height: auto;
-  border-radius: var(--radius-sm);
+  max-height: 620px;
   object-fit: contain;
-  background: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
-  box-shadow: var(--elevation-1);
+  display: block;
 }
 
-.btn-remove {
-  padding: 0.5rem 1rem;
-  background: var(--danger-solid);
-  color: var(--on-solid);
+.post-empty {
+  aspect-ratio: 4 / 3;
+}
+
+.post-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4) 0;
+}
+
+.post-action {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
   border: none;
   border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  transition: all 0.3s;
-}
-
-.btn-remove:hover {
-  transform: scale(1.05);
-  box-shadow: var(--elevation-2);
-}
-
-.summary-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--success-light); border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.95rem; color: var(--text-secondary); flex-wrap: wrap; gap: 0.5rem; }
-.import-progress-card { margin-bottom: 1rem; padding: 1rem 1.1rem; border-radius: var(--radius-lg); border: 1px solid color-mix(in oklab, var(--primary) 18%, transparent); background: var(--primary-light); box-shadow: var(--elevation-1); }
-.import-progress-card.is-complete { border-color: color-mix(in oklab, var(--success) 25%, transparent); background: var(--success-light); }
-.import-progress-card.is-error { border-color: color-mix(in oklab, var(--danger) 25%, transparent); background: var(--danger-light); }
-.import-progress-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
-.import-progress-label { margin: 0; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary-text); }
-.import-progress-stage { margin: 0.2rem 0 0; font-size: 1rem; font-weight: 600; color: var(--text-primary); }
-.import-progress-percent { font-size: 1.2rem; font-weight: 800; color: var(--primary-text); white-space: nowrap; }
-.import-progress-bar { height: 10px; border-radius: 999px; background: color-mix(in oklab, var(--text-primary) 22%, transparent); overflow: hidden; }
-.import-progress-fill { height: 100%; border-radius: inherit; background: var(--primary-solid); transition: width 0.25s ease; }
-.import-progress-card.is-complete .import-progress-fill { background: var(--success-solid); }
-.import-progress-card.is-error .import-progress-fill { background: var(--danger-solid); }
-.import-progress-meta { margin-top: 0.75rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: 0.9rem; color: var(--text-secondary); }
-.summary-left, .summary-right { display: flex; align-items: center; gap: 1rem; }
-.sort-control { display: inline-flex; align-items: center; gap: 0.45rem; color: var(--text-secondary); font-size: 0.88rem; font-weight: 600; }
-.sort-select { min-height: 34px; border: 1px solid color-mix(in oklab, var(--primary) 32%, transparent); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary); padding: 0.35rem 0.55rem; font-size: 0.88rem; }
-.size-loading { color: var(--primary-text); font-size: 0.84rem; font-weight: 700; white-space: nowrap; }
-.select-all-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500; }
-.select-all-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-.selected-count { background: var(--primary-solid); color: var(--on-primary); padding: 0.25rem 0.75rem; border-radius: var(--radius-lg); font-size: 0.85rem; font-weight: 600; }
-.btn-batch-mode { padding: 0.5rem 1rem; background: var(--primary-solid); color: var(--on-primary); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
-.btn-batch-mode:hover { transform: translateY(-2px); box-shadow: var(--elevation-2); }
-.btn-add-icon { width: 36px; height: 36px; border: none; border-radius: 50%; background: var(--success-solid); color: var(--on-solid); font-size: 1.5rem; font-weight: 300; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; line-height: 1; padding-bottom: 4px; }
-.btn-add-icon:hover { transform: translateY(-2px) scale(1.1); box-shadow: var(--elevation-2); }
-.btn-cancel-batch { padding: 0.35rem 0.75rem; background: var(--bg-inset); color: var(--text-secondary); border: none; border-radius: var(--radius-xs); cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
-.btn-cancel-batch:hover { background: var(--border-strong); }
-.btn-batch-delete { padding: 0.5rem 1rem; background: var(--danger-solid); color: var(--on-solid); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
-.btn-batch-delete:hover { transform: translateY(-2px); box-shadow: var(--elevation-2); }
-.btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* 行內新增 / 行內編輯 */
-.card-editing {
-  border-left-color: var(--warning);
-  box-shadow: var(--elevation-1);
-}
-
-.inline-input {
-  width: 100%;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xs);
-  font-size: 0.9rem;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
-}
-
-.inline-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px var(--primary-ring);
-}
-
-.inline-name {
-  flex: 1;
-  font-weight: 600;
+  background: transparent;
+  color: var(--ig-text);
   font-size: 1rem;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.post-action:hover:not(:disabled) {
+  background: var(--ig-inset);
+  transform: scale(1.06);
+}
+
+.post-action:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.post-spacer {
+  flex: 1;
+}
+
+.post-size {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--ig-text-3);
+}
+
+.post-caption {
+  padding: var(--sp-2) var(--sp-4) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.post-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ig-text);
+}
+
+.post-title strong {
+  font-weight: 600;
+  margin-right: var(--sp-2);
+}
+
+.post-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--ig-text-2);
+  white-space: pre-wrap;
+}
+
+.post-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--ig-line);
+}
+
+.extra-item {
+  display: flex;
+  gap: var(--sp-2);
+  font-size: var(--text-2xs);
+  color: var(--ig-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.extra-label {
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ig-text-3);
+}
+
+.hash-value {
+  font-family: var(--font-mono);
+}
+
+/* ══════════ 列表模式 ══════════ */
+.images-container--list .image-card:not(.card-editing) {
+  display: grid;
+  grid-template-columns: auto 84px 1fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--ig-line);
+  border-radius: var(--radius-md);
+  background: var(--ig-surface);
+  transition: background var(--transition-fast);
+}
+
+.images-container--list .image-card:not(.card-editing):hover {
+  background: var(--ig-inset);
+}
+
+.row-thumb {
+  width: 84px;
+  height: 60px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--ig-inset);
+  display: grid;
+  place-items: center;
+  cursor: zoom-in;
+}
+
+.row-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.row-thumb-empty {
+  opacity: 0.4;
+}
+
+.row-copy {
+  min-width: 0;
+}
+
+.image-name {
+  margin: 0 0 2px;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--ig-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.row-size {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--ig-text-3);
+}
+
+.row-note {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  color: var(--ig-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-badge {
+  font-size: var(--text-2xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklab, var(--ig-blue) 14%, transparent);
+  color: var(--ig-blue);
+}
+
+.file-type-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--ig-inset);
+  color: var(--ig-text-2);
+}
+
+.image-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.btn-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.images-container--feed .btn-icon,
+.images-container--list .btn-icon,
+.image-card--editor .btn-icon {
+  background: transparent;
+  color: var(--ig-text-2);
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: var(--ig-inset);
+  color: var(--ig-text);
+}
+
+.tile-tools .btn-icon:hover {
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+}
+
+.btn-icon:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-icon.delete:hover {
+  color: var(--ig-red);
+}
+
+.btn-icon.save:hover {
+  color: var(--ig-blue);
+}
+
+/* ══════════ 行內編輯 ══════════ */
+.image-card.card-editing {
+  grid-column: 1 / -1;
+  border: 1px solid var(--ig-line);
+  border-radius: var(--radius-lg);
+  background: var(--ig-surface);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.image-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
 }
 
 .inline-add-form {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  gap: var(--sp-3);
 }
 
 .inline-field-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
 }
 
-.inline-field-row label {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  min-width: 60px;
-  flex-shrink: 0;
+.inline-field-row > label {
+  flex: 0 0 84px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ig-text-3);
+}
+
+.inline-input {
+  flex: 1;
+  min-width: 160px;
+  height: 34px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ig-line);
+  background: var(--ig-inset);
+  color: var(--ig-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+
+.inline-input:focus {
+  outline: none;
+  border-color: var(--ig-blue);
+  background: var(--ig-surface);
+}
+
+.inline-name {
+  font-size: var(--text-md);
+  font-weight: 600;
 }
 
 .btn-inline-upload {
-  display: inline-block;
-  padding: 0.3rem 0.75rem;
-  background: var(--warning-solid);
-  color: var(--on-solid);
-  border-radius: var(--radius-xs);
-  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--ig-line);
+  color: var(--ig-text-2);
+  font-size: var(--text-xs);
   cursor: pointer;
-  transition: opacity 0.2s;
-  white-space: nowrap;
-  font-weight: 600;
+}
+
+.btn-inline-upload:hover {
+  border-color: var(--ig-blue);
+  color: var(--ig-blue);
 }
 
 .btn-inline-upload.disabled {
@@ -2473,180 +2785,578 @@ useHead({
   cursor: not-allowed;
 }
 
+.inline-file-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--text-xs);
+  color: var(--ig-text-2);
+}
+
 .btn-inline-remove {
-  background: none;
-  border: 1px solid var(--danger);
-  color: var(--danger-text);
-  border-radius: var(--radius-xs);
-  font-size: 0.8rem;
-  padding: 0.2rem 0.5rem;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ig-inset);
+  color: var(--ig-text-2);
+  font-size: 0.6875rem;
   cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s;
 }
 
 .btn-inline-remove:hover {
-  background: var(--danger-light);
+  background: var(--ig-red);
+  color: #fff;
 }
 
 .inline-selected-files {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--sp-2);
 }
 
 .selected-file-card {
   position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  background: color-mix(in oklab, var(--bg-secondary) 94%, transparent);
-  min-width: 0;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ig-line);
+  background: var(--ig-inset);
 }
 
 .selected-file-thumb {
-  aspect-ratio: 4 / 3;
-  border-radius: var(--radius-md);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
-  background:
-    linear-gradient(45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
-    linear-gradient(-45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%),
-    linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%);
-  background-size: 14px 14px;
-  background-position: 0 0, 0 7px, 7px -7px, -7px 0;
-  background-color: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex: 0 0 auto;
 }
 
 .selected-file-img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  display: block;
+  object-fit: cover;
 }
 
 .selected-file-meta {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-  padding-right: 1.5rem;
 }
 
 .selected-file-name {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-primary, var(--text-primary));
+  font-size: var(--text-xs);
+  color: var(--ig-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .selected-file-size {
-  font-size: 0.72rem;
-  color: var(--text-secondary, var(--text-secondary));
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ig-text-3);
 }
 
 .selected-file-remove {
-  position: absolute;
-  top: 0.55rem;
-  right: 0.55rem;
-  background: color-mix(in oklab, var(--bg-secondary) 88%, transparent);
+  margin-left: auto;
 }
 
 .inline-img-preview-wrap {
-  width: 100%;
   border-radius: var(--radius-md);
   overflow: hidden;
-  background:
-    linear-gradient(45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
-    linear-gradient(-45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%),
-    linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%);
-  background-size: 16px 16px;
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-  background-color: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
-  margin-bottom: 0.35rem;
-  border: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 180px;
+  background: var(--ig-inset);
+  max-height: 320px;
+  display: grid;
+  place-items: center;
 }
 
 .inline-img-preview {
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+}
+
+/* ══════════ Modal ══════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(3px);
+}
+
+.modal-content {
+  width: min(560px, 100%);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  background: var(--ig-surface);
+  border: 1px solid var(--ig-line);
+  box-shadow: var(--elevation-3);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--ig-line);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--ig-text);
+}
+
+.btn-close {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ig-text-2);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.btn-close:hover {
+  background: var(--ig-inset);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  overflow-y: auto;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.form-group label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--ig-text-3);
+}
+
+.required {
+  color: var(--ig-red);
+}
+
+.form-input,
+.form-textarea {
   width: 100%;
-  max-height: min(48vh, 360px);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ig-line);
+  background: var(--ig-inset);
+  color: var(--ig-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--ig-blue);
+  background: var(--ig-surface);
+}
+
+.form-textarea {
+  resize: vertical;
+}
+
+.upload-area {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.btn-upload {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--ig-line);
+  background: transparent;
+  color: var(--ig-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.btn-upload:hover:not(:disabled) {
+  border-color: var(--ig-blue);
+  color: var(--ig-blue);
+}
+
+.btn-upload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-progress {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ig-blue);
+}
+
+.image-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.preview-image {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ig-line);
+}
+
+.btn-remove {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ig-line);
+  background: transparent;
+  color: var(--ig-text-2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.btn-remove:hover {
+  color: var(--ig-red);
+  border-color: var(--ig-red);
+}
+
+.form-section {
+  border-top: 1px solid var(--ig-line);
+  padding-top: var(--sp-3);
+}
+
+.section-toggle {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ig-text-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-top: 1px solid var(--ig-line);
+}
+
+.btn-cancel {
+  height: 34px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ig-line);
+  background: transparent;
+  color: var(--ig-text-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  background: var(--ig-inset);
+  color: var(--ig-text);
+}
+
+.btn-submit {
+  height: 34px;
+  padding: 0 var(--sp-5);
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--ig-blue);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background: var(--ig-blue-hover);
+}
+
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ══════════ 燈箱 ══════════ */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-popover);
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.92);
+  padding: var(--sp-4);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: var(--sp-4);
+  right: var(--sp-4);
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.lightbox-nav {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  justify-self: center;
+}
+
+.lightbox-nav:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.lightbox-nav:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.lightbox-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  max-height: 86vh;
+  height: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #121212;
+  border: 1px solid #2a2a2d;
+}
+
+.lightbox-stage {
+  display: grid;
+  place-items: center;
+  background: #000;
+  overflow: hidden;
+}
+
+.lightbox-image {
+  max-width: 100%;
+  max-height: 86vh;
   object-fit: contain;
   display: block;
+}
+
+.lightbox-side {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #2a2a2d;
+  color: #f5f5f7;
+  overflow: hidden;
+}
+
+.lightbox-side-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid #2a2a2d;
+}
+
+.lightbox-side-head .post-author {
+  color: #f5f5f7;
+}
+
+.lightbox-side-head .post-place {
+  color: #8a8a93;
+}
+
+.lightbox-meta {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-4);
+}
+
+.lightbox-meta h3 {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.lightbox-note {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: #b0b0b8;
+  white-space: pre-wrap;
+}
+
+.lightbox-facts {
+  margin: 0 0 var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.lightbox-facts > div {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: var(--sp-2);
+  font-size: var(--text-xs);
+}
+
+.lightbox-facts dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7a7a83;
+}
+
+.lightbox-facts dd {
+  margin: 0;
+  color: #d8d8de;
+  overflow-wrap: anywhere;
+}
+
+.lightbox-counter {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: #7a7a83;
+}
+
+.lightbox-actions {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid #2a2a2d;
+}
+
+.btn-lightbox {
+  flex: 1;
+  height: 34px;
   border-radius: var(--radius-sm);
+  border: 1px solid #2a2a2d;
+  background: #1c1c1e;
+  color: #f5f5f7;
+  font-size: var(--text-sm);
+  cursor: pointer;
 }
 
-.btn-icon.save:hover {
-  background: var(--success-light);
+.btn-lightbox:hover {
+  background: var(--ig-blue);
+  border-color: var(--ig-blue);
 }
 
-@media (max-width: 960px) {
-  .images-container--card {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+/* ══════════ 響應式 ══════════ */
+@media (max-width: 900px) {
+  .lightbox-content {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
-  .images-container--hybrid {
-    grid-template-columns: 1fr;
+  .lightbox-side {
+    border-left: none;
+    border-top: 1px solid #2a2a2d;
+    max-height: 40vh;
+  }
+}
+
+@media (max-width: 768px) {
+  .ig-topbar {
+    gap: var(--sp-3);
   }
 
-  .images-container--hybrid .image-card--card,
-  .images-container--hybrid .image-card--list {
+  .images-container--grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+  }
+
+  .images-container--feed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .images-container--list .image-card:not(.card-editing) {
+    grid-template-columns: auto 64px 1fr;
+    grid-template-areas: none;
+  }
+
+  .images-container--list .image-actions {
     grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .row-thumb {
+    width: 64px;
+    height: 48px;
+  }
+
+  .tile-overlay {
+    opacity: 1;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0) 55%);
+  }
+
+  .tile-tools {
+    display: none;
+  }
+
+  .lightbox-overlay {
+    grid-template-columns: 40px 1fr 40px;
+    padding: var(--sp-2);
   }
 }
 
-@media (max-width: 720px) {
-  .images-container--card {
-    grid-template-columns: 1fr;
+@media (prefers-reduced-motion: reduce) {
+  .tile-img,
+  .story-ring,
+  .post-action {
+    transition: none;
   }
 
-  .selected-file-thumb {
-    min-height: 140px;
-  }
-
-  .inline-img-preview {
-    max-height: min(42vh, 280px);
-  }
-
-  .summary-right,
-  .csv-actions,
-  .action-buttons {
-    width: 100%;
-  }
-
-  .view-switcher {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .view-chip {
-    flex: 1;
-  }
-
-  .image-card--list {
-    grid-template-columns: 1fr;
-  }
-
-  .image-card--list .image-header,
-  .image-card--list .image-name,
-  .image-card--list .image-details,
-  .image-card--list .image-extra,
-  .image-card--list .card-image-wrapper {
-    grid-column: 1;
-    grid-row: auto;
+  .spinner {
+    animation: none;
   }
 }
 </style>

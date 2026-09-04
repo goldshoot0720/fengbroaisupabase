@@ -37,81 +37,93 @@ defineEmits(['click'])
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--sp-2);
   border: none;
-  border-radius: 12px;
-  font-weight: 600;
+  border-radius: var(--control-radius);
+  font-weight: 500;
+  letter-spacing: -0.005em;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 只換顏色，不位移：按鈕不該在游標下跳動 */
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast);
   white-space: nowrap;
 }
 
-.base-button:hover:not(.disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
 .base-button:active:not(.disabled) {
-  transform: translateY(0);
+  transform: scale(0.985);
 }
 
-/* 尺寸 */
-.base-button.sm { padding: 0.5rem 1rem; font-size: 0.875rem; }
-.base-button.md { padding: 0.75rem 1.5rem; font-size: 1rem; }
-.base-button.lg { padding: 1rem 2rem; font-size: 1.125rem; }
+/* 尺寸：只有三種高度 30 / 36 / 44 */
+.base-button.sm { height: var(--control-h-sm); padding: 0 var(--sp-3); font-size: var(--text-xs); border-radius: var(--radius-sm); }
+.base-button.md { height: var(--control-h); padding: 0 var(--sp-4); font-size: var(--text-sm); }
+.base-button.lg { height: var(--control-h-lg); padding: 0 var(--sp-5); font-size: var(--text-md); }
 
-/* 變體 */
+/* 變體：實色填滿，不用漸層。層級靠明度差，不靠光暈。
+   綠色塊配深字（--on-primary），語意色塊配近白字（--on-solid）。 */
 .base-button.primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
 }
 .base-button.primary:hover:not(.disabled) {
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+  background: var(--primary-solid-hover);
 }
 
+/* secondary 是「安靜的預設」：紙面 + 髮絲線 */
 .base-button.secondary {
-  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-  color: white;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.base-button.secondary:hover:not(.disabled) {
+  background: var(--bg-muted);
 }
 
 .base-button.success {
-  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
 }
 .base-button.success:hover:not(.disabled) {
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+  background: var(--success-solid-hover);
 }
 
 .base-button.warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: white;
+  background: var(--warning-solid);
+  color: var(--on-solid);
+}
+.base-button.warning:hover:not(.disabled) {
+  background: var(--warning-solid-hover);
 }
 
 .base-button.danger {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
 }
 .base-button.danger:hover:not(.disabled) {
-  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+  background: var(--danger-solid-hover);
 }
 
 .base-button.ghost {
   background: transparent;
-  color: var(--text-primary, #2c3e50);
+  color: var(--text-secondary);
 }
 .base-button.ghost:hover:not(.disabled) {
-  background: var(--bg-tertiary, #f8f9fa);
+  background: var(--surface-hover);
+  color: var(--text-primary);
   box-shadow: none;
 }
 
+/* 邊框保持 2px 佔位（尺寸不變），描邊改用 1px inset 髮絲線 */
 .base-button.outline {
   background: transparent;
-  border: 2px solid #3b82f6;
-  color: #3b82f6;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 60%, transparent);
+  color: var(--primary-text);
 }
 .base-button.outline:hover:not(.disabled) {
-  background: #3b82f6;
-  color: white;
+  background: var(--primary-muted);
+  color: var(--primary-text);
 }
 
 /* 狀態 */
@@ -138,18 +150,15 @@ defineEmits(['click'])
 }
 
 .button-icon {
-  font-size: 1.1em;
+  font-size: 1.05em;
+  line-height: 1;
 }
 
-/* 暗黑模式 */
-:global(.dark) .base-button.ghost {
-  color: var(--text-primary, #f1f5f9);
+/* 暗黑模式：變體本身已全部走 token，只需微調中性面 */
+:global(.dark) .base-button.secondary {
+  background: var(--bg-muted);
 }
-:global(.dark) .base-button.ghost:hover:not(.disabled) {
-  background: rgba(255, 255, 255, 0.1);
-}
-:global(.dark) .base-button.outline {
-  border-color: #60a5fa;
-  color: #60a5fa;
+:global(.dark) .base-button.secondary:hover:not(.disabled) {
+  background: var(--bg-elevated);
 }
 </style>

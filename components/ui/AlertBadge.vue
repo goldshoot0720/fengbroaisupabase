@@ -25,86 +25,46 @@ defineProps({
 .alert-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  border-radius: 20px;
-  font-weight: 600;
+  gap: var(--sp-1);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
   white-space: nowrap;
+  --alert-tone: var(--info);
+  --alert-ink: var(--info-text);
+  background: color-mix(in oklab, var(--alert-tone) 14%, transparent);
+  color: var(--alert-ink);
+  border-left: 3px solid var(--alert-tone);
 }
 
-/* 尺寸 */
+/* 尺寸：高度固定，跟 Badge 對齊 */
 .alert-badge.sm {
-  padding: 0.15rem 0.5rem;
-  font-size: 0.7rem;
+  height: 18px;
+  padding: 0 var(--sp-2);
+  font-size: var(--text-2xs);
 }
 
 .alert-badge.md {
-  padding: 0.2rem 0.6rem;
-  font-size: 0.75rem;
+  height: 22px;
+  padding: 0 9px;
+  font-size: var(--text-xs);
 }
 
 .alert-badge.lg {
-  padding: 0.3rem 0.8rem;
-  font-size: 0.85rem;
+  height: 26px;
+  padding: 0 var(--sp-3);
+  font-size: var(--text-sm);
 }
 
-/* 變體 */
-.alert-badge.info {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-  border-left: 3px solid #3b82f6;
-}
-
-.alert-badge.success {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border-left: 3px solid #10b981;
-}
-
-.alert-badge.warning {
-  background: rgba(243, 156, 18, 0.1);
-  color: #f39c12;
-  border-left: 3px solid #f39c12;
-}
-
-.alert-badge.critical {
-  background: rgba(231, 76, 60, 0.1);
-  color: #e74c3c;
-  border-left: 3px solid #e74c3c;
-}
-
-.alert-badge.neutral {
-  background: rgba(107, 114, 128, 0.1);
-  color: #6b7280;
-  border-left: 3px solid #6b7280;
-}
+/* 變體：只換色相，其餘由上面的 --alert-tone 統一推導 */
+.alert-badge.info { --alert-tone: var(--info); --alert-ink: var(--info-text); }
+.alert-badge.success { --alert-tone: var(--success); --alert-ink: var(--success-text); }
+.alert-badge.warning { --alert-tone: var(--warning); --alert-ink: var(--warning-text); }
+.alert-badge.critical { --alert-tone: var(--danger); --alert-ink: var(--danger-text); }
+.alert-badge.neutral { --alert-tone: var(--text-muted); --alert-ink: var(--text-secondary); }
 
 .badge-icon {
   font-size: 0.9em;
 }
 
-/* 暗黑模式 */
-:global(.dark) .alert-badge.info {
-  background: rgba(96, 165, 250, 0.2);
-  color: #60a5fa;
-}
-
-:global(.dark) .alert-badge.success {
-  background: rgba(52, 211, 153, 0.2);
-  color: #34d399;
-}
-
-:global(.dark) .alert-badge.warning {
-  background: rgba(251, 191, 36, 0.2);
-  color: #fbbf24;
-}
-
-:global(.dark) .alert-badge.critical {
-  background: rgba(248, 113, 113, 0.2);
-  color: #f87171;
-}
-
-:global(.dark) .alert-badge.neutral {
-  background: rgba(148, 163, 184, 0.2);
-  color: #94a3b8;
-}
+/* 暗黑模式由 token 自動翻轉 */
 </style>

@@ -297,7 +297,7 @@ const onPickAll = (event) => {
   padding: 0.2rem 0;
 }
 
-.is-ok { color: #059669; }
+.is-ok { color: var(--success-text); }
 .is-skipped { color: var(--text-muted); }
-.is-error { color: #dc2626; }
+.is-error { color: var(--danger-text); }
 </style>

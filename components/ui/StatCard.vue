@@ -52,83 +52,68 @@ const formattedValue = computed(() => {
 
 <style scoped>
 .stat-card {
-  background: var(--bg-secondary, #ffffff);
-  padding: 2rem;
-  border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--bg-surface);
+  padding: var(--sp-4);
+  border-radius: var(--card-radius);
+  box-shadow: none;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  border: 1px solid var(--border-color, #e1e8ed);
+  gap: var(--sp-3);
+  border: 1px solid var(--border-subtle);
 }
 
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--card-color-start), var(--card-color-end));
-}
+/* 頂部漸層條移除：語意色改由圖示磚承載，卡片保持安靜 */
 
 .stat-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 40px var(--card-shadow);
+  border-color: var(--border-strong);
+  box-shadow: var(--elevation-2);
 }
 
 .stat-card.clickable {
   cursor: pointer;
 }
 
-/* 變體顏色 */
+/* 變體：只給一個色相，磚體用淡染、字用實色 */
 .stat-card.default {
-  --card-color-start: #6b7280;
-  --card-color-end: #4b5563;
-  --card-shadow: rgba(107, 114, 128, 0.3);
+  --card-tone: var(--text-secondary);
 }
 
 .stat-card.primary {
-  --card-color-start: #3b82f6;
-  --card-color-end: #1d4ed8;
-  --card-shadow: rgba(59, 130, 246, 0.3);
+  --card-tone: var(--primary);
 }
 
 .stat-card.success {
-  --card-color-start: #10b981;
-  --card-color-end: #047857;
-  --card-shadow: rgba(16, 185, 129, 0.3);
+  --card-tone: var(--success);
 }
 
 .stat-card.warning {
-  --card-color-start: #f59e0b;
-  --card-color-end: #d97706;
-  --card-shadow: rgba(245, 158, 11, 0.3);
+  --card-tone: var(--warning);
 }
 
 .stat-card.danger {
-  --card-color-start: #ef4444;
-  --card-color-end: #dc2626;
-  --card-shadow: rgba(239, 68, 68, 0.3);
+  --card-tone: var(--danger);
 }
 
 .stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--card-color-start), var(--card-color-end));
+  background: color-mix(in oklab, var(--card-tone) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--card-tone) 22%, transparent);
   flex-shrink: 0;
 }
 
 .stat-icon .icon {
-  font-size: 1.8rem;
-  color: white;
+  font-size: var(--text-xl);
+  color: var(--card-tone);
 }
 
 .stat-content {
@@ -136,99 +121,76 @@ const formattedValue = computed(() => {
   text-align: left;
 }
 
+/* 標題退成小字標籤，讓數字成為唯一的視覺重點 */
 .stat-title {
-  color: var(--text-primary, #2c3e50);
-  margin-bottom: 0.5rem;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-bottom: var(--sp-1);
+  font-size: var(--text-2xs);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-label);
 }
 
 .stat-number {
-  font-size: 2.2rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--card-color-start), var(--card-color-end));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 0.25rem;
-  line-height: 1;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  line-height: 1.1;
 }
 
 .stat-label {
-  color: var(--text-secondary, #666);
-  font-size: 0.85rem;
-  font-weight: 500;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
 }
 
 .stat-alert {
-  margin-top: 0.5rem;
+  margin-top: var(--sp-2);
 }
 
 .stat-trend {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--bg-muted);
   flex-shrink: 0;
 }
 
 .trend-icon {
-  font-size: 1.2rem;
-  color: var(--text-secondary, #666);
+  font-size: var(--text-md);
+  color: var(--text-muted);
 }
 
-/* 暗黑模式 */
+/* 暗黑模式：卡面走 token，深色下不再用漸層底 */
 :global(.dark) .stat-card {
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-  border-color: #475569;
-}
-
-:global(.dark) .stat-title {
-  color: #cbd5e1;
-}
-
-:global(.dark) .stat-number {
-  background: none;
-  -webkit-background-clip: unset;
-  -webkit-text-fill-color: unset;
-  background-clip: unset;
-  color: #60a5fa;
-}
-
-:global(.dark) .stat-label {
-  color: #94a3b8;
-}
-
-:global(.dark) .stat-trend {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-:global(.dark) .trend-icon {
-  color: #94a3b8;
+  background: var(--bg-surface);
+  border-color: var(--border-subtle);
 }
 
 /* 響應式 */
 @media (max-width: 768px) {
   .stat-card {
-    padding: 1.5rem;
+    padding: var(--sp-3);
   }
-  
+
   .stat-icon {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
   }
-  
+
   .stat-icon .icon {
-    font-size: 1.5rem;
+    font-size: var(--text-lg);
   }
-  
+
   .stat-number {
-    font-size: 1.8rem;
+    font-size: var(--text-xl);
   }
 }
 
@@ -236,7 +198,7 @@ const formattedValue = computed(() => {
   .stat-card {
     flex-direction: column;
     text-align: center;
-    gap: 1rem;
+    gap: var(--sp-3);
   }
   
   .stat-content {

@@ -2202,16 +2202,16 @@ useHead({
 }
 
 .btn-copy-all-sql {
-  border: 1px solid rgba(102, 126, 234, 0.28);
+  border: 1px solid color-mix(in oklab, var(--primary) 28%, transparent);
   background: var(--bg-secondary);
-  color: var(--primary);
+  color: var(--primary-text);
   padding: 0.65rem 1rem;
   border-radius: var(--radius-sm);
   font-size: var(--font-sm);
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: all var(--transition-bounce);
+  transition: all var(--transition-slow);
 }
 
 .btn-copy-all-sql:hover {
@@ -2222,8 +2222,8 @@ useHead({
 .section-badge {
   font-size: var(--font-xs);
   font-weight: 600;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   padding: 0.2rem 0.6rem;
   border-radius: var(--radius-full, 999px);
 }
@@ -2261,13 +2261,13 @@ useHead({
 }
 
 .resend-summary-strip .is-complete {
-  border-color: rgba(16, 185, 129, 0.35);
-  color: #047857;
+  border-color: color-mix(in oklab, var(--success) 35%, transparent);
+  color: var(--success-text);
 }
 
 .resend-summary-strip .is-partial {
-  border-color: rgba(245, 158, 11, 0.4);
-  color: #b45309;
+  border-color: color-mix(in oklab, var(--warning) 40%, transparent);
+  color: var(--warning-text);
 }
 
 .resend-pair-card {
@@ -2279,11 +2279,11 @@ useHead({
 }
 
 .resend-pair-card--complete {
-  border-color: rgba(16, 185, 129, 0.45);
+  border-color: color-mix(in oklab, var(--success) 45%, transparent);
 }
 
 .resend-pair-card--partial {
-  border-color: rgba(245, 158, 11, 0.55);
+  border-color: color-mix(in oklab, var(--warning) 55%, transparent);
 }
 
 .resend-pair-card__title {
@@ -2306,13 +2306,13 @@ useHead({
 }
 
 .resend-pair-card--complete .resend-pair-card__status {
-  background: rgba(16, 185, 129, 0.12);
-  color: #047857;
+  background: color-mix(in oklab, var(--success) 12%, transparent);
+  color: var(--success-text);
 }
 
 .resend-pair-card--partial .resend-pair-card__status {
-  background: rgba(245, 158, 11, 0.14);
-  color: #b45309;
+  background: color-mix(in oklab, var(--warning) 14%, transparent);
+  color: var(--warning-text);
 }
 
 .resend-actions {
@@ -2444,15 +2444,15 @@ useHead({
 }
 
 .notification-check-summary.is-pass {
-  border-color: rgba(16, 185, 129, 0.4);
+  border-color: color-mix(in oklab, var(--success) 40%, transparent);
 }
 
 .notification-check-summary.is-warn {
-  border-color: rgba(245, 158, 11, 0.45);
+  border-color: color-mix(in oklab, var(--warning) 45%, transparent);
 }
 
 .notification-check-summary.is-fail {
-  border-color: rgba(239, 68, 68, 0.45);
+  border-color: color-mix(in oklab, var(--danger) 45%, transparent);
 }
 
 .notification-check-summary__title {
@@ -2487,26 +2487,26 @@ useHead({
 
 .notification-check-summary__counts .is-pass,
 .notification-check-item.is-pass .notification-check-item__status {
-  color: #047857;
-  background: rgba(16, 185, 129, 0.12);
+  color: var(--success-text);
+  background: color-mix(in oklab, var(--success) 12%, transparent);
 }
 
 .notification-check-summary__counts .is-warn,
 .notification-check-item.is-warn .notification-check-item__status {
-  color: #b45309;
-  background: rgba(245, 158, 11, 0.14);
+  color: var(--warning-text);
+  background: color-mix(in oklab, var(--warning) 14%, transparent);
 }
 
 .notification-check-summary__counts .is-fail,
 .notification-check-item.is-fail .notification-check-item__status {
-  color: #b91c1c;
-  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger-text);
+  background: color-mix(in oklab, var(--danger) 12%, transparent);
 }
 
 .notification-check-summary__counts .is-info,
 .notification-check-item.is-info .notification-check-item__status {
-  color: #1d4ed8;
-  background: rgba(59, 130, 246, 0.12);
+  color: var(--primary-text);
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
 }
 
 .notification-check-list {
@@ -2525,11 +2525,11 @@ useHead({
 }
 
 .notification-check-item.is-fail {
-  border-color: rgba(239, 68, 68, 0.4);
+  border-color: color-mix(in oklab, var(--danger) 40%, transparent);
 }
 
 .notification-check-item.is-warn {
-  border-color: rgba(245, 158, 11, 0.45);
+  border-color: color-mix(in oklab, var(--warning) 45%, transparent);
 }
 
 .notification-check-item__head {
@@ -2585,7 +2585,7 @@ useHead({
 
 .account-card.active {
   border-color: var(--primary);
-  background: rgba(102, 126, 234, 0.05);
+  background: color-mix(in oklab, var(--primary) 5%, transparent);
 }
 
 .account-card-main {
@@ -2597,10 +2597,10 @@ useHead({
 .account-badge {
   font-size: 0.7rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
   padding: 0.15rem 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 .account-title {
@@ -2616,10 +2616,10 @@ useHead({
 
 .account-bucket {
   font-size: 0.75rem;
-  color: var(--primary);
-  background: var(--primary-light, rgba(102, 126, 234, 0.1));
+  color: var(--primary-text);
+  background: var(--primary-light, color-mix(in oklab, var(--primary) 10%, transparent));
   padding: 0.1rem 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   font-weight: 500;
 }
 
@@ -2632,15 +2632,15 @@ useHead({
   padding: 0.35rem 0.75rem;
   font-size: 0.8rem;
   font-weight: 500;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   transition: all 0.15s ease;
   border: none;
 }
 
 .btn-switch {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
 }
 
 .btn-switch:hover {
@@ -2655,16 +2655,16 @@ useHead({
 
 .btn-edit:hover {
   border-color: var(--primary);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .btn-delete {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: color-mix(in oklab, var(--danger) 10%, transparent);
+  color: var(--danger-text);
 }
 
 .btn-delete:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: color-mix(in oklab, var(--danger) 20%, transparent);
 }
 
 .storage-description {
@@ -2684,8 +2684,8 @@ useHead({
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -2693,7 +2693,7 @@ useHead({
 
 .btn-danger:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-danger:disabled {
@@ -2716,12 +2716,12 @@ useHead({
 }
 
 .storage-stat.danger {
-  border-color: rgba(239, 68, 68, 0.35);
+  border-color: color-mix(in oklab, var(--danger) 35%, transparent);
 }
 
 .storage-stat.warning {
-  border-color: rgba(245, 158, 11, 0.38);
-  background: color-mix(in oklab, var(--bg-primary) 88%, #f59e0b);
+  border-color: color-mix(in oklab, var(--warning) 38%, transparent);
+  background: color-mix(in oklab, var(--bg-primary) 88%, var(--warning-solid));
 }
 
 .storage-stat-label {
@@ -2753,7 +2753,7 @@ useHead({
 }
 
 .storage-error {
-  color: #dc2626;
+  color: var(--danger-text);
 }
 
 .unused-file-list {
@@ -2853,8 +2853,8 @@ useHead({
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   border: none;
   padding: 0.85rem 2rem;
   border-radius: var(--radius-sm);
@@ -2864,18 +2864,18 @@ useHead({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all var(--transition-bounce);
+  transition: all var(--transition-slow);
 }
 
 .btn-primary:hover {
   opacity: 0.9;
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-secondary {
   background: var(--bg-secondary);
-  color: var(--primary);
+  color: var(--primary-text);
   border: 1px solid var(--primary);
   padding: 0.85rem 2rem;
   border-radius: var(--radius-sm);
@@ -2885,7 +2885,7 @@ useHead({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all var(--transition-bounce);
+  transition: all var(--transition-slow);
 }
 
 .btn-secondary:hover {
@@ -2950,36 +2950,36 @@ useHead({
 }
 
 .status-badge.checking {
-  color: #b8860b;
-  background: rgba(184, 134, 11, 0.1);
+  color: var(--warning-text);
+  background: color-mix(in oklab, var(--warning) 10%, transparent);
 }
 
 .status-badge.exists {
-  color: #2e7d32;
-  background: rgba(46, 125, 50, 0.1);
+  color: var(--success-text);
+  background: color-mix(in oklab, var(--success) 10%, transparent);
 }
 
 .status-badge.missing {
-  color: #c62828;
-  background: rgba(198, 40, 40, 0.1);
+  color: var(--danger-text);
+  background: color-mix(in oklab, var(--danger) 10%, transparent);
 }
 
 .btn-create-table {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   border: none;
   padding: 0.4rem 1rem;
   border-radius: var(--radius-sm);
   font-size: var(--font-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-bounce);
+  transition: all var(--transition-slow);
 }
 
 .btn-create-table:hover {
   opacity: 0.9;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-show-sql {
@@ -3038,7 +3038,7 @@ useHead({
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in oklab, var(--overlay-scrim) 50%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3050,7 +3050,7 @@ useHead({
   background: var(--bg-secondary);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--elevation-3);
   width: 100%;
   max-width: 600px;
   max-height: 80vh;
@@ -3120,7 +3120,7 @@ useHead({
 
 .auto-create-hint h4 {
   font-size: var(--font-md);
-  color: var(--primary);
+  color: var(--primary-text);
   margin-bottom: 0.5rem;
 }
 

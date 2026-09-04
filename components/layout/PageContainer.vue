@@ -40,29 +40,31 @@ defineProps({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 2rem;
+  margin-bottom: var(--sp-6);
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: var(--sp-3);
 }
 
 .page-title {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: var(--text-primary, #2c3e50);
+  gap: var(--sp-3);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
   margin: 0;
 }
 
 .page-icon {
-  font-size: 1.5rem;
+  font-size: var(--text-lg);
 }
 
 .page-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--sp-2);
 }
 
 .page-body {
@@ -80,10 +82,7 @@ defineProps({
   }
 }
 
-/* 暗黑模式 */
-:global(.dark) .page-title {
-  color: #f1f5f9;
-}
+/* 暗黑模式由 token 自動翻轉 */
 
 /* 響應式 */
 @media (max-width: 768px) {
@@ -92,26 +91,26 @@ defineProps({
   }
 
   .page-header {
-    margin-bottom: 1rem;
-    gap: 0.75rem;
+    margin-bottom: var(--sp-4);
+    gap: var(--sp-3);
     align-items: flex-start;
   }
 
   .page-title {
-    font-size: 1.35rem;
+    font-size: var(--text-lg);
     line-height: 1.25;
-    letter-spacing: -0.02em;
+    letter-spacing: var(--tracking-tight);
   }
 
   .page-icon {
-    font-size: 1.2rem;
+    font-size: var(--text-md);
   }
 
   .page-actions {
     width: 100%;
     justify-content: flex-start;
     overflow-x: auto;
-    gap: 0.55rem;
+    gap: var(--sp-2);
     padding-bottom: 0.15rem;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -124,11 +123,11 @@ defineProps({
 
 @media (max-width: 480px) {
   .page-header {
-    margin-bottom: 0.85rem;
+    margin-bottom: var(--sp-3);
   }
 
   .page-title {
-    font-size: 1.22rem;
+    font-size: var(--text-lg);
   }
 
   .page-actions {

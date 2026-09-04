@@ -23,40 +23,36 @@ defineProps({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem 2rem;
+  padding: var(--sp-12) var(--sp-8);
   text-align: center;
 }
 
 .empty-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  opacity: 0.8;
+  font-size: 2.25rem;
+  margin-bottom: var(--sp-3);
+  opacity: 0.4;
 }
 
 .empty-title {
-  color: var(--text-primary, #2c3e50);
-  font-size: 1.25rem;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  font-size: var(--text-md);
   font-weight: 600;
-  margin: 0 0 0.5rem;
+  letter-spacing: var(--tracking-tight);
+  margin: 0 0 var(--sp-2);
 }
 
 .empty-description {
-  color: var(--text-secondary, #666);
-  font-size: 0.95rem;
-  margin: 0 0 1.5rem;
-  max-width: 400px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--sp-4);
+  max-width: 38ch;
+  line-height: var(--leading-body);
 }
 
 .empty-action {
-  margin-top: 1rem;
+  margin-top: var(--sp-2);
 }
 
-/* 暗黑模式 */
-:global(.dark) .empty-title {
-  color: #f1f5f9;
-}
-
-:global(.dark) .empty-description {
-  color: #94a3b8;
-}
+/* 暗黑模式由 token 自動翻轉 */
 </style>

@@ -1,50 +1,54 @@
 ---
 name: 鋒兄 AI Supabase
-description: Cool-blue product shell for personal ops — Manrope body, Space Grotesk display, OKLCH tokens.
+description: Supabase-register console shell — IBM Plex Sans/Mono, Noto Sans TC, brand green #3ECF8E on neutral paper, 4px layout contract.
 colors:
-  canvas: "oklch(0.97 0.01 240)"
-  surface: "oklch(0.995 0.004 240)"
-  muted: "oklch(0.945 0.012 240)"
-  inset: "oklch(0.93 0.01 240)"
-  strong: "oklch(0.18 0.02 248)"
-  text-primary: "oklch(0.23 0.03 250)"
-  text-secondary: "oklch(0.40 0.02 248)"
-  text-muted: "oklch(0.52 0.014 248)"
-  text-inverse: "oklch(0.98 0.004 255)"
-  primary: "oklch(0.52 0.16 250)"
-  primary-hover: "oklch(0.47 0.16 250)"
-  accent: "oklch(0.74 0.12 92)"
-  success: "oklch(0.48 0.13 150)"
-  warning: "oklch(0.68 0.14 80)"
-  danger: "oklch(0.52 0.19 25)"
-  info: "oklch(0.50 0.10 220)"
-  dark-canvas: "oklch(0.15 0.02 248)"
-  dark-surface: "oklch(0.19 0.018 248)"
-  dark-text: "oklch(0.95 0.01 255)"
+  canvas: "#F5F6F5"
+  surface: "#FFFFFF"
+  muted: "#ECEEEC"
+  inset: "#E6E9E6"
+  strong: "#1C1C1C"
+  text-primary: "#171717"
+  text-secondary: "#4E534F"
+  text-muted: "#7C817D"
+  text-inverse: "#F5F6F5"
+  primary: "#3ECF8E"
+  primary-hover: "#24996B"
+  primary-solid: "#3ECF8E"
+  primary-text: "#10775A"
+  on-primary: "#0B1F16"
+  accent: "#24B47E"
+  success: "#2E9E68"
+  warning: "#B4761A"
+  danger: "#B4402F"
+  info: "#3B6B93"
+  dark-canvas: "#1C1C1C"
+  dark-surface: "#222222"
+  dark-text: "#EDEDED"
 typography:
   display:
-    fontFamily: "Space Grotesk, system-ui, sans-serif"
-    fontSize: "clamp(2.25rem, 1.6rem + 2vw, 3.75rem)"
-    fontWeight: 700
-    lineHeight: 1.15
-    letterSpacing: "-0.03em"
+    fontFamily: "IBM Plex Sans, Noto Sans TC, PingFang TC, Microsoft JhengHei, system-ui, sans-serif"
+    fontSize: "1.25rem"
+    fontWeight: 600
+    lineHeight: 1.22
+    letterSpacing: "-0.01em"
   body:
-    fontFamily: "Manrope, system-ui, sans-serif"
+    fontFamily: "IBM Plex Sans, Noto Sans TC, PingFang TC, Microsoft JhengHei, system-ui, sans-serif"
     fontSize: "0.9375rem"
     fontWeight: 400
-    lineHeight: 1.5
+    lineHeight: 1.6
     letterSpacing: "normal"
   label:
-    fontFamily: "Manrope, system-ui, sans-serif"
-    fontSize: "0.8125rem"
-    fontWeight: 600
-    lineHeight: 1.4
+    fontFamily: "IBM Plex Mono, ui-monospace, Menlo, monospace"
+    fontSize: "0.6875rem"
+    fontWeight: 500
+    letterSpacing: "0.12em"
 rounded:
-  xs: "6px"
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
-  xl: "20px"
+  xs: "4px"
+  sm: "6px"
+  md: "10px"
+  lg: "12px"
+  xl: "16px"
+  2xl: "20px"
   full: "999px"
 spacing:
   2xs: "0.25rem"
@@ -54,71 +58,140 @@ spacing:
   lg: "1.5rem"
   xl: "2rem"
   2xl: "3rem"
-  3xl: "4.5rem"
+  3xl: "4rem"
 components:
   button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.text-inverse}"
+    backgroundColor: "{colors.primary-solid}"
+    textColor: "{colors.on-primary}"
     rounded: "{rounded.md}"
-    padding: "0.75rem 1.5rem"
+    padding: "0 1rem"
+    height: "36px"
   button-secondary:
-    backgroundColor: "{colors.muted}"
-    textColor: "{colors.text-primary}"
-    rounded: "{rounded.md}"
-    padding: "0.75rem 1.5rem"
-  card:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.text-primary}"
     rounded: "{rounded.md}"
+    padding: "0 1rem"
+    height: "36px"
+  card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.lg}"
     padding: "1rem"
   sidebar:
-    backgroundColor: "{colors.strong}"
-    textColor: "{colors.text-inverse}"
+    backgroundColor: "{colors.muted}"
+    textColor: "{colors.text-primary}"
 ---
 
 ## Overview
 
-Product-register web app: dark cool-blue sidebar, light cool-neutral canvas, OKLCH token system in `app/assets/css/variables.css`. Display type (Space Grotesk) for home/hero; Manrope for body and dense CRUD. Light/dark themes; optional `data-register="brand"` on main content for roomier home moments.
+Personal-ops console in the **Supabase register**: neutral paper (a hair of green in the grays),
+white card faces, hairline rules, and Supabase's brand green `#3ECF8E` as the single accent.
+Dark mode is Supabase studio — `#1C1C1C` canvas, `#222222` cards, `#2E2E2E` rules. The shell
+(header + sidebar) is paper one shade darker than the canvas, never a dark chrome panel.
 
-Source of truth for values is CSS variables — prefer `var(--primary)` over hardcoded hex in new work.
+Source of truth for values is `app/assets/css/variables.css`. Never hardcode a hex in new work —
+every colour, radius, shadow, space and duration has a token.
+
+## The two green rules
+
+Green is bright. Two rules keep it legible and keep it meaningful:
+
+1. **Green fills carry dark text.** `--primary` / `--primary-solid` (`#3ECF8E`) pair with
+   `--on-primary` (`#0B1F16`), never `--on-solid`. White on `#3ECF8E` is 1.9:1. The semantic
+   solids (`--success-solid`, `--warning-solid`, `--danger-solid`, `--info-solid`,
+   `--neutral-solid`) are the ones that carry `--on-solid` (near-white).
+2. **Green means "actionable" or "succeeded", not "fine".** Primary buttons, active nav, links,
+   focus rings, success toasts. A row that is merely normal / 使用中 gets a **neutral** badge —
+   otherwise a table of healthy records turns into a wall of green and nothing reads as clickable.
+
+On paper, green *text* is `--primary-text` / `--primary-strong` (`#10775A`), not `--primary`.
 
 ## Colors
 
-Cool blue-gray neutrals (hue ~240–250) with a saturated primary blue and a warm gold accent for highlights. Semantic success / warning / danger / info use OKLCH with light mix tints for backgrounds.
+Warm hues are gone; neutrals sit near hue 120 at very low chroma so they agree with the accent.
+**One** chromatic accent. Green / amber / red / blue stay as *semantics* only: success, warning,
+danger, info.
 
-Dark mode rebinds canvas/surface/text/elevation while keeping the same primary/accent roles. Sidebar stays deep (`--sidebar-bg` gradient) in both schemes.
+Three families of colour role, and mixing them up is the usual bug:
+
+| Family | Tokens | Use for |
+| --- | --- | --- |
+| Expressive | `--primary`, `--success`, `--warning`, `--danger`, `--info` | icons, borders, chart marks, accents. Flips lightness between themes. |
+| On-tint text | `--primary-text`, `--success-text`, `--warning-text`, `--danger-text`, `--info-text` | text and links on paper or on a `-light` tint. Deeper in light mode, brighter in dark — always ≥ 4.5:1. |
+| Solid fill | `--primary-solid` (+ `--on-primary`), `--success-solid`, `--danger-solid`, … (+ `--on-solid`) | filled buttons and badges. Same lightness in both themes, so the text stays legible. |
+
+Tints (`--primary-light`, `--danger-light`, …) are `color-mix` washes for callout backgrounds;
+pair them with the matching `-text` token, never with the expressive one.
+
+Overlays use `--overlay-scrim`, not `rgba(0,0,0,…)`.
 
 ## Typography
 
-- **Display**: Space Grotesk, weights 500–700, tracking ~`-0.03em`, clamp scale via `--display-lg` / `--display-xl`.
-- **Body**: Manrope 400–800; default body size `--text-md` (0.9375rem), line-height 1.5.
-- **Scale**: `--text-xs` through `--text-3xl` plus display clamps.
-- Avoid display letter-spacing tighter than `-0.04em`.
+One family for everything readable, one for everything countable.
+
+- **UI / display**: IBM Plex Sans 500–600, Chinese via Noto Sans TC. Page titles 20px
+  (`--text-xl`), header title 17px (`--text-lg`), tracking `-0.01em`.
+- **Body**: IBM Plex Sans 400, `--text-md` (15px), line-height 1.6.
+- **Data**: IBM Plex Mono for numbers, amounts, dates, IDs and small uppercase labels
+  (`.eyebrow` / `.kicker`, table headers, stat titles) at `--text-2xs` (11px) / `0.12em`.
+- **Scale**: `--text-2xs` 11 → `--text-3xl` 30, plus `--display-lg` / `--display-xl` for Home only.
+- Numbers use tabular figures automatically (`.stat-number`, `.stat-value`, `[data-numeric]`, `time`).
+
+No serif display face:襯線標題和中文並排時字重與字面對不齊。
+
+## Layout contract (4px grid)
+
+Spacing comes from `--sp-1` … `--sp-16` (4/8/12/16/20/24/32/40/48/64) and nothing else; the old
+`--spacing-*` names are aliases onto the same scale. Ad-hoc values like `0.35rem` / `0.55rem` /
+`0.85rem` are the thing this contract exists to remove.
+
+| Item | Token | Value |
+| --- | --- | --- |
+| Control height | `--control-h-sm` / `--control-h` / `--control-h-lg` | 30 / 36 / 44px |
+| Table row | `--row-h` | 44px |
+| Header brand row | `--header-h-brand` | 60px |
+| Header nav row | `--header-h-nav` | 44px |
+| Header sub-nav row | `--header-h-subnav` | 46px |
+| Card padding | `--card-pad` | 16px |
+| Radius | `--radius-sm` / `md` / `lg` / `full` | 6 / 10 / 12 / 999 |
+| Container | — | `min(1720px, 100%)` |
+
+Page skeleton, same on every module: header (brand row → nav row → optional sub-nav) → page
+header (H1 left, actions right, 24px below) → stat row (4 columns, 2 on tablet/phone) → optional
+alert strip → toolbar → content card. Tables always live inside an `overflow-x: auto` card so the
+page body never scrolls sideways.
 
 ## Elevation
 
-Resting cards prefer border + flat surface (`--elevation-0` / subtle `--elevation-1`). Raised work uses `--elevation-2` / `--elevation-3` with soft cool shadows. Prefer a single strategy: either a clear border or a modest shadow—not both as heavy decoration. Radius product default: 12px (`--radius-md`).
-
+Resting surfaces are **flat**: a hairline (`--border-subtle`) does the separating work, with at
+most `--elevation-1`. `--elevation-2` / `--elevation-3` are reserved for things that genuinely
+float — dropdowns, modals, toasts, the mobile sidebar. No coloured glows, no gradients as fills.
 Z-index ladder: dropdown → sticky → fixed → modal-backdrop → modal → popover → tooltip.
 
 ## Components
 
-Shared UI under `components/ui/` (`BaseButton`, `BaseCard`, `BaseInput`, `BaseModal`, `Toast`, …) and shell under `components/layout/`. Pages live in `components/pages/`.
+Shared UI in `components/ui/` (`BaseButton`, `BaseCard`, `BaseModal`, `Badge`, `StatCard`,
+`ToastContainer`, …); shell in `components/layout/`; pages in `components/pages/`.
 
-New UI should consume tokens (`--primary`, `--bg-surface`, `--radius-md`, motion durations) rather than one-off Tailwind-like hex gradients. Where legacy components still use fixed gradients (e.g. some button variants), migrate toward solid token fills when touching those files.
+Active nav is a 2px underline in `--primary` plus `--primary-text` on the label; sub-nav is a
+pill on `--bg-surface` with a hairline. Badges are fixed height (18 / 22 / 26px) so they never
+grow a table row.
 
 ## Do's and Don'ts
 
 **Do**
 
-- Use OKLCH tokens from `variables.css` for color, type, space, radius, motion.
-- Keep CRUD pages dense and scannable; put personality on Home / brand-register surfaces.
-- Honor light/dark and reduced-motion.
-- Wire new chrome into the existing z-index and toast/modal patterns.
+- Use tokens from `variables.css` for colour, type, space, radius, motion.
+- Match the text token to the surface: `--on-primary` on green fills, `--on-solid` on semantic
+  fills, `-text` on tints and paper.
+- Keep CRUD pages dense and scannable; spend the personality on Home / brand-register surfaces.
+- Honour light/dark and reduced-motion.
 
 **Don't**
 
-- Invent a second palette (purple SaaS, cream paper, neon glass) on top of the cool-blue system.
-- Stack 32px+ card radii or thick border + huge soft shadow on the same surface.
+- Put white text on `--primary` / `--primary-solid`.
+- Use green for "normal / 使用中" row states.
+- Introduce a second palette (warm clay, blue/indigo SaaS, purple gradients, neon glass).
+- Use a gradient as a fill, or stack a thick border and a large soft shadow on the same surface.
+- Invent a spacing value outside the 4px scale, or a control height outside 30 / 36 / 44.
 - Duplicate notification or bank-workflow logic outside the modules documented in `CONTEXT.md`.
-- Gate critical content visibility only on entrance animations.

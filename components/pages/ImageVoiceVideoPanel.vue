@@ -1169,8 +1169,8 @@ onBeforeUnmount(() => {
   height: 1.4rem;
   padding: 0 0.35rem;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--accent-color, #3b82f6) 18%, transparent);
-  color: var(--accent-color, #3b82f6);
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  color: var(--primary-text);
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -1204,8 +1204,8 @@ onBeforeUnmount(() => {
 
 .ivv-dropzone.is-focused,
 .ivv-dropzone:focus-visible {
-  border-color: var(--accent-color, #3b82f6);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-color, #3b82f6) 22%, transparent);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 22%, transparent);
 }
 
 .ivv-file-input {
@@ -1247,21 +1247,21 @@ onBeforeUnmount(() => {
   z-index: 2;
   width: 2rem;
   height: 2rem;
-  border: 1px solid color-mix(in oklab, #fff 35%, var(--border-color));
+  border: 1px solid color-mix(in oklab, var(--border-subtle) 35%, var(--border-color));
   border-radius: 999px;
-  background: color-mix(in oklab, #0f172a 72%, transparent);
-  color: #fff;
+  background: color-mix(in oklab, var(--neutral-solid) 72%, transparent);
+  color: var(--text-inverse);
   font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--elevation-2);
 }
 
 .ivv-dropzone__clear:hover {
-  background: color-mix(in oklab, #ef4444 85%, #0f172a);
+  background: color-mix(in oklab, var(--danger-solid) 85%, var(--neutral-solid));
   border-color: transparent;
 }
 
@@ -1306,9 +1306,9 @@ onBeforeUnmount(() => {
 }
 
 .ivv-script__clear:hover {
-  background: color-mix(in oklab, #ef4444 18%, var(--bg-primary));
-  color: #ef4444;
-  border-color: color-mix(in oklab, #ef4444 40%, var(--border-color));
+  background: color-mix(in oklab, var(--danger-solid) 18%, var(--bg-primary));
+  color: var(--danger-text);
+  border-color: color-mix(in oklab, var(--danger) 40%, var(--border-color));
 }
 
 .ivv-hint {
@@ -1362,7 +1362,7 @@ onBeforeUnmount(() => {
 
 .tool-input {
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 0.55rem 0.7rem;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -1388,8 +1388,8 @@ onBeforeUnmount(() => {
 }
 
 .tool-primary-btn {
-  background: var(--accent-color, #3b82f6);
-  color: #fff;
+  background: var(--primary-solid);
+  color: var(--on-primary);
 }
 
 .tool-primary-btn:disabled {
@@ -1401,7 +1401,7 @@ onBeforeUnmount(() => {
 .tool-secondary-btn--compact {
   padding: 0.5rem 0.85rem;
   font-size: 0.88rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 .tool-secondary-btn {
@@ -1414,7 +1414,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--border-color);
   background: transparent;
   color: var(--text-muted);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 0.4rem 0.55rem;
   cursor: pointer;
   font-size: 0.8rem;
@@ -1426,7 +1426,7 @@ onBeforeUnmount(() => {
 }
 
 .tool-error {
-  color: #ef4444;
+  color: var(--danger-text);
   margin: 0.4rem 0 0;
   font-size: 0.9rem;
 }
@@ -1439,7 +1439,7 @@ onBeforeUnmount(() => {
 }
 
 .ivv-status--busy {
-  color: var(--accent-color, #3b82f6);
+  color: var(--primary-text);
   font-weight: 600;
 }
 
@@ -1449,7 +1449,7 @@ onBeforeUnmount(() => {
   margin: 0 auto;
   border-radius: 14px;
   overflow: hidden;
-  background: #0a0f18;
+  background: var(--surface-strong);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1471,8 +1471,8 @@ onBeforeUnmount(() => {
 .ivv-result-video {
   width: 100%;
   max-height: 320px;
-  border-radius: 12px;
-  background: #000;
+  border-radius: var(--radius-lg);
+  background: var(--surface-strong);
 }
 
 .ivv-result-actions {
@@ -1483,7 +1483,7 @@ onBeforeUnmount(() => {
 }
 
 .store-card__link {
-  color: var(--accent-color, #3b82f6);
+  color: var(--primary-text);
   text-decoration: none;
 }
 

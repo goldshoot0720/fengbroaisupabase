@@ -43,7 +43,7 @@ const formatDeletedAt = (value) => new Date(value).toLocaleString('zh-TW')
 .trash-item span { color: var(--text-muted); font-size: var(--text-xs); }
 .trash-restore, .trash-close, .trash-clear { min-height: 44px; padding: 0 var(--spacing-md); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); cursor: pointer; font-weight: 700; }
 .trash-restore, .trash-close { color: var(--text-primary); background: var(--bg-muted); }
-.trash-clear { color: var(--danger); background: var(--danger-light); }
+.trash-clear { color: var(--danger-text); background: var(--danger-light); }
 .trash-clear:disabled { cursor: not-allowed; opacity: 0.45; }
 .trash-empty { padding: var(--spacing-xl); color: var(--text-secondary); text-align: center; }
 </style>

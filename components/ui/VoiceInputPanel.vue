@@ -1303,27 +1303,27 @@ onBeforeUnmount(() => {
   padding: 0 1rem;
   border: 1px solid color-mix(in oklab, var(--accent) 45%, var(--border-color));
   border-radius: 999px;
-  background: color-mix(in oklab, var(--card-bg) 92%, transparent);
+  background: color-mix(in oklab, var(--bg-surface) 92%, transparent);
   color: var(--text-primary);
   box-shadow: var(--shadow-soft);
   cursor: pointer;
 }
 
 .voice-toggle.active {
-  border-color: #ef4444;
-  color: #b91c1c;
+  border-color: var(--danger);
+  color: var(--danger-text);
 }
 
 .voice-dot {
   width: 0.72rem;
   height: 0.72rem;
   border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 0 5px color-mix(in oklab, #22c55e 16%, transparent);
+  background: var(--success-solid);
+  box-shadow: 0 0 0 5px color-mix(in oklab, var(--primary-ring) 16%, transparent);
 }
 
 .voice-toggle.active .voice-dot {
-  background: #ef4444;
+  background: var(--danger-solid);
   animation: voicePulse 1.2s ease-in-out infinite;
 }
 
@@ -1332,8 +1332,8 @@ onBeforeUnmount(() => {
   padding: 1rem;
   border: 1px solid var(--border-color);
   border-radius: 18px;
-  background: color-mix(in oklab, var(--card-bg) 96%, transparent);
-  box-shadow: var(--shadow-lg);
+  background: color-mix(in oklab, var(--bg-surface) 96%, transparent);
+  box-shadow: var(--elevation-1);
   backdrop-filter: blur(16px);
 }
 
@@ -1381,7 +1381,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--primary), var(--accent));
-  color: white;
+  color: var(--on-primary);
   padding: 0.65rem 1rem;
   font-weight: 800;
   cursor: pointer;
@@ -1393,7 +1393,7 @@ onBeforeUnmount(() => {
 }
 
 .voice-main.recording {
-  background: linear-gradient(135deg, #ef4444, #f97316);
+  background: var(--danger-solid);
 }
 
 .voice-status {
@@ -1404,11 +1404,11 @@ onBeforeUnmount(() => {
 }
 
 .voice-status.error {
-  color: #dc2626;
+  color: var(--danger-text);
 }
 
 .voice-status.success {
-  color: #047857;
+  color: var(--success-text);
 }
 
 .voice-transcript label {
@@ -1423,7 +1423,7 @@ onBeforeUnmount(() => {
   width: 100%;
   resize: vertical;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--bg-primary);
   color: var(--text-primary);
   padding: 0.75rem;
@@ -1434,10 +1434,10 @@ onBeforeUnmount(() => {
 .voice-confirm {
   margin-top: 0.85rem;
   padding: 0.8rem;
-  border: 1px solid #f59e0b;
+  border: 1px solid var(--warning);
   border-radius: 14px;
-  background: #fffbeb;
-  color: #78350f;
+  background: var(--warning-light);
+  color: var(--warning-text);
 }
 
 .voice-confirm strong,
@@ -1447,7 +1447,7 @@ onBeforeUnmount(() => {
 }
 
 .confirm-label {
-  color: #b45309;
+  color: var(--warning-text);
   font-size: 0.72rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -1501,7 +1501,7 @@ onBeforeUnmount(() => {
 .guide-group button {
   width: 100%;
   border: 1px solid var(--border-color);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: color-mix(in oklab, var(--bg-secondary) 86%, transparent);
   color: var(--text-secondary);
   padding: 0.45rem 0.55rem;
@@ -1517,8 +1517,8 @@ onBeforeUnmount(() => {
 }
 
 @keyframes voicePulse {
-  0%, 100% { box-shadow: 0 0 0 4px color-mix(in oklab, #ef4444 16%, transparent); }
-  50% { box-shadow: 0 0 0 10px color-mix(in oklab, #ef4444 0%, transparent); }
+  0%, 100% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary-ring) 16%, transparent); }
+  50% { box-shadow: 0 0 0 10px color-mix(in oklab, var(--primary-ring) 0%, transparent); }
 }
 
 @media (max-width: 720px) {
@@ -1542,11 +1542,11 @@ onBeforeUnmount(() => {
   .voice-toggle {
     min-width: 48px;
     min-height: 48px;
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
     padding: 0 0.9rem;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    box-shadow: var(--elevation-2);
+    box-shadow: var(--elevation-1);
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -1557,7 +1557,7 @@ onBeforeUnmount(() => {
     border-radius: 20px;
     padding: 0.9rem;
     margin-top: 0.55rem;
-    box-shadow: var(--elevation-3);
+    box-shadow: var(--elevation-1);
   }
 
   .voice-main,

@@ -2710,7 +2710,7 @@ onBeforeUnmount(() => {
 .page-title {
   font-size: 2rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+  background: var(--warning-solid);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -2734,18 +2734,18 @@ onBeforeUnmount(() => {
   width: 100%;
   min-width: 200px;
   padding: 0.6rem 1rem;
-  border: 2px solid #e5e7eb;
+  border: 2px solid var(--border-subtle);
   border-radius: 20px;
   font-size: 0.95rem;
   transition: all 0.2s;
-  background: #f9fafb;
+  background: var(--bg-surface);
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #ff6b6b;
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.15);
-  background: white;
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+  background: var(--bg-surface);
 }
 
 .csv-actions {
@@ -2760,9 +2760,9 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.4rem;
   padding: 0.6rem 1rem;
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
   border-radius: 20px;
   font-size: 0.9rem;
   font-weight: 500;
@@ -2772,8 +2772,8 @@ onBeforeUnmount(() => {
 
 .btn-export:hover,
 .btn-import:hover {
-  background: #e5e7eb;
-  border-color: #9ca3af;
+  background: var(--bg-inset);
+  border-color: var(--border-strong);
 }
 
 .btn-import { cursor: pointer; }
@@ -2783,14 +2783,14 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 0.2rem;
   border-radius: 999px;
-  background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: var(--neutral-solid);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--text-inverse) 8%, transparent);
 }
 
 .view-switch-btn {
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.72);
+  color: color-mix(in oklab, var(--on-solid) 72%, transparent);
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
   font-size: 0.82rem;
@@ -2800,9 +2800,9 @@ onBeforeUnmount(() => {
 }
 
 .view-switch-btn.active {
-  background: white;
-  color: #111827;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--elevation-1);
 }
 
 /* ── Cache Bar ── */
@@ -2813,9 +2813,9 @@ onBeforeUnmount(() => {
   gap: 1rem;
   padding: 0.6rem 1rem;
   margin-bottom: 1rem;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border: 1px solid #bae6fd;
-  border-radius: 12px;
+  background: var(--primary-light);
+  border: 1px solid color-mix(in oklab, var(--primary) 32%, transparent);
+  border-radius: var(--radius-lg);
   flex-wrap: wrap;
 }
 
@@ -2824,7 +2824,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
-  color: #0369a1;
+  color: var(--primary-text);
 }
 
 .cache-icon {
@@ -2832,7 +2832,7 @@ onBeforeUnmount(() => {
 }
 
 .cache-size {
-  color: #0284c7;
+  color: var(--primary-text);
   font-weight: 500;
 }
 
@@ -2843,10 +2843,10 @@ onBeforeUnmount(() => {
 
 .btn-cache-all {
   padding: 0.35rem 0.85rem;
-  background: linear-gradient(135deg, #0ea5e9, #0284c7);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
@@ -2854,7 +2854,8 @@ onBeforeUnmount(() => {
 }
 
 .btn-cache-all:hover:not(:disabled) {
-  background: linear-gradient(135deg, #0284c7, #0369a1);
+  background: var(--primary-solid);
+  color: var(--on-primary);
   transform: translateY(-1px);
 }
 
@@ -2865,10 +2866,10 @@ onBeforeUnmount(() => {
 
 .btn-clear-cache {
   padding: 0.35rem 0.85rem;
-  background: #f3f4f6;
-  color: #6b7280;
-  border: 1px solid #d1d5db;
-  border-radius: 16px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
@@ -2876,16 +2877,16 @@ onBeforeUnmount(() => {
 }
 
 .btn-clear-cache:hover {
-  background: #fef2f2;
-  color: #dc2626;
-  border-color: #fca5a5;
+  background: var(--bg-surface);
+  color: var(--danger-text);
+  border-color: var(--danger);
 }
 
 .loading,
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 1.1rem;
 }
 
@@ -2926,13 +2927,13 @@ onBeforeUnmount(() => {
 
 /* ── Video Card ── */
 .video-card {
-  background: white;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: default;
   position: relative;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--elevation-1);
 }
 
 .video-card--editor {
@@ -2960,14 +2961,14 @@ onBeforeUnmount(() => {
 }
 
 .video-card--bilibili {
-  border-radius: 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #fff7fb 100%);
-  box-shadow: 0 10px 30px rgba(244, 114, 182, 0.10);
+  border-radius: var(--radius-xl);
+  background: var(--bg-surface);
+  box-shadow: var(--elevation-1);
 }
 
 .video-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--elevation-3);
 }
 
 .video-card--list .thumbnail-wrapper,
@@ -2999,8 +3000,8 @@ onBeforeUnmount(() => {
 .thumbnail-wrapper {
   position: relative;
   width: 100%;
-  padding-top: 56.25%; /* 16:9 aspect ratio */
-  background: #0f0f0f;
+  padding-top: 56.25%; /* 16: 9 aspect ratio */
+  background: var(--surface-strong);
   overflow: hidden;
   cursor: pointer;
 }
@@ -3030,7 +3031,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #050505;
+  background: var(--surface-strong);
 }
 
 .mode-bilibili .thumbnail-img,
@@ -3041,7 +3042,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #050505;
+  background: var(--surface-strong);
 }
 
 .mode-bilibili .video-card:hover .thumbnail-img,
@@ -3058,7 +3059,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background: var(--neutral-solid);
 }
 
 .placeholder-icon {
@@ -3076,36 +3077,36 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0);
+  background: color-mix(in oklab, var(--overlay-scrim) 0%, transparent);
   transition: all 0.25s ease;
   opacity: 0;
 }
 
 .video-card:hover .play-overlay {
   opacity: 1;
-  background: rgba(0, 0, 0, 0.35);
+  background: color-mix(in oklab, var(--overlay-scrim) 35%, transparent);
 }
 
 .play-overlay--loading,
 .video-card:hover .play-overlay--loading {
   opacity: 1;
-  background: rgba(15, 23, 42, 0.48);
+  background: color-mix(in oklab, var(--text-primary) 48%, transparent);
   cursor: wait;
 }
 
 .play-btn {
   width: 52px;
   height: 52px;
-  background: rgba(255, 255, 255, 0.95);
+  background: color-mix(in oklab, var(--bg-surface) 95%, transparent);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.3rem;
-  color: #0f0f0f;
+  color: var(--text-primary);
   transform: scale(0.8);
   transition: all 0.25s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--elevation-1);
   padding-left: 4px;
 }
 
@@ -3124,12 +3125,12 @@ onBeforeUnmount(() => {
   position: absolute;
   bottom: 8px;
   right: 8px;
-  background: rgba(0, 0, 0, 0.75);
-  color: white;
+  background: color-mix(in oklab, var(--overlay-scrim) 75%, transparent);
+  color: var(--text-inverse);
   font-size: 0.7rem;
   font-weight: 700;
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   letter-spacing: 0.04em;
 }
 
@@ -3142,7 +3143,7 @@ onBeforeUnmount(() => {
   height: 20px;
   cursor: pointer;
   z-index: 2;
-  accent-color: #ff6b6b;
+  accent-color: var(--danger-solid);
 }
 
 /* ── Video Meta ── */
@@ -3169,17 +3170,17 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #fb7185 0%, #f472b6 100%);
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   font-size: 0.95rem;
   font-weight: 800;
-  box-shadow: 0 10px 18px rgba(244, 114, 182, 0.28);
+  box-shadow: var(--elevation-1);
 }
 
 .video-title {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #0f0f0f;
+  color: var(--text-primary);
   margin: 0 0 0.4rem;
   line-height: 1.35;
   display: -webkit-box;
@@ -3199,22 +3200,22 @@ onBeforeUnmount(() => {
 
 .category-chip {
   font-size: 0.75rem;
-  color: #606060;
-  background: #f2f2f2;
+  color: var(--text-secondary);
+  background: var(--bg-muted);
   padding: 0.15rem 0.5rem;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   font-weight: 500;
 }
 
 .meta-ref {
   font-size: 0.75rem;
-  color: #065fd4;
+  color: var(--primary-text);
   cursor: pointer;
 }
 
 .video-desc {
   font-size: 0.8rem;
-  color: #606060;
+  color: var(--text-secondary);
   line-height: 1.4;
   margin: 0.25rem 0 0;
   display: -webkit-box;
@@ -3228,15 +3229,15 @@ onBeforeUnmount(() => {
   gap: 0.55rem;
   flex-wrap: wrap;
   margin-top: 0.45rem;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 0.73rem;
 }
 
 .bilibili-stats span {
   padding: 0.18rem 0.45rem;
   border-radius: 999px;
-  background: #fdf2f8;
-  color: #be185d;
+  background: var(--bg-surface);
+  color: var(--danger-text);
 }
 
 /* ── Action Buttons (hover reveal) ── */
@@ -3257,7 +3258,7 @@ onBeforeUnmount(() => {
 }
 
 .mode-bilibili .action-btn {
-  background: #fff;
+  background: var(--bg-surface);
 }
 
 .video-card:hover .card-actions-bar {
@@ -3267,7 +3268,7 @@ onBeforeUnmount(() => {
 
 .action-btn {
   background: none;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-subtle);
   border-radius: 18px;
   padding: 0.3rem 0.65rem;
   font-size: 0.8rem;
@@ -3279,18 +3280,18 @@ onBeforeUnmount(() => {
 }
 
 .edit-btn:hover {
-  background: #eff6ff;
-  border-color: #93c5fd;
+  background: var(--bg-surface);
+  border-color: var(--primary);
 }
 
 .delete-btn:hover {
-  background: #fef2f2;
-  border-color: #fca5a5;
+  background: var(--bg-surface);
+  border-color: var(--danger);
 }
 
 /* ── Selected Card ── */
 .video-card.is-selected {
-  box-shadow: 0 0 0 2px #ff6b6b;
+  box-shadow: 0 0 0 2px var(--primary-ring);
   cursor: pointer;
 }
 
@@ -3298,7 +3299,7 @@ onBeforeUnmount(() => {
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: color-mix(in oklab, var(--overlay-scrim) 60%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3308,13 +3309,13 @@ onBeforeUnmount(() => {
 }
 
 .modal-content {
-  background: white;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
   max-width: 600px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--elevation-3);
 }
 
 .modal-header {
@@ -3322,13 +3323,13 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .modal-header h2 {
   font-size: 1.3rem;
   font-weight: 700;
-  color: #0f0f0f;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -3336,7 +3337,7 @@ onBeforeUnmount(() => {
   background: none;
   border: none;
   font-size: 1.75rem;
-  color: #9ca3af;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -3349,8 +3350,8 @@ onBeforeUnmount(() => {
 }
 
 .btn-close:hover {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
 }
 
 .modal-body {
@@ -3365,7 +3366,7 @@ onBeforeUnmount(() => {
   display: block;
   margin-bottom: 0.4rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 
@@ -3373,8 +3374,8 @@ onBeforeUnmount(() => {
 .form-group textarea {
   width: 100%;
   padding: 0.65rem 0.75rem;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   font-size: 0.9rem;
   transition: all 0.2s;
   box-sizing: border-box;
@@ -3383,35 +3384,35 @@ onBeforeUnmount(() => {
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #ff6b6b;
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .modal-actions {
   display: flex;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-subtle);
   justify-content: flex-end;
 }
 
 .btn-cancel {
   padding: 0.6rem 1.25rem;
-  background: #f3f4f6;
-  color: #6b7280;
-  border: 1px solid #d1d5db;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
   border-radius: 20px;
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.btn-cancel:hover { background: #e5e7eb; }
+.btn-cancel:hover { background: var(--bg-inset); }
 
 .btn-submit {
   padding: 0.6rem 1.25rem;
-  background: #ff6b6b;
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   border: none;
   border-radius: 20px;
   font-size: 0.9rem;
@@ -3421,9 +3422,9 @@ onBeforeUnmount(() => {
 }
 
 .btn-submit:hover {
-  background: #ee5a5a;
+  background: var(--danger-solid-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+  box-shadow: var(--elevation-2);
 }
 
 /* ── Video/Cover Preview in Modal ── */
@@ -3438,23 +3439,23 @@ onBeforeUnmount(() => {
 .preview-video {
   width: 100%;
   max-height: 200px;
-  border-radius: 8px;
-  background: #000;
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
 }
 
 .preview-image {
   max-width: 200px;
   max-height: 120px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   object-fit: cover;
 }
 
 .btn-remove {
   padding: 0.3rem 0.75rem;
-  background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-  border-radius: 6px;
+  background: var(--danger-light);
+  color: var(--danger-text);
+  border: 1px solid color-mix(in oklab, var(--danger) 32%, transparent);
+  border-radius: var(--radius-sm);
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
@@ -3462,13 +3463,13 @@ onBeforeUnmount(() => {
 }
 
 .btn-remove:hover {
-  background: #dc2626;
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
 }
 
 .upload-progress {
   font-size: 0.85rem;
-  color: #ff6b6b;
+  color: var(--danger-text);
   font-weight: 600;
 }
 
@@ -3483,7 +3484,7 @@ onBeforeUnmount(() => {
   gap: 0.75rem;
   margin-bottom: 0.35rem;
   font-size: 0.82rem;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .upload-progress-head span:first-child {
@@ -3494,7 +3495,7 @@ onBeforeUnmount(() => {
 .upload-progress-bar {
   width: 100%;
   height: 8px;
-  background: #fde2e2;
+  background: var(--danger-light);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -3502,7 +3503,7 @@ onBeforeUnmount(() => {
 .upload-progress-fill {
   height: 100%;
   width: 0;
-  background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);
+  background: var(--warning-solid);
   border-radius: 999px;
   transition: width 0.2s ease;
 }
@@ -3514,8 +3515,8 @@ onBeforeUnmount(() => {
   align-items: center;
   margin-bottom: 1.5rem;
   padding: 0.75rem 1rem;
-  background: #f9fafb;
-  border-radius: 10px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
   flex-wrap: wrap;
   gap: 0.5rem;
 }
@@ -3562,7 +3563,7 @@ onBeforeUnmount(() => {
 }
 
 .selected-count {
-  color: #ff6b6b;
+  color: var(--danger-text);
   font-weight: 600;
 }
 
@@ -3570,9 +3571,9 @@ onBeforeUnmount(() => {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 2px solid #ff6b6b;
-  background: white;
-  color: #ff6b6b;
+  border: 2px solid var(--danger);
+  background: var(--bg-surface);
+  color: var(--danger-text);
   font-size: 1.25rem;
   font-weight: 700;
   cursor: pointer;
@@ -3583,23 +3584,23 @@ onBeforeUnmount(() => {
 }
 
 .btn-add-icon:hover {
-  background: #ff6b6b;
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   transform: rotate(90deg);
 }
 
 .btn-batch-mode {
   padding: 0.4rem 0.75rem;
-  background: white;
-  border: 1px solid #d1d5db;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
   border-radius: 18px;
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.btn-batch-mode:hover { background: #f3f4f6; }
+.btn-batch-mode:hover { background: var(--bg-surface); }
 
 .select-all-label {
   display: flex;
@@ -3612,19 +3613,19 @@ onBeforeUnmount(() => {
 .btn-cancel-batch {
   padding: 0.3rem 0.6rem;
   background: none;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-subtle);
   border-radius: 15px;
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 0.85rem;
   cursor: pointer;
 }
 
-.btn-cancel-batch:hover { background: #f3f4f6; }
+.btn-cancel-batch:hover { background: var(--bg-surface); }
 
 .btn-batch-delete {
   padding: 0.4rem 0.75rem;
-  background: #ff6b6b;
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   border: none;
   border-radius: 18px;
   font-size: 0.85rem;
@@ -3634,7 +3635,7 @@ onBeforeUnmount(() => {
 }
 
 .btn-batch-delete:hover {
-  background: #ee5a5a;
+  background: var(--danger-solid-hover);
   transform: translateY(-1px);
 }
 
@@ -3657,7 +3658,7 @@ onBeforeUnmount(() => {
 .inline-form-group label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #9ca3af;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -3665,8 +3666,8 @@ onBeforeUnmount(() => {
 .inline-input {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   font-size: 0.85rem;
   transition: all 0.2s;
   box-sizing: border-box;
@@ -3674,15 +3675,15 @@ onBeforeUnmount(() => {
 
 .inline-input:focus {
   outline: none;
-  border-color: #ff6b6b;
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .inline-textarea {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   font-size: 0.85rem;
   resize: vertical;
   font-family: inherit;
@@ -3692,12 +3693,12 @@ onBeforeUnmount(() => {
 
 .inline-textarea:focus {
   outline: none;
-  border-color: #ff6b6b;
-  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .inline-video-preview {
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   margin-top: 0.25rem;
 }
@@ -3718,35 +3719,35 @@ onBeforeUnmount(() => {
   width: 80px;
   height: 45px;
   object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
 }
 
 .btn-remove-sm {
   padding: 0.2rem 0.5rem;
   font-size: 0.7rem;
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--danger-light);
+  color: var(--danger-text);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.btn-remove-sm:hover { background: #dc2626; color: white; }
+.btn-remove-sm:hover { background: var(--danger-solid); color: var(--on-solid); }
 
 .inline-edit-actions {
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
   padding-top: 0.5rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .btn-save {
   padding: 0.45rem 1rem;
-  background: #ff6b6b;
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   border: none;
   border-radius: 18px;
   font-size: 0.85rem;
@@ -3756,7 +3757,7 @@ onBeforeUnmount(() => {
 }
 
 .btn-save:hover {
-  background: #ee5a5a;
+  background: var(--danger-solid-hover);
   transform: translateY(-1px);
 }
 
@@ -3764,16 +3765,16 @@ onBeforeUnmount(() => {
 
 .btn-cancel-inline {
   padding: 0.45rem 1rem;
-  background: #f3f4f6;
-  color: #6b7280;
-  border: 1px solid #d1d5db;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
   border-radius: 18px;
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.btn-cancel-inline:hover { background: #e5e7eb; }
+.btn-cancel-inline:hover { background: var(--bg-inset); }
 
 .upload-area {
   display: flex;
@@ -3783,16 +3784,16 @@ onBeforeUnmount(() => {
 
 .btn-upload {
   padding: 0.35rem 0.7rem;
-  background: #f3f4f6;
-  color: #6b7280;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.btn-upload:hover { background: #e5e7eb; }
+.btn-upload:hover { background: var(--bg-inset); }
 .btn-upload:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .selected-file-list {
@@ -3804,7 +3805,7 @@ onBeforeUnmount(() => {
 
 .selected-file-summary {
   font-size: 0.8rem;
-  color: #4b5563;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
@@ -3820,8 +3821,8 @@ onBeforeUnmount(() => {
   max-width: 100%;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  background: #fff1f2;
-  color: #be123c;
+  background: var(--bg-surface);
+  color: var(--danger-text);
   font-size: 0.75rem;
   line-height: 1.3;
   word-break: break-all;
@@ -3831,7 +3832,7 @@ onBeforeUnmount(() => {
 .player-wrapper {
   position: relative;
   width: 100%;
-  background: #000;
+  background: var(--surface-strong);
 }
 
 .active-player {
@@ -3850,8 +3851,8 @@ onBeforeUnmount(() => {
   right: 8px;
   width: 28px;
   height: 28px;
-  background: rgba(0, 0, 0, 0.65);
-  color: white;
+  background: color-mix(in oklab, var(--overlay-scrim) 65%, transparent);
+  color: var(--text-inverse);
   border: none;
   border-radius: 50%;
   font-size: 0.85rem;
@@ -3864,7 +3865,7 @@ onBeforeUnmount(() => {
 }
 
 .close-player-btn:hover {
-  background: rgba(255, 107, 107, 0.9);
+  background: color-mix(in oklab, var(--danger) 90%, transparent);
   transform: scale(1.1);
 }
 
@@ -3961,7 +3962,7 @@ onBeforeUnmount(() => {
 .watch-theater-btn[aria-pressed='true'] {
   background: var(--primary-muted);
   border-color: color-mix(in oklab, var(--primary) 40%, transparent);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .watch-hotkeys {
@@ -4001,10 +4002,10 @@ onBeforeUnmount(() => {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  background: oklch(0.12 0.02 248);
+  background: oklch(0.14 0 0);
   border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: var(--elevation-2);
+  box-shadow: var(--elevation-1);
   cursor: pointer;
   user-select: none;
 }
@@ -4034,7 +4035,7 @@ onBeforeUnmount(() => {
   height: 100%;
   display: block;
   object-fit: contain;
-  background: #000;
+  background: var(--surface-strong);
 }
 
 .watch-player-loading {
@@ -4042,7 +4043,7 @@ onBeforeUnmount(() => {
   inset: 0;
   display: grid;
   place-items: center;
-  background: color-mix(in oklab, oklch(0.12 0.02 248) 72%, transparent);
+  background: color-mix(in oklab, oklch(0.14 0 0) 72%, transparent);
   color: var(--text-inverse);
   font-weight: 600;
   font-size: var(--text-sm, 0.875rem);
@@ -4059,7 +4060,7 @@ onBeforeUnmount(() => {
   border: none;
   border-radius: var(--radius-full);
   background: color-mix(in oklab, var(--primary) 88%, black 12%);
-  color: var(--text-inverse);
+  color: var(--on-primary);
   font-size: 1.5rem;
   display: grid;
   place-items: center;
@@ -4087,8 +4088,8 @@ onBeforeUnmount(() => {
   height: 2.75rem;
   border: none;
   border-radius: var(--radius-full);
-  background: color-mix(in oklab, oklch(0.12 0.02 248) 55%, transparent);
-  color: white;
+  background: color-mix(in oklab, oklch(0.14 0 0) 55%, transparent);
+  color: var(--on-solid);
   font-size: 1.75rem;
   line-height: 1;
   display: grid;
@@ -4117,7 +4118,7 @@ onBeforeUnmount(() => {
 }
 
 .watch-skip-edge:hover:not(:disabled) {
-  background: color-mix(in oklab, oklch(0.12 0.02 248) 78%, transparent);
+  background: color-mix(in oklab, oklch(0.14 0 0) 78%, transparent);
   transform: translateY(-50%) scale(1.06);
 }
 
@@ -4143,8 +4144,8 @@ onBeforeUnmount(() => {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    color-mix(in oklab, oklch(0.12 0.02 248) 55%, transparent) 42%,
-    color-mix(in oklab, oklch(0.10 0.02 248) 92%, transparent) 100%
+    color-mix(in oklab, oklch(0.14 0 0) 55%, transparent) 42%,
+    color-mix(in oklab, oklch(0.11 0 0) 92%, transparent) 100%
   );
   opacity: 0;
   transform: translateY(6px);
@@ -4171,14 +4172,14 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 5px;
   border-radius: var(--radius-full);
-  background: color-mix(in oklab, white 22%, transparent);
+  background: color-mix(in oklab, var(--bg-surface) 22%, transparent);
   outline: none;
   cursor: pointer;
 }
 
 .watch-stage--bilibili .watch-progress {
   height: 4px;
-  background: color-mix(in oklab, white 18%, transparent);
+  background: color-mix(in oklab, var(--bg-surface) 18%, transparent);
 }
 
 .watch-progress::-webkit-slider-thumb {
@@ -4188,8 +4189,8 @@ onBeforeUnmount(() => {
   height: 14px;
   border-radius: 50%;
   background: var(--primary);
-  border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  border: 2px solid var(--border-subtle);
+  box-shadow: var(--elevation-1);
   cursor: pointer;
 }
 
@@ -4202,14 +4203,14 @@ onBeforeUnmount(() => {
   height: 14px;
   border-radius: 50%;
   background: var(--primary);
-  border: 2px solid white;
+  border: 2px solid var(--border-subtle);
   cursor: pointer;
 }
 
 .watch-progress::-moz-range-track {
   height: 5px;
   border-radius: var(--radius-full);
-  background: color-mix(in oklab, white 22%, transparent);
+  background: color-mix(in oklab, var(--bg-surface) 22%, transparent);
 }
 
 .watch-chrome-row {
@@ -4237,7 +4238,7 @@ onBeforeUnmount(() => {
   appearance: none;
   border: none;
   background: transparent;
-  color: white;
+  color: var(--on-solid);
   width: 36px;
   height: 36px;
   border-radius: var(--radius-sm);
@@ -4249,7 +4250,7 @@ onBeforeUnmount(() => {
 }
 
 .watch-ctrl-btn:hover:not(:disabled) {
-  background: color-mix(in oklab, white 14%, transparent);
+  background: color-mix(in oklab, var(--bg-surface) 14%, transparent);
 }
 
 .watch-ctrl-btn:disabled {
@@ -4267,7 +4268,7 @@ onBeforeUnmount(() => {
 }
 
 .watch-time {
-  color: color-mix(in oklab, white 92%, transparent);
+  color: color-mix(in oklab, var(--on-solid) 92%, transparent);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -4284,7 +4285,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
-  color: white;
+  color: var(--on-solid);
 }
 
 .watch-volume input[type='range'] {
@@ -4293,7 +4294,7 @@ onBeforeUnmount(() => {
   width: 72px;
   height: 4px;
   border-radius: var(--radius-full);
-  background: color-mix(in oklab, white 24%, transparent);
+  background: color-mix(in oklab, var(--bg-surface) 24%, transparent);
   outline: none;
   cursor: pointer;
 }
@@ -4304,7 +4305,7 @@ onBeforeUnmount(() => {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: white;
+  background: var(--bg-surface);
   cursor: pointer;
 }
 
@@ -4313,15 +4314,15 @@ onBeforeUnmount(() => {
   height: 12px;
   border: none;
   border-radius: 50%;
-  background: white;
+  background: var(--bg-surface);
   cursor: pointer;
 }
 
 .watch-speed select {
   appearance: none;
-  border: 1px solid color-mix(in oklab, white 22%, transparent);
-  background: color-mix(in oklab, oklch(0.18 0.02 248) 70%, transparent);
-  color: white;
+  border: 1px solid color-mix(in oklab, var(--border-subtle) 22%, transparent);
+  background: color-mix(in oklab, oklch(0.20 0 0) 70%, transparent);
+  color: var(--on-solid);
   border-radius: var(--radius-sm);
   padding: 0.3rem 0.45rem;
   font: inherit;
@@ -4375,7 +4376,7 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   background: linear-gradient(145deg, var(--primary), color-mix(in oklab, var(--primary) 55%, oklch(0.35 0.08 280)));
-  color: var(--text-inverse);
+  color: var(--on-primary);
   font-weight: 700;
   font-size: 1rem;
   flex-shrink: 0;
@@ -4429,7 +4430,7 @@ onBeforeUnmount(() => {
 
 .cache-chip {
   background: var(--success-light);
-  color: var(--success);
+  color: var(--success-text);
 }
 
 .watch-stats {
@@ -4459,8 +4460,8 @@ onBeforeUnmount(() => {
 .watch-action-btn {
   appearance: none;
   border: 1px solid var(--border-subtle);
-  background: var(--primary);
-  color: var(--text-inverse);
+  background: var(--primary-solid);
+  color: var(--on-primary);
   border-radius: var(--radius-md);
   padding: 0.5rem 0.85rem;
   font: inherit;
@@ -4490,7 +4491,7 @@ onBeforeUnmount(() => {
 
 .watch-action-btn--danger {
   background: var(--danger-light);
-  color: var(--danger);
+  color: var(--danger-text);
   border-color: transparent;
   margin-left: auto;
 }
@@ -4595,8 +4596,8 @@ onBeforeUnmount(() => {
   right: 4px;
   bottom: 4px;
   padding: 0.1rem 0.35rem;
-  border-radius: 4px;
-  background: color-mix(in oklab, oklch(0.15 0.02 248) 72%, transparent);
+  border-radius: var(--radius-xs);
+  background: color-mix(in oklab, oklch(0.17 0 0) 72%, transparent);
   color: var(--text-inverse);
   font-size: 0.65rem;
   font-weight: 700;
@@ -4633,7 +4634,7 @@ onBeforeUnmount(() => {
 }
 
 .watch-stage--bilibili .watch-related-item:hover .watch-related-copy strong {
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 @media (max-width: 1100px) {
@@ -4719,7 +4720,7 @@ onBeforeUnmount(() => {
 }
 
 :global(.dark) .watch-player-shell {
-  box-shadow: var(--elevation-2);
+  box-shadow: var(--elevation-1);
 }
 
 :global(.dark) .watch-related-item:hover {

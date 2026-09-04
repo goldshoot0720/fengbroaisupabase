@@ -478,13 +478,13 @@ onBeforeUnmount(() => {
 }
 
 .store-card__link {
-  color: var(--accent-color, #3b82f6);
+  color: var(--primary-text);
   text-decoration: none;
 }
 
 .tool-error {
   margin: 0.55rem 0 0;
-  color: var(--danger-color, #ef4444);
+  color: var(--danger-text);
   font-size: 0.88rem;
 }
 
@@ -495,7 +495,7 @@ onBeforeUnmount(() => {
 }
 
 .ybc-status--busy {
-  color: var(--accent-color, #3b82f6);
+  color: var(--primary-text);
 }
 
 .ybc-layout {
@@ -513,11 +513,11 @@ onBeforeUnmount(() => {
 }
 
 .ybc-status-card.is-ready {
-  border-color: color-mix(in oklab, var(--success-color, #22c55e) 45%, var(--border-color));
+  border-color: color-mix(in oklab, var(--success) 45%, var(--border-color));
 }
 
 .ybc-status-card.is-missing {
-  border-color: color-mix(in oklab, #f59e0b 45%, var(--border-color));
+  border-color: color-mix(in oklab, var(--warning) 45%, var(--border-color));
 }
 
 .ybc-card__head {
@@ -540,8 +540,8 @@ onBeforeUnmount(() => {
   height: 1.4rem;
   padding: 0 0.35rem;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--accent-color, #3b82f6) 18%, transparent);
-  color: var(--accent-color, #3b82f6);
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  color: var(--primary-text);
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -600,7 +600,7 @@ onBeforeUnmount(() => {
 
 .tool-input {
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 0.55rem 0.7rem;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -627,7 +627,7 @@ onBeforeUnmount(() => {
 }
 
 .ybc-format-btn.active {
-  background: color-mix(in oklab, var(--accent-color, #3b82f6) 18%, transparent);
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
   color: var(--text-primary, inherit);
   font-weight: 600;
 }
@@ -659,8 +659,8 @@ onBeforeUnmount(() => {
 }
 
 .tool-primary-btn {
-  background: var(--accent-color, #3b82f6);
-  color: #fff;
+  background: var(--primary-solid);
+  color: var(--on-primary);
 }
 
 .tool-primary-btn:disabled,
@@ -678,7 +678,7 @@ onBeforeUnmount(() => {
 .tool-primary-btn--compact,
 .tool-secondary-btn--compact {
   padding: 0.4rem 0.75rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-size: 0.85rem;
 }
 
@@ -688,9 +688,9 @@ onBeforeUnmount(() => {
   max-height: 240px;
   overflow: auto;
   padding: 0.75rem 0.85rem;
-  border-radius: 12px;
-  background: color-mix(in oklab, #0f172a 92%, transparent);
-  color: #e5e7eb;
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--neutral-solid) 92%, transparent);
+  color: var(--text-inverse);
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.78rem;
   line-height: 1.45;
@@ -701,8 +701,8 @@ onBeforeUnmount(() => {
 .ybc-player {
   width: 100%;
   max-height: 320px;
-  border-radius: 12px;
-  background: #000;
+  border-radius: var(--radius-lg);
+  background: var(--surface-strong);
   border: 1px solid var(--border-color);
 }
 

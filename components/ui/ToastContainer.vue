@@ -50,8 +50,8 @@ const iconMap = {
   z-index: 3000;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-width: min(420px, calc(100vw - 2rem));
+  gap: var(--sp-2);
+  max-width: min(400px, calc(100vw - 2rem));
   max-height: min(70vh, 520px);
   overflow-y: auto;
   pointer-events: none;
@@ -62,72 +62,90 @@ const iconMap = {
 .toast-container.bottom-right { bottom: 1.5rem; right: 1.5rem; flex-direction: column-reverse; }
 .toast-container.bottom-left { bottom: 1.5rem; left: 1.5rem; flex-direction: column-reverse; }
 
+/* Toast 是紙卡不是色塊：語意色只出現在左緣色條與圖示，訊息本身維持高可讀性 */
 .toast {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(10px);
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  box-shadow:
+    inset 3px 0 0 var(--toast-tone),
+    var(--elevation-3);
   pointer-events: auto;
 }
 
-.toast.info { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; }
-.toast.success { background: linear-gradient(135deg, #10b981 0%, #047857 100%); color: white; }
-.toast.warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
-.toast.error { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
+.toast.info { --toast-tone: var(--info); }
+.toast.success { --toast-tone: var(--success); }
+.toast.warning { --toast-tone: var(--warning); }
+.toast.error { --toast-tone: var(--danger); }
 
-.toast-icon { font-size: 1.25rem; flex-shrink: 0; align-self: flex-start; margin-top: 0.1rem; }
+.toast-icon {
+  font-size: var(--text-md);
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 1px;
+  color: var(--toast-tone);
+}
 .toast-message {
   margin: 0;
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: var(--text-sm);
+  font-weight: 400;
   flex: 1;
-  line-height: 1.45;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .toast-close {
-  background: rgba(255, 255, 255, 0.2);
+  background: transparent;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-xs);
   width: 24px;
   height: 24px;
-  color: white;
+  color: var(--text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.8rem;
-  transition: background 0.3s ease;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
   flex-shrink: 0;
 }
 
-.toast-close:hover { background: rgba(255, 255, 255, 0.3); }
+.toast-close:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
 
 /* 動畫 */
 .toast-list-enter-active,
 .toast-list-leave-active {
-  transition: all 0.3s ease;
+  transition:
+    opacity var(--duration-normal) var(--ease-standard),
+    transform var(--duration-normal) var(--ease-standard);
 }
 
 .toast-list-enter-from {
   opacity: 0;
-  transform: translateX(100px);
+  transform: translateX(24px);
 }
 
 .toast-list-leave-to {
   opacity: 0;
-  transform: translateX(100px);
+  transform: translateX(24px);
 }
 
 .toast-container.top-left .toast-list-enter-from,
 .toast-container.bottom-left .toast-list-enter-from,
 .toast-container.top-left .toast-list-leave-to,
 .toast-container.bottom-left .toast-list-leave-to {
-  transform: translateX(-100px);
+  transform: translateX(-24px);
 }
 
 /* 響應式 */

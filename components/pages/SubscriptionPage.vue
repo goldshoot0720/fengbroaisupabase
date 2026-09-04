@@ -1048,15 +1048,15 @@ defineExpose({ subscriptions, totalMonthlyCost })
   width: 100%;
   min-width: 200px;
   padding: 0.75rem 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   font-size: 1rem;
   transition: border-color 0.3s;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: var(--primary);
 }
 
 .date-filters {
@@ -1067,62 +1067,62 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .date-filter-select {
   min-width: 120px;
   padding: 0.75rem 0.9rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: #fff;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
   font-size: 0.95rem;
-  color: #495057;
+  color: var(--text-secondary);
 }
 
 .date-filter-select:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: var(--primary);
 }
 
 .filter-buttons {
   display: flex;
   gap: 0.25rem;
-  background: #f0f0f0;
-  border-radius: 8px;
+  background: var(--bg-muted);
+  border-radius: var(--radius-md);
   padding: 0.25rem;
 }
 
 .filter-btn {
   padding: 0.5rem 1rem;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
   background: transparent;
-  color: #666;
+  color: var(--text-secondary);
   transition: all 0.2s;
 }
 
 .filter-btn:hover {
-  background: rgba(255, 255, 255, 0.6);
+  background: color-mix(in oklab, var(--bg-surface) 60%, transparent);
 }
 
 .filter-btn.active {
-  background: white;
-  color: #333;
+  background: var(--bg-surface);
+  color: var(--text-primary);
   font-weight: 600;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--elevation-1);
 }
 
 .filter-btn.filter-on.active {
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
 }
 
 .filter-btn.filter-off.active {
-  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
-  color: white;
+  background: var(--neutral-solid);
+  color: var(--on-solid);
 }
 
 .filter-btn.filter-soon.active {
-  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-  color: white;
+  background: var(--warning-solid);
+  color: var(--on-solid);
 }
 
 .csv-actions {
@@ -1133,10 +1133,10 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .btn-export,
 .btn-import {
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 500;
@@ -1146,7 +1146,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .btn-export:hover,
 .btn-import:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-import {
@@ -1158,11 +1158,11 @@ defineExpose({ subscriptions, totalMonthlyCost })
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(46, 204, 113, 0.08) 100%);
-  border-radius: 8px;
+  background: var(--success-light);
+  border-radius: var(--radius-md);
   margin-bottom: 1.5rem;
   font-size: 0.95rem;
-  color: #555;
+  color: var(--text-secondary);
   flex-wrap: wrap;
   gap: 0.5rem;
 }
@@ -1189,10 +1189,10 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .selected-count {
-  background: #3498db;
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -1209,23 +1209,23 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .renew-stat-on {
-  color: #087f5b;
-  background: rgba(46, 204, 113, 0.13);
-  border: 1px solid rgba(46, 204, 113, 0.35);
+  color: var(--success-text);
+  background: color-mix(in oklab, var(--success) 13%, transparent);
+  border: 1px solid color-mix(in oklab, var(--success) 35%, transparent);
 }
 
 .renew-stat-off {
-  color: #8a5a00;
-  background: rgba(255, 193, 7, 0.16);
-  border: 1px solid rgba(255, 193, 7, 0.38);
+  color: var(--warning-text);
+  background: color-mix(in oklab, var(--warning) 16%, transparent);
+  border: 1px solid color-mix(in oklab, var(--warning) 38%, transparent);
 }
 
 .btn-batch-mode {
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
@@ -1234,7 +1234,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .btn-batch-mode:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-add-icon {
@@ -1242,8 +1242,8 @@ defineExpose({ subscriptions, totalMonthlyCost })
   height: 36px;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
   font-size: 1.5rem;
   font-weight: 300;
   cursor: pointer;
@@ -1257,15 +1257,15 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .btn-add-icon:hover {
   transform: translateY(-2px) scale(1.1);
-  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-cancel-batch {
   padding: 0.35rem 0.75rem;
-  background: #e0e0e0;
-  color: #666;
+  background: var(--bg-inset);
+  color: var(--text-secondary);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
@@ -1273,15 +1273,15 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .btn-cancel-batch:hover {
-  background: #d0d0d0;
+  background: var(--border-strong);
 }
 
 .btn-batch-delete {
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
@@ -1299,16 +1299,16 @@ defineExpose({ subscriptions, totalMonthlyCost })
   font-weight: 700;
 }
 
-.btn-trash:hover { background: var(--danger-light); color: var(--danger); }
+.btn-trash:hover { background: var(--danger-light); color: var(--danger-text); }
 
 .btn-batch-delete:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+  box-shadow: var(--elevation-2);
 }
 
 .total-cost {
   font-weight: 700;
-  color: #e74c3c;
+  color: var(--danger-text);
   font-size: 1.05rem;
 }
 
@@ -1316,15 +1316,15 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .empty-state {
   text-align: center;
   padding: 3rem;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 1.1rem;
 }
 
 /* Table Style */
 .sub-table-container {
   background: var(--bg-surface);
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-1);
   overflow-x: auto;
   border: 1px solid var(--border-subtle);
 }
@@ -1346,14 +1346,14 @@ defineExpose({ subscriptions, totalMonthlyCost })
   padding: 1rem 0.75rem;
   text-align: left;
   font-weight: 600;
-  color: #495057;
-  border-bottom: 2px solid #dee2e6;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-subtle);
   white-space: nowrap;
 }
 
 .sub-table td {
   padding: 0.875rem 0.75rem;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
 }
 
@@ -1362,40 +1362,40 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .sub-table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-surface);
 }
 
 .sub-table tbody tr.selected {
-  background-color: rgba(52, 152, 219, 0.1);
+  background-color: color-mix(in oklab, var(--primary) 10%, transparent);
 }
 
 .sub-table tbody tr.selected:hover {
-  background-color: rgba(52, 152, 219, 0.15);
+  background-color: color-mix(in oklab, var(--primary) 15%, transparent);
 }
 
 .sub-table tbody tr.editing {
-  background-color: rgba(255, 243, 205, 0.5);
+  background-color: color-mix(in oklab, var(--warning) 50%, transparent);
 }
 
 .sub-table tbody tr.editing:hover {
-  background-color: rgba(255, 243, 205, 0.7);
+  background-color: color-mix(in oklab, var(--warning) 70%, transparent);
 }
 
 .sub-table tbody tr.add-row {
-  background-color: rgba(212, 237, 218, 0.5);
-  border-left: 3px solid #28a745;
+  background-color: color-mix(in oklab, var(--success) 50%, transparent);
+  border-left: 3px solid var(--success);
 }
 
 .sub-table tbody tr.add-row:hover {
-  background-color: rgba(212, 237, 218, 0.7);
+  background-color: color-mix(in oklab, var(--success) 70%, transparent);
 }
 
 /* Inline editing inputs */
 .inline-input {
   width: 100%;
   padding: 0.5rem;
-  border: 2px solid #3498db;
-  border-radius: 6px;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
   font-size: 0.9rem;
   font-family: inherit;
   transition: all 0.2s;
@@ -1403,8 +1403,8 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .inline-input:focus {
   outline: none;
-  border-color: #2980b9;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .inline-input + .inline-input {
@@ -1420,10 +1420,10 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .duplicate-warning {
   margin-top: 0.4rem;
   padding: 0.45rem 0.6rem;
-  border: 1px solid #f59e0b;
-  border-radius: 6px;
-  background: #fffbeb;
-  color: #92400e;
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm);
+  background: var(--warning-light);
+  color: var(--warning-text);
   font-size: 0.8rem;
   font-weight: 700;
   line-height: 1.4;
@@ -1448,10 +1448,10 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .btn-date-adjust {
   flex: 1;
   padding: 0.25rem 0.4rem;
-  border: 1px solid #3498db;
-  border-radius: 4px;
-  background: rgba(52, 152, 219, 0.1);
-  color: #3498db;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-xs);
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  color: var(--primary-text);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -1459,8 +1459,8 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .btn-date-adjust:hover {
-  background: #3498db;
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
 }
 
 .inline-price-group {
@@ -1471,16 +1471,16 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .inline-select {
   padding: 0.5rem;
-  border: 2px solid #3498db;
-  border-radius: 6px;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
   font-size: 0.9rem;
-  background: white;
+  background: var(--bg-surface);
   cursor: pointer;
 }
 
 .inline-select:focus {
   outline: none;
-  border-color: #2980b9;
+  border-color: var(--primary);
 }
 
 .inline-price {
@@ -1490,25 +1490,25 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 /* Save/Cancel buttons */
 .btn-save-icon {
-  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
   font-weight: bold;
 }
 
 .btn-save-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-cancel-icon {
-  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
-  color: white;
+  background: var(--neutral-solid);
+  color: var(--on-solid);
   font-weight: bold;
 }
 
 .btn-cancel-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(149, 165, 166, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 /* Column widths */
@@ -1561,7 +1561,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .service-name {
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-primary);
 }
 
 .service-name-row {
@@ -1574,11 +1574,11 @@ defineExpose({ subscriptions, totalMonthlyCost })
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
 }
 
 .service-link {
-  color: #3498db;
+  color: var(--primary-text);
   text-decoration: none;
 }
 
@@ -1588,14 +1588,14 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .service-note {
   font-size: 0.8rem;
-  color: #6c757d;
+  color: var(--text-secondary);
   white-space: pre-line;
   word-break: break-word;
 }
 
 .account-text {
   font-size: 0.9rem;
-  color: #495057;
+  color: var(--text-secondary);
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1615,18 +1615,18 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .date-secondary {
   font-size: 0.78rem;
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 .price-value {
   font-weight: 600;
-  color: #e74c3c;
+  color: var(--danger-text);
 }
 
 .twd-converted {
   display: block;
   font-size: 0.75rem;
-  color: #6c757d;
+  color: var(--text-secondary);
   margin-top: 0.15rem;
 }
 
@@ -1635,7 +1635,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1645,36 +1645,36 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .btn-edit-icon {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
 }
 
 .btn-edit-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-copy-icon {
-  background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
   font-weight: 700;
 }
 
 .btn-copy-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.35);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-delete-icon {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   font-size: 1rem;
   font-weight: bold;
 }
 
 .btn-delete-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 /* Responsive */
@@ -1713,8 +1713,8 @@ defineExpose({ subscriptions, totalMonthlyCost })
   .filter-btn {
     min-height: 40px;
     padding: 0.65rem 0.5rem;
-    border: 1px solid #dfe5ec;
-    background: white;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
   }
 
   .csv-actions {
@@ -1826,28 +1826,28 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .renew-toggle.active {
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
 }
 
 .renew-toggle:not(.active) {
-  background: #e0e0e0;
-  color: #999;
+  background: var(--bg-inset);
+  color: var(--text-muted);
 }
 
 .renew-toggle:hover {
   transform: scale(1.05);
 }
 
-.date-normal { color: #27ae60; }
-.date-soon { color: #f39c12; font-weight: bold; }
-.date-overdue { color: #e74c3c; font-weight: bold; }
+.date-normal { color: var(--success-text); }
+.date-soon { color: var(--warning-text); font-weight: bold; }
+.date-overdue { color: var(--danger-text); font-weight: bold; }
 
 /* Modal */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in oklab, var(--overlay-scrim) 50%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1856,14 +1856,14 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .modal {
-  background: white;
-  border-radius: 16px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
   padding: 2rem;
   width: 100%;
   max-width: 550px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--elevation-3);
 }
 
 .modal-header {
@@ -1876,7 +1876,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .modal-header h2 {
   margin: 0;
   font-size: 1.5rem;
-  background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
+  background: var(--success-solid);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1887,7 +1887,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   border: none;
   font-size: 2rem;
   cursor: pointer;
-  color: #999;
+  color: var(--text-muted);
   line-height: 1;
   padding: 0;
   width: 32px;
@@ -1900,8 +1900,8 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .btn-close:hover {
-  background: #f5f5f5;
-  color: #333;
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 
 .modal-form {
@@ -1918,14 +1918,14 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .form-group label {
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   font-size: 0.95rem;
 }
 
 .form-group input {
   padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.3s;
@@ -1933,7 +1933,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .form-group input:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: var(--primary);
 }
 
 .form-group-renew {
@@ -1944,22 +1944,22 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .currency-select {
   padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.3s;
-  background: white;
+  background: var(--bg-surface);
 }
 
 .currency-select:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: var(--primary);
 }
 
 .twd-hint {
   font-size: 0.85rem;
-  color: #888;
+  color: var(--text-muted);
   margin-top: 0.25rem;
 }
 
@@ -1974,7 +1974,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   flex: 1;
   padding: 0.875rem;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 1rem;
   font-weight: 600;
@@ -1982,22 +1982,22 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .btn-cancel {
-  background: #e0e0e0;
-  color: #666;
+  background: var(--bg-inset);
+  color: var(--text-secondary);
 }
 
 .btn-cancel:hover {
-  background: #d0d0d0;
+  background: var(--border-strong);
 }
 
 .btn-submit {
-  background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
 }
 
 .btn-submit:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-submit:disabled {
@@ -2013,7 +2013,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .modal-header.danger h2 {
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  background: var(--danger-solid);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -2025,36 +2025,36 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .confirm-warning {
   font-size: 1.1rem;
-  color: #e74c3c;
+  color: var(--danger-text);
   margin-bottom: 1rem;
   text-align: center;
 }
 
 .confirm-warning strong {
   font-size: 1.5rem;
-  color: #c0392b;
+  color: var(--danger-text);
 }
 
 .confirm-hint {
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 1rem;
   line-height: 1.6;
 }
 
 .confirm-hint code {
-  background: #f5f5f5;
+  background: var(--bg-surface);
   padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   font-family: 'Courier New', monospace;
-  color: #e74c3c;
+  color: var(--danger-text);
   font-weight: 600;
 }
 
 .confirm-input {
   width: 100%;
   padding: 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   font-size: 1rem;
   font-family: 'Courier New', monospace;
   text-align: center;
@@ -2064,28 +2064,28 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .confirm-input:focus {
   outline: none;
-  border-color: #e74c3c;
+  border-color: var(--danger);
 }
 
 .confirm-input.match {
-  border-color: #27ae60;
-  background: rgba(39, 174, 96, 0.05);
+  border-color: var(--success);
+  background: color-mix(in oklab, var(--success) 5%, transparent);
 }
 
 .confirm-error {
-  color: #e74c3c;
+  color: var(--danger-text);
   font-size: 0.9rem;
   margin-top: 0.75rem;
   text-align: center;
 }
 
 .btn-danger {
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+  background: var(--danger-solid);
 }
 
 .btn-danger:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .subscription-skeleton, .load-error { display: flex; flex-direction: column; gap: var(--spacing-sm); padding: var(--spacing-lg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-surface); }
@@ -2110,7 +2110,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .detail-note { grid-template-columns: 1fr !important; }
 .detail-actions { margin-top: auto; display: flex; gap: var(--spacing-sm); }
 .detail-actions button { flex: 1; min-height: 44px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text-primary); background: var(--bg-muted); cursor: pointer; font-weight: 700; }
-.detail-actions .danger { color: var(--danger); background: var(--danger-light); }
+.detail-actions .danger { color: var(--danger-text); background: var(--danger-light); }
 .service-note { max-width: 52ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 768px) {

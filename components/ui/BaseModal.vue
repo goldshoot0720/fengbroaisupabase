@@ -78,19 +78,22 @@ onUnmounted(() => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  /* 暖色遮罩，不是純黑：底下的紙面才不會變灰 */
+  background: color-mix(in oklab, var(--overlay-scrim) 55%, transparent);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  padding: 1rem;
+  padding: var(--sp-4);
 }
 
 .modal-container {
-  background: var(--bg-secondary, #ffffff);
-  border-radius: 20px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-3);
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -107,67 +110,76 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--border-color, #e1e8ed);
-  background: var(--bg-tertiary, #f8f9fa);
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
 }
 
 .header-content {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--sp-2);
 }
 
 .modal-icon {
-  font-size: 1.5rem;
+  font-size: var(--text-lg);
 }
 
 .modal-title {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-primary, #2c3e50);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
 }
 
 .modal-close {
   width: 36px;
   height: 36px;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text-secondary, #666);
-  font-size: 1.2rem;
+  color: var(--text-muted);
+  font-size: var(--text-lg);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .modal-close:hover {
-  background: rgba(0, 0, 0, 0.1);
-  color: var(--text-primary, #2c3e50);
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .modal-body {
-  padding: 1.5rem;
+  padding: var(--sp-4);
   overflow-y: auto;
   flex: 1;
 }
 
 .modal-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border-color, #e1e8ed);
-  background: var(--bg-tertiary, #f8f9fa);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-muted);
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
+  gap: var(--sp-2);
 }
 
-/* 動畫 */
+/* 動畫：進場輕一點，不要「彈」 */
 .modal-enter-active,
 .modal-leave-active {
-  transition: all 0.3s ease;
+  transition: opacity var(--duration-normal) var(--ease-standard);
+}
+
+.modal-enter-active .modal-container,
+.modal-leave-active .modal-container {
+  transition: transform var(--duration-normal) var(--ease-standard);
 }
 
 .modal-enter-from,
@@ -177,36 +189,10 @@ onUnmounted(() => {
 
 .modal-enter-from .modal-container,
 .modal-leave-to .modal-container {
-  transform: scale(0.9) translateY(20px);
+  transform: scale(0.98) translateY(8px);
 }
 
-/* 暗黑模式 */
-:global(.dark) .modal-container {
-  background: #1e293b;
-}
-
-:global(.dark) .modal-header {
-  background: #334155;
-  border-color: #475569;
-}
-
-:global(.dark) .modal-title {
-  color: #f1f5f9;
-}
-
-:global(.dark) .modal-close {
-  color: #94a3b8;
-}
-
-:global(.dark) .modal-close:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f1f5f9;
-}
-
-:global(.dark) .modal-footer {
-  background: #334155;
-  border-color: #475569;
-}
+/* 暗黑模式由 token 自動翻轉 */
 
 /* 響應式 */
 @media (max-width: 768px) {

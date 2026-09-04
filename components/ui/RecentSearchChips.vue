@@ -52,59 +52,63 @@ defineEmits(['apply', 'remove', 'clear'])
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.5rem;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
   width: 100%;
 }
 
 .recent-label {
-  color: var(--text-muted, #7f8c8d);
-  font-size: 0.82rem;
-  font-weight: 600;
+  color: var(--text-muted, var(--text-muted));
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
 }
 
 .recent-clear {
-  border: 1px solid var(--border-subtle, #dfe5ec);
+  border: 1px solid var(--border-subtle, var(--border-subtle));
   border-radius: 999px;
-  background: var(--bg-surface, #fff);
-  color: var(--text-primary, #2c3e50);
+  background: var(--bg-surface, var(--bg-surface));
+  color: var(--text-primary, var(--text-primary));
   cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: 500;
   line-height: 1.2;
-  padding: 0.35rem 0.7rem;
-  transition: all 0.2s;
+  height: 26px;
+  padding: 0 var(--sp-3);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .recent-chip {
   display: inline-flex;
   align-items: center;
   overflow: hidden;
-  border: 1px solid var(--border-subtle, #dfe5ec);
+  border: 1px solid var(--border-subtle, var(--border-subtle));
   border-radius: 999px;
-  background: var(--bg-surface, #fff);
-  transition: all 0.2s;
+  height: 26px;
+  background: var(--bg-surface, var(--bg-surface));
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .recent-chip:hover {
-  border-color: var(--primary, #3498db);
-  color: var(--primary-hover, #2477b3);
-  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  background: var(--bg-muted);
 }
 
 .recent-chip-text,
 .recent-chip-remove {
   border: 0;
   background: transparent;
-  color: var(--text-primary, #2c3e50);
+  color: var(--text-primary, var(--text-primary));
   cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: 500;
   line-height: 1.2;
 }
 
 .recent-chip-text {
-  padding: 0.35rem 0.25rem 0.35rem 0.7rem;
+  padding: 0 var(--sp-1) 0 var(--sp-3);
   max-width: 12rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -112,20 +116,20 @@ defineEmits(['apply', 'remove', 'clear'])
 }
 
 .recent-chip-remove {
-  padding: 0.35rem 0.65rem 0.35rem 0.35rem;
-  color: var(--text-muted, #95a5a6);
+  padding: 0 var(--sp-2) 0 var(--sp-1);
+  color: var(--text-muted, var(--text-muted));
 }
 
 .recent-chip-text:hover {
-  color: var(--primary-hover, #2477b3);
+  color: var(--primary-hover, var(--primary-text));
 }
 
 .recent-chip-remove:hover {
-  color: var(--danger, #e74c3c);
+  color: var(--danger, var(--danger-text));
 }
 
 .recent-clear:hover {
-  border-color: var(--danger, #f5576c);
-  color: var(--danger, #e74c3c);
+  border-color: var(--danger, var(--danger));
+  color: var(--danger, var(--danger-text));
 }
 </style>

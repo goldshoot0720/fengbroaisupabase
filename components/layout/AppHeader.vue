@@ -209,12 +209,12 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 0;
   margin-bottom: 1rem;
-  background: color-mix(in oklab, var(--header-bg) 88%, transparent);
+  background: color-mix(in oklab, var(--header-bg) 92%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border-color);
-  border-radius: 28px;
-  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -223,45 +223,43 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.4rem;
-  border-bottom: 1px solid var(--border-color);
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  min-height: var(--header-h-brand);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .header-left,
 .header-right {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
+  gap: var(--sp-2);
 }
 
 .brand-lockup {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--sp-3);
 }
 
 .mobile-menu-btn {
   display: none;
 }
 
+/* 品牌磚：實心黏土色，全站唯一一塊飽和色，當作視覺錨點 */
 .brand-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  background: linear-gradient(
-    145deg,
-    color-mix(in oklab, var(--primary) 22%, transparent),
-    color-mix(in oklab, var(--primary) 6%, transparent)
-  );
-  border: 1px solid color-mix(in oklab, var(--primary) 20%, var(--border-color));
-  color: var(--primary);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--primary-solid);
+  border: 1px solid transparent;
+  color: var(--on-primary);
   display: grid;
   place-items: center;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 0.78rem;
-  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
   flex-shrink: 0;
 }
 
@@ -270,11 +268,13 @@ onUnmounted(() => {
 }
 
 .brand-kicker {
-  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--tracking-label);
   color: var(--text-muted);
-  margin-bottom: 0.1rem;
+  margin-bottom: 1px;
 }
 
 .header-title-row {
@@ -286,16 +286,16 @@ onUnmounted(() => {
 }
 
 .top-header h1 {
-  font-size: clamp(1.3rem, 1.1rem + 0.8vw, 1.9rem);
-  line-height: 1.05;
+  font-size: var(--text-lg);
+  line-height: 1.2;
   margin: 0;
   color: var(--text-primary);
 }
 
 .title-hint {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  font-weight: 700;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -303,23 +303,27 @@ onUnmounted(() => {
 /* ── 右側工具群 ── */
 .signal-card {
   display: grid;
-  gap: 0.1rem;
-  padding: 0.55rem 0.8rem;
-  border-radius: 18px;
-  border: 1px solid var(--border-color);
-  background: color-mix(in oklab, var(--bg-secondary) 88%, transparent);
-  box-shadow: var(--shadow-soft);
+  gap: 1px;
+  padding: 5px var(--sp-3);
+  border-radius: var(--control-radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-muted);
+  box-shadow: none;
 }
 
 .signal-label {
-  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: var(--tracking-label);
   color: var(--text-muted);
 }
 
 .signal-card strong {
-  font-size: 0.82rem;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 .account-switcher {
@@ -328,25 +332,27 @@ onUnmounted(() => {
 
 .account-btn,
 .dark-mode-toggle {
-  border: 1px solid var(--border-color);
-  background: color-mix(in oklab, var(--bg-secondary) 88%, transparent);
-  box-shadow: var(--shadow-soft);
-  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  box-shadow: none;
+  border-radius: var(--control-radius);
   color: var(--text-primary);
   cursor: pointer;
-  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .account-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.55rem 0.8rem;
+  gap: var(--sp-2);
+  height: var(--control-h);
+  padding: 0 var(--sp-3);
+  font-size: var(--text-sm);
 }
 
 .account-btn:hover,
 .dark-mode-toggle:hover {
-  transform: translateY(-1px);
+  background: var(--bg-muted);
   border-color: var(--border-strong);
 }
 
@@ -354,29 +360,30 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  padding: 0.7rem 1rem;
+  gap: var(--sp-1);
+  height: var(--control-h);
+  padding: 0 var(--sp-3);
 }
 
 .dark-mode-label {
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
 }
 
 .account-chip,
 .dropdown-arrow,
 .account-item-icon {
-  font-family: var(--font-display);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
 }
 
 .account-chip {
-  padding: 0.28rem 0.45rem;
-  border-radius: 999px;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
   background: var(--primary-light);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .account-name {
@@ -384,8 +391,8 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 700;
-  font-size: 0.85rem;
+  font-weight: 500;
+  font-size: var(--text-sm);
 }
 
 .dropdown-arrow {
@@ -399,10 +406,10 @@ onUnmounted(() => {
   right: 0;
   min-width: 250px;
   padding: 0.55rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 24px;
-  box-shadow: var(--shadow);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-3);
   z-index: 100;
 }
 
@@ -417,28 +424,32 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.7rem;
   padding: 0.75rem 0.8rem;
-  border-radius: 16px;
+  border-radius: var(--control-radius);
   cursor: pointer;
-  transition: background var(--transition-fast), transform var(--transition-fast);
+  transition: background-color var(--transition-fast);
 }
 
 .account-item:hover {
-  background: var(--bg-tertiary);
-  transform: translateX(2px);
+  background: var(--surface-hover);
 }
 
 .account-item.active {
   background: var(--primary-light);
 }
 
+.account-item.active .account-item-icon {
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  color: var(--primary-text);
+}
+
 .account-item-icon {
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
-  background: color-mix(in oklab, var(--bg-tertiary) 90%, transparent);
-  color: var(--text-secondary);
+  background: var(--bg-muted);
+  color: var(--text-muted);
 }
 
 .account-item-name {
@@ -448,7 +459,7 @@ onUnmounted(() => {
 
 .dropdown-divider {
   height: 1px;
-  background: var(--border-color);
+  background: var(--border-subtle);
   margin: 0.4rem 0;
 }
 
@@ -468,8 +479,8 @@ onUnmounted(() => {
   /* Desktop: max 10 items per row; extra items wrap to the next row */
   display: grid;
   grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 0.35rem 0.5rem;
-  padding: 0.55rem 1rem;
+  gap: var(--sp-1) var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
 }
 
 .nav-tab {
@@ -482,53 +493,54 @@ onUnmounted(() => {
   border: 0;
   background: transparent;
   color: var(--text-secondary);
-  border-radius: 20px;
-  padding: 0.45rem 0.4rem;
+  border-radius: var(--control-radius);
+  min-height: var(--header-h-nav);
+  padding: var(--sp-1) var(--sp-2);
   cursor: pointer;
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   transition:
-    background var(--transition-fast),
-    color var(--transition-fast),
-    transform var(--transition-fast);
+    background-color var(--transition-fast),
+    color var(--transition-fast);
   position: relative;
 }
 
 .nav-tab-glyph {
   flex-shrink: 0;
-  font-size: 0.95rem;
+  font-size: var(--text-md);
   line-height: 1;
 }
 
+/* hover 用中性薄墨，強調色只留給 active 的那一條底線 */
 .nav-tab:hover {
-  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  background: var(--surface-hover);
   color: var(--text-primary);
-  transform: translateY(-1px);
 }
 
 .nav-tab.active {
   background: transparent;
-  color: var(--text-primary);
+  color: var(--primary-text);
+  font-weight: 600;
   box-shadow: none;
 }
 
 .nav-tab.active::after {
   content: '';
   position: absolute;
-  left: 0.2rem;
-  right: 0.2rem;
-  bottom: 0.15rem;
+  left: var(--sp-2);
+  right: var(--sp-2);
+  bottom: 2px;
   height: 2px;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--primary) 75%, transparent);
+  background: var(--primary);
 }
 
 .nav-tab-name {
   display: block;
-  font-weight: 700;
+  font-weight: inherit;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
@@ -538,10 +550,12 @@ onUnmounted(() => {
 .nav-sub-row {
   display: flex;
   overflow-x: auto;
-  gap: 0.5rem;
-  padding: 0.4rem 1rem 0.55rem;
-  border-top: 1px solid var(--border-color);
-  background: color-mix(in oklab, var(--bg-muted) 55%, transparent);
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--header-h-subnav);
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-muted);
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -561,49 +575,39 @@ onUnmounted(() => {
   border: 0;
   background: transparent;
   color: var(--text-secondary);
-  border-radius: 14px;
-  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius-full);
+  height: var(--control-h-sm);
+  padding: 0 var(--sp-3);
   cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .nav-sub-glyph {
   flex-shrink: 0;
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   line-height: 1;
 }
 
 .nav-sub-tab:hover {
-  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  background: var(--surface-hover);
   color: var(--text-primary);
-  transform: translateY(-1px);
 }
 
 .nav-sub-tab.active {
-  background: transparent;
+  background: var(--bg-surface);
   color: var(--text-primary);
-  box-shadow: none;
-}
-
-.nav-sub-tab.active::after {
-  content: '';
-  position: absolute;
-  left: 0.15rem;
-  right: 0.15rem;
-  bottom: 0.1rem;
-  height: 2px;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--primary) 70%, transparent);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
 .nav-sub-hint {
   color: var(--text-muted);
-  font-size: 0.72rem;
+  font-size: var(--text-2xs);
   font-weight: 400;
 }
 
@@ -647,9 +651,9 @@ onUnmounted(() => {
     border-left: 0;
     border-right: 0;
     border-top: 0;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-subtle);
     background: color-mix(in oklab, var(--header-bg) 92%, transparent);
-    box-shadow: 0 8px 28px color-mix(in oklab, oklch(0.18 0.03 248) 12%, transparent);
+    box-shadow: var(--elevation-1);
     backdrop-filter: blur(22px) saturate(1.15);
     -webkit-backdrop-filter: blur(22px) saturate(1.15);
   }
@@ -684,10 +688,10 @@ onUnmounted(() => {
     width: 38px;
     height: 38px;
     font-size: 0.72rem;
-    border-radius: 12px;
-    background: linear-gradient(145deg, color-mix(in oklab, var(--primary) 28%, transparent), color-mix(in oklab, var(--primary) 8%, transparent));
-    border-color: color-mix(in oklab, var(--primary) 22%, var(--border-color));
-    color: var(--primary);
+    border-radius: var(--radius-sm);
+    background: var(--primary-solid);
+    border-color: transparent;
+    color: var(--on-primary);
   }
 
   .brand-copy {
@@ -734,14 +738,14 @@ onUnmounted(() => {
   .account-dropdown {
     min-width: min(88vw, 280px);
     right: 0;
-    border-radius: 20px;
+    border-radius: var(--radius-lg);
     padding: 0.45rem;
     box-shadow: var(--elevation-3);
   }
 
   .account-item {
     min-height: 48px;
-    border-radius: 14px;
+    border-radius: var(--control-radius);
   }
 
   .dark-mode-toggle {
@@ -751,7 +755,7 @@ onUnmounted(() => {
     padding: 0;
     display: inline-grid;
     place-items: center;
-    border-radius: 14px;
+    border-radius: var(--control-radius);
   }
 
   .dark-mode-icon {
@@ -775,8 +779,8 @@ onUnmounted(() => {
     height: 44px;
     min-width: 44px;
     padding: 0;
-    border-radius: 14px;
-    border: 1px solid var(--border-color);
+    border-radius: var(--control-radius);
+    border: 1px solid var(--border-subtle);
     background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
     color: var(--text-primary);
     cursor: pointer;

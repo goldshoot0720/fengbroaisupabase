@@ -609,12 +609,12 @@ onBeforeUnmount(() => {
 }
 
 .store-card__link {
-  color: var(--accent-color, #3b82f6);
+  color: var(--primary-text);
 }
 
 .tool-error {
   margin: 0.55rem 0 0;
-  color: var(--danger-color, #ef4444);
+  color: var(--danger-text);
   font-size: 0.88rem;
 }
 
@@ -678,8 +678,8 @@ onBeforeUnmount(() => {
   height: 1.4rem;
   padding: 0 0.35rem;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--accent-color, #3b82f6) 18%, transparent);
-  color: var(--accent-color, #3b82f6);
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  color: var(--primary-text);
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -700,8 +700,8 @@ onBeforeUnmount(() => {
 
 .ifc-dropzone.is-dragover,
 .ifc-dropzone:focus-visible {
-  border-color: var(--accent-color, #3b82f6);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-color, #3b82f6) 22%, transparent);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 22%, transparent);
 }
 
 .ifc-file-input {
@@ -794,14 +794,14 @@ onBeforeUnmount(() => {
 }
 
 .ifc-format-btn.active {
-  background: color-mix(in oklab, var(--accent-color, #3b82f6) 18%, transparent);
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
   color: var(--text-primary, inherit);
   font-weight: 600;
 }
 
 .ifc-range {
   width: 100%;
-  accent-color: var(--accent-color, #3b82f6);
+  accent-color: var(--primary);
 }
 
 .ifc-select {
@@ -810,7 +810,7 @@ onBeforeUnmount(() => {
 
 .tool-input {
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 0.55rem 0.7rem;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -832,8 +832,8 @@ onBeforeUnmount(() => {
 }
 
 .tool-primary-btn {
-  background: var(--accent-color, #3b82f6);
-  color: #fff;
+  background: var(--primary-solid);
+  color: var(--on-primary);
 }
 
 .tool-primary-btn:disabled {
@@ -855,7 +855,7 @@ onBeforeUnmount(() => {
 .tool-primary-btn--compact,
 .tool-secondary-btn--compact {
   padding: 0.4rem 0.75rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-size: 0.85rem;
 }
 
@@ -889,7 +889,7 @@ onBeforeUnmount(() => {
 .ifc-item__thumb-wrap {
   width: 64px;
   height: 64px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: color-mix(in oklab, var(--bg-primary) 80%, transparent);
   border: 1px solid var(--border-color);
@@ -922,7 +922,7 @@ onBeforeUnmount(() => {
 
 .ifc-item__error {
   font-size: 0.78rem;
-  color: var(--danger-color, #ef4444);
+  color: var(--danger-text);
 }
 
 .ifc-item__status {
@@ -931,7 +931,7 @@ onBeforeUnmount(() => {
 }
 
 .ifc-item__status--ok {
-  color: var(--success-color, #22c55e);
+  color: var(--success-text);
 }
 
 .ifc-item__actions {

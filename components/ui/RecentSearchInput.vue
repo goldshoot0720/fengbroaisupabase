@@ -60,7 +60,7 @@ const clearQuery = () => {
 .recent-search-form {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--sp-2);
   width: 100%;
 }
 
@@ -71,25 +71,26 @@ const clearQuery = () => {
 
 .search-clear,
 .search-submit {
-  border: 1px solid var(--border-subtle, var(--border-color, #dfe5ec));
-  background: var(--bg-surface, var(--bg-secondary, #fff));
-  color: var(--text-primary, #2c3e50);
+  border: 1px solid var(--border-subtle, var(--border-color, var(--border-subtle)));
+  background: var(--bg-surface, var(--bg-secondary, var(--on-solid)));
+  color: var(--text-primary, var(--text-primary));
   cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: 500;
   line-height: 1;
-  border-radius: 10px;
-  padding: 0.7rem 0.9rem;
+  border-radius: var(--control-radius);
+  height: var(--control-h);
+  padding: 0 var(--sp-3);
 }
 
 .search-clear {
-  width: 2.4rem;
-  padding: 0.7rem 0;
+  width: var(--control-h);
+  padding: 0;
 }
 
 .search-submit {
-  background: var(--text-primary, #2c3e50);
-  color: var(--bg-primary, #fff);
+  background: var(--neutral-solid);
+  color: var(--on-solid);
   border-color: transparent;
 }
 

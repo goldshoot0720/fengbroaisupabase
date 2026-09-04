@@ -58,13 +58,9 @@ const handleCancel = () => {
 
 <style scoped>
 .confirm-message {
-  color: var(--text-primary, #2c3e50);
-  font-size: 1rem;
-  line-height: 1.6;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
   margin: 0;
-}
-
-:global(.dark) .confirm-message {
-  color: #f1f5f9;
 }
 </style>

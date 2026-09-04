@@ -10,15 +10,15 @@
 <style scoped>
 .page-loading-state {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--sp-3);
   min-height: 13rem;
   align-content: center;
   justify-items: start;
-  padding: clamp(1.5rem, 4vw, 3rem);
+  padding: var(--sp-8);
   color: var(--text-secondary);
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--card-radius);
 }
 
 .page-loading-state__bar,

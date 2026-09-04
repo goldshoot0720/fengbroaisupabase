@@ -1,108 +1,187 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
+/* ============================================================
+   鋒兄 AI — Design tokens
+   語彙：Supabase 品牌綠 (#3ECF8E) + studio 深灰 (#1C1C1C)。
+   中性紙面、髮絲線分隔，重點色只給「可按的」與「要注意的」。
+   陰影只留給真正浮起來的層（彈窗、下拉、Toast）。
+
+   兩條硬規則：
+   1. 綠色實心塊上的文字是 --on-primary（深墨綠），不是 --on-solid。
+      #3ECF8E 配白字只有 1.9:1。
+   2. 語意實心塊（成功／警告／危險／資訊／中性）才用 --on-solid（近白）。
+   ============================================================ */
 
 :root {
   color-scheme: light;
 
-  /* ——— Neutrals (canonical product names) ——— */
-  --bg-canvas: oklch(0.97 0.01 240);
-  --bg-surface: oklch(0.995 0.004 240);
-  --bg-muted: oklch(0.945 0.012 240);
-  --bg-inset: oklch(0.93 0.01 240);
-  --bg-elevated: color-mix(in oklab, var(--bg-surface) 86%, white 14%);
+  /* ——— Neutrals：中性紙，帶極微綠偏，呼應品牌色 ——— */
+  --bg-canvas: #F5F6F5;                    /* 紙 */
+  --bg-surface: #FFFFFF;                   /* 卡面 */
+  --bg-muted: #ECEEEC;                     /* 次層 */
+  --bg-inset: #E6E9E6;                     /* 凹槽 / 輸入框底 */
+  --bg-elevated: var(--bg-surface);
   --bg-page: var(--bg-canvas);
   --surface-product: var(--bg-surface);
   --surface-brand: var(--bg-surface);
   --surface-inset: var(--bg-inset);
-  --surface-strong: oklch(0.18 0.02 248);
+  --surface-strong: #1C1C1C;               /* Supabase studio 深灰面板 */
 
-  --text-primary: oklch(0.23 0.03 250);
-  --text-secondary: oklch(0.40 0.02 248);
-  --text-muted: oklch(0.52 0.014 248);
-  --text-inverse: oklch(0.98 0.004 255);
+  /* 互動用的中性覆蓋（hover / active）：不換底色，只疊一層薄墨 */
+  --surface-hover: color-mix(in oklab, var(--text-primary) 5%, transparent);
+  --surface-active: color-mix(in oklab, var(--text-primary) 9%, transparent);
 
-  --border-subtle: color-mix(in oklab, oklch(0.50 0.02 248) 22%, transparent);
-  --border-strong: color-mix(in oklab, oklch(0.42 0.03 248) 32%, transparent);
+  --text-primary: #171717;
+  --text-secondary: #4E534F;
+  --text-muted: #7C817D;
+  --text-inverse: #F5F6F5;
+
+  --border-subtle: #E4E7E4;
+  --border-strong: #CFD4D0;
   --border-default: var(--border-subtle);
   --shadow-border: 0 0 0 1px var(--border-subtle);
+  --hairline: 1px solid var(--border-subtle);
 
   /* ——— Shell ——— */
-  --sidebar-bg: linear-gradient(180deg, oklch(0.18 0.022 248) 0%, oklch(0.14 0.02 248) 100%);
-  --sidebar-text: var(--text-inverse);
-  --header-bg: color-mix(in oklab, var(--bg-surface) 88%, white 12%);
+  --sidebar-bg: var(--bg-muted);
+  --sidebar-text: var(--text-primary);
+  --sidebar-panel: var(--bg-surface);
+  --sidebar-border: var(--border-subtle);
+  --header-bg: var(--bg-surface);
   --bg-brand-deep: var(--surface-strong);
   --text-on-brand: var(--text-inverse);
 
-  /* ——— Accent budget ——— */
-  --primary: oklch(0.52 0.16 250);
-  --primary-hover: oklch(0.47 0.16 250);
-  --primary-muted: color-mix(in oklab, var(--primary) 12%, transparent);
+  /* ——— Accent：Supabase 綠是唯一主角 ——— */
+  --primary: #3ECF8E;                      /* 表達色：圖示、邊框、選中、實心塊 */
+  --primary-hover: #24996B;                /* 當文字／連結 hover 用，壓深才讀得到 */
+  --primary-strong: #10775A;               /* 紙面上的重點文字 */
+  --primary-muted: color-mix(in oklab, var(--primary) 16%, transparent);
   --primary-light: var(--primary-muted);
-  --accent: oklch(0.74 0.12 92);
+  --primary-ring: color-mix(in oklab, var(--primary) 42%, transparent);
+  --on-primary: #0B1F16;                   /* 綠色塊上的文字（深墨綠） */
+  --accent: #24B47E;
   --accent-light: color-mix(in oklab, var(--accent) 16%, transparent);
 
-  --success: oklch(0.48 0.13 150);
-  --success-hover: oklch(0.42 0.13 150);
+  --success: #2E9E68;
+  --success-hover: #268257;
   --success-light: color-mix(in oklab, var(--success) 14%, transparent);
-  --warning: oklch(0.68 0.14 80);
-  --warning-hover: oklch(0.62 0.14 80);
+  --warning: #B4761A;
+  --warning-hover: #986115;
   --warning-light: color-mix(in oklab, var(--warning) 16%, transparent);
-  --danger: oklch(0.52 0.19 25);
-  --danger-hover: oklch(0.46 0.19 25);
+  --danger: #B4402F;
+  --danger-hover: #973526;
   --danger-light: color-mix(in oklab, var(--danger) 14%, transparent);
-  --info: oklch(0.50 0.10 220);
-  --info-hover: oklch(0.44 0.10 220);
-  --info-light: color-mix(in oklab, var(--info) 14%, transparent);
+  --info: #3B6B93;
+  --info-hover: #315979;
+  --info-light: color-mix(in oklab, var(--info) 15%, transparent);
   --status-success: var(--success);
   --status-warning: var(--warning);
   --status-danger: var(--danger);
 
-  /* ——— Spacing ——— */
-  --spacing-2xs: 0.25rem;
-  --spacing-xs: 0.5rem;
-  --spacing-sm: 0.75rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
-  --spacing-2xl: 3rem;
-  --spacing-3xl: 4.5rem;
+  /* ——— On-tint text ———
+     語意色當「文字」用時壓深一階，在紙面與 -light 淡染底上都過 AA。
+     深色模式反過來提亮；配對關係不變（-light 底 + -text 字）。 */
+  --primary-text: #10775A;
+  --success-text: #14724D;
+  --warning-text: #8A5C13;
+  --danger-text: #963526;
+  --info-text: #315979;
 
-  /* ——— Radius (product-first; cards 12–16px) ——— */
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  /* 遮罩：中性近黑 */
+  --overlay-scrim: #101210;
+
+  /* ——— Solid fills ———
+     語意實心塊在深淺色模式維持同明度，白字（--on-solid）兩邊都過 AA。
+     綠色實心塊是例外：亮綠 + 深字（--on-primary）。 */
+  --primary-solid: #3ECF8E;
+  --primary-solid-hover: #34B27B;
+  --success-solid: #2F7D4F;
+  --success-solid-hover: #276642;
+  --warning-solid: #8A5C13;
+  --warning-solid-hover: #744C0E;
+  --danger-solid: #A93B2A;
+  --danger-solid-hover: #91311F;
+  --info-solid: #35608A;
+  --info-solid-hover: #2C5075;
+  --neutral-solid: #4E534F;
+  --neutral-solid-hover: #3E423F;
+  --on-solid: #FBFCFB;
+
+  /* ——— Spacing：4px 網格，只准用這幾階 ——— */
+  --sp-1: 0.25rem;   /* 4  */
+  --sp-2: 0.5rem;    /* 8  */
+  --sp-3: 0.75rem;   /* 12 */
+  --sp-4: 1rem;      /* 16 */
+  --sp-5: 1.25rem;   /* 20 */
+  --sp-6: 1.5rem;    /* 24 */
+  --sp-8: 2rem;      /* 32 */
+  --sp-10: 2.5rem;   /* 40 */
+  --sp-12: 3rem;     /* 48 */
+  --sp-16: 4rem;     /* 64 */
+  --spacing-2xs: var(--sp-1);
+  --spacing-xs: var(--sp-2);
+  --spacing-sm: var(--sp-3);
+  --spacing-md: var(--sp-4);
+  --spacing-lg: var(--sp-6);
+  --spacing-xl: var(--sp-8);
+  --spacing-2xl: var(--sp-12);
+  --spacing-3xl: var(--sp-16);
+
+  /* ——— Radius：小塊 6 / 控件 10 / 卡片 12 / 膠囊 ——— */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
   --radius-full: 999px;
-  --card-radius: var(--radius-md);
-  --section-gap: var(--spacing-lg);
+  --card-radius: var(--radius-lg);
+  --control-radius: var(--radius-md);
+  --section-gap: var(--sp-6);
 
-  /* ——— Elevation (resting cards = elevation-0) ——— */
+  /* ——— 固定尺寸：控件只有三種高度 ——— */
+  --control-h-sm: 30px;
+  --control-h: 36px;
+  --control-h-lg: 44px;
+  --row-h: 44px;
+  --header-h-brand: 60px;
+  --header-h-nav: 44px;
+  --header-h-subnav: 46px;
+  --card-pad: var(--sp-4);
+
+  /* ——— Elevation：靜止的卡片沒有陰影，只有髮絲線 ——— */
   --elevation-0: none;
-  --elevation-1: 0 1px 2px rgba(18, 26, 44, 0.06);
-  --elevation-2: 0 8px 24px rgba(18, 26, 44, 0.10);
-  --elevation-3: 0 16px 40px rgba(18, 26, 44, 0.16);
+  --elevation-1: 0 1px 2px rgba(16, 18, 16, 0.06);
+  --elevation-2: 0 4px 16px rgba(16, 18, 16, 0.09);
+  --elevation-3: 0 12px 32px rgba(16, 18, 16, 0.15);
 
-  /* ——— Type scale ——— */
-  --font-display: 'Space Grotesk', system-ui, sans-serif;
-  --font-body: 'Manrope', system-ui, sans-serif;
-  --text-xs: 0.75rem;
-  --text-sm: 0.8125rem;
-  --text-md: 0.9375rem;
-  --text-lg: 1.0625rem;
-  --text-xl: 1.25rem;
-  --text-2xl: 1.5rem;
-  --text-3xl: 1.875rem;
-  --display-lg: clamp(2.25rem, 1.6rem + 2vw, 3.75rem);
-  --display-xl: clamp(2.75rem, 1.8rem + 2.5vw, 4.75rem);
-  --tracking-tight: -0.03em;
-  --leading-tight: 1.15;
-  --leading-body: 1.5;
+  /* ——— Type ———
+     標題與內文同一家族（IBM Plex Sans + Noto Sans TC），
+     數字、日期、ID、小標籤一律走 Mono。 */
+  --font-display: 'IBM Plex Sans', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, 'Cascadia Mono', Menlo, monospace;
+  --text-2xs: 0.6875rem;  /* 11 — Mono 小標籤、表頭 */
+  --text-xs: 0.75rem;     /* 12 */
+  --text-sm: 0.8125rem;   /* 13 */
+  --text-md: 0.9375rem;   /* 15 — 內文預設 */
+  --text-lg: 1.0625rem;   /* 17 */
+  --text-xl: 1.25rem;     /* 20 — 頁面主標 */
+  --text-2xl: 1.625rem;   /* 26 — 統計數字 */
+  --text-3xl: 1.875rem;   /* 30 */
+  --display-lg: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem);
+  --display-xl: clamp(2rem, 1.4rem + 2vw, 3rem);
+  --tracking-tight: -0.01em;
+  --tracking-label: 0.12em;
+  --leading-tight: 1.22;
+  --leading-body: 1.6;
 
-  /* ——— Motion ——— */
+  /* ——— Motion：短、輕、不彈跳 ——— */
   --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
-  --duration-fast: 140ms;
-  --duration-normal: 220ms;
-  --duration-slow: 360ms;
+  --ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 320ms;
 
   /* ——— Z-index ——— */
   --z-dropdown: 100;
@@ -127,8 +206,8 @@
   --shadow-soft: var(--elevation-1);
   --shadow: var(--elevation-2);
   --shadow-hover: var(--elevation-3);
-  --transition-fast: var(--duration-fast) var(--ease-out-expo);
-  --transition-normal: var(--duration-normal) var(--ease-out-expo);
+  --transition-fast: var(--duration-fast) var(--ease-standard);
+  --transition-normal: var(--duration-normal) var(--ease-standard);
   --transition-slow: var(--duration-slow) var(--ease-out-expo);
   --font-xs: var(--text-xs);
   --font-sm: var(--text-sm);
@@ -162,41 +241,83 @@
 
 .dark {
   color-scheme: dark;
-  --bg-canvas: oklch(0.15 0.02 248);
-  --bg-surface: oklch(0.19 0.018 248);
-  --bg-muted: oklch(0.24 0.018 248);
-  --bg-inset: oklch(0.17 0.018 248);
-  --bg-elevated: color-mix(in oklab, var(--bg-surface) 88%, white 12%);
+  --bg-canvas: #1C1C1C;
+  --bg-surface: #222222;
+  --bg-muted: #2A2A2A;
+  --bg-inset: #1A1A1A;
+  --bg-elevated: #2E2E2E;
   --surface-product: var(--bg-surface);
   --surface-brand: var(--bg-surface);
   --surface-inset: var(--bg-inset);
-  --surface-strong: oklch(0.92 0.01 250);
+  --surface-strong: #EDEDED;
 
-  --text-primary: oklch(0.95 0.01 255);
-  --text-secondary: oklch(0.78 0.015 250);
-  --text-muted: oklch(0.64 0.018 250);
-  --text-inverse: oklch(0.16 0.02 248);
+  --surface-hover: color-mix(in oklab, #FFFFFF 7%, transparent);
+  --surface-active: color-mix(in oklab, #FFFFFF 12%, transparent);
 
-  --border-subtle: color-mix(in oklab, oklch(0.78 0.02 248) 16%, transparent);
-  --border-strong: color-mix(in oklab, oklch(0.82 0.03 248) 28%, transparent);
+  --text-primary: #EDEDED;
+  --text-secondary: #B4B4B4;
+  --text-muted: #808080;
+  --text-inverse: #1C1C1C;
+
+  --border-subtle: #2E2E2E;
+  --border-strong: #3F3F3F;
   --shadow-border: 0 0 0 1px var(--border-subtle);
 
-  --sidebar-bg: linear-gradient(180deg, oklch(0.13 0.02 248) 0%, oklch(0.11 0.018 248) 100%);
-  --header-bg: color-mix(in oklab, var(--bg-surface) 92%, white 8%);
+  --sidebar-bg: #1A1A1A;
+  --sidebar-text: var(--text-primary);
+  --sidebar-panel: var(--bg-surface);
+  --sidebar-border: var(--border-subtle);
+  --header-bg: var(--bg-surface);
   --bg-brand-deep: var(--surface-strong);
   --text-on-brand: var(--text-inverse);
 
-  --primary-light: color-mix(in oklab, var(--primary) 20%, transparent);
+  --primary: #3ECF8E;
+  --primary-hover: #6FE0AC;
+  --primary-strong: #4FD9A0;
+  --primary-light: color-mix(in oklab, var(--primary) 18%, transparent);
   --primary-muted: var(--primary-light);
+  --primary-ring: color-mix(in oklab, var(--primary) 45%, transparent);
+  --on-primary: #0B1F16;
+  /* solid 系列在深色維持同明度，文字對比不變 */
+  --primary-solid: #3ECF8E;
+  --primary-solid-hover: #4ADB9A;
+  --success-solid: #2F7D4F;
+  --success-solid-hover: #38915C;
+  --warning-solid: #8A5C13;
+  --warning-solid-hover: #A06D1A;
+  --danger-solid: #A93B2A;
+  --danger-solid-hover: #C04532;
+  --info-solid: #35608A;
+  --info-solid-hover: #3F719F;
+  --neutral-solid: #4E534F;
+  --neutral-solid-hover: #5E635F;
+  --accent: #34B27B;
   --accent-light: color-mix(in oklab, var(--accent) 20%, transparent);
-  --success-light: color-mix(in oklab, var(--success) 20%, transparent);
-  --warning-light: color-mix(in oklab, var(--warning) 20%, transparent);
-  --danger-light: color-mix(in oklab, var(--danger) 20%, transparent);
-  --info-light: color-mix(in oklab, var(--info) 20%, transparent);
 
-  --elevation-1: 0 1px 3px rgba(3, 8, 20, 0.35);
-  --elevation-2: 0 8px 28px rgba(3, 8, 20, 0.45);
-  --elevation-3: 0 20px 48px rgba(3, 8, 20, 0.55);
+  --success: #5FCB92;
+  --success-hover: #7AD8A6;
+  --success-light: color-mix(in oklab, var(--success) 18%, transparent);
+  --warning: #DFB45C;
+  --warning-hover: #E9C376;
+  --warning-light: color-mix(in oklab, var(--warning) 18%, transparent);
+  --danger: #EE8471;
+  --danger-hover: #F49B8A;
+  --danger-light: color-mix(in oklab, var(--danger) 18%, transparent);
+  --info: #82B0D6;
+  --info-hover: #95BFE0;
+  --info-light: color-mix(in oklab, var(--info) 18%, transparent);
+
+  --primary-text: #4FD9A0;
+  --success-text: #7ED9A6;
+  --warning-text: #E9C376;
+  --danger-text: #F3927D;
+  --info-text: #95BFE0;
+
+  --overlay-scrim: #0A0B0A;
+
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.38);
+  --elevation-2: 0 4px 18px rgba(0, 0, 0, 0.46);
+  --elevation-3: 0 14px 38px rgba(0, 0, 0, 0.56);
 
   /* Aliases re-bound for dark (shadow utilities) */
   --bg-primary: var(--bg-canvas);
@@ -208,16 +329,16 @@
   --shadow-hover: var(--elevation-3);
 }
 
-/* Dual-register hooks (data-register set on main.page-content in PR5) */
+/* Dual-register hooks (data-register set on main.page-content) */
 [data-register='product'] {
-  --card-radius: var(--radius-md);
-  --section-gap: var(--spacing-lg);
+  --card-radius: var(--radius-lg);
+  --section-gap: var(--sp-6);
   --surface-product: var(--bg-surface);
 }
 
 [data-register='brand'] {
   --card-radius: var(--radius-xl);
-  --section-gap: var(--spacing-2xl);
+  --section-gap: var(--sp-10);
   --surface-brand: var(--bg-surface);
 }
 
@@ -226,8 +347,8 @@
   background:
     radial-gradient(
       circle at top right,
-      color-mix(in oklab, var(--accent) 12%, transparent),
-      transparent 32%
+      color-mix(in oklab, var(--primary) 7%, transparent),
+      transparent 34%
     ),
     transparent;
 }
@@ -244,15 +365,19 @@ html {
   font-size: 16px;
   scroll-behavior: smooth;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  /* Quiet product canvas — dual radial wash removed globally; brand wash via register only */
+  /* 安靜的紙面：不放光暈，讓內容自己說話 */
   background: var(--bg-canvas);
 }
 
 body {
   font-family: var(--font-body);
+  font-size: var(--text-md);
   background: transparent;
   color: var(--text-primary);
   line-height: var(--leading-body);
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   transition: background-color var(--transition-normal), color var(--transition-normal);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -272,13 +397,24 @@ h4,
 h5,
 h6 {
   font-family: var(--font-display);
+  font-weight: 600;
   letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
   text-wrap: balance;
+}
+
+/* 數字一律等寬，統計與表格不會左右跳動 */
+.stat-number,
+.stat-value,
+[data-numeric],
+time {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--text-muted) 50%, transparent) transparent;
+  scrollbar-color: color-mix(in oklab, var(--text-muted) 42%, transparent) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -291,23 +427,23 @@ h6 {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: color-mix(in oklab, var(--text-muted) 55%, transparent);
+  background: color-mix(in oklab, var(--text-muted) 42%, transparent);
   border-radius: 999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in oklab, var(--text-secondary) 70%, transparent);
+  background: color-mix(in oklab, var(--text-secondary) 55%, transparent);
 }
 
 ::selection {
-  background: color-mix(in oklab, var(--primary) 76%, white 24%);
-  color: var(--text-inverse);
+  background: color-mix(in oklab, var(--primary) 32%, transparent);
+  color: var(--text-primary);
 }
 
 :focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--primary) 88%, white 12%);
-  outline-offset: 3px;
-  border-radius: 8px;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 a {
@@ -413,9 +549,9 @@ a:hover {
 .text-primary { color: var(--text-primary); }
 .text-secondary { color: var(--text-secondary); }
 .text-muted { color: var(--text-muted); }
-.text-success { color: var(--success); }
-.text-warning { color: var(--warning); }
-.text-danger { color: var(--danger); }
+.text-success { color: var(--success-text); }
+.text-warning { color: var(--warning-text); }
+.text-danger { color: var(--danger-text); }
 
 .bg-primary { background: var(--bg-primary); }
 .bg-secondary { background: var(--bg-secondary); }
@@ -434,3 +570,14 @@ a:hover {
 .transition-fast { transition: all var(--transition-fast); }
 .transition-normal { transition: all var(--transition-normal); }
 .transition-slow { transition: all var(--transition-slow); }
+
+/* 小字全大寫標籤的統一寫法：走 Mono */
+.eyebrow,
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-muted);
+}

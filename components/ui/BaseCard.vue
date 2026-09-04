@@ -44,69 +44,74 @@ defineEmits(['click'])
 
 <style scoped>
 .base-card {
-  background: var(--bg-secondary, #ffffff);
-  border: 1px solid var(--border-color, #e1e8ed);
-  border-radius: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--card-radius);
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 靜止＝零陰影。只有 hover 才微微浮起 */
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .base-card.hoverable:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  border-color: var(--border-strong);
+  box-shadow: var(--elevation-2);
 }
 
 .base-card.clickable {
   cursor: pointer;
 }
 
-/* 變體樣式 */
-.base-card.primary { border-top: 4px solid #3b82f6; }
-.base-card.success { border-top: 4px solid #10b981; }
-.base-card.warning { border-top: 4px solid #f59e0b; }
-.base-card.danger { border-top: 4px solid #ef4444; }
-.base-card.info { border-top: 4px solid #06b6d4; }
+/* 變體：頂邊色條保留 4px 佔位不變，改用降彩度的語意色，不搶內容 */
+.base-card.primary { border-top: 4px solid var(--primary); }
+.base-card.success { border-top: 4px solid color-mix(in oklab, var(--success) 62%, var(--bg-surface)); }
+.base-card.warning { border-top: 4px solid color-mix(in oklab, var(--warning) 62%, var(--bg-surface)); }
+.base-card.danger { border-top: 4px solid color-mix(in oklab, var(--danger) 62%, var(--bg-surface)); }
+.base-card.info { border-top: 4px solid color-mix(in oklab, var(--info) 62%, var(--bg-surface)); }
 
 .card-header {
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border-color, #e1e8ed);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--bg-tertiary, #f8f9fa);
+  background: transparent;
 }
 
 .header-content {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--sp-2);
 }
 
 .header-icon {
-  font-size: 1.5rem;
+  font-size: var(--text-lg);
 }
 
 .header-title {
   margin: 0;
-  font-size: 1.1rem;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
   font-weight: 600;
-  color: var(--text-primary, #2c3e50);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
 }
 
 .card-body {
-  padding: 1.5rem;
+  padding: var(--card-pad);
 }
 
 .card-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border-color, #e1e8ed);
-  background: var(--bg-tertiary, #f8f9fa);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-muted);
 }
 
 /* 響應式 */
 @media (max-width: 768px) {
   .card-header, .card-body, .card-footer {
-    padding: 1rem;
+    padding: var(--sp-3);
   }
 }
 </style>

@@ -2997,7 +2997,7 @@ watch(
 
 .tool-input {
   width: 100%;
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border-color);
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -3010,8 +3010,8 @@ watch(
   border-radius: 999px;
   border: 0;
   padding: 0.85rem 1.2rem;
-  background: linear-gradient(135deg, color-mix(in oklab, var(--primary) 82%, white), color-mix(in oklab, var(--accent) 65%, white));
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   font-weight: 700;
   cursor: pointer;
 }
@@ -3050,7 +3050,7 @@ watch(
 .tool-notice {
   margin: 0;
   padding: 0.8rem 0.95rem;
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   border: 1px solid color-mix(in oklab, var(--primary) 22%, var(--border-color));
   background: color-mix(in oklab, var(--primary) 8%, var(--bg-primary));
   color: var(--text-secondary);
@@ -3099,13 +3099,13 @@ watch(
 }
 
 .finance-card--high {
-  border-color: color-mix(in oklab, #ef4444 48%, var(--border-color));
-  background: linear-gradient(180deg, color-mix(in oklab, #fee2e2 48%, var(--bg-primary)), var(--bg-primary));
+  border-color: color-mix(in oklab, var(--danger) 48%, var(--border-color));
+  background: linear-gradient(180deg, color-mix(in oklab, var(--danger-light) 48%, var(--bg-primary)), var(--bg-primary));
 }
 
 .finance-card--low {
-  border-color: color-mix(in oklab, #2563eb 48%, var(--border-color));
-  background: linear-gradient(180deg, color-mix(in oklab, #dbeafe 48%, var(--bg-primary)), var(--bg-primary));
+  border-color: color-mix(in oklab, var(--primary) 48%, var(--border-color));
+  background: linear-gradient(180deg, color-mix(in oklab, var(--primary-light) 48%, var(--bg-primary)), var(--bg-primary));
 }
 
 .finance-card__header {
@@ -3128,8 +3128,8 @@ watch(
   margin-left: 0.35rem;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  background: rgba(59, 130, 246, 0.1);
-  color: #1d4ed8;
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  color: var(--primary-text);
   font-size: 0.78rem;
   font-weight: 800;
   vertical-align: middle;
@@ -3140,7 +3140,7 @@ watch(
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
 }
@@ -3159,13 +3159,13 @@ watch(
 }
 
 .finance-status--high {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--danger-light);
+  color: var(--danger-text);
 }
 
 .finance-status--low {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--primary-light);
+  color: var(--primary-text);
 }
 
 .finance-meta-row {
@@ -3187,11 +3187,11 @@ watch(
 }
 
 .finance-change--up {
-  color: #16a34a !important;
+  color: var(--success-text) !important;
 }
 
 .finance-change--down {
-  color: #dc2626 !important;
+  color: var(--danger-text) !important;
 }
 
 .finance-history-list {
@@ -3204,7 +3204,7 @@ watch(
   gap: 0.45rem;
   padding: 0.75rem;
   border: 1px solid color-mix(in oklab, var(--border-color) 75%, transparent);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: color-mix(in oklab, var(--bg-secondary) 72%, transparent);
 }
 
@@ -3232,8 +3232,8 @@ watch(
   flex: 0 0 auto;
   place-items: center;
   border-radius: 999px;
-  color: #2563eb;
-  background: color-mix(in oklab, #2563eb 10%, transparent);
+  color: var(--primary-text);
+  background: color-mix(in oklab, var(--primary-solid) 10%, transparent);
 }
 
 .finance-history[open] > .finance-history__header::after {
@@ -3262,19 +3262,19 @@ watch(
 }
 
 .finance-history-area {
-  fill: rgba(37, 99, 235, 0.12);
+  fill: color-mix(in oklab, var(--primary) 12%, transparent);
 }
 
 .finance-history-line {
   fill: none;
-  stroke: #2563eb;
+  stroke: var(--primary-text);
   stroke-width: 2.4;
   vector-effect: non-scaling-stroke;
 }
 
 .finance-history-dot {
-  fill: #2563eb;
-  stroke: white;
+  fill: var(--primary-text);
+  stroke: var(--on-solid);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
@@ -3304,8 +3304,8 @@ watch(
   margin-left: 0.4rem;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  background: #e0f2fe;
-  color: #0369a1;
+  background: var(--primary-light);
+  color: var(--primary-text);
   font-size: 0.72rem;
   font-weight: 800;
 }
@@ -3344,8 +3344,8 @@ watch(
 }
 
 .finance-custom-form--editing {
-  border-color: color-mix(in oklab, #f59e0b 45%, var(--border-color));
-  background: color-mix(in oklab, #fffbeb 70%, var(--bg-primary));
+  border-color: color-mix(in oklab, var(--warning) 45%, var(--border-color));
+  background: color-mix(in oklab, var(--warning-light) 70%, var(--bg-primary));
 }
 
 .finance-custom-form__grid {
@@ -3393,7 +3393,7 @@ watch(
   width: 72px;
   height: 72px;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
 }
@@ -3418,7 +3418,7 @@ watch(
   gap: 0.3rem;
   padding: 0.35rem;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--bg-primary);
   color: var(--text-primary);
   cursor: pointer;
@@ -3430,7 +3430,7 @@ watch(
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--bg-secondary);
 }
 
@@ -3443,8 +3443,8 @@ watch(
 }
 
 .finance-gallery-picker__item--selected {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-ring);
 }
 
 .finance-chip__media {
@@ -3456,7 +3456,7 @@ watch(
   width: 100%;
   min-height: 2.5rem;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--bg-primary);
   color: var(--text-primary);
   padding: 0.45rem 0.7rem;
@@ -3466,7 +3466,7 @@ watch(
 .tool-secondary-btn {
   min-height: 2.5rem;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: transparent;
   color: var(--text-primary);
   padding: 0.4rem 0.85rem;
@@ -3488,14 +3488,14 @@ watch(
   gap: 0.35rem;
   border: 1px solid var(--border-color);
   border-radius: 999px;
-  background: color-mix(in oklab, #ecfdf5 70%, var(--bg-primary));
+  background: color-mix(in oklab, var(--success-light) 70%, var(--bg-primary));
   padding: 0.28rem 0.65rem;
   font-size: 0.78rem;
 }
 
 .finance-chip--active {
-  border-color: #f59e0b;
-  background: #fffbeb;
+  border-color: var(--warning);
+  background: var(--warning-light);
 }
 
 .finance-chip__btn {
@@ -3525,18 +3525,18 @@ watch(
 }
 
 .finance-card--kospi {
-  border-color: #7dd3fc;
-  background: linear-gradient(135deg, rgba(224, 242, 254, 0.9), color-mix(in oklab, var(--bg-primary) 92%, transparent));
+  border-color: var(--primary);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--primary) 90%, transparent), color-mix(in oklab, var(--bg-primary) 92%, transparent));
 }
 
 .finance-card--nikkei {
-  border-color: #fda4af;
-  background: linear-gradient(135deg, rgba(255, 228, 230, 0.9), color-mix(in oklab, var(--bg-primary) 92%, transparent));
+  border-color: var(--danger);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--danger) 90%, transparent), color-mix(in oklab, var(--bg-primary) 92%, transparent));
 }
 
 .finance-card--sox {
-  border-color: #c4b5fd;
-  background: linear-gradient(135deg, rgba(237, 233, 254, 0.9), color-mix(in oklab, var(--bg-primary) 92%, transparent));
+  border-color: var(--primary);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--primary) 90%, transparent), color-mix(in oklab, var(--bg-primary) 92%, transparent));
 }
 
 .finance-featured__index {
@@ -3559,24 +3559,24 @@ watch(
 
 .finance-badge {
   border-radius: 999px;
-  border: 1px solid color-mix(in oklab, #6366f1 25%, var(--border-color));
-  background: color-mix(in oklab, #eef2ff 80%, transparent);
-  color: #4338ca;
+  border: 1px solid color-mix(in oklab, var(--primary) 25%, var(--border-color));
+  background: color-mix(in oklab, var(--primary-light) 80%, transparent);
+  color: var(--primary-text);
   font-size: 0.72rem;
   font-weight: 700;
   padding: 0.18rem 0.55rem;
 }
 
 .finance-badge--live {
-  border-color: #7dd3fc;
-  background: #e0f2fe;
-  color: #0369a1;
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary-text);
 }
 
 .finance-badge--danger {
-  border-color: #fca5a5;
-  background: #fef2f2;
-  color: #b91c1c;
+  border-color: var(--danger);
+  background: var(--bg-surface);
+  color: var(--danger-text);
 }
 
 .finance-carousel {
@@ -3590,7 +3590,7 @@ watch(
   display: flex;
   gap: 0.3rem;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.35);
+  background: color-mix(in oklab, var(--overlay-scrim) 35%, transparent);
   border-radius: 999px;
   padding: 0.25rem 0.4rem;
 }
@@ -3600,14 +3600,14 @@ watch(
   height: 0.4rem;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.45);
+  background: color-mix(in oklab, var(--bg-surface) 45%, transparent);
   cursor: pointer;
   padding: 0;
 }
 
 .finance-carousel__dot--active {
   width: 0.95rem;
-  background: #fff;
+  background: var(--bg-surface);
 }
 
 .finance-group-nav {
@@ -3635,9 +3635,9 @@ watch(
 }
 
 .finance-group-nav__link--featured {
-  border-color: #fcd34d;
-  background: #fffbeb;
-  color: #92400e;
+  border-color: color-mix(in oklab, var(--warning) 32%, transparent);
+  background: var(--warning-light);
+  color: var(--warning-text);
 }
 
 .finance-group {
@@ -3651,14 +3651,14 @@ watch(
 }
 
 .finance-history-ref {
-  stroke: #f59e0b;
+  stroke: var(--warning-text);
   stroke-width: 1.4;
   stroke-dasharray: 3 2;
   vector-effect: non-scaling-stroke;
 }
 
 .finance-history-ref--danger {
-  stroke: #dc2626;
+  stroke: var(--danger-text);
 }
 
 @media (max-width: 900px) {
@@ -3668,8 +3668,8 @@ watch(
 }
 
 .store-card__link--youtube {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.08);
+  color: var(--danger-text);
+  background: color-mix(in oklab, var(--danger) 8%, transparent);
 }
 
 .tube-channel-grid {
@@ -3762,7 +3762,7 @@ watch(
 .tube-save-btn {
   border: 1px solid color-mix(in oklab, var(--primary) 35%, var(--border-color));
   background: color-mix(in oklab, var(--primary) 8%, var(--bg-primary));
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .tube-cancel-btn {
@@ -3828,8 +3828,8 @@ watch(
   gap: 0.25rem;
   padding: 0.18rem 0.55rem;
   border-radius: 999px;
-  background: color-mix(in oklab, #ef4444 14%, var(--bg-secondary));
-  color: #b91c1c;
+  background: color-mix(in oklab, var(--danger-solid) 14%, var(--bg-secondary));
+  color: var(--danger-text);
   font-size: 0.78rem;
   font-weight: 800;
   line-height: 1.2;
@@ -3837,7 +3837,7 @@ watch(
 }
 
 .tube-update-badge span {
-  color: #7f1d1d;
+  color: var(--danger-text);
 }
 
 .tube-interval-badge {
@@ -3845,8 +3845,8 @@ watch(
   align-items: center;
   padding: 0.18rem 0.55rem;
   border-radius: 999px;
-  background: color-mix(in oklab, #f59e0b 16%, var(--bg-secondary));
-  color: #b45309;
+  background: color-mix(in oklab, var(--warning-solid) 16%, var(--bg-secondary));
+  color: var(--warning-text);
   font-size: 0.78rem;
   font-weight: 800;
   line-height: 1.2;
@@ -3865,7 +3865,7 @@ watch(
   min-height: 72px;
   padding: 0.55rem;
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   color: var(--text-primary);
   text-decoration: none;
   transition: border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
@@ -3881,7 +3881,7 @@ watch(
 .tube-video-row__placeholder {
   width: 112px;
   aspect-ratio: 16 / 9;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   object-fit: cover;
   background: color-mix(in oklab, var(--surface-strong) 12%, var(--bg-secondary));
 }
@@ -3918,8 +3918,8 @@ watch(
   margin-left: 0.45rem;
   padding: 0.14rem 0.45rem;
   border-radius: 999px;
-  background: color-mix(in oklab, #f59e0b 16%, var(--bg-secondary));
-  color: #92400e;
+  background: color-mix(in oklab, var(--warning-solid) 16%, var(--bg-secondary));
+  color: var(--warning-text);
   font-style: normal;
   font-weight: 700;
 }
@@ -3964,7 +3964,7 @@ watch(
 
 .store-card__link,
 .comparison-source__link {
-  color: var(--primary);
+  color: var(--primary-text);
   text-decoration: none;
   font-size: 0.86rem;
   font-weight: 600;
@@ -3996,14 +3996,14 @@ watch(
   justify-content: space-between;
   gap: 1rem;
   align-items: end;
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border-color);
   padding: 0.85rem 0.95rem;
 }
 
 .comparison-source.best {
-  border-color: color-mix(in oklab, #10b981 45%, var(--border-color));
-  background: color-mix(in oklab, #10b981 8%, var(--bg-primary));
+  border-color: color-mix(in oklab, var(--success) 45%, var(--border-color));
+  background: color-mix(in oklab, var(--success-solid) 8%, var(--bg-primary));
 }
 
 .chart-shell {
@@ -4050,16 +4050,16 @@ watch(
   stroke-linejoin: round;
 }
 
-.chart-line--multi.chart-series-a { stroke: #2563eb; }
-.chart-line--multi.chart-series-b { stroke: #db2777; }
-.chart-line--multi.chart-series-c { stroke: #059669; }
-.chart-line--multi.chart-series-d { stroke: #d97706; }
-.chart-line--multi.chart-series-e { stroke: #7c3aed; }
-.chart-line--multi.chart-series-f { stroke: #0f766e; }
+.chart-line--multi.chart-series-a { stroke: var(--primary-text); }
+.chart-line--multi.chart-series-b { stroke: var(--danger-text); }
+.chart-line--multi.chart-series-c { stroke: var(--success-text); }
+.chart-line--multi.chart-series-d { stroke: var(--warning-text); }
+.chart-line--multi.chart-series-e { stroke: var(--primary-text); }
+.chart-line--multi.chart-series-f { stroke: var(--success-text); }
 
 .chart-dot {
   fill: color-mix(in oklab, var(--primary) 90%, black);
-  stroke: white;
+  stroke: var(--on-solid);
   stroke-width: 0.7;
 }
 
@@ -4151,7 +4151,7 @@ watch(
   min-width: min(100%, 220px);
   max-width: 100%;
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--bg-primary);
   padding: 0.7rem 0.8rem;
   text-align: left;
@@ -4251,12 +4251,12 @@ watch(
   border-radius: 999px;
 }
 
-.legend-swatch.chart-series-a { background: #2563eb; }
-.legend-swatch.chart-series-b { background: #db2777; }
-.legend-swatch.chart-series-c { background: #059669; }
-.legend-swatch.chart-series-d { background: #d97706; }
-.legend-swatch.chart-series-e { background: #7c3aed; }
-.legend-swatch.chart-series-f { background: #0f766e; }
+.legend-swatch.chart-series-a { background: var(--primary-solid); }
+.legend-swatch.chart-series-b { background: var(--danger-solid); }
+.legend-swatch.chart-series-c { background: var(--success-solid); }
+.legend-swatch.chart-series-d { background: var(--warning-solid); }
+.legend-swatch.chart-series-e { background: var(--primary-solid); }
+.legend-swatch.chart-series-f { background: var(--success-solid); }
 
 @media (max-width: 960px) {
   .tool-input-grid,

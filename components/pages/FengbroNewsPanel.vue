@@ -958,8 +958,8 @@ onUnmounted(() => {
 
 .tool-primary-btn {
   border: 0;
-  background: linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 70%, #1d4ed8));
-  color: #fff;
+  background: linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 70%, var(--primary-solid)));
+  color: var(--on-primary);
   font-weight: 700;
 }
 
@@ -1041,7 +1041,7 @@ onUnmounted(() => {
 .news-link-btn {
   border: 0;
   background: transparent;
-  color: var(--primary);
+  color: var(--primary-text);
   font: inherit;
   font-size: 0.82rem;
   font-weight: 600;
@@ -1089,10 +1089,10 @@ onUnmounted(() => {
 }
 
 .news-danger-btn {
-  border: 1px solid color-mix(in oklab, #ef4444 30%, var(--border-color));
-  border-radius: 12px;
-  background: color-mix(in oklab, #ef4444 8%, var(--bg-primary));
-  color: #b91c1c;
+  border: 1px solid color-mix(in oklab, var(--danger) 30%, var(--border-color));
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--danger-solid) 8%, var(--bg-primary));
+  color: var(--danger-text);
   padding: 0.45rem 0.7rem;
   font: inherit;
   font-size: 0.82rem;
@@ -1170,20 +1170,20 @@ onUnmounted(() => {
 
 .tool-error {
   margin: 0;
-  border: 1px solid color-mix(in oklab, #ef4444 35%, var(--border-color));
+  border: 1px solid color-mix(in oklab, var(--danger) 35%, var(--border-color));
   border-radius: 14px;
-  background: color-mix(in oklab, #ef4444 10%, var(--bg-primary));
-  color: #b91c1c;
+  background: color-mix(in oklab, var(--danger-solid) 10%, var(--bg-primary));
+  color: var(--danger-text);
   padding: 0.75rem 0.9rem;
   font-size: 0.9rem;
 }
 
 .tool-notice {
   margin: 0;
-  border: 1px solid color-mix(in oklab, #f59e0b 35%, var(--border-color));
+  border: 1px solid color-mix(in oklab, var(--warning) 35%, var(--border-color));
   border-radius: 14px;
-  background: color-mix(in oklab, #f59e0b 10%, var(--bg-primary));
-  color: color-mix(in oklab, #92400e 70%, var(--text-primary));
+  background: color-mix(in oklab, var(--warning-solid) 10%, var(--bg-primary));
+  color: color-mix(in oklab, var(--warning-text) 70%, var(--text-primary));
   padding: 0.75rem 0.9rem;
   font-size: 0.86rem;
   line-height: 1.55;
@@ -1252,7 +1252,7 @@ onUnmounted(() => {
 }
 
 .news-article-card__icon {
-  color: var(--primary);
+  color: var(--primary-text);
   opacity: 0.7;
 }
 
@@ -1306,8 +1306,8 @@ onUnmounted(() => {
 }
 
 .news-bento-card.focus {
-  border-color: color-mix(in oklab, #f59e0b 45%, var(--border-color));
-  background: color-mix(in oklab, #f59e0b 10%, var(--bg-primary));
+  border-color: color-mix(in oklab, var(--warning) 45%, var(--border-color));
+  background: color-mix(in oklab, var(--warning-solid) 10%, var(--bg-primary));
 }
 
 .news-bento-card strong {
@@ -1330,7 +1330,7 @@ onUnmounted(() => {
 }
 
 .store-card__link {
-  color: var(--primary);
+  color: var(--primary-text);
   font-size: 0.88rem;
   text-decoration: none;
 }
@@ -1437,11 +1437,11 @@ onUnmounted(() => {
 }
 
 .news-pop-change.is-up {
-  color: #15803d;
+  color: var(--success-text);
 }
 
 .news-pop-change.is-down {
-  color: #b91c1c;
+  color: var(--danger-text);
 }
 
 .news-pop-change.is-flat {
@@ -1456,7 +1456,7 @@ onUnmounted(() => {
 
 .news-pop-chart {
   border: 1px solid color-mix(in oklab, var(--border-color) 80%, transparent);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: color-mix(in oklab, var(--bg-secondary) 70%, var(--bg-primary));
   padding: 0.65rem 0.55rem 0.5rem;
 }

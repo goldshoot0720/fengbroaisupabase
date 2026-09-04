@@ -711,10 +711,8 @@ watch(currentPage, async () => {
 
 #app {
   font-family: var(--font-body);
-  background:
-    radial-gradient(circle at top left, color-mix(in oklab, var(--accent) 14%, transparent), transparent 24%),
-    radial-gradient(circle at right 12%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 26%),
-    var(--bg-primary);
+  /* 安靜的紙面：拿掉兩圈光暈，讓卡片自己是唯一的層次 */
+  background: var(--bg-canvas);
   min-height: 100vh;
   color: var(--text-primary);
   transition: background-color var(--transition-normal), color var(--transition-normal);
@@ -750,7 +748,7 @@ watch(currentPage, async () => {
 .mobile-overlay {
   position: fixed;
   inset: 0;
-  background: color-mix(in oklab, oklch(0.12 0.03 248) 52%, transparent);
+  background: color-mix(in oklab, var(--overlay-scrim) 48%, transparent);
   backdrop-filter: blur(10px) saturate(1.05);
   -webkit-backdrop-filter: blur(10px) saturate(1.05);
   z-index: 999;
@@ -777,7 +775,7 @@ watch(currentPage, async () => {
   .persistent-audio-bar,
   .persistent-video-bar {
     width: calc(100vw - 1.5rem);
-    border-radius: 22px;
+    border-radius: var(--radius-xl);
   }
   .persistent-audio-bar {
     grid-template-columns: 1fr;
@@ -836,13 +834,13 @@ watch(currentPage, async () => {
   .scroll-btn {
     width: 46px;
     height: 46px;
-    border-radius: 16px;
+    border-radius: var(--control-radius);
     font-size: 1rem;
     border: 1px solid var(--border-color);
     background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    box-shadow: var(--elevation-2);
+    box-shadow: var(--elevation-1);
   }
 
   .persistent-audio-bar,
@@ -851,12 +849,12 @@ watch(currentPage, async () => {
     right: max(0.55rem, env(safe-area-inset-right, 0px));
     transform: none;
     width: auto;
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border-color);
     background: color-mix(in oklab, var(--bg-secondary) 94%, transparent);
     backdrop-filter: blur(18px) saturate(1.1);
     -webkit-backdrop-filter: blur(18px) saturate(1.1);
-    box-shadow: 0 14px 36px color-mix(in oklab, oklch(0.16 0.03 248) 22%, transparent);
+    box-shadow: 0 14px 36px color-mix(in oklab, oklch(0.16 0 0) 22%, transparent);
   }
 
   .persistent-audio-bar {
@@ -875,7 +873,7 @@ watch(currentPage, async () => {
 
   .persistent-audio-btn {
     min-height: 44px;
-    border-radius: 14px;
+    border-radius: var(--control-radius);
     font-weight: 700;
   }
 
@@ -917,7 +915,7 @@ watch(currentPage, async () => {
 
   .birthday-easter-egg {
     margin: 0.5rem max(0.75rem, env(safe-area-inset-left, 0px)) 0;
-    border-radius: 20px;
+    border-radius: var(--radius-xl);
   }
 }
 
@@ -986,7 +984,7 @@ watch(currentPage, async () => {
   align-items: center;
   padding: 0.9rem 1rem;
   border: 1px solid var(--border-color);
-  border-radius: 24px;
+  border-radius: var(--radius-xl);
   background: color-mix(in oklab, var(--bg-secondary) 90%, transparent);
   backdrop-filter: blur(18px);
   box-shadow: var(--shadow);
@@ -1085,7 +1083,7 @@ watch(currentPage, async () => {
   width: 100%;
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: oklch(0.12 0.02 248);
+  background: oklch(0.14 0 0);
   aspect-ratio: 16 / 9;
 }
 
@@ -1094,7 +1092,7 @@ watch(currentPage, async () => {
   height: 100%;
   display: block;
   object-fit: cover;
-  background: #000;
+  background: var(--surface-strong);
 }
 
 .persistent-video-thumb-play {
@@ -1106,7 +1104,7 @@ watch(currentPage, async () => {
   border: none;
   border-radius: var(--radius-full);
   background: color-mix(in oklab, var(--primary) 88%, black 12%);
-  color: var(--text-inverse);
+  color: var(--on-primary);
   font-size: 0.85rem;
   display: grid;
   place-items: center;
@@ -1252,7 +1250,7 @@ watch(currentPage, async () => {
 
 .persistent-video-btn-close {
   background: var(--danger-light);
-  color: var(--danger);
+  color: var(--danger-text);
   border-color: transparent;
 }
 
@@ -1316,7 +1314,7 @@ watch(currentPage, async () => {
 .birthday-easter-egg {
   position: relative;
   margin: 0.35rem 0 0.75rem;
-  border-radius: 30px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
 }
 
@@ -1333,17 +1331,17 @@ watch(currentPage, async () => {
   width: 14px;
   height: 24px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #f97316 0%, #facc15 45%, #ec4899 100%);
-  box-shadow: 0 10px 30px rgba(249, 115, 22, 0.28);
+  background: var(--danger-solid);
+  box-shadow: var(--elevation-3);
   animation: birthdayConfettiFall linear infinite;
 }
 
 .birthday-easter-egg__piece:nth-child(3n) {
-  background: linear-gradient(180deg, #38bdf8 0%, #818cf8 100%);
+  background: var(--primary-solid);
 }
 
 .birthday-easter-egg__piece:nth-child(4n) {
-  background: linear-gradient(180deg, #34d399 0%, #22c55e 100%);
+  background: var(--success-solid);
 }
 
 .birthday-easter-egg__card {
@@ -1351,11 +1349,11 @@ watch(currentPage, async () => {
   width: 100%;
   padding: 1.45rem 1.6rem 1.35rem;
   border: 1px solid color-mix(in oklab, var(--warning) 28%, var(--border-color));
-  border-radius: 30px;
+  border-radius: var(--radius-xl);
   background:
-    linear-gradient(145deg, color-mix(in oklab, var(--bg-secondary) 92%, white), rgba(255, 247, 237, 0.94)),
-    radial-gradient(circle at top right, rgba(251, 191, 36, 0.24), transparent 42%);
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+    radial-gradient(circle at top right, color-mix(in oklab, var(--accent) 16%, transparent), transparent 46%),
+    var(--bg-surface);
+  box-shadow: var(--elevation-1);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1375,24 +1373,25 @@ watch(currentPage, async () => {
   width: 42px;
   height: 42px;
   border: 0;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.08);
-  color: #0f172a;
+  border-radius: var(--control-radius);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
   font-size: 1.5rem;
   cursor: pointer;
 }
 
 .birthday-easter-egg__eyebrow {
   margin-bottom: 0.7rem;
-  color: #9a3412;
+  color: var(--primary-strong);
   font-size: 0.78rem;
+  font-weight: 600;
   letter-spacing: 0.28em;
   text-transform: uppercase;
 }
 
 .birthday-easter-egg__card h2 {
   margin: 0;
-  color: #7c2d12;
+  color: var(--text-primary);
   font-family: var(--font-display);
   font-size: clamp(1.55rem, 3vw, 2.4rem);
   line-height: 1.08;
@@ -1401,13 +1400,13 @@ watch(currentPage, async () => {
 .birthday-easter-egg__lead,
 .birthday-easter-egg__note {
   margin: 0.55rem 0 0;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 0.96rem;
 }
 
 .birthday-easter-egg__headline {
   margin: 0.85rem 0 0;
-  color: #dc2626;
+  color: var(--primary-text);
   font-family: var(--font-display);
   font-size: clamp(1.05rem, 2vw, 1.45rem);
   font-weight: 700;
@@ -1436,8 +1435,8 @@ watch(currentPage, async () => {
 .scroll-btn {
   width: 48px;
   height: 48px;
-  border: 1px solid color-mix(in oklab, var(--primary) 28%, var(--border-color));
-  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--control-radius);
   cursor: pointer;
   font-size: 1.35rem;
   font-weight: 700;
@@ -1445,15 +1444,15 @@ watch(currentPage, async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--elevation-1);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 .scroll-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px color-mix(in oklab, oklch(0.18 0.03 248) 18%, transparent);
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-3);
 }
 
 .scroll-btn:active {
@@ -1461,14 +1460,15 @@ watch(currentPage, async () => {
 }
 
 .scroll-top {
-  background: color-mix(in oklab, var(--primary) 88%, black 8%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
+  border-color: transparent;
 }
 
 .scroll-bottom {
-  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
-  color: var(--text-primary);
-  border-color: var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
 }
 
 /* 開發模式調試資訊 */
@@ -1476,8 +1476,8 @@ watch(currentPage, async () => {
   position: fixed;
   top: 100px;
   right: 20px;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
+  background: var(--surface-strong);
+  color: var(--text-inverse);
   padding: 10px;
   border-radius: var(--radius-md);
   font-size: 12px;
@@ -1493,7 +1493,7 @@ watch(currentPage, async () => {
   }
   .birthday-easter-egg__card {
     padding: 1.45rem 1rem 1.15rem;
-    border-radius: 26px;
+    border-radius: var(--radius-xl);
     gap: 0.85rem;
   }
   .birthday-easter-egg__headline {
@@ -1533,27 +1533,23 @@ watch(currentPage, async () => {
 
 <!-- 全域暗黑模式樣式 -->
 <style>
-/* Nuxt UI 暗黑模式增強樣式 */
+/* ============================================================
+   全域細修層（非 scoped）
+   原本這裡有兩百多行 :global(.dark) 規則 —— 非 scoped 的 <style>
+   不會編譯 :global()，那些選擇器原樣輸出後被瀏覽器丟棄，從未生效。
+   深色模式改由 variables.css 的 token 單一來源負責。
+   ============================================================ */
 
-/* 自定義 CSS 變數 - 配合 Nuxt UI */
-:root {
-  --custom-shadow: rgba(0, 0, 0, 0.1);
-  --custom-shadow-hover: rgba(0, 0, 0, 0.15);
-}
-
-.dark {
-  --custom-shadow: rgba(0, 0, 0, 0.3);
-  --custom-shadow-hover: rgba(0, 0, 0, 0.4);
-}
-
-/* 卡片陰影增強 */
+/* 卡片：靜止只留髮絲陰影，hover 才真的浮起來 */
 .stat-card,
 .subscription-card,
 .food-card,
 .video-card,
 .image-card {
-  box-shadow: 0 4px 15px var(--custom-shadow);
-  transition: all 0.3s ease;
+  box-shadow: var(--elevation-1);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .stat-card:hover,
@@ -1561,234 +1557,52 @@ watch(currentPage, async () => {
 .food-card:hover,
 .video-card:hover,
 .image-card:hover {
-  box-shadow: 0 8px 25px var(--custom-shadow-hover);
+  box-shadow: var(--elevation-2);
 }
 
-/* 滾動按鈕增強 */
 .scroll-btn {
-  box-shadow: 0 4px 15px var(--custom-shadow) !important;
+  box-shadow: var(--elevation-1) !important;
 }
 
 .scroll-btn:hover {
-  box-shadow: 0 6px 20px var(--custom-shadow-hover) !important;
+  box-shadow: var(--elevation-3) !important;
 }
 
-/* 暗黑模式樣式已移至 variables.css 和各個元件中 */
-
-:global(.dark) .status-badge.not-cached {
-  background: rgba(248, 113, 113, 0.2) !important;
-  color: #f87171 !important;
+/* 表單控件的共同底：頁面自己的樣式仍然優先，這裡只補沒寫到的部分 */
+input:not([type='checkbox']):not([type='radio']):not([type='range']),
+select,
+textarea {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--control-radius);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
-:global(.dark) .status-badge.blob-exists {
-  background: rgba(96, 165, 250, 0.2) !important;
-  color: #60a5fa !important;
+input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
-:global(.dark) .status-badge.blob-missing {
-  background: rgba(248, 113, 113, 0.2) !important;
-  color: #f87171 !important;
+::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
 }
 
-/* GalleryPage 特定樣式 */
-:global(.dark) .image-gallery-container h1 {
-  color: #ffffff !important;
-  text-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.9) !important,
-    0 2px 4px rgba(0, 0, 0, 0.7) !important,
-    0 4px 8px rgba(0, 0, 0, 0.5) !important;
+/* 語意狀態標籤：淡染底 + 同色字，深淺色都由 token 推導 */
+.status-badge.not-cached,
+.status-badge.blob-missing {
+  background: var(--danger-light);
+  color: var(--danger-text);
 }
 
-:global(.dark) .gallery-info p {
-  color: #cbd5e1 !important;
-}
-
-:global(.dark) .gallery-stats .stat-item {
-  color: #94a3b8 !important;
-}
-
-:global(.dark) .image-card {
-  color: #f1f5f9 !important;
-}
-
-:global(.dark) .image-list-item {
-  color: #f1f5f9 !important;
-}
-
-:global(.dark) .image-list-item .list-image-name {
-  color: #ffffff !important;
-  font-weight: bold !important;
-}
-
-:global(.dark) .image-list-item .list-image-details {
-  color: #f1f5f9 !important;
-}
-
-:global(.dark) .image-list-item .detail-item {
-  color: #94a3b8 !important;
-}
-
-:global(.dark) .image-info .image-name {
-  color: #ffffff !important;
-}
-
-:global(.dark) .image-info .image-size {
-  color: #cbd5e1 !important;
-}
-
-:global(.dark) .no-images,
-:global(.dark) .no-results {
-  color: #94a3b8 !important;
-}
-
-:global(.dark) .no-images h3,
-:global(.dark) .no-results h3 {
-  color: #f1f5f9 !important;
-}
-
-:global(.dark) .lightbox-content {
-  background: #1e293b !important;
-  border: 1px solid #475569 !important;
-}
-
-:global(.dark) .lightbox-info h3 {
-  color: #ffffff !important;
-}
-
-:global(.dark) .lightbox-details span {
-  color: #94a3b8 !important;
-}
-
-/* 通用表單元素增強 */
-:global(.dark) .auth-btn.primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-  color: white !important;
-  border: 1px solid #2563eb !important;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3) !important;
-}
-
-:global(.dark) .auth-btn.primary:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4) !important;
-  transform: translateY(-2px) !important;
-}
-
-:global(.dark) .auth-btn.secondary {
-  background: linear-gradient(135deg, #64748b 0%, #475569 100%) !important;
-  color: white !important;
-  border: 1px solid #475569 !important;
-}
-
-:global(.dark) .auth-btn.secondary:hover {
-  background: linear-gradient(135deg, #475569 0%, #334155 100%) !important;
-  transform: translateY(-2px) !important;
-}
-
-/* 通用卡片懸停效果增強 */
-:global(.dark) .subscription-card:hover,
-:global(.dark) .food-card:hover,
-:global(.dark) .video-card:hover,
-:global(.dark) .image-card:hover {
-  transform: translateY(-5px) !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6) !important;
-}
-
-/* 通用輸入框增強 */
-:global(.dark) input:focus,
-:global(.dark) textarea:focus,
-:global(.dark) select:focus {
-  border-color: #60a5fa !important;
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2) !important;
-  background: #0f172a !important;
-}
-
-/* 通用按鈕增強 */
-:global(.dark) .action-btn:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-  transform: scale(1.05) !important;
-}
-
-/* 確保所有頁面標題都突出顯示 */
-:global(.dark) .page-content h1,
-:global(.dark) .page-content h2,
-:global(.dark) .page-content h3 {
-  color: #f1f5f9 !important;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
-}
-
-/* DashboardPage 特定樣式增強 */
-:global(.dark) .dashboard-title {
-  color: #ffffff !important;
-  text-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.9) !important,
-    0 2px 4px rgba(0, 0, 0, 0.7) !important,
-    0 4px 8px rgba(0, 0, 0, 0.5) !important;
-}
-
-:global(.dark) .stat-card h3 {
-  color: #cbd5e1 !important;
-}
-
-:global(.dark) .stat-card .stat-number {
-  color: #60a5fa !important;
-  background: none !important;
-  -webkit-background-clip: unset !important;
-  -webkit-text-fill-color: unset !important;
-  background-clip: unset !important;
-}
-
-:global(.dark) .stat-card .stat-label {
-  color: #94a3b8 !important;
-}
-
-:global(.dark) .action-card h3 {
-  color: #f1f5f9 !important;
-}
-
-:global(.dark) .action-card .action-description {
-  color: #94a3b8 !important;
-}
-
-/* 確保所有表單和輸入框在暗黑模式下可見 */
-:global(.dark) .form-group label {
-  color: #cbd5e1 !important;
-}
-
-:global(.dark) .form-group input,
-:global(.dark) .form-group textarea,
-:global(.dark) .form-group select {
-  background: #1e293b !important;
-  color: #f1f5f9 !important;
-  border: 1px solid #475569 !important;
-}
-
-:global(.dark) .form-group input::placeholder,
-:global(.dark) .form-group textarea::placeholder {
-  color: #64748b !important;
-}
-
-/* 確保所有列表項目文字可見 */
-:global(.dark) .list-header h3 {
-  color: #ffffff !important;
-}
-
-:global(.dark) .summary .total-count,
-:global(.dark) .summary .total-cost,
-:global(.dark) .summary .expiry-warning {
-  color: inherit !important;
-}
-
-/* 修復可能的透明文字問題 */
-:global(.dark) * {
-  -webkit-text-fill-color: unset !important;
-}
-
-:global(.dark) *[style*="background-clip: text"],
-:global(.dark) *[style*="-webkit-background-clip: text"] {
-  background: none !important;
-  -webkit-background-clip: unset !important;
-  -webkit-text-fill-color: unset !important;
-  background-clip: unset !important;
-  color: inherit !important;
+.status-badge.blob-exists {
+  background: var(--info-light);
+  color: var(--info-text);
 }
 </style>

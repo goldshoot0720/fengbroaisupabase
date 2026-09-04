@@ -1374,9 +1374,9 @@ useHead({
   text-align: center;
   margin-bottom: 2rem;
   padding: 2rem;
-  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-  border-radius: 12px;
-  color: #333;
+  background: var(--success-solid);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
 }
 
 .page-title {
@@ -1396,11 +1396,11 @@ useHead({
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(46, 204, 113, 0.08) 100%);
-  border-radius: 8px;
+  background: var(--success-light);
+  border-radius: var(--radius-md);
   margin-bottom: 1.5rem;
   font-size: 0.95rem;
-  color: #555;
+  color: var(--text-secondary);
   flex-wrap: wrap;
   gap: 0.5rem;
 }
@@ -1408,10 +1408,10 @@ useHead({
 .zip-import-progress {
   margin-bottom: 1rem;
   padding: 0.85rem 1rem;
-  border: 1px solid rgba(16, 185, 129, 0.28);
-  border-radius: 8px;
-  background: rgba(236, 253, 245, 0.92);
-  color: #065f46;
+  border: 1px solid color-mix(in oklab, var(--success) 28%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--success) 92%, transparent);
+  color: var(--success-text);
 }
 
 .zip-import-progress-head {
@@ -1434,13 +1434,13 @@ useHead({
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(6, 95, 70, 0.14);
+  background: color-mix(in oklab, var(--success) 14%, transparent);
 }
 
 .zip-import-progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #10b981, #0ea5e9);
+  background: var(--success-solid);
   transition: width 0.25s ease;
 }
 
@@ -1468,10 +1468,10 @@ useHead({
   flex: 1;
   min-width: 260px;
   padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-subtle);
   border-radius: 999px;
   font-size: 0.96rem;
-  background: white;
+  background: var(--bg-surface);
 }
 
 .btn-batch-apply,
@@ -1486,13 +1486,13 @@ useHead({
 }
 
 .btn-batch-apply {
-  background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
 }
 
 .btn-batch-clear {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
 }
 
 .btn-batch-apply:disabled,
@@ -1543,20 +1543,20 @@ useHead({
 }
 
 .selected-count {
-  background: #3498db;
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-size: 0.85rem;
   font-weight: 600;
 }
 
 .btn-batch-mode {
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
@@ -1565,15 +1565,15 @@ useHead({
 
 .btn-batch-mode:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-cancel-batch {
   padding: 0.35rem 0.75rem;
-  background: #e0e0e0;
-  color: #666;
+  background: var(--bg-inset);
+  color: var(--text-secondary);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
@@ -1581,15 +1581,15 @@ useHead({
 }
 
 .btn-cancel-batch:hover {
-  background: #d0d0d0;
+  background: var(--border-strong);
 }
 
 .btn-batch-delete {
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
@@ -1607,11 +1607,11 @@ useHead({
   font-weight: 700;
 }
 
-.btn-trash:hover { background: var(--danger-light); color: var(--danger); }
+.btn-trash:hover { background: var(--danger-light); color: var(--danger-text); }
 
 .btn-batch-delete:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-batch-delete:disabled {
@@ -1656,24 +1656,24 @@ useHead({
 .category-filter-select {
   min-width: 150px;
   padding: 0.72rem 0.95rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-subtle);
   border-radius: 999px;
-  background: white;
+  background: var(--bg-surface);
   font-size: 0.95rem;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .category-filter-select:focus {
   outline: none;
-  border-color: #a78bfa;
-  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.12);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .btn-export, .btn-import {
   padding: 0.6rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: white;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
   cursor: pointer;
   font-size: 0.9rem;
   display: flex;
@@ -1683,13 +1683,13 @@ useHead({
 }
 
 .btn-export:hover {
-  background: #f0fdf4;
-  border-color: #86efac;
+  background: var(--success-light);
+  border-color: color-mix(in oklab, var(--success) 32%, transparent);
 }
 
 .btn-import:hover {
-  background: #fef3c7;
-  border-color: #fcd34d;
+  background: var(--warning-light);
+  border-color: color-mix(in oklab, var(--warning) 32%, transparent);
 }
 
 .search-area {
@@ -1707,22 +1707,22 @@ useHead({
 .search-box .icon {
   position: absolute;
   left: 12px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .search-input {
   width: 100%;
   padding: 0.75rem 0.75rem 0.75rem 2.5rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   font-size: 1rem;
   transition: all 0.2s;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #a8edea;
-  box-shadow: 0 0 0 3px rgba(168, 237, 234, 0.3);
+  border-color: color-mix(in oklab, var(--success) 32%, transparent);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .notes-container {
@@ -1762,8 +1762,8 @@ useHead({
 }
 
 .note-pinned {
-  border-color: color-mix(in oklab, #f59e0b 55%, var(--border-color));
-  box-shadow: 0 12px 28px rgba(245, 158, 11, 0.14);
+  border-color: color-mix(in oklab, var(--warning) 55%, var(--border-color));
+  box-shadow: var(--elevation-1);
 }
 
 .note-card--card {
@@ -1837,27 +1837,27 @@ useHead({
   cursor: pointer;
   font-size: 1.1rem;
   padding: 0.25rem;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   opacity: 0.6;
   transition: all 0.2s;
 }
 
 .btn-icon:hover {
   opacity: 1;
-  background: #f0f0f0;
+  background: var(--bg-muted);
 }
 
 .btn-icon.delete:hover {
-  background: #fee2e2;
+  background: var(--danger-light);
 }
 
 .btn-icon.pin.active {
   opacity: 1;
-  background: color-mix(in oklab, #f59e0b 18%, var(--bg-tertiary));
+  background: color-mix(in oklab, var(--warning-solid) 18%, var(--bg-tertiary));
 }
 
 .btn-icon.pin:hover {
-  background: color-mix(in oklab, #f59e0b 14%, var(--bg-tertiary));
+  background: color-mix(in oklab, var(--warning-solid) 14%, var(--bg-tertiary));
 }
 
 .note-title {
@@ -1889,8 +1889,8 @@ useHead({
 }
 
 .note-category.pinned {
-  background: color-mix(in oklab, #f59e0b 24%, var(--bg-tertiary));
-  color: #92400e;
+  background: color-mix(in oklab, var(--warning-solid) 24%, var(--bg-tertiary));
+  color: var(--warning-text);
 }
 
 .note-content {
@@ -1913,7 +1913,7 @@ useHead({
 
 .attachment-group h4 {
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-secondary);
   margin: 0.5rem 0;
 }
 
@@ -1924,7 +1924,7 @@ useHead({
 }
 
 .link-item {
-  color: #4a90e2;
+  color: var(--primary-text);
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
@@ -1941,17 +1941,17 @@ useHead({
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: #f9f9f9;
+  background: var(--bg-surface);
   padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
 }
 
 .file-preview-img {
   width: 48px;
   height: 48px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: transform 0.2s;
   flex-shrink: 0;
@@ -1968,8 +1968,8 @@ useHead({
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  background: #e5e7eb;
-  border-radius: 6px;
+  background: var(--bg-inset);
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 
@@ -1983,16 +1983,16 @@ useHead({
 
 .file-type {
   font-size: 0.7rem;
-  background: #ddd;
-  color: #555;
+  background: var(--bg-inset);
+  color: var(--text-secondary);
   padding: 0.1rem 0.3rem;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   text-transform: uppercase;
   width: fit-content;
 }
 
 .file-name {
-  color: #555;
+  color: var(--text-secondary);
   font-size: 0.85rem;
   white-space: nowrap;
   overflow: hidden;
@@ -2090,7 +2090,7 @@ useHead({
   border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--border-color));
   background: color-mix(in oklab, var(--accent) 12%, var(--bg-secondary));
   color: var(--text-primary);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 0.55rem 0.85rem;
   font-size: 0.88rem;
   font-weight: 700;
@@ -2100,16 +2100,16 @@ useHead({
 .inline-input {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   font-size: 0.95rem;
   transition: border-color 0.2s;
 }
 
 .inline-input:focus {
   outline: none;
-  border-color: #a8edea;
-  box-shadow: 0 0 0 2px rgba(168, 237, 234, 0.3);
+  border-color: color-mix(in oklab, var(--success) 32%, transparent);
+  box-shadow: 0 0 0 2px var(--primary-ring);
 }
 
 .inline-date {
@@ -2120,8 +2120,8 @@ useHead({
 .inline-textarea {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   font-size: 0.95rem;
   font-family: inherit;
   resize: vertical;
@@ -2130,12 +2130,12 @@ useHead({
 
 .inline-textarea:focus {
   outline: none;
-  border-color: #a8edea;
-  box-shadow: 0 0 0 2px rgba(168, 237, 234, 0.3);
+  border-color: color-mix(in oklab, var(--success) 32%, transparent);
+  box-shadow: 0 0 0 2px var(--primary-ring);
 }
 
 .inline-section {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-subtle);
   padding-top: 0.5rem;
 }
 
@@ -2144,15 +2144,15 @@ useHead({
   justify-content: flex-end;
   gap: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .btn-save-icon {
   padding: 0.4rem 1rem;
   border: none;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-  color: white;
+  border-radius: var(--radius-sm);
+  background: var(--success-solid);
+  color: var(--on-solid);
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
@@ -2161,15 +2161,15 @@ useHead({
 
 .btn-save-icon:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-cancel-icon {
   padding: 0.4rem 1rem;
   border: none;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
-  color: white;
+  border-radius: var(--radius-sm);
+  background: var(--neutral-solid);
+  color: var(--on-solid);
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
@@ -2178,28 +2178,28 @@ useHead({
 
 .btn-cancel-icon:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(149, 165, 166, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 /* 上傳區域 */
 .attachment-upload-item {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   padding: 0.75rem;
-  background: #fafafa;
+  background: var(--bg-surface);
 }
 
 .attachment-label {
   display: block;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #555;
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
 }
 
 .attachment-drop-zone {
-  border: 2px dashed #ccc;
-  border-radius: 8px;
+  border: 2px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
   padding: 1.25rem;
   text-align: center;
   cursor: pointer;
@@ -2211,12 +2211,12 @@ useHead({
 }
 
 .attachment-drop-zone:hover {
-  border-color: #a8edea;
-  background: #f0faf9;
+  border-color: color-mix(in oklab, var(--success) 32%, transparent);
+  background: var(--bg-surface);
 }
 
 .drop-icon { font-size: 1.2rem; }
-.drop-text { font-size: 0.9rem; color: #888; }
+.drop-text { font-size: 0.9rem; color: var(--text-muted); }
 
 .attachment-preview {
   display: flex;
@@ -2237,7 +2237,7 @@ useHead({
   width: 48px;
   height: 48px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 
@@ -2248,8 +2248,8 @@ useHead({
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  background: #e5e7eb;
-  border-radius: 6px;
+  background: var(--bg-inset);
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 
@@ -2262,7 +2262,7 @@ useHead({
 
 .attachment-name {
   font-size: 0.85rem;
-  color: #333;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2270,10 +2270,10 @@ useHead({
 
 .attachment-type-badge {
   font-size: 0.7rem;
-  background: #a8edea;
-  color: #444;
+  background: color-mix(in oklab, var(--success) 30%, transparent);
+  color: var(--text-secondary);
   padding: 0.1rem 0.4rem;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   text-transform: uppercase;
   width: fit-content;
 }
@@ -2283,8 +2283,8 @@ useHead({
   height: 24px;
   border-radius: 50%;
   border: none;
-  background: #ef4444;
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   font-size: 0.75rem;
   cursor: pointer;
   display: flex;
@@ -2294,7 +2294,7 @@ useHead({
 }
 
 .btn-remove-attachment:hover {
-  background: #dc2626;
+  background: var(--danger-solid-hover);
 }
 
 .attachment-progress {
@@ -2303,21 +2303,21 @@ useHead({
 
 .progress-bar {
   height: 5px;
-  background: #e5e7eb;
-  border-radius: 3px;
+  background: var(--bg-inset);
+  border-radius: var(--radius-xs);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #a8edea, #6ee7b7);
-  border-radius: 3px;
+  background: var(--success-solid);
+  border-radius: var(--radius-xs);
   transition: width 0.3s;
 }
 
 .progress-text {
   font-size: 0.75rem;
-  color: #10b981;
+  color: var(--success-text);
   margin-top: 0.2rem;
   display: block;
 }
@@ -2326,7 +2326,7 @@ useHead({
 .lightbox-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: color-mix(in oklab, var(--overlay-scrim) 80%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2348,33 +2348,33 @@ useHead({
   height: 32px;
   border-radius: 50%;
   border: none;
-  background: white;
-  color: #333;
+  background: var(--bg-surface);
+  color: var(--text-primary);
   font-size: 1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: var(--elevation-2);
   z-index: 1;
 }
 
 .lightbox-close:hover {
-  background: #f0f0f0;
+  background: var(--bg-muted);
 }
 
 .lightbox-img {
   max-width: 90vw;
   max-height: 85vh;
   object-fit: contain;
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-3);
 }
 
 .section-toggle {
   cursor: pointer;
   user-select: none;
-  color: #666;
+  color: var(--text-secondary);
   margin: 0 0 0.75rem 0;
   font-size: 0.95rem;
   display: flex;
@@ -2383,7 +2383,7 @@ useHead({
 }
 
 .section-toggle:hover {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .section-content {
@@ -2398,8 +2398,8 @@ useHead({
   height: 36px;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
   font-size: 1.5rem;
   font-weight: 300;
   cursor: pointer;
@@ -2413,18 +2413,18 @@ useHead({
 
 .btn-add-icon:hover {
   transform: translateY(-2px) scale(1.1);
-  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .loading-state {
   text-align: center;
   padding: 4rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #a8edea;
+  border: 4px solid var(--border-subtle);
+  border-top: 4px solid color-mix(in oklab, var(--success) 32%, transparent);
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -2435,10 +2435,10 @@ useHead({
 .empty-state {
   text-align: center;
   padding: 3rem;
-  color: #888;
+  color: var(--text-muted);
   font-size: 1.1rem;
-  background: #f9f9f9;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
   grid-column: 1 / -1;
 }
 

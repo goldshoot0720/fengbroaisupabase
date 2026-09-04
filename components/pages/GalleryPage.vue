@@ -1650,8 +1650,8 @@ useHead({
 }
 
 .view-chip.active {
-  background: var(--surface-strong, #334155);
-  color: var(--text-inverse, #fff);
+  background: var(--surface-strong, var(--neutral-solid));
+  color: var(--text-inverse, var(--text-inverse));
 }
 
 /* 燈箱預覽 */
@@ -1662,7 +1662,7 @@ useHead({
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.88);
+  background: color-mix(in oklab, var(--text-primary) 88%, transparent);
   padding: 1.5rem;
   gap: 0.75rem;
 }
@@ -1680,21 +1680,20 @@ useHead({
   max-width: 100%;
   max-height: min(82vh, 960px);
   object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-  background:
-    linear-gradient(45deg, rgba(148, 163, 184, 0.2) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(148, 163, 184, 0.2) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(148, 163, 184, 0.2) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(148, 163, 184, 0.2) 75%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-3);
+  background: linear-gradient(45deg, color-mix(in oklab, var(--text-primary) 20%, transparent) 25%, transparent 25%),
+    linear-gradient(-45deg, color-mix(in oklab, var(--text-primary) 20%, transparent) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, color-mix(in oklab, var(--text-primary) 20%, transparent) 75%),
+    linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--text-primary) 20%, transparent) 75%);
   background-size: 18px 18px;
   background-position: 0 0, 0 9px, 9px -9px, -9px 0;
-  background-color: #0f172a;
+  background-color: var(--neutral-solid);
 }
 
 .lightbox-meta {
   text-align: center;
-  color: #f8fafc;
+  color: var(--on-solid);
 }
 
 .lightbox-meta h3 {
@@ -1705,7 +1704,7 @@ useHead({
 
 .lightbox-meta p {
   margin: 0.25rem 0 0;
-  color: #cbd5e1;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -1721,9 +1720,9 @@ useHead({
 }
 
 .btn-lightbox {
-  border: 1px solid rgba(248, 250, 252, 0.25);
-  background: rgba(248, 250, 252, 0.1);
-  color: #f8fafc;
+  border: 1px solid color-mix(in oklab, var(--bg-surface) 25%, transparent);
+  background: color-mix(in oklab, var(--bg-surface) 10%, transparent);
+  color: var(--on-solid);
   border-radius: 999px;
   padding: 0.5rem 1rem;
   cursor: pointer;
@@ -1732,7 +1731,7 @@ useHead({
 }
 
 .btn-lightbox:hover {
-  background: rgba(248, 250, 252, 0.2);
+  background: color-mix(in oklab, var(--bg-surface) 20%, transparent);
 }
 
 .lightbox-close {
@@ -1743,8 +1742,8 @@ useHead({
   height: 42px;
   border: none;
   border-radius: 50%;
-  background: rgba(248, 250, 252, 0.12);
-  color: #fff;
+  background: color-mix(in oklab, var(--bg-surface) 12%, transparent);
+  color: var(--on-solid);
   font-size: 1.35rem;
   cursor: pointer;
 }
@@ -1754,8 +1753,8 @@ useHead({
   height: 48px;
   border: none;
   border-radius: 50%;
-  background: rgba(248, 250, 252, 0.12);
-  color: #fff;
+  background: color-mix(in oklab, var(--bg-surface) 12%, transparent);
+  color: var(--on-solid);
   font-size: 1.8rem;
   line-height: 1;
   cursor: pointer;
@@ -1769,7 +1768,7 @@ useHead({
 
 .lightbox-nav:not(:disabled):hover,
 .lightbox-close:hover {
-  background: rgba(248, 250, 252, 0.22);
+  background: color-mix(in oklab, var(--bg-surface) 22%, transparent);
 }
 
 @media (max-width: 768px) {
@@ -1799,9 +1798,9 @@ useHead({
 
 .btn-export, .btn-import {
   padding: 0.6rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: white;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
   cursor: pointer;
   font-size: 0.9rem;
   display: flex;
@@ -1811,13 +1810,13 @@ useHead({
 }
 
 .btn-export:hover {
-  background: #f0fdf4;
-  border-color: #86efac;
+  background: var(--success-light);
+  border-color: color-mix(in oklab, var(--success) 32%, transparent);
 }
 
 .btn-import:hover {
-  background: #fef3c7;
-  border-color: #fcd34d;
+  background: var(--warning-light);
+  border-color: color-mix(in oklab, var(--warning) 32%, transparent);
 }
 
 .search-area {
@@ -1835,22 +1834,22 @@ useHead({
 .search-box .icon {
   position: absolute;
   left: 12px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .search-input {
   width: 100%;
   padding: 0.75rem 0.75rem 0.75rem 2.5rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   font-size: 1rem;
   transition: all 0.2s;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .images-container {
@@ -1908,7 +1907,7 @@ useHead({
     linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%);
   background-size: 16px 16px;
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-  background-color: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
+  background-color: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
 }
 
 .image-card--card .card-image {
@@ -1956,7 +1955,7 @@ useHead({
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
+  background: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
 }
 
 .image-header {
@@ -1970,10 +1969,10 @@ useHead({
 
 .category-badge {
   font-size: 0.85rem;
-  color: var(--text-inverse);
+  color: var(--on-primary);
   background: linear-gradient(135deg, var(--primary) 0%, color-mix(in oklab, var(--primary) 72%, black 28%) 100%);
   padding: 0.3rem 0.8rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-weight: 500;
 }
 
@@ -1988,24 +1987,24 @@ useHead({
   cursor: pointer;
   font-size: 1.1rem;
   padding: 0.25rem;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   opacity: 0.6;
   transition: all 0.2s;
 }
 
 .btn-icon:hover {
   opacity: 1;
-  background: #f0f0f0;
+  background: var(--bg-muted);
 }
 
 .btn-icon.delete:hover {
-  background: #fee2e2;
+  background: var(--danger-light);
 }
 
 .image-name {
   font-size: 1.3rem;
   font-weight: 700;
-  color: var(--text-primary, #1f2937);
+  color: var(--text-primary, var(--text-primary));
   margin: 0 0 0.75rem 0;
   line-height: 1.4;
   overflow: hidden;
@@ -2024,14 +2023,14 @@ useHead({
 
 .detail-label {
   font-size: 0.85rem;
-  color: var(--text-secondary, #666);
+  color: var(--text-secondary, var(--text-secondary));
   font-weight: 500;
   display: block;
   margin-bottom: 0.25rem;
 }
 
 .detail-value {
-  color: var(--text-primary, #1f2937);
+  color: var(--text-primary, var(--text-primary));
   font-size: 0.95rem;
   line-height: 1.5;
   margin: 0;
@@ -2040,9 +2039,9 @@ useHead({
 
 .card-image-wrapper {
   margin-bottom: 0.75rem;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  background: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
+  background: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
 }
 
 .card-image {
@@ -2051,7 +2050,7 @@ useHead({
   max-height: none;
   object-fit: contain;
   display: block;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: transform 0.2s;
 }
@@ -2063,10 +2062,10 @@ useHead({
 .file-type-badge {
   display: inline-block;
   font-size: 0.75rem;
-  background: #667eea;
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   padding: 0.25rem 0.6rem;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   text-transform: uppercase;
   font-weight: 600;
 }
@@ -2074,7 +2073,7 @@ useHead({
 .image-extra {
   margin-top: auto;
   padding-top: 1rem;
-  border-top: 1px dashed #eee;
+  border-top: 1px dashed var(--border-subtle);
   font-size: 0.85rem;
 }
 
@@ -2085,20 +2084,20 @@ useHead({
 }
 
 .extra-label {
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
   min-width: 50px;
 }
 
 .extra-value {
-  color: #333;
+  color: var(--text-primary);
   word-break: break-all;
 }
 
 .hash-value {
   font-family: monospace;
   font-size: 0.8rem;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 /* Modal & Form Styles */
@@ -2108,7 +2107,7 @@ useHead({
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in oklab, var(--overlay-scrim) 50%, transparent);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -2117,20 +2116,20 @@ useHead({
 }
 
 .modal-content {
-  background: white;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
   width: 100%;
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--elevation-3);
   display: flex;
   flex-direction: column;
 }
 
 .modal-header {
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2146,7 +2145,7 @@ useHead({
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .modal-body {
@@ -2156,7 +2155,7 @@ useHead({
 
 .modal-footer {
   padding: 1.25rem 1.5rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-subtle);
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
@@ -2169,39 +2168,39 @@ useHead({
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
-  color: #374151;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
 .required {
-  color: #ef4444;
+  color: var(--danger-text);
 }
 
 .form-input, .form-textarea {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   font-size: 1rem;
   transition: border-color 0.2s;
 }
 
 .form-input:focus, .form-textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .form-section {
   margin-top: 1.5rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-subtle);
   padding-top: 1rem;
 }
 
 .section-toggle {
   cursor: pointer;
   user-select: none;
-  color: #666;
+  color: var(--text-secondary);
   margin: 0 0 1rem 0;
   font-size: 1rem;
   display: flex;
@@ -2210,15 +2209,15 @@ useHead({
 }
 
 .section-toggle:hover {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -2232,43 +2231,43 @@ useHead({
 }
 
 .btn-submit {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   cursor: pointer;
 }
 
 .btn-submit:disabled {
-  background: #e0e0e0;
+  background: var(--bg-inset);
   cursor: not-allowed;
 }
 
 .btn-cancel {
-  background: white;
-  border: 1px solid #d1d5db;
-  color: #374151;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
   padding: 0.75rem 1.5rem;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-weight: 500;
   cursor: pointer;
 }
 
 .btn-cancel:hover {
-  background: #f9fafb;
+  background: var(--bg-surface);
 }
 
 .loading-state {
   text-align: center;
   padding: 4rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #667eea;
+  border: 4px solid var(--border-subtle);
+  border-top: 4px solid var(--primary);
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -2279,10 +2278,10 @@ useHead({
 .empty-state {
   text-align: center;
   padding: 3rem;
-  color: #888;
+  color: var(--text-muted);
   font-size: 1.1rem;
-  background: #f9f9f9;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
   grid-column: 1 / -1;
 }
 
@@ -2312,10 +2311,10 @@ useHead({
 
 .btn-upload {
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #ffc078 0%, #ffab4a 100%);
-  color: #5c3a0a;
+  background: var(--warning-solid);
+  color: var(--on-solid);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 500;
@@ -2324,7 +2323,7 @@ useHead({
 
 .btn-upload:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 171, 74, 0.45);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-upload:disabled {
@@ -2334,7 +2333,7 @@ useHead({
 
 .upload-progress {
   font-size: 0.9rem;
-  color: #667eea;
+  color: var(--primary-text);
   font-weight: 500;
 }
 
@@ -2346,7 +2345,7 @@ useHead({
   padding: 0.75rem;
   background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .preview-image {
@@ -2354,18 +2353,18 @@ useHead({
   max-height: 240px;
   width: auto;
   height: auto;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   object-fit: contain;
-  background: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
+  box-shadow: var(--elevation-1);
 }
 
 .btn-remove {
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
@@ -2374,50 +2373,50 @@ useHead({
 
 .btn-remove:hover {
   transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
+  box-shadow: var(--elevation-2);
 }
 
-.summary-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(46, 204, 113, 0.08) 100%); border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.95rem; color: #555; flex-wrap: wrap; gap: 0.5rem; }
-.import-progress-card { margin-bottom: 1rem; padding: 1rem 1.1rem; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.18); background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(59, 130, 246, 0.06) 100%); box-shadow: 0 8px 24px rgba(102, 126, 234, 0.08); }
-.import-progress-card.is-complete { border-color: rgba(46, 204, 113, 0.25); background: linear-gradient(135deg, rgba(46, 204, 113, 0.10) 0%, rgba(39, 174, 96, 0.06) 100%); }
-.import-progress-card.is-error { border-color: rgba(231, 76, 60, 0.25); background: linear-gradient(135deg, rgba(231, 76, 60, 0.10) 0%, rgba(192, 57, 43, 0.06) 100%); }
+.summary-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--success-light); border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.95rem; color: var(--text-secondary); flex-wrap: wrap; gap: 0.5rem; }
+.import-progress-card { margin-bottom: 1rem; padding: 1rem 1.1rem; border-radius: var(--radius-lg); border: 1px solid color-mix(in oklab, var(--primary) 18%, transparent); background: var(--primary-light); box-shadow: var(--elevation-1); }
+.import-progress-card.is-complete { border-color: color-mix(in oklab, var(--success) 25%, transparent); background: var(--success-light); }
+.import-progress-card.is-error { border-color: color-mix(in oklab, var(--danger) 25%, transparent); background: var(--danger-light); }
 .import-progress-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
-.import-progress-label { margin: 0; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #667eea; }
-.import-progress-stage { margin: 0.2rem 0 0; font-size: 1rem; font-weight: 600; color: #2c3e50; }
-.import-progress-percent { font-size: 1.2rem; font-weight: 800; color: #2563eb; white-space: nowrap; }
-.import-progress-bar { height: 10px; border-radius: 999px; background: rgba(148, 163, 184, 0.22); overflow: hidden; }
-.import-progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #667eea 0%, #3b82f6 100%); transition: width 0.25s ease; }
-.import-progress-card.is-complete .import-progress-fill { background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%); }
-.import-progress-card.is-error .import-progress-fill { background: linear-gradient(90deg, #f97316 0%, #ef4444 100%); }
-.import-progress-meta { margin-top: 0.75rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: 0.9rem; color: #516074; }
+.import-progress-label { margin: 0; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary-text); }
+.import-progress-stage { margin: 0.2rem 0 0; font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+.import-progress-percent { font-size: 1.2rem; font-weight: 800; color: var(--primary-text); white-space: nowrap; }
+.import-progress-bar { height: 10px; border-radius: 999px; background: color-mix(in oklab, var(--text-primary) 22%, transparent); overflow: hidden; }
+.import-progress-fill { height: 100%; border-radius: inherit; background: var(--primary-solid); transition: width 0.25s ease; }
+.import-progress-card.is-complete .import-progress-fill { background: var(--success-solid); }
+.import-progress-card.is-error .import-progress-fill { background: var(--danger-solid); }
+.import-progress-meta { margin-top: 0.75rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: 0.9rem; color: var(--text-secondary); }
 .summary-left, .summary-right { display: flex; align-items: center; gap: 1rem; }
-.sort-control { display: inline-flex; align-items: center; gap: 0.45rem; color: #516074; font-size: 0.88rem; font-weight: 600; }
-.sort-select { min-height: 34px; border: 1px solid #d8e0eb; border-radius: 8px; background: white; color: #2c3e50; padding: 0.35rem 0.55rem; font-size: 0.88rem; }
-.size-loading { color: #667eea; font-size: 0.84rem; font-weight: 700; white-space: nowrap; }
+.sort-control { display: inline-flex; align-items: center; gap: 0.45rem; color: var(--text-secondary); font-size: 0.88rem; font-weight: 600; }
+.sort-select { min-height: 34px; border: 1px solid color-mix(in oklab, var(--primary) 32%, transparent); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary); padding: 0.35rem 0.55rem; font-size: 0.88rem; }
+.size-loading { color: var(--primary-text); font-size: 0.84rem; font-weight: 700; white-space: nowrap; }
 .select-all-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500; }
 .select-all-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-.selected-count { background: #3498db; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
-.btn-batch-mode { padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
-.btn-batch-mode:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
-.btn-add-icon { width: 36px; height: 36px; border: none; border-radius: 50%; background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%); color: white; font-size: 1.5rem; font-weight: 300; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; line-height: 1; padding-bottom: 4px; }
-.btn-add-icon:hover { transform: translateY(-2px) scale(1.1); box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4); }
-.btn-cancel-batch { padding: 0.35rem 0.75rem; background: #e0e0e0; color: #666; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
-.btn-cancel-batch:hover { background: #d0d0d0; }
-.btn-batch-delete { padding: 0.5rem 1rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
-.btn-batch-delete:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4); }
+.selected-count { background: var(--primary-solid); color: var(--on-primary); padding: 0.25rem 0.75rem; border-radius: var(--radius-lg); font-size: 0.85rem; font-weight: 600; }
+.btn-batch-mode { padding: 0.5rem 1rem; background: var(--primary-solid); color: var(--on-primary); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
+.btn-batch-mode:hover { transform: translateY(-2px); box-shadow: var(--elevation-2); }
+.btn-add-icon { width: 36px; height: 36px; border: none; border-radius: 50%; background: var(--success-solid); color: var(--on-solid); font-size: 1.5rem; font-weight: 300; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; line-height: 1; padding-bottom: 4px; }
+.btn-add-icon:hover { transform: translateY(-2px) scale(1.1); box-shadow: var(--elevation-2); }
+.btn-cancel-batch { padding: 0.35rem 0.75rem; background: var(--bg-inset); color: var(--text-secondary); border: none; border-radius: var(--radius-xs); cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
+.btn-cancel-batch:hover { background: var(--border-strong); }
+.btn-batch-delete { padding: 0.5rem 1rem; background: var(--danger-solid); color: var(--on-solid); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
+.btn-batch-delete:hover { transform: translateY(-2px); box-shadow: var(--elevation-2); }
 .btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* 行內新增 / 行內編輯 */
 .card-editing {
-  border-left-color: #f59e0b;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+  border-left-color: var(--warning);
+  box-shadow: var(--elevation-1);
 }
 
 .inline-input {
   width: 100%;
   padding: 0.4rem 0.6rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
   font-size: 0.9rem;
   transition: border-color 0.2s;
   box-sizing: border-box;
@@ -2425,8 +2424,8 @@ useHead({
 
 .inline-input:focus {
   outline: none;
-  border-color: #8ec5fc;
-  box-shadow: 0 0 0 2px rgba(142, 197, 252, 0.2);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-ring);
 }
 
 .inline-name {
@@ -2450,7 +2449,7 @@ useHead({
 
 .inline-field-row label {
   font-size: 0.8rem;
-  color: #666;
+  color: var(--text-secondary);
   white-space: nowrap;
   min-width: 60px;
   flex-shrink: 0;
@@ -2459,9 +2458,9 @@ useHead({
 .btn-inline-upload {
   display: inline-block;
   padding: 0.3rem 0.75rem;
-  background: linear-gradient(135deg, #ffc078 0%, #ffab4a 100%);
-  color: #5c3a0a;
-  border-radius: 4px;
+  background: var(--warning-solid);
+  color: var(--on-solid);
+  border-radius: var(--radius-xs);
   font-size: 0.8rem;
   cursor: pointer;
   transition: opacity 0.2s;
@@ -2476,9 +2475,9 @@ useHead({
 
 .btn-inline-remove {
   background: none;
-  border: 1px solid #f87171;
-  color: #f87171;
-  border-radius: 4px;
+  border: 1px solid var(--danger);
+  color: var(--danger-text);
+  border-radius: var(--radius-xs);
   font-size: 0.8rem;
   padding: 0.2rem 0.5rem;
   cursor: pointer;
@@ -2487,7 +2486,7 @@ useHead({
 }
 
 .btn-inline-remove:hover {
-  background: #fee2e2;
+  background: var(--danger-light);
 }
 
 .inline-selected-files {
@@ -2504,14 +2503,14 @@ useHead({
   gap: 0.45rem;
   padding: 0.5rem;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: color-mix(in oklab, var(--bg-secondary) 94%, transparent);
   min-width: 0;
 }
 
 .selected-file-thumb {
   aspect-ratio: 4 / 3;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background:
     linear-gradient(45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
@@ -2520,7 +2519,7 @@ useHead({
     linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%);
   background-size: 14px 14px;
   background-position: 0 0, 0 7px, 7px -7px, -7px 0;
-  background-color: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
+  background-color: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2544,7 +2543,7 @@ useHead({
 .selected-file-name {
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--text-primary, #1f2937);
+  color: var(--text-primary, var(--text-primary));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2552,7 +2551,7 @@ useHead({
 
 .selected-file-size {
   font-size: 0.72rem;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary, var(--text-secondary));
 }
 
 .selected-file-remove {
@@ -2564,7 +2563,7 @@ useHead({
 
 .inline-img-preview-wrap {
   width: 100%;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background:
     linear-gradient(45deg, color-mix(in oklab, var(--border-color) 55%, transparent) 25%, transparent 25%),
@@ -2573,7 +2572,7 @@ useHead({
     linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--border-color) 55%, transparent) 75%);
   background-size: 16px 16px;
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-  background-color: color-mix(in oklab, var(--bg-primary, #0f172a) 88%, var(--bg-secondary) 12%);
+  background-color: color-mix(in oklab, var(--bg-primary, var(--neutral-solid)) 88%, var(--bg-secondary) 12%);
   margin-bottom: 0.35rem;
   border: 1px solid var(--border-color);
   display: flex;
@@ -2587,11 +2586,11 @@ useHead({
   max-height: min(48vh, 360px);
   object-fit: contain;
   display: block;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .btn-icon.save:hover {
-  background: #ecfdf5;
+  background: var(--success-light);
 }
 
 @media (max-width: 960px) {

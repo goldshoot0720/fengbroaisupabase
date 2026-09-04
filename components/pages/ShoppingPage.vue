@@ -749,9 +749,9 @@ const executeImport = async () => {
 }
 
 .btn-primary {
-  background: var(--primary);
+  background: var(--primary-solid);
   border-color: var(--primary);
-  color: var(--text-inverse);
+  color: var(--on-primary);
 }
 
 .btn-primary:disabled,
@@ -783,7 +783,7 @@ const executeImport = async () => {
 }
 
 .btn-icon.copy {
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .btn-icon:disabled {
@@ -930,7 +930,7 @@ const executeImport = async () => {
   padding: 0.7rem 0.9rem;
   border-radius: var(--radius-sm);
   background: var(--danger-light);
-  color: var(--danger);
+  color: var(--danger-text);
   line-height: 1.6;
 }
 
@@ -965,7 +965,7 @@ const executeImport = async () => {
   padding: 1.5rem;
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--elevation-3);
   overflow: auto;
   z-index: var(--z-modal, 1000);
 }

@@ -439,12 +439,12 @@ onMounted(() => {
 
 /* 版權資訊 */
 .copyright-info {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   padding: 2.5rem;
   border-radius: 20px;
   margin-bottom: 2rem;
-  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+  box-shadow: var(--elevation-1);
   position: relative;
   overflow: hidden;
 }
@@ -474,22 +474,22 @@ onMounted(() => {
   margin: 0 0 0.25rem 0;
   font-size: 2.5rem;
   font-weight: 900;
-  color: #ffffff;
-  text-shadow: 0 2px 12px rgba(255, 255, 255, 0.5);
+  color: var(--on-solid);
+  text-shadow: var(--elevation-1);
   letter-spacing: 1.5px;
 }
 
 .company-tagline {
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: color-mix(in oklab, var(--on-solid) 90%, transparent);
   font-weight: 600;
   letter-spacing: 2px;
   text-transform: uppercase;
 }
 
 .copyright-text { margin: 0; font-size: 1rem; line-height: 1.8; }
-.copyright-main { font-weight: 600; font-size: 1.05rem; color: rgba(255, 255, 255, 0.95); }
-.tech-stack { font-size: 0.85rem; opacity: 0.85; color: rgba(255, 255, 255, 0.8); }
+.copyright-main { font-weight: 600; font-size: 1.05rem; color: color-mix(in oklab, var(--on-solid) 95%, transparent); }
+.tech-stack { font-size: 0.85rem; opacity: 0.85; color: color-mix(in oklab, var(--on-solid) 80%, transparent); }
 
 .copyright-decoration {
   position: absolute;
@@ -503,7 +503,7 @@ onMounted(() => {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
+  background: color-mix(in oklab, var(--bg-surface) 30%, transparent);
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -573,7 +573,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.75rem;
   padding: 1rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   cursor: pointer;
@@ -625,7 +625,7 @@ onMounted(() => {
   margin-bottom: 0.5rem;
 }
 
-.title-icon { font-size: 1.5rem; color: var(--primary); }
+.title-icon { font-size: 1.5rem; color: var(--primary-text); }
 
 .actions-title h3 {
   color: var(--text-primary);
@@ -648,7 +648,7 @@ onMounted(() => {
 .action-card {
   text-align: center;
   padding: 1.5rem;
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   transition: all 0.3s ease;
@@ -666,8 +666,8 @@ onMounted(() => {
 }
 
 /* 自定義按鈕顏色 */
-.purple-btn { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important; }
-.pink-btn { background: linear-gradient(135deg, #ec4899 0%, #be185d 100%) !important; }
+.purple-btn { background: var(--primary-solid); color: var(--on-primary); }
+.pink-btn { background: var(--danger-solid); }
 
 /* 到期提醒 */
 .alerts-section { margin-top: 2rem; }
@@ -691,7 +691,7 @@ onMounted(() => {
 
 .alert-group {
   margin-bottom: 1.5rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -703,11 +703,11 @@ onMounted(() => {
   padding: 1rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
-  color: white;
+  color: var(--on-solid);
 }
 
-.alert-group.critical h4 { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); }
-.alert-group.warning h4 { background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); }
+.alert-group.critical h4 { background: var(--danger-solid); }
+.alert-group.warning h4 { background: var(--warning-solid); }
 
 .alert-items { padding: 0; }
 
@@ -716,7 +716,7 @@ onMounted(() => {
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid color-mix(in oklab, var(--text-primary) 5%, transparent);
   background: var(--bg-secondary);
   transition: all 0.3s ease;
 }
@@ -759,7 +759,7 @@ onMounted(() => {
 .info-item {
   padding: 1rem;
   background: var(--bg-tertiary);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   transition: all 0.3s ease;
 }
 

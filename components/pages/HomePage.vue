@@ -392,15 +392,15 @@ const channels = [
 }
 
 .sleep-warning--yellow {
-  border-color: #f59e0b;
-  background: #fef3c7;
-  color: #78350f;
+  border-color: var(--warning);
+  background: var(--warning-light);
+  color: var(--warning-text);
 }
 
 .sleep-warning--red {
-  border-color: #ef4444;
-  background: #fee2e2;
-  color: #7f1d1d;
+  border-color: var(--danger);
+  background: var(--danger-light);
+  color: var(--danger-text);
 }
 
 .tube-home-alert {
@@ -409,12 +409,11 @@ const channels = [
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.15rem;
-  border: 1px solid color-mix(in oklab, #f59e0b 44%, var(--border-color));
+  border: 1px solid color-mix(in oklab, var(--warning) 44%, var(--border-color));
   border-radius: 24px;
-  background:
-    linear-gradient(135deg, color-mix(in oklab, #fef3c7 84%, var(--bg-secondary)), color-mix(in oklab, var(--bg-secondary) 92%, white));
+  background: linear-gradient(135deg, color-mix(in oklab, var(--warning-light) 84%, var(--bg-secondary)), color-mix(in oklab, var(--bg-secondary) 92%, white));
   box-shadow: var(--shadow-soft);
-  color: #78350f;
+  color: var(--warning-text);
 }
 
 .tube-home-alert__copy {
@@ -435,18 +434,17 @@ const channels = [
 
 .tube-home-alert p {
   margin: 0;
-  color: #92400e;
+  color: var(--warning-text);
 }
 
 .finance-home-alert {
-  border-color: color-mix(in oklab, #ef4444 44%, var(--border-color));
-  background:
-    linear-gradient(135deg, color-mix(in oklab, #fee2e2 82%, var(--bg-secondary)), color-mix(in oklab, #fef3c7 70%, var(--bg-secondary)));
-  color: #7f1d1d;
+  border-color: color-mix(in oklab, var(--danger) 44%, var(--border-color));
+  background: linear-gradient(135deg, color-mix(in oklab, var(--danger-light) 82%, var(--bg-secondary)), color-mix(in oklab, var(--warning-light) 70%, var(--bg-secondary)));
+  color: var(--danger-text);
 }
 
 .finance-home-alert p {
-  color: #991b1b;
+  color: var(--danger-text);
 }
 
 .tube-home-alert__actions {
@@ -528,7 +526,7 @@ const channels = [
 
 .hero-title span {
   display: block;
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .hero-copy {
@@ -585,7 +583,7 @@ const channels = [
   overflow: hidden;
   background:
     linear-gradient(180deg, color-mix(in oklab, var(--surface-strong) 10%, var(--bg-secondary)), color-mix(in oklab, var(--bg-secondary) 94%, black 6%));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--text-inverse) 35%, transparent);
 }
 
 .hero-ascii-head {
@@ -698,7 +696,7 @@ const channels = [
   border-radius: 18px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in oklab, var(--bg-surface) 8%, transparent);
   font-family: var(--font-display);
 }
 
@@ -707,13 +705,13 @@ const channels = [
 }
 
 .hero-briefing p {
-  color: rgba(255, 255, 255, 0.75);
+  color: color-mix(in oklab, var(--text-inverse) 75%, transparent);
   margin-top: 0.35rem;
 }
 
 .briefing-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in oklab, var(--bg-surface) 12%, transparent);
   margin: 1.3rem 0 1rem;
 }
 
@@ -1017,7 +1015,7 @@ const channels = [
     width: 100%;
     min-height: 48px;
     justify-content: center;
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
   }
 
   .hero-metrics {
@@ -1026,7 +1024,7 @@ const channels = [
   }
 
   .metric-card {
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
     padding: 0.8rem;
   }
 

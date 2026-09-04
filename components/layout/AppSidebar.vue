@@ -90,92 +90,100 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
   top: 0;
   left: -236px;
   height: 100vh;
-  padding: 0.85rem;
+  padding: var(--sp-3);
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: var(--sp-3);
   transition: left var(--transition-slow), box-shadow var(--transition-normal);
   z-index: 1000;
   overflow-y: auto;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid var(--sidebar-border);
   overscroll-behavior: contain;
 }
 
 .sidebar.sidebar-open {
   left: 0;
-  box-shadow: 30px 0 80px rgba(6, 10, 20, 0.28);
+  box-shadow: var(--elevation-3);
+}
+
+/* 三個區塊是浮在米色底上的白紙卡 */
+.sidebar-header,
+.sidebar-nav,
+.sidebar-footer {
+  border: 1px solid var(--sidebar-border);
+  background: var(--sidebar-panel);
+  border-radius: var(--radius-lg);
 }
 
 .sidebar-header,
 .sidebar-nav,
 .sidebar-footer {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
-  border-radius: 28px;
-}
-
-.sidebar-header,
-.sidebar-nav,
-.sidebar-footer {
-  padding: 0.85rem;
+  padding: var(--sp-4);
 }
 
 .brand-lockup {
   display: flex;
-  gap: 0.9rem;
+  gap: var(--sp-3);
   align-items: flex-start;
 }
 
 .brand-mark {
-  width: 54px;
-  height: 54px;
-  border-radius: 18px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.03));
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--primary-solid);
+  color: var(--on-primary);
   display: grid;
   place-items: center;
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
 }
 
 .brand-kicker,
 .section-label,
 .footer-label {
-  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: var(--tracking-label);
+  color: var(--text-muted);
 }
 
 .brand-title {
-  margin-top: 0.15rem;
-  font-size: 1.2rem;
-  line-height: 1.1;
+  margin-top: 2px;
+  font-size: var(--text-lg);
+  line-height: 1.2;
 }
 
 .brand-subtitle,
 .footer-text {
-  margin-top: 0.4rem;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 0.88rem;
+  margin-top: var(--sp-1);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
   line-height: 1.5;
 }
 
 .sidebar-toggle {
-  margin-top: 1rem;
+  margin-top: var(--sp-4);
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: inherit;
-  border-radius: 999px;
-  padding: 0.7rem 1rem;
+  min-height: var(--control-h-lg);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border-radius: var(--control-radius);
+  padding: 0 var(--sp-4);
+  font-size: var(--text-sm);
   cursor: pointer;
-  transition: background var(--transition-fast), transform var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .sidebar-toggle:hover {
-  background: rgba(255, 255, 255, 0.08);
-  transform: translateY(-1px);
+  background: var(--bg-muted);
+  border-color: var(--border-strong);
 }
 
 .sidebar-nav {
@@ -186,8 +194,8 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  margin-top: 0.65rem;
+  gap: 2px;
+  margin-top: var(--sp-3);
 }
 
 .nav-btn {
@@ -195,46 +203,49 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
   border: 0;
   color: inherit;
   background: transparent;
-  border-radius: 18px;
-  padding: 0.72rem 0.8rem;
+  border-radius: var(--control-radius);
+  min-height: var(--control-h-lg);
+  padding: var(--sp-2) var(--sp-3);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--sp-3);
   cursor: pointer;
-  transition: background var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
   -webkit-tap-highlight-color: transparent;
 }
 
 .nav-btn:hover {
-  transform: translateX(2px);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-hover);
 }
 
+/* 選中：淡黏土底 + 同色細環，不用漸層 */
 .nav-btn.active {
-  background: linear-gradient(135deg, rgba(93, 122, 255, 0.26), rgba(255, 255, 255, 0.08));
-  box-shadow: inset 0 0 0 1px rgba(174, 189, 255, 0.3);
+  background: var(--primary-light);
+  color: var(--primary-text);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 34%, transparent);
 }
 
 .nav-index {
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
   letter-spacing: 0;
   line-height: 1;
-  color: rgba(255, 255, 255, 0.88);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  background: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
 }
 
 .nav-btn.active .nav-index {
-  background: rgba(93, 122, 255, 0.35);
-  border-color: rgba(174, 189, 255, 0.35);
+  background: var(--primary-solid);
+  border-color: transparent;
+  color: var(--on-primary);
 }
 
 .nav-copy {
@@ -245,17 +256,17 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
 
 .nav-name {
   display: block;
-  font-weight: 700;
-  font-size: 0.95rem;
+  font-weight: 500;
+  font-size: var(--text-sm);
   line-height: 1.25;
   text-align: left;
 }
 
 .nav-hint {
   display: block;
-  margin-top: 0.2rem;
-  color: rgba(255, 255, 255, 0.58);
-  font-size: 0.72rem;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
   line-height: 1.25;
   text-align: left;
 }
@@ -263,22 +274,23 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
 .nav-children {
   margin: 0.2rem 0 0.35rem 1.05rem !important;
   gap: 0.18rem !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 1px solid var(--border-subtle);
   padding-left: 0.55rem;
 }
 
 .nav-child-btn {
   width: 100%;
   border: 0;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--text-secondary);
   background: transparent;
-  border-radius: 14px;
-  padding: 0.48rem 0.6rem;
+  border-radius: var(--radius-sm);
+  min-height: var(--control-h);
+  padding: var(--sp-1) var(--sp-2);
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--sp-2);
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .nav-child-glyph {
@@ -288,15 +300,13 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
 }
 
 .nav-child-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.055);
-  transform: translateX(2px);
+  color: var(--text-primary);
+  background: var(--surface-hover);
 }
 
 .nav-child-btn.active {
-  color: #fff;
-  background: rgba(93, 122, 255, 0.2);
-  box-shadow: inset 0 0 0 1px rgba(174, 189, 255, 0.22);
+  color: var(--primary-text);
+  background: var(--primary-light);
 }
 
 .nav-child-name,
@@ -305,22 +315,23 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
 }
 
 .nav-child-name {
-  font-weight: 700;
-  font-size: 0.82rem;
+  font-weight: 500;
+  font-size: var(--text-xs);
   line-height: 1.2;
   min-width: 0;
 }
 
 .nav-child-hint {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.66rem;
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
   line-height: 1.2;
 }
 
 .footer-title {
-  margin-top: 0.3rem;
+  margin-top: var(--sp-1);
   font-family: var(--font-display);
-  font-size: 1rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 
 @media (min-width: 769px) {
@@ -341,23 +352,21 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
       calc(0.7rem + env(safe-area-inset-top, 0px))
       0.75rem
       calc(0.85rem + env(safe-area-inset-bottom, 0px));
-    border-radius: 0 28px 28px 0;
+    border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
     box-shadow: none;
-    background:
-      radial-gradient(circle at top left, rgba(93, 122, 255, 0.18), transparent 42%),
-      linear-gradient(180deg, oklch(0.17 0.024 248) 0%, oklch(0.13 0.02 248) 100%);
+    background: var(--sidebar-bg);
     transition: left var(--duration-slow) var(--ease-out-expo), box-shadow var(--duration-normal) var(--ease-out-expo);
   }
 
   .sidebar.sidebar-open {
     left: 0;
-    box-shadow: 24px 0 56px rgba(6, 10, 20, 0.38);
+    box-shadow: var(--elevation-3);
   }
 
   .sidebar-header,
   .sidebar-nav,
   .sidebar-footer {
-    border-radius: 22px;
+    border-radius: var(--radius-lg);
     padding: 0.85rem;
   }
 
@@ -374,8 +383,8 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
   .brand-mark {
     width: 48px;
     height: 48px;
-    border-radius: 16px;
-    background: linear-gradient(145deg, rgba(93, 122, 255, 0.4), rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-md);
+    background: var(--primary-solid);
   }
 
   .brand-title {
@@ -394,9 +403,9 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
-    border-radius: 16px;
+    border-radius: var(--control-radius);
     font-weight: 700;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--bg-surface);
   }
 
   .sidebar-toggle__icon {
@@ -420,16 +429,12 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
   .nav-btn {
     min-height: 52px;
     padding: 0.7rem 0.8rem;
-    border-radius: 16px;
+    border-radius: var(--control-radius);
   }
 
   .nav-btn:active {
     transform: scale(0.985);
-    background: rgba(255, 255, 255, 0.09);
-  }
-
-  .nav-btn.active {
-    background: linear-gradient(135deg, rgba(93, 122, 255, 0.34), rgba(255, 255, 255, 0.08));
+    background: var(--surface-active);
   }
 
   .nav-name {
@@ -442,7 +447,7 @@ const isChildActive = (page, child) => isNavChildActive(page, child, props.curre
 
   .nav-child-btn {
     min-height: 44px;
-    border-radius: 14px;
+    border-radius: var(--radius-sm);
     padding: 0.55rem 0.7rem;
   }
 

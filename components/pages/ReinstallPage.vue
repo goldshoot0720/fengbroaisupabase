@@ -715,8 +715,8 @@ const executeImport = async () => {
 }
 
 .btn-primary {
-  background: var(--primary);
-  color: var(--text-inverse);
+  background: var(--primary-solid);
+  color: var(--on-primary);
 }
 
 .btn-ghost {

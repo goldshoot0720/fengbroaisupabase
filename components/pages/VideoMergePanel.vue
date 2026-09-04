@@ -1028,12 +1028,12 @@ onBeforeUnmount(() => {
 }
 
 .store-card__link {
-  color: var(--accent-color, #3b82f6);
+  color: var(--primary-text);
 }
 
 .tool-error {
   margin: 0.55rem 0 0;
-  color: var(--danger-color, #ef4444);
+  color: var(--danger-text);
   font-size: 0.88rem;
 }
 
@@ -1073,8 +1073,8 @@ onBeforeUnmount(() => {
   height: 1.4rem;
   padding: 0 0.35rem;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--accent-color, #3b82f6) 18%, transparent);
-  color: var(--accent-color, #3b82f6);
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  color: var(--primary-text);
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -1103,8 +1103,8 @@ onBeforeUnmount(() => {
 
 .vm-dropzone.is-dragover,
 .vm-dropzone:focus-visible {
-  border-color: var(--accent-color, #3b82f6);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent-color, #3b82f6) 22%, transparent);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 22%, transparent);
 }
 
 .vm-file-input {
@@ -1174,7 +1174,7 @@ onBeforeUnmount(() => {
 }
 
 .vm-format-btn.active {
-  background: color-mix(in oklab, var(--accent-color, #3b82f6) 18%, transparent);
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
   color: var(--text-primary, inherit);
   font-weight: 600;
 }
@@ -1214,7 +1214,7 @@ onBeforeUnmount(() => {
 }
 
 .vm-hint--status {
-  color: var(--text-secondary, #555);
+  color: var(--text-secondary, var(--text-secondary));
   font-weight: 500;
 }
 
@@ -1245,7 +1245,7 @@ onBeforeUnmount(() => {
 
 .tool-input {
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 0.55rem 0.7rem;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -1272,8 +1272,8 @@ onBeforeUnmount(() => {
 }
 
 .tool-primary-btn {
-  background: var(--accent-color, #3b82f6);
-  color: #fff;
+  background: var(--primary-solid);
+  color: var(--on-primary);
 }
 
 .tool-primary-btn:disabled,
@@ -1291,7 +1291,7 @@ onBeforeUnmount(() => {
 .tool-primary-btn--compact,
 .tool-secondary-btn--compact {
   padding: 0.4rem 0.75rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-size: 0.85rem;
 }
 
@@ -1341,9 +1341,9 @@ onBeforeUnmount(() => {
   width: 72px;
   height: 42px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
-  background: #000;
+  background: var(--surface-strong);
 }
 
 .vm-clip__placeholder {
@@ -1352,7 +1352,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   color: var(--text-muted);
   font-size: 0.8rem;
@@ -1421,7 +1421,7 @@ onBeforeUnmount(() => {
 
 .vm-progress__fill {
   height: 100%;
-  background: var(--accent-color, #3b82f6);
+  background: var(--primary);
   border-radius: 999px;
   transition: width 0.2s ease;
 }
@@ -1437,7 +1437,7 @@ onBeforeUnmount(() => {
   max-height: 160px;
   overflow: auto;
   padding: 0.55rem;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: color-mix(in oklab, var(--bg-primary) 90%, transparent);
   border: 1px solid var(--border-color);
   white-space: pre-wrap;
@@ -1448,7 +1448,7 @@ onBeforeUnmount(() => {
   width: 100%;
   max-height: 360px;
   border-radius: 14px;
-  background: #000;
+  background: var(--surface-strong);
   border: 1px solid var(--border-color);
 }
 

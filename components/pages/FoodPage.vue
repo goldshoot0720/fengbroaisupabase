@@ -869,15 +869,15 @@ defineExpose({ foods, expiringFoods })
   width: 100%;
   min-width: 200px;
   padding: 0.75rem 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   font-size: 1rem;
   transition: border-color 0.3s;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #27ae60;
+  border-color: var(--success);
 }
 
 .date-filters {
@@ -889,23 +889,23 @@ defineExpose({ foods, expiringFoods })
 .date-filter-select {
   min-width: 130px;
   padding: 0.75rem 0.95rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: #fff;
-  color: #333;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   font-size: 0.95rem;
   transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 .date-filter-select:focus {
   outline: none;
-  border-color: #27ae60;
-  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.12);
+  border-color: var(--success);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .date-filter-select:disabled {
-  color: #999;
-  background: #f4f6f8;
+  color: var(--text-muted);
+  background: var(--bg-surface);
   cursor: not-allowed;
 }
 
@@ -914,10 +914,10 @@ defineExpose({ foods, expiringFoods })
 .btn-export,
 .btn-import {
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 500;
@@ -927,7 +927,7 @@ defineExpose({ foods, expiringFoods })
 .btn-export:hover,
 .btn-import:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-import { display: inline-block; }
@@ -938,11 +938,11 @@ defineExpose({ foods, expiringFoods })
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, rgba(39, 174, 96, 0.08) 0%, rgba(46, 204, 113, 0.08) 100%);
-  border-radius: 8px;
+  background: var(--success-light);
+  border-radius: var(--radius-md);
   margin-bottom: 1.5rem;
   font-size: 0.95rem;
-  color: #555;
+  color: var(--text-secondary);
   flex-wrap: wrap;
   gap: 0.5rem;
 }
@@ -969,20 +969,20 @@ defineExpose({ foods, expiringFoods })
 }
 
 .selected-count {
-  background: #27ae60;
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
   padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-size: 0.85rem;
   font-weight: 600;
 }
 
 .btn-batch-mode {
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
@@ -991,7 +991,7 @@ defineExpose({ foods, expiringFoods })
 
 .btn-batch-mode:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-add-icon {
@@ -1000,8 +1000,8 @@ defineExpose({ foods, expiringFoods })
   height: 36px;
   border: none;
   border-radius: 999px;
-  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
@@ -1015,29 +1015,29 @@ defineExpose({ foods, expiringFoods })
 
 .btn-add-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-cancel-batch {
   padding: 0.35rem 0.75rem;
-  background: #e0e0e0;
-  color: #666;
+  background: var(--bg-inset);
+  color: var(--text-secondary);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
   transition: all 0.2s;
 }
 
-.btn-cancel-batch:hover { background: #d0d0d0; }
+.btn-cancel-batch:hover { background: var(--border-strong); }
 
 .btn-batch-delete {
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
@@ -1046,18 +1046,18 @@ defineExpose({ foods, expiringFoods })
 
 .btn-batch-delete:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+  box-shadow: var(--elevation-2);
 }
 
 .expiry-warning {
-  color: #e74c3c;
+  color: var(--danger-text);
   font-weight: 700;
 }
 
 .expiry-warning-btn {
   appearance: none;
-  border: 1px solid rgba(231, 76, 60, 0.35);
-  background: rgba(231, 76, 60, 0.08);
+  border: 1px solid color-mix(in oklab, var(--danger) 35%, transparent);
+  background: color-mix(in oklab, var(--danger) 8%, transparent);
   border-radius: 999px;
   padding: 0.35rem 0.85rem;
   cursor: pointer;
@@ -1067,22 +1067,22 @@ defineExpose({ foods, expiringFoods })
 }
 
 .expiry-warning-btn:hover {
-  background: rgba(231, 76, 60, 0.14);
-  border-color: rgba(231, 76, 60, 0.55);
+  background: color-mix(in oklab, var(--danger) 14%, transparent);
+  border-color: color-mix(in oklab, var(--danger) 55%, transparent);
 }
 
 .expiry-warning-btn.active {
-  background: rgba(231, 76, 60, 0.18);
-  border-color: #e74c3c;
-  box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.15);
+  background: color-mix(in oklab, var(--danger) 18%, transparent);
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px var(--primary-ring);
 }
 
 .expiring-detail-panel {
   margin: 0 0 1rem;
   padding: 0.85rem 1rem;
-  border-radius: 10px;
-  border: 1px solid rgba(231, 76, 60, 0.25);
-  background: linear-gradient(135deg, rgba(231, 76, 60, 0.06) 0%, rgba(243, 156, 18, 0.06) 100%);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklab, var(--danger) 25%, transparent);
+  background: var(--danger-light);
 }
 
 .expiring-detail-header {
@@ -1091,7 +1091,7 @@ defineExpose({ foods, expiringFoods })
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.6rem;
-  color: #c0392b;
+  color: var(--danger-text);
   font-size: 0.95rem;
 }
 
@@ -1099,7 +1099,7 @@ defineExpose({ foods, expiringFoods })
   appearance: none;
   border: none;
   background: transparent;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 0.85rem;
   text-decoration: underline;
@@ -1107,7 +1107,7 @@ defineExpose({ foods, expiringFoods })
 }
 
 .expiring-detail-clear:hover {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .expiring-detail-list {
@@ -1126,18 +1126,18 @@ defineExpose({ foods, expiringFoods })
   align-items: baseline;
   gap: 0.35rem 0.75rem;
   padding: 0.4rem 0.55rem;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--bg-surface) 75%, transparent);
+  border: 1px solid color-mix(in oklab, var(--text-primary) 4%, transparent);
 }
 
 .expiring-detail-name {
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-primary);
 }
 
 .expiring-detail-meta {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 0.88rem;
 }
 
@@ -1145,17 +1145,17 @@ defineExpose({ foods, expiringFoods })
 .empty-state {
   text-align: center;
   padding: 3rem;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 1.1rem;
 }
 
 /* Table */
 .food-table-container {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-1);
   overflow-x: auto;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--border-subtle);
 }
 
 .food-table {
@@ -1165,21 +1165,21 @@ defineExpose({ foods, expiringFoods })
 }
 
 .food-table thead {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  background: var(--bg-muted);
 }
 
 .food-table th {
   padding: 1rem 0.75rem;
   text-align: left;
   font-weight: 600;
-  color: #495057;
-  border-bottom: 2px solid #dee2e6;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-subtle);
   white-space: nowrap;
 }
 
 .food-table td {
   padding: 0.875rem 0.75rem;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
 }
 
@@ -1188,40 +1188,40 @@ defineExpose({ foods, expiringFoods })
 }
 
 .food-table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-muted);
 }
 
 .food-table tbody tr.selected {
-  background-color: rgba(39, 174, 96, 0.1);
+  background-color: color-mix(in oklab, var(--success) 10%, transparent);
 }
 
 .food-table tbody tr.selected:hover {
-  background-color: rgba(39, 174, 96, 0.15);
+  background-color: color-mix(in oklab, var(--success) 15%, transparent);
 }
 
 .food-table tbody tr.editing {
-  background-color: rgba(255, 243, 205, 0.5);
+  background-color: color-mix(in oklab, var(--warning) 50%, transparent);
 }
 
 .food-table tbody tr.editing:hover {
-  background-color: rgba(255, 243, 205, 0.7);
+  background-color: color-mix(in oklab, var(--warning) 70%, transparent);
 }
 
 .food-table tbody tr.add-row {
-  background-color: rgba(212, 237, 218, 0.5);
-  border-left: 3px solid #28a745;
+  background-color: color-mix(in oklab, var(--success) 50%, transparent);
+  border-left: 3px solid var(--success);
 }
 
 .food-table tbody tr.add-row:hover {
-  background-color: rgba(212, 237, 218, 0.7);
+  background-color: color-mix(in oklab, var(--success) 70%, transparent);
 }
 
 /* Inline editing inputs */
 .inline-input {
   width: 100%;
   padding: 0.5rem;
-  border: 2px solid #27ae60;
-  border-radius: 6px;
+  border: 2px solid var(--success);
+  border-radius: var(--radius-sm);
   font-size: 0.9rem;
   font-family: inherit;
   transition: all 0.2s;
@@ -1229,8 +1229,8 @@ defineExpose({ foods, expiringFoods })
 
 .inline-input:focus {
   outline: none;
-  border-color: #219a52;
-  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+  border-color: var(--success);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .inline-input + .inline-input {
@@ -1264,7 +1264,7 @@ defineExpose({ foods, expiringFoods })
   width: 40px;
   height: 40px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
 }
 
@@ -1311,10 +1311,10 @@ defineExpose({ foods, expiringFoods })
 .btn-amount-step {
   width: 28px;
   height: 28px;
-  border: 1px solid rgba(37, 99, 235, 0.22);
-  border-radius: 8px;
-  background: #eef6ff;
-  color: #1d4ed8;
+  border: 1px solid color-mix(in oklab, var(--primary) 22%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--primary-text);
   font-size: 1rem;
   font-weight: 800;
   line-height: 1;
@@ -1322,7 +1322,7 @@ defineExpose({ foods, expiringFoods })
 }
 
 .btn-amount-step:hover:not(:disabled) {
-  background: #dbeafe;
+  background: var(--primary-light);
 }
 
 .btn-amount-step:disabled {
@@ -1348,9 +1348,9 @@ defineExpose({ foods, expiringFoods })
 .btn-upload-photo {
   display: inline-block;
   padding: 0.2rem 0.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 4px;
+  background: var(--primary-solid);
+  color: var(--on-primary);
+  border-radius: var(--radius-xs);
   font-size: 0.75rem;
   cursor: pointer;
   white-space: nowrap;
@@ -1365,9 +1365,9 @@ defineExpose({ foods, expiringFoods })
 
 .btn-remove-photo {
   background: none;
-  border: 1px solid #f87171;
-  color: #f87171;
-  border-radius: 3px;
+  border: 1px solid var(--danger);
+  color: var(--danger-text);
+  border-radius: var(--radius-xs);
   font-size: 0.7rem;
   padding: 0.1rem 0.3rem;
   cursor: pointer;
@@ -1376,7 +1376,7 @@ defineExpose({ foods, expiringFoods })
 }
 
 .btn-remove-photo:hover {
-  background: #fee2e2;
+  background: var(--danger-light);
 }
 
 .col-actions {
@@ -1400,17 +1400,17 @@ defineExpose({ foods, expiringFoods })
 
 .food-name {
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-primary);
 }
 
 .food-shop {
   font-size: 0.8rem;
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 .price-value {
   font-weight: 600;
-  color: #e67e22;
+  color: var(--warning-text);
   white-space: nowrap;
 }
 
@@ -1418,18 +1418,18 @@ defineExpose({ foods, expiringFoods })
   width: 50px;
   height: 50px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: transform 0.2s;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--elevation-1);
 }
 
 .table-photo:hover { transform: scale(1.1); }
 
-.date-normal { color: #27ae60; }
-.date-soon { color: #f39c12; font-weight: bold; }
-.date-overdue { color: #e74c3c; font-weight: bold; }
-.date-critical { color: #e74c3c; font-weight: bold; }
+.date-normal { color: var(--success-text); }
+.date-soon { color: var(--warning-text); font-weight: bold; }
+.date-overdue { color: var(--danger-text); font-weight: bold; }
+.date-critical { color: var(--danger-text); font-weight: bold; }
 
 .remaining-badge {
   display: inline-flex;
@@ -1438,34 +1438,34 @@ defineExpose({ foods, expiringFoods })
   min-width: 74px;
   min-height: 28px;
   padding: 0.25rem 0.55rem;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 0.82rem;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .remaining-normal {
-  color: #1f7a4d;
-  background: #eaf7ef;
+  color: var(--success-text);
+  background: var(--success-light);
 }
 
 .remaining-warning {
-  color: #9a5b00;
-  background: #fff3d8;
+  color: var(--warning-text);
+  background: var(--warning-light);
 }
 
 .remaining-critical {
-  color: #b54708;
-  background: #ffe7d6;
+  color: var(--warning-text);
+  background: var(--warning-light);
 }
 
 .remaining-expired {
-  color: #b42318;
-  background: #ffe4e0;
+  color: var(--danger-text);
+  background: var(--danger-light);
 }
 
 .remaining-empty {
-  color: #adb5bd;
+  color: var(--text-muted);
 }
 
 /* Icon action buttons */
@@ -1473,7 +1473,7 @@ defineExpose({ foods, expiringFoods })
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1483,65 +1483,65 @@ defineExpose({ foods, expiringFoods })
 }
 
 .btn-edit-icon {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--primary-solid);
+  color: var(--on-primary);
 }
 
 .btn-edit-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-copy-icon {
-  background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
   font-weight: 700;
 }
 
 .btn-copy-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.35);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-delete-icon {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
   font-size: 1rem;
   font-weight: bold;
 }
 
 .btn-delete-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-save-icon {
-  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-  color: white;
+  background: var(--success-solid);
+  color: var(--on-solid);
   font-weight: bold;
 }
 
 .btn-save-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-cancel-icon {
-  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
-  color: white;
+  background: var(--neutral-solid);
+  color: var(--on-solid);
   font-weight: bold;
 }
 
 .btn-cancel-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(149, 165, 166, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 /* Lightbox */
 .lightbox-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: color-mix(in oklab, var(--overlay-scrim) 80%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1553,15 +1553,15 @@ defineExpose({ foods, expiringFoods })
   max-width: 90vw;
   max-height: 90vh;
   object-fit: contain;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-2);
 }
 
 /* Modal */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in oklab, var(--overlay-scrim) 50%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1570,14 +1570,14 @@ defineExpose({ foods, expiringFoods })
 }
 
 .modal {
-  background: white;
-  border-radius: 16px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
   padding: 2rem;
   width: 100%;
   max-width: 450px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--elevation-3);
 }
 
 .modal-header {
@@ -1593,7 +1593,7 @@ defineExpose({ foods, expiringFoods })
 }
 
 .modal-header.danger h2 {
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  background: var(--danger-solid);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1604,7 +1604,7 @@ defineExpose({ foods, expiringFoods })
   border: none;
   font-size: 2rem;
   cursor: pointer;
-  color: #999;
+  color: var(--text-muted);
   line-height: 1;
   padding: 0;
   width: 32px; height: 32px;
@@ -1615,7 +1615,7 @@ defineExpose({ foods, expiringFoods })
   transition: all 0.3s;
 }
 
-.btn-close:hover { background: #f5f5f5; color: #333; }
+.btn-close:hover { background: var(--bg-surface); color: var(--text-primary); }
 
 .confirm-body {
   padding: 1rem 0;
@@ -1623,36 +1623,36 @@ defineExpose({ foods, expiringFoods })
 
 .confirm-warning {
   font-size: 1.1rem;
-  color: #e74c3c;
+  color: var(--danger-text);
   margin-bottom: 1rem;
   text-align: center;
 }
 
 .confirm-warning strong {
   font-size: 1.5rem;
-  color: #c0392b;
+  color: var(--danger-text);
 }
 
 .confirm-hint {
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 1rem;
   line-height: 1.6;
 }
 
 .confirm-hint code {
-  background: #f5f5f5;
+  background: var(--bg-surface);
   padding: 0.25rem 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   font-family: 'Courier New', monospace;
-  color: #e74c3c;
+  color: var(--danger-text);
   font-weight: 600;
 }
 
 .confirm-input {
   width: 100%;
   padding: 1rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   font-size: 1rem;
   font-family: 'Courier New', monospace;
   text-align: center;
@@ -1662,11 +1662,11 @@ defineExpose({ foods, expiringFoods })
 
 .confirm-input:focus {
   outline: none;
-  border-color: #e74c3c;
+  border-color: var(--danger);
 }
 
 .confirm-error {
-  color: #e74c3c;
+  color: var(--danger-text);
   font-size: 0.9rem;
   margin-top: 0.75rem;
   text-align: center;
@@ -1683,24 +1683,24 @@ defineExpose({ foods, expiringFoods })
   flex: 1;
   padding: 0.875rem;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 1rem;
   font-weight: 600;
   transition: all 0.3s;
 }
 
-.btn-cancel { background: #e0e0e0; color: #666; }
-.btn-cancel:hover { background: #d0d0d0; }
+.btn-cancel { background: var(--bg-inset); color: var(--text-secondary); }
+.btn-cancel:hover { background: var(--border-strong); }
 
 .btn-danger {
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
-  color: white;
+  background: var(--danger-solid);
+  color: var(--on-solid);
 }
 
 .btn-danger:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .btn-submit:disabled {
@@ -1807,15 +1807,15 @@ defineExpose({ foods, expiringFoods })
   }
 
   .food-table tbody tr {
-    background: #fff;
-    border: 1px solid #e8edf3;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
     border-radius: 18px;
-    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+    box-shadow: var(--elevation-1);
     padding: 0.85rem 0.9rem;
   }
 
   .food-table tbody tr.add-row {
-    border-left: 1px solid #28a745;
+    border-left: 1px solid var(--success);
   }
 
   .food-table td {
@@ -1836,7 +1836,7 @@ defineExpose({ foods, expiringFoods })
     font-size: 0.74rem;
     font-weight: 700;
     letter-spacing: 0.04em;
-    color: #7a8796;
+    color: var(--text-muted);
   }
 
   .col-checkbox {
@@ -1881,7 +1881,7 @@ defineExpose({ foods, expiringFoods })
   .mini-photo {
     width: 72px;
     height: 72px;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
   }
 
   .col-actions {
@@ -1928,7 +1928,7 @@ defineExpose({ foods, expiringFoods })
 
   .food-table tbody tr {
     padding: 0.8rem;
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
   }
 }
 </style>

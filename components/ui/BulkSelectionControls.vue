@@ -46,20 +46,35 @@ defineEmits(['select-all', 'clear', 'delete-selected'])
 .btn-batch-mode,
 .btn-cancel-batch,
 .btn-batch-delete {
-  border: 1px solid var(--border-color, #dfe5ec);
-  background: var(--bg-secondary, #fff);
-  color: var(--text-primary, #2c3e50);
-  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-radius: var(--control-radius);
   cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
-  padding: 0.45rem 0.75rem;
+  font-weight: 500;
+  font-size: var(--text-sm);
+  height: var(--control-h);
+  padding: 0 var(--sp-3);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.btn-batch-mode:hover:not(:disabled),
+.btn-cancel-batch:hover:not(:disabled) {
+  background: var(--bg-muted);
+  border-color: var(--border-strong);
 }
 
 .btn-batch-delete {
-  background: #ef4444;
-  border-color: #ef4444;
-  color: #fff;
+  background: var(--danger-solid);
+  border-color: var(--danger-solid);
+  color: var(--on-solid);
+}
+
+.btn-batch-delete:hover:not(:disabled) {
+  background: var(--danger-solid-hover);
+  border-color: var(--danger-solid-hover);
 }
 
 .btn-batch-mode:disabled,

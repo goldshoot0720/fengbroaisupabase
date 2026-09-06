@@ -1121,6 +1121,7 @@ import {
 import { isKospiMarketOpen, KOSPI_LIVE_POLL_MS } from '../../utils/kospiMarketHours'
 import { useGallery } from '../../composables/useGallery'
 import { useCloudListSync } from '../../composables/useCloudListSync'
+import { useLandtopHistory } from '../../composables/useLandtopHistory'
 
 // Lazy-load heavier tool panels so a panel-level failure does not blank the whole app shell.
 const ImageFormatConvertPanel = defineAsyncComponent(() => import('./ImageFormatConvertPanel.vue'))
@@ -1242,6 +1243,9 @@ const MANUAL_PRICE_STORAGE_KEY = 'fengbro-tools-manual-prices'
 const MANUAL_SELECTED_PRODUCT_KEY = 'fengbro-tools-manual-selected-product'
 const TUBE_CHANNELS_STORAGE_KEY = 'fengbro-tools-tube-channels'
 const defaultTubeChannelCount = FENG_TUBE_CHANNELS.length
+
+// ---- 手機比價歷史雲端持久化（取代僅存 localStorage） ----
+const { loadLandtopHistory, recordLandtopSnapshot } = useLandtopHistory()
 
 // ---- 個人清單雲端同步（雲端為主、本機為離線快取） ----
 const financeDefaultsSync = useCloudListSync({
@@ -2750,6 +2754,16 @@ const runPhoneCompare = async () => {
       date: new Date().toISOString(),
       series: snapshotSeries
     })
+
+    // 雲端持久化（fire-and-forget）：登錄這個關鍵字作為逗週一 cron 的追蹤清單，
+    // 並讓歷史跨裝置、跨瀏覽器存在。失敗不影響畫面顯示。
+    recordLandtopSnapshot({
+      keywordKey: queryKey,
+      keyword: phoneCompareForm.value.keyword,
+      brandLabel: response.brandLabel,
+      productName: response.productName,
+      series: snapshotSeries
+    })
   } catch (error) {
     phoneCompareResult.value = null
     phoneCompareHistory.value = []
@@ -2875,8 +2889,19 @@ watch(
 
 watch(
   () => phoneCompareForm.value.keyword,
-  (value) => {
-    phoneCompareHistory.value = value ? loadHistoryEntries(PHONE_COMPARE_HISTORY_KEY, normalizeLookupKey(value)) : []
+  async (value) => {
+    if (!value) {
+      phoneCompareHistory.value = []
+      return
+    }
+    const key = normalizeLookupKey(value)
+    // 先用本機快取顯示，離線或雲端表尚未建立時仍能看到歷史；
+    // 雲端有資料就改用雲端（可能包含 cron 補上的快照）。
+    phoneCompareHistory.value = loadHistoryEntries(PHONE_COMPARE_HISTORY_KEY, key)
+    const cloudEntries = await loadLandtopHistory(key)
+    if (cloudEntries.length > 0) {
+      phoneCompareHistory.value = cloudEntries
+    }
   },
   { immediate: true }
 )

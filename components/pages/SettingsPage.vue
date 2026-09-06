@@ -1609,6 +1609,28 @@ CREATE TABLE public.toollistsync (
 );`
   },
   {
+    name: 'landtop_history',
+    label: '手機比價歷史',
+    icon: '📱',
+    checking: false,
+    exists: false,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE public.landtop_history (
+  ${UUID_PRIMARY_KEY_SQL}
+  keyword_key VARCHAR(200) NOT NULL,
+  keyword VARCHAR(200) NOT NULL,
+  brand_label VARCHAR(50),
+  product_name VARCHAR(200),
+  snapshot_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  series JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_landtop_history_keyword_key ON public.landtop_history(keyword_key);`
+  },
+  {
     name: 'push_subscriptions',
     label: 'Web Push 推播',
     icon: '🔔',

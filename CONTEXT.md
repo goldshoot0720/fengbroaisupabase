@@ -27,7 +27,9 @@ Column source of truth for new tables is the `tables` array in `components/pages
 | 鋒兄影片 | `VideoDBPage.vue` | `useVideoRecords` | `video` |
 | Web Push | Settings / SW | `usePushNotification` | `push_subscriptions` |
 
-鋒兄工具 (`FengToolsPage.vue`) is client/server-only (BigGo, 手動紀錄, 手機比價, Tube, 金融, 新聞, 圖片語音成片, 格式轉換, 影片合併, YT/B 站轉檔). It has no dedicated Supabase table. Personal lists sync through `toollistsync`.
+鋒兄工具 (`FengToolsPage.vue`) is client/server-only (BigGo, 手動紀錄, 手機比價, Tube, 金融, 新聞, 圖片語音成片, 格式轉換, 影片合併, YT/B 站轉檔). Unlike the [Appwrite sibling project](https://github.com/goldshoot0720/fengbroaiappwrite), which gives each personal list its own collection (`manualprice`, `tubechannel`, `financeinstrument2`, ...), most 鋒兄工具 personal lists here (手動比價商品、鋒兄tube 頻道、金融預設／自訂標的) share one generic table `toollistsync` (`sync_key` row + JSONB `payload`) via `useCloudListSync` — cloud is source of truth once loaded, localStorage is the offline cache. A missing table or offline state keeps local data editable; it never blocks the UI.
+
+手機比價 is the one 鋒兄工具 area with its own dedicated table, `landtop_history` (`composables/useLandtopHistory.js`), mirroring the Appwrite project's `landtophistory` collection. Every lookup in `FengToolsPage.vue` writes a snapshot (`recordLandtopSnapshot`, fire-and-forget) so history survives across devices/browsers instead of living only in `localStorage`. `netlify/functions/landtop-history-cron.js` also re-queries every previously-searched keyword each Monday, so history keeps accumulating even when nobody opens the page that week. Both the on-demand `server/api/feng-tools/landtop.post.ts` route and the cron scrape through the same shared `utils/landtopLookup.js` module, so on-demand lookups and cron snapshots score/parse candidates identically.
 
 鋒兄設定的「選單備份／還原」由 `components/pages/MenuBackupSettings.vue` 與 `utils/menuBackup/` 負責：一鍵匯出／匯入各選單 CSV，或連同圖片、影片、音樂、播客、文件、筆記 ZIP。匯入時相同鍵更新、其餘新增。清單頁的全選刪除走 `useSelectionSet` + `BulkSelectionControls`；搜尋列 Enter 與「提交」走同一條 `RecentSearchInput` 路徑。
 

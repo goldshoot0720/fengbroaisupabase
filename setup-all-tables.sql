@@ -420,7 +420,25 @@ CREATE TABLE IF NOT EXISTS public.toollistsync (
 CREATE INDEX IF NOT EXISTS idx_toollistsync_sync_key ON public.toollistsync(sync_key);
 
 -- =====================================================
--- 20. RESENDSETTINGS 表（Resend 通知設定，密碼鎖保護）
+-- 20. LANDTOP_HISTORY 表（手機比價歷史快照，取代 localStorage）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.landtop_history (
+  id BIGSERIAL PRIMARY KEY,
+  keyword_key VARCHAR(200) NOT NULL,
+  keyword VARCHAR(200) NOT NULL,
+  brand_label VARCHAR(50),
+  product_name VARCHAR(200),
+  snapshot_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  series JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_landtop_history_keyword_key ON public.landtop_history(keyword_key);
+CREATE INDEX IF NOT EXISTS idx_landtop_history_snapshot_date ON public.landtop_history(snapshot_date);
+
+-- =====================================================
+-- 21. RESENDSETTINGS 表（Resend 通知設定，密碼鎖保護）
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.resendsettings (
   id BIGSERIAL PRIMARY KEY,
@@ -449,7 +467,7 @@ FROM information_schema.columns
 WHERE table_schema = 'public' 
   AND table_name IN (
     'article', 'bank', 'commonaccount', 'commondocument', 'food',
-    'image', 'menuusage', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'resendsettings', 'routine',
+    'image', 'landtop_history', 'menuusage', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'resendsettings', 'routine',
     'shoppinglist', 'sitevisit', 'subscription', 'toollistsync', 'trialpurchase', 'video'
   )
 ORDER BY table_name, ordinal_position;

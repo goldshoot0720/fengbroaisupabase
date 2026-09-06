@@ -12,6 +12,10 @@
 [functions."send-push-cron"]
   schedule = "0 9 * * *"
 
+# Weekly 手機比價 (landtop_history) snapshot refresh (Monday 09:00 Taipei)
+[functions."landtop-history-cron"]
+  schedule = "0 1 * * 1"
+
 # Netlify Blobs proxy
 [[redirects]]
   from = "/api/blobs/*"

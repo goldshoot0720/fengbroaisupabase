@@ -8,7 +8,7 @@
         <div class="brand-copy">
           <p class="brand-kicker">Mobile Menu</p>
           <h2 class="brand-title">鋒兄選單</h2>
-          <p class="brand-subtitle">點選模組快速切換，工具可展開子項目。</p>
+          <p class="brand-subtitle">子項目已全部展開，點選即可直接切換。</p>
         </div>
       </div>
 
@@ -23,7 +23,7 @@
       <ul>
         <li v-for="page in pages" :key="page.id">
           <button
-            @click="$emit('navigate', page.id)"
+            @click="handleParentNavigate(page)"
             :class="{ active: isParentActive(page) }"
             class="nav-btn"
             type="button"
@@ -34,8 +34,9 @@
               <span v-if="page.menuHint" class="nav-hint">{{ page.menuHint }}</span>
             </span>
           </button>
+          <!-- 子項目固定展開，手機上一目了然，不需要先點母選單 -->
           <ul
-            v-if="page.children?.length && isParentExpanded(page)"
+            v-if="page.children?.length"
             class="nav-children"
           >
             <li v-for="child in page.children" :key="child.id">
@@ -64,7 +65,7 @@
 </template>
 
 <script setup>
-import { isNavChildActive, isNavParentActive, isNavParentExpanded } from '../../composables/useNavigation'
+import { isNavChildActive, isNavParentActive } from '../../composables/useNavigation'
 import NavIcon from '../ui/NavIcon.vue'
 
 const props = defineProps({
@@ -74,11 +75,19 @@ const props = defineProps({
   pages: { type: Array, default: () => [] }
 })
 
-defineEmits(['toggle', 'navigate'])
+const emit = defineEmits(['toggle', 'navigate'])
 
 const isParentActive = (page) => isNavParentActive(page, props.currentPage, props.activeTool)
-const isParentExpanded = (page) => isNavParentExpanded(page, props.currentPage)
 const isChildActive = (page, child) => isNavChildActive(page, child, props.currentPage, props.activeTool)
+
+/** Children are always visible now, so tapping the group header itself jumps to its first child. */
+const handleParentNavigate = (page) => {
+  if (page.children?.length) {
+    emit('navigate', page.children[0].id)
+  } else {
+    emit('navigate', page.id)
+  }
+}
 </script>
 
 <style scoped>

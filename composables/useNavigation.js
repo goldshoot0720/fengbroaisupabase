@@ -125,16 +125,6 @@ export const isNavParentActive = (page, currentPageId, activeTool = '') => {
   )
 }
 
-/** Whether a parent should expand its children in the mobile drawer */
-export const isNavParentExpanded = (page, currentPageId) => {
-  if (!page?.children?.length) return false
-  if (page.id === 'tools') return true
-  if (page.id === currentPageId) return true
-  return page.children.some(
-    (child) => child.page === currentPageId || child.id === currentPageId
-  )
-}
-
 /** Whether a child menu item is the active leaf */
 export const isNavChildActive = (page, child, currentPageId, activeTool = '') => {
   if (!child) return false

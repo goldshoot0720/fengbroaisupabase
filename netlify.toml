@@ -16,6 +16,18 @@
 [functions."landtop-history-cron"]
   schedule = "0 1 * * 1"
 
+# Resend expiry emails, checked 3x daily (Asia/Taipei 05:27 / 11:27 / 17:27).
+# Shares the resend_notify_log dedupe table with the browser, so an item is
+# emailed once; a slot that fails to send leaves it unlogged for the next slot.
+[functions."resend-expiry-cron-morning"]
+  schedule = "27 21 * * *"
+
+[functions."resend-expiry-cron-noon"]
+  schedule = "27 3 * * *"
+
+[functions."resend-expiry-cron-evening"]
+  schedule = "27 9 * * *"
+
 # Netlify Blobs proxy
 [[redirects]]
   from = "/api/blobs/*"

@@ -5,7 +5,8 @@
 --
 -- 欄位以 鋒兄設定 tables[] 為準。此腳本用 BIGSERIAL 以相容舊庫；
 -- 設定頁複製的 SQL 用 UUID（gen_random_uuid）。IF NOT EXISTS 不會改已存在的表。
--- Web Push 表見 supabase-push-table.sql（含 RLS）。
+-- Web Push 表見 supabase-push-table.sql（含 RLS）；Resend 去重表的 RLS 與授權
+-- 見 supabase-resend-log-table.sql。
 -- =====================================================
 
 -- =====================================================
@@ -455,6 +456,38 @@ SELECT 'main'
 WHERE NOT EXISTS (SELECT 1 FROM public.resendsettings WHERE rowkey = 'main');
 
 -- =====================================================
+-- 22. GOOGLEDRIVESETTINGS 表（Google 雲端硬碟連接設定）
+-- 只存瀏覽器端憑證（OAuth Client ID / Browser API Key）；讀寫沿用
+-- resendsettings 的通知密碼，見 server/api/settings/google-drive.ts。
+-- =====================================================
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS public.googledrivesettings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  rowkey VARCHAR(50) UNIQUE NOT NULL,
+  client_id VARCHAR(300),
+  api_key VARCHAR(300),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO public.googledrivesettings (rowkey)
+SELECT 'main'
+WHERE NOT EXISTS (SELECT 1 FROM public.googledrivesettings WHERE rowkey = 'main');
+
+-- =====================================================
+-- 23. RESEND_NOTIFY_LOG 表（Resend 到期信去重；RLS 見 supabase-resend-log-table.sql）
+-- 瀏覽器端 useExpiryEmailNotifications 與 netlify/functions/resend-expiry-cron-*.js
+-- 共用這張表，同一筆訂閱／食品的同一個到期日只會寄一次。
+-- marker 格式見 utils/notificationHelpers.js 的 expiryMarkerFor()。
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.resend_notify_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  marker TEXT UNIQUE NOT NULL,
+  notified_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =====================================================
 -- 驗證：查看所有建立的表結構
 -- =====================================================
 SELECT 
@@ -467,7 +500,7 @@ FROM information_schema.columns
 WHERE table_schema = 'public' 
   AND table_name IN (
     'article', 'bank', 'commonaccount', 'commondocument', 'food',
-    'image', 'landtop_history', 'menuusage', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'resendsettings', 'routine',
+    'googledrivesettings', 'image', 'landtop_history', 'menuusage', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'resend_notify_log', 'resendsettings', 'routine',
     'shoppinglist', 'sitevisit', 'subscription', 'toollistsync', 'trialpurchase', 'video'
   )
 ORDER BY table_name, ordinal_position;

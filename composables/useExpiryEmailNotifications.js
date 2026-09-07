@@ -1,20 +1,31 @@
 import { getResendNotificationSettings } from './useSettings'
+import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 import { useSubscriptions } from './useSubscriptions'
 import { useFoods } from './useFoods'
 import {
   RESEND_EXPIRY_LOG_KEY,
+  RESEND_NOTIFY_LOG_TABLE,
   SUBSCRIPTION_EMAIL_DAYS_BEFORE,
   FOOD_EMAIL_DAYS_BEFORE,
   dateKey,
   daysUntil,
-  escapeHtml,
-  hashString,
-  expiryMarkerFor
+  expiryMarkerFor,
+  isWithinEmailWindow,
+  buildResendEmailContent,
+  buildResendIdempotencyKey,
+  describeExpiryItem
 } from '../utils/notificationHelpers'
 
 let runPromise = null
 
-const readLog = () => {
+// 與 UI／CSV／getUpcomingSubscriptions 同一套判定：NULL 也算續訂中，只有明確的
+// false 才是已停訂。netlify/functions/resend-expiry-cron-*.js 用同樣的條件查詢，
+// 兩條路徑共用 resend_notify_log 去重，所以選出的項目必須一致。
+const isSubscriptionActive = (item) => item?.iscontinue !== false
+
+// localStorage 是 resend_notify_log 資料表尚未建立（或暫時讀寫失敗）時的備援，
+// 行為與舊版一致：只在本機、只在這個瀏覽器生效。
+const readLocalLog = () => {
   if (!import.meta.client) return {}
   try {
     return JSON.parse(localStorage.getItem(RESEND_EXPIRY_LOG_KEY) || '{}')
@@ -23,57 +34,82 @@ const readLog = () => {
   }
 }
 
-const writeLog = (log) => {
+const writeLocalLog = (log) => {
   if (!import.meta.client) return
-  localStorage.setItem(RESEND_EXPIRY_LOG_KEY, JSON.stringify(log))
+  try {
+    localStorage.setItem(RESEND_EXPIRY_LOG_KEY, JSON.stringify(log))
+  } catch {
+    // ignore quota / private mode
+  }
 }
 
-const buildSubscriptionRows = (items) => items
-  .map(item => `- ${item.name || item.title || '未命名訂閱'}：${dateKey(item.nextdate) || item.nextdate || '未填日期'}`)
-  .join('\n')
+const isMissingTableError = (error) => {
+  const code = error?.code
+  if (code === '42P01' || code === 'PGRST205' || code === 'PGRST202') return true
+  return /relation .* does not exist/i.test(error?.message || '')
+}
 
-const buildFoodRows = (items) => items
-  .map(item => {
-    const shop = item.shop ? `，商店：${item.shop}` : ''
-    const amount = item.amount !== undefined && item.amount !== null && item.amount !== '' ? `，數量：${item.amount}` : ''
-    return `- ${item.name || '未命名食品'}：${dateKey(item.todate) || item.todate || '未填日期'}${shop}${amount}`
-  })
-  .join('\n')
+/**
+ * Read which of the given markers have already been notified.
+ * Prefers the shared Supabase table (`resend_notify_log`) so the browser and
+ * the Netlify cron (netlify/functions/resend-expiry-cron-*.js) agree on state;
+ * falls back to a localStorage-only log if the table is missing or unreachable.
+ */
+const fetchLoggedMarkers = async (markers) => {
+  if (!import.meta.client || markers.length === 0) return { markers: new Set(), cloud: false }
 
-const buildHtmlList = (items, type) => {
-  const rows = items.map(item => {
-    const name = type === 'subscription'
-      ? (item.name || item.title || '未命名訂閱')
-      : (item.name || '未命名食品')
-    const dueDate = type === 'subscription' ? item.nextdate : item.todate
-    const meta = type === 'food'
-      ? [
-          item.shop ? `商店：${item.shop}` : '',
-          item.amount !== undefined && item.amount !== null && item.amount !== '' ? `數量：${item.amount}` : ''
-        ].filter(Boolean).join('，')
-      : ''
-    return `<li><strong>${escapeHtml(name)}</strong>：${escapeHtml(dateKey(dueDate) || dueDate || '未填日期')}${meta ? `（${escapeHtml(meta)}）` : ''}</li>`
-  }).join('')
+  const client = getSupabaseBrowserClient()
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from(RESEND_NOTIFY_LOG_TABLE)
+        .select('marker')
+        .in('marker', markers)
+      if (error) throw error
+      return { markers: new Set((data || []).map(row => row.marker)), cloud: true }
+    } catch (error) {
+      if (!isMissingTableError(error)) {
+        console.warn('[ResendExpiry] 讀取雲端寄送紀錄失敗，改用本機備援:', error)
+      }
+    }
+  }
 
-  return `<ul>${rows}</ul>`
+  const localLog = readLocalLog()
+  return {
+    markers: new Set(markers.filter(marker => !!localLog[marker])),
+    cloud: false
+  }
+}
+
+/** Marks markers as notified. `cloud` picks the same store that was successfully read from. */
+const markMarkersNotified = async (markers, cloud) => {
+  if (markers.length === 0) return
+
+  if (cloud) {
+    const client = getSupabaseBrowserClient()
+    if (client) {
+      try {
+        const { error } = await client
+          .from(RESEND_NOTIFY_LOG_TABLE)
+          .upsert(markers.map(marker => ({ marker })), { onConflict: 'marker', ignoreDuplicates: true })
+        // 23505 = unique_violation：其他觸發來源（另一次開站、cron）已經寫過，視為成功。
+        if (error && error.code !== '23505') throw error
+        return
+      } catch (error) {
+        console.warn('[ResendExpiry] 寫入雲端寄送紀錄失敗，改用本機備援:', error)
+      }
+    }
+  }
+
+  const localLog = readLocalLog()
+  markers.forEach(marker => { localLog[marker] = new Date().toISOString() })
+  writeLocalLog(localLog)
 }
 
 const sendGroupedNotification = async ({ settings, type, items }) => {
-  const isSubscription = type === 'subscription'
-  const subject = isSubscription
-    ? `鋒兄訂閱到期提醒：${items.length} 項 ${SUBSCRIPTION_EMAIL_DAYS_BEFORE} 天後到期`
-    : `鋒兄食品到期提醒：${items.length} 項 ${FOOD_EMAIL_DAYS_BEFORE} 天後到期`
-  const intro = isSubscription
-    ? `以下鋒兄訂閱將在 ${SUBSCRIPTION_EMAIL_DAYS_BEFORE} 天後到期：`
-    : `以下鋒兄食品將在 ${FOOD_EMAIL_DAYS_BEFORE} 天後到期：`
-  const rows = isSubscription ? buildSubscriptionRows(items) : buildFoodRows(items)
-  const today = dateKey(new Date())
-  const markerHash = hashString(items
-    .map(item => expiryMarkerFor(type, item, isSubscription ? item.nextdate : item.todate))
-    .sort()
-    .join('|'))
-
+  const { subject, text, html } = buildResendEmailContent(type, items)
   const recipients = Array.isArray(settings.recipients) ? settings.recipients : []
+
   return await Promise.all(recipients.map((recipient, index) => $fetch('/api/notifications/resend', {
     method: 'POST',
     body: {
@@ -81,33 +117,17 @@ const sendGroupedNotification = async ({ settings, type, items }) => {
       from: settings.fromEmail,
       to: recipient.toEmail,
       subject,
-      text: `${intro}\n\n${rows}\n\nFengBro AI 自動提醒`,
-      html: `<p>${escapeHtml(intro)}</p>${buildHtmlList(items, type)}<p>FengBro AI 自動提醒</p>`,
-      idempotencyKey: `feng-${settings.accountId || 'account'}-${type}-${today}-${markerHash}-${index + 1}`
+      text,
+      html,
+      idempotencyKey: buildResendIdempotencyKey({ type, items, recipientIndex: index })
     }
   })))
 }
 
-/**
- * Whether an item is due within [0, daysBefore] days from today.
- * A window (not an exact-day match) so a missed day (app not opened) still
- * catches up and sends once the app is opened again, as long as it's not
- * overdue past the due date itself.
- */
-const isWithinEmailWindow = (dateValue, daysBefore) => {
-  const daysLeft = daysUntil(dateValue)
-  return daysLeft !== null && daysLeft >= 0 && daysLeft <= daysBefore
-}
-
-const describeItem = (item, type) => ({
-  id: item?.id ?? item?.$id ?? null,
-  name: item?.name || item?.title || (type === 'subscription' ? '未命名訂閱' : '未命名食品')
-})
-
 export function useExpiryEmailNotifications() {
   const runExpiryEmailNotifications = async ({ force = false } = {}) => {
     if (!import.meta.client) return { skipped: 'server' }
-    if (runPromise && !force) return await runPromise
+    if (runPromise) return await runPromise
 
     runPromise = (async () => {
       const settings = getResendNotificationSettings()
@@ -120,35 +140,44 @@ export function useExpiryEmailNotifications() {
 
       await Promise.allSettled([loadSubscriptions(), loadFoods()])
 
-      const log = readLog()
-      const dueSubscriptions = subscriptions.value
-        .filter(item => isWithinEmailWindow(item.nextdate, SUBSCRIPTION_EMAIL_DAYS_BEFORE))
-        .filter(item => !log[expiryMarkerFor('subscription', item, item.nextdate)])
-
-      const dueFoods = foods.value
+      const candidateSubscriptions = subscriptions.value
+        .filter(item => isSubscriptionActive(item) && isWithinEmailWindow(item.nextdate, SUBSCRIPTION_EMAIL_DAYS_BEFORE))
+      const candidateFoods = foods.value
         .filter(item => isWithinEmailWindow(item.todate, FOOD_EMAIL_DAYS_BEFORE))
-        .filter(item => !log[expiryMarkerFor('food', item, item.todate)])
+
+      const candidateMarkers = [
+        ...candidateSubscriptions.map(item => expiryMarkerFor('subscription', item, item.nextdate)),
+        ...candidateFoods.map(item => expiryMarkerFor('food', item, item.todate))
+      ]
+      const { markers: loggedMarkers, cloud } = await fetchLoggedMarkers(candidateMarkers)
+
+      const dueSubscriptions = candidateSubscriptions
+        .filter(item => !loggedMarkers.has(expiryMarkerFor('subscription', item, item.nextdate)))
+      const dueFoods = candidateFoods
+        .filter(item => !loggedMarkers.has(expiryMarkerFor('food', item, item.todate)))
 
       const sent = []
+      const newlySentMarkers = []
 
       if (dueSubscriptions.length > 0) {
         await sendGroupedNotification({ settings, type: 'subscription', items: dueSubscriptions })
         dueSubscriptions.forEach(item => {
-          log[expiryMarkerFor('subscription', item, item.nextdate)] = new Date().toISOString()
+          newlySentMarkers.push(expiryMarkerFor('subscription', item, item.nextdate))
         })
         sent.push({ type: 'subscription', count: dueSubscriptions.length })
+        await markMarkersNotified(newlySentMarkers.splice(0), cloud)
       }
 
       if (dueFoods.length > 0) {
         await sendGroupedNotification({ settings, type: 'food', items: dueFoods })
         dueFoods.forEach(item => {
-          log[expiryMarkerFor('food', item, item.todate)] = new Date().toISOString()
+          newlySentMarkers.push(expiryMarkerFor('food', item, item.todate))
         })
         sent.push({ type: 'food', count: dueFoods.length })
       }
 
-      if (sent.length > 0) {
-        writeLog(log)
+      if (newlySentMarkers.length > 0) {
+        await markMarkersNotified(newlySentMarkers, cloud)
       }
 
       return { sent }
@@ -176,24 +205,31 @@ export function useExpiryEmailNotifications() {
     const { foods, loadFoods } = useFoods()
     await Promise.allSettled([loadSubscriptions(), loadFoods()])
 
-    const log = readLog()
+    const candidateSubscriptions = subscriptions.value
+      .filter(item => isSubscriptionActive(item) && isWithinEmailWindow(item.nextdate, SUBSCRIPTION_EMAIL_DAYS_BEFORE))
+    const candidateFoods = foods.value
+      .filter(item => isWithinEmailWindow(item.todate, FOOD_EMAIL_DAYS_BEFORE))
 
-    const buildStatus = (items, type, dateField, daysBefore) => items
-      .filter(item => isWithinEmailWindow(item[dateField], daysBefore))
+    const candidateMarkers = [
+      ...candidateSubscriptions.map(item => expiryMarkerFor('subscription', item, item.nextdate)),
+      ...candidateFoods.map(item => expiryMarkerFor('food', item, item.todate))
+    ]
+    const { markers: loggedMarkers } = await fetchLoggedMarkers(candidateMarkers)
+
+    const buildStatus = (items, type, dateField) => items
       .map(item => {
         const marker = expiryMarkerFor(type, item, item[dateField])
         return {
-          ...describeItem(item, type),
+          ...describeExpiryItem(item, type),
           dueDate: dateKey(item[dateField]) || item[dateField] || '',
           daysLeft: daysUntil(item[dateField]),
-          sent: !!log[marker],
-          sentAt: log[marker] || null
+          sent: loggedMarkers.has(marker)
         }
       })
       .sort((a, b) => a.daysLeft - b.daysLeft)
 
-    const subscriptionStatus = buildStatus(subscriptions.value, 'subscription', 'nextdate', SUBSCRIPTION_EMAIL_DAYS_BEFORE)
-    const foodStatus = buildStatus(foods.value, 'food', 'todate', FOOD_EMAIL_DAYS_BEFORE)
+    const subscriptionStatus = buildStatus(candidateSubscriptions, 'subscription', 'nextdate')
+    const foodStatus = buildStatus(candidateFoods, 'food', 'todate')
 
     return {
       checkedAt: new Date().toISOString(),

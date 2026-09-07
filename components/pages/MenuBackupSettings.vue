@@ -69,6 +69,59 @@
         </div>
       </div>
 
+      <div class="backup-card drive-card">
+        <div class="drive-head">
+          <h3>Google 雲端硬碟</h3>
+          <span class="drive-status">{{ statusLabel }}</span>
+        </div>
+        <p>
+          備份會上傳到你雲端硬碟的「{{ backupFolderLabel }}」資料夾。授權範圍只有
+          <code>drive.file</code>：本站只看得到自己建立的檔案，以及你透過選取器明確挑選的檔案。
+        </p>
+
+        <div class="backup-actions">
+          <button type="button" class="btn-secondary" :disabled="Boolean(busy) || driveBusy" @click="exportToDrive('csv')">
+            {{ driveAction === 'export-csv' ? '上傳中…' : '匯出 CSV 到雲端硬碟' }}
+          </button>
+          <button type="button" class="btn-secondary" :disabled="Boolean(busy) || driveBusy" @click="exportToDrive('all')">
+            {{ driveAction === 'export-all' ? '上傳中…' : '匯出全部到雲端硬碟' }}
+          </button>
+          <button type="button" class="btn-secondary" :disabled="Boolean(busy) || driveBusy" @click="importFromDrive()">
+            {{ driveAction === 'import' ? '讀取中…' : '從雲端硬碟匯入' }}
+          </button>
+        </div>
+
+        <button type="button" class="drive-toggle" @click="driveSettingsOpen = !driveSettingsOpen">
+          {{ driveSettingsOpen ? '▾' : '▸' }} 連接設定（OAuth Client ID／API Key）
+        </button>
+
+        <div v-show="driveSettingsOpen" class="drive-settings">
+          <p class="drive-hint">
+            在 Google Cloud Console 建立「網頁應用程式」OAuth 用戶端與瀏覽器 API 金鑰，
+            並把本站網域加入已授權的 JavaScript 來源／HTTP 參照網址限制。憑證存在
+            <code>googledrivesettings</code> 表，解鎖與儲存都用鋒兄設定的「通知密碼」。
+          </p>
+          <label class="drive-field">
+            <span>OAuth Client ID</span>
+            <input v-model="driveClientId" type="text" placeholder="xxxxxxxx.apps.googleusercontent.com" autocomplete="off">
+          </label>
+          <label class="drive-field">
+            <span>Browser API Key</span>
+            <input v-model="driveApiKey" type="text" placeholder="AIza..." autocomplete="off">
+          </label>
+          <label class="drive-field">
+            <span>通知密碼</span>
+            <input v-model="drivePassword" type="password" placeholder="與 Resend 通知設定同一組" autocomplete="off">
+          </label>
+          <div class="backup-actions">
+            <button type="button" class="btn-secondary" :disabled="driveBusy" @click="checkDriveCloud">檢查雲端設定</button>
+            <button type="button" class="btn-secondary" :disabled="driveBusy" @click="unlockDriveCloud">解鎖顯示明文</button>
+            <button type="button" class="btn-secondary" :disabled="driveBusy" @click="saveDriveCloud">儲存到雲端</button>
+          </div>
+          <p v-if="driveState.message" class="drive-message">{{ driveState.message }}</p>
+        </div>
+      </div>
+
       <div v-if="results?.length" class="backup-results">
         <p class="backup-results-title">上次結果</p>
         <ul>
@@ -85,11 +138,17 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useStorage } from '../../composables/useStorage'
 import { csvMenus, zipMenus } from '../../utils/menuBackup/catalog.js'
 import { exportMenuBundle, getBackupFilename, importMenuBundle, summarize } from '../../utils/menuBackup/bundle.js'
 import { isRemoteMediaUrl, resolveMediaFetchUrl } from '../../utils/zipMediaBundle.js'
+import { useGoogleDrive } from '../../composables/useGoogleDrive'
+import {
+  downloadBackupFromGoogleDrive,
+  pickBackupFromGoogleDrive,
+  uploadBackupToGoogleDrive,
+} from '../../utils/googleDrive.js'
 
 const { uploadFile, getPublicUrl } = useStorage()
 const open = ref(true)
@@ -99,6 +158,31 @@ const progress = ref(null)
 const results = ref(null)
 const csvInputRef = ref(null)
 const allInputRef = ref(null)
+
+const {
+  driveState,
+  backupFolderLabel,
+  statusLabel,
+  localClientId,
+  localApiKey,
+  loadCloudStatus,
+  unlockFromCloud,
+  saveToCloud,
+  setMessage: setDriveMessage,
+} = useGoogleDrive()
+
+const driveSettingsOpen = ref(false)
+const driveAction = ref(null)
+const driveClientId = ref('')
+const driveApiKey = ref('')
+const drivePassword = ref('')
+const driveBusy = computed(() => driveState.busy || Boolean(driveAction.value))
+
+onMounted(() => {
+  // 本機快取先進表單；雲端狀態只在展開連接設定時才去查，避免每次開設定頁都打 API。
+  driveClientId.value = localClientId()
+  driveApiKey.value = localApiKey()
+})
 
 const csvCount = csvMenus().length
 const zipCount = zipMenus().length
@@ -166,6 +250,77 @@ const runImport = async (kind, file) => {
     busy.value = null
     action.value = null
     progress.value = null
+  }
+}
+
+const checkDriveCloud = async () => {
+  const cloud = await loadCloudStatus()
+  if (cloud) {
+    driveClientId.value = driveClientId.value || cloud.clientId || ''
+    driveApiKey.value = driveApiKey.value || cloud.apiKey || ''
+    setDriveMessage(cloud.configured
+      ? '雲端已有憑證，按「解鎖顯示明文」載入到這台裝置。'
+      : '雲端尚未存過憑證，填好後按「儲存到雲端」。')
+  }
+}
+
+const unlockDriveCloud = async () => {
+  const full = await unlockFromCloud(drivePassword.value)
+  if (full) {
+    driveClientId.value = full.clientId || ''
+    driveApiKey.value = full.apiKey || ''
+  }
+}
+
+const saveDriveCloud = async () => {
+  const clientId = String(driveClientId.value || '').trim()
+  const apiKey = String(driveApiKey.value || '').trim()
+  if (!clientId || !apiKey) {
+    setDriveMessage('請同時填入 OAuth Client ID 與 Browser API Key。')
+    return
+  }
+  await saveToCloud({ clientId, apiKey, password: drivePassword.value })
+}
+
+const exportToDrive = async (kind) => {
+  if (busy.value || driveAction.value) return
+  driveAction.value = `export-${kind}`
+  results.value = null
+  progress.value = { stage: 'export', current: 0, total: 1, message: '準備匯出…' }
+  try {
+    const filename = getBackupFilename(kind)
+    // download: false —— 這條路徑的目的地是雲端硬碟，不需要再下載一份到本機。
+    const run = await exportMenuBundle(kind, filename, helpers, onProgress, { download: false })
+    results.value = run.results
+    progress.value = { stage: 'export', current: 1, total: 1, message: `上傳 ${filename} 到雲端硬碟…` }
+    const uploaded = await uploadBackupToGoogleDrive(run.blob, filename)
+    window.alert(`已上傳到 Google 雲端硬碟\n${backupFolderLabel}／${uploaded.name || filename}\n\n${summarize(run.results)}`)
+  } catch (error) {
+    window.alert(`上傳失敗：${error instanceof Error ? error.message : '未知錯誤'}`)
+  } finally {
+    driveAction.value = null
+    progress.value = null
+  }
+}
+
+const importFromDrive = async () => {
+  if (busy.value || driveAction.value) return
+  driveAction.value = 'import'
+  try {
+    const picked = await pickBackupFromGoogleDrive()
+    if (!picked) return
+
+    // 匯出檔名是 supabase-all-csv-*.zip / supabase-all-menus-*.zip，
+    // 用它判斷要走哪一種匯入；認不出來就當成完整備份（CSV + ZIP）。
+    const kind = /all-csv/i.test(picked.name) ? 'csv' : 'all'
+    const blob = await downloadBackupFromGoogleDrive(picked.id)
+    const file = new File([blob], picked.name, { type: blob.type || 'application/zip' })
+    driveAction.value = null
+    await runImport(kind, file)
+  } catch (error) {
+    window.alert(`從雲端硬碟匯入失敗：${error instanceof Error ? error.message : '未知錯誤'}`)
+  } finally {
+    driveAction.value = null
   }
 }
 
@@ -267,6 +422,72 @@ const onPickAll = (event) => {
 
 .hidden-file {
   display: none;
+}
+
+.drive-card {
+  margin-top: 1rem;
+}
+
+.drive-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.drive-head h3 {
+  margin: 0 0 0.4rem;
+}
+
+.drive-status {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.drive-toggle {
+  margin-top: 0.8rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.drive-settings {
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border-color);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.drive-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.drive-field {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.drive-field input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.drive-message {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
 .backup-results {

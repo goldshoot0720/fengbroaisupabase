@@ -6,7 +6,10 @@ export const SUBSCRIPTION_EMAIL_DAYS_BEFORE = 2
 export const FOOD_EMAIL_DAYS_BEFORE = 8
 
 export const SUB_NOTIFY_DATE_KEY = 'sub-notify-date'
+/** localStorage fallback only — resend_notify_log (Supabase) is the shared source of truth. */
 export const RESEND_EXPIRY_LOG_KEY = 'feng-resend-expiry-notification-log'
+/** Supabase table shared by the browser and netlify/functions/resend-expiry-cron-*.js. */
+export const RESEND_NOTIFY_LOG_TABLE = 'resend_notify_log'
 
 export const SW_DB_NAME = 'fengbroai-sw'
 export const SW_STORE_NAME = 'config'
@@ -228,3 +231,88 @@ export const notificationItemId = (item) => item?.id || item?.$id || item?.name 
 
 export const expiryMarkerFor = (type, item, dateValue) =>
   `${type}:${notificationItemId(item)}:${dateKey(dateValue)}`
+
+/**
+ * Whether an item is due within [0, daysBefore] days from today.
+ * A window (not an exact-day match) so a missed check (app not opened, or a
+ * cron run that failed) still catches up on the next check, as long as it's
+ * not overdue past the due date itself.
+ */
+export const isWithinEmailWindow = (dateValue, daysBefore) => {
+  const daysLeft = daysUntil(dateValue)
+  return daysLeft !== null && daysLeft >= 0 && daysLeft <= daysBefore
+}
+
+const buildSubscriptionEmailRows = (items) => items
+  .map(item => `- ${item.name || item.title || '未命名訂閱'}：${dateKey(item.nextdate) || item.nextdate || '未填日期'}`)
+  .join('\n')
+
+const buildFoodEmailRows = (items) => items
+  .map(item => {
+    const shop = item.shop ? `，商店：${item.shop}` : ''
+    const amount = item.amount !== undefined && item.amount !== null && item.amount !== '' ? `，數量：${item.amount}` : ''
+    return `- ${item.name || '未命名食品'}：${dateKey(item.todate) || item.todate || '未填日期'}${shop}${amount}`
+  })
+  .join('\n')
+
+const buildExpiryHtmlList = (items, type) => {
+  const rows = items.map(item => {
+    const name = type === 'subscription'
+      ? (item.name || item.title || '未命名訂閱')
+      : (item.name || '未命名食品')
+    const dueDate = type === 'subscription' ? item.nextdate : item.todate
+    const meta = type === 'food'
+      ? [
+          item.shop ? `商店：${item.shop}` : '',
+          item.amount !== undefined && item.amount !== null && item.amount !== '' ? `數量：${item.amount}` : ''
+        ].filter(Boolean).join('，')
+      : ''
+    return `<li><strong>${escapeHtml(name)}</strong>：${escapeHtml(dateKey(dueDate) || dueDate || '未填日期')}${meta ? `（${escapeHtml(meta)}）` : ''}</li>`
+  }).join('')
+
+  return `<ul>${rows}</ul>`
+}
+
+/**
+ * Subject/text/html for a grouped Resend expiry email (one email per
+ * recipient covering all due items of one type). Shared by the browser
+ * composable and the Netlify cron so wording never drifts between the two.
+ */
+export const buildResendEmailContent = (type, items) => {
+  const isSubscription = type === 'subscription'
+  const subject = isSubscription
+    ? `鋒兄訂閱到期提醒：${items.length} 項 ${SUBSCRIPTION_EMAIL_DAYS_BEFORE} 天內到期`
+    : `鋒兄食品到期提醒：${items.length} 項 ${FOOD_EMAIL_DAYS_BEFORE} 天內到期`
+  const intro = isSubscription
+    ? `以下鋒兄訂閱將在 ${SUBSCRIPTION_EMAIL_DAYS_BEFORE} 天內到期：`
+    : `以下鋒兄食品將在 ${FOOD_EMAIL_DAYS_BEFORE} 天內到期：`
+  const rows = isSubscription ? buildSubscriptionEmailRows(items) : buildFoodEmailRows(items)
+
+  return {
+    subject,
+    text: `${intro}\n\n${rows}\n\nFengBro AI 自動提醒`,
+    html: `<p>${escapeHtml(intro)}</p>${buildExpiryHtmlList(items, type)}<p>FengBro AI 自動提醒</p>`
+  }
+}
+
+/**
+ * Deterministic idempotency key: same (type, day, item set, recipient) always
+ * produces the same key regardless of trigger source (browser open vs. one of
+ * the three daily cron checks), so Resend dedupes even in the rare race where
+ * both paths fire before either has written resend_notify_log.
+ */
+export const buildResendIdempotencyKey = ({ type, items, recipientIndex }) => {
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date())
+  const markerHash = hashString(items
+    .map(item => expiryMarkerFor(type, item, type === 'subscription' ? item.nextdate : item.todate))
+    .sort()
+    .join('|'))
+  return `feng-resend-expiry-${type}-${today}-${markerHash}-${recipientIndex + 1}`
+}
+
+export const describeExpiryItem = (item, type) => ({
+  id: item?.id ?? item?.$id ?? null,
+  name: item?.name || item?.title || (type === 'subscription' ? '未命名訂閱' : '未命名食品')
+})

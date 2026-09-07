@@ -33,6 +33,8 @@ Column source of truth for new tables is the `tables` array in `components/pages
 
 鋒兄設定的「選單備份／還原」由 `components/pages/MenuBackupSettings.vue` 與 `utils/menuBackup/` 負責：一鍵匯出／匯入各選單 CSV，或連同圖片、影片、音樂、播客、文件、筆記 ZIP。匯入時相同鍵更新、其餘新增。清單頁的全選刪除走 `useSelectionSet` + `BulkSelectionControls`；搜尋列 Enter 與「提交」走同一條 `RecentSearchInput` 路徑。
 
+同一張卡片還有 **Google 雲端硬碟**：`utils/googleDrive.js`（Google Identity Services token client + Picker，兩支 script 動態載入，scope 只要 `drive.file`）把備份上傳到使用者雲端硬碟的 `OAuth／fengbroaisupabase` 資料夾，或用 Picker 挑一個備份下載回來直接餵給 `importMenuBundle`。走 Drive 這條路徑時 `exportMenuBundle(..., { download: false })`，不會再重複下載一份到本機。憑證（OAuth Client ID／Browser API Key）存在 `googledrivesettings` 表（`googledrive-setup.sql`），讀寫走 `server/api/settings/google-drive.ts`：GET 回遮蔽值、POST／PUT 需通過**通知密碼**驗證 —— 沿用 `resendsettings.password_hash`，不另開第二組密碼。`composables/useGoogleDrive.js` 是雲端設定與 localStorage 快取之間的黏合層（雲端是來源，本機是快取；表還沒建或離線時仍可只用本機憑證操作）。scrypt 密碼雜湊與 Supabase client 建立集中在 `server/utils/settingsStore.js`，`resend-settings.ts` 與 `google-drive.ts` 共用。這對應 Appwrite 版的 `lib/googleDrive.ts` + `GoogleDriveConnectionSettings.tsx` + `/api/google-drive-settings`。
+
 ## Supabase accounts & Storage bucket
 
 Multi-account settings store friendly names like `goldshoot0720` / `abuhg17`. **Default Storage bucket comes from Netlify env `SUPABASE_BUCKET`** (or `NUXT_PUBLIC_SUPABASE_BUCKET`). Resolution: explicit settings `bucket` field → env default → `friendlyName` (legacy) → `uploads`. See `resolveSupabaseBucket` in `composables/useSettings.js`.
@@ -63,6 +65,8 @@ Shared pure helpers live in `utils/notificationHelpers.js` (date math, day text,
 
 Master on/off switch: `notificationsEnabled`（shared module-level ref in `useNotifications`）, toggled in Settings（鋒兄設定 → 通知開關與自我檢測）. `initNotificationPreference()` loads the saved localStorage flag (`feng-notifications-enabled`) on app boot; `setNotificationsEnabled(bool)` persists it, mirrors it into the same IndexedDB store the Service Worker reads (`fengbroai-sw` / key `notifications-enabled`), and immediately (un)registers periodic sync + Web Push so the change takes effect without a reload. When off, `bootstrapNotifications()` short-circuits and `public/custom-sw.js` skips both `push` and `periodicsync` handling; a missing/undefined flag defaults to enabled for backward compatibility.
 
+Resend 到期信有兩個觸發來源，共用同一張 Supabase 去重表 `resend_notify_log`（`supabase-resend-log-table.sql`）：瀏覽器開站時的 `useExpiryEmailNotifications`，以及每日三次的 Netlify 排程 `netlify/functions/resend-expiry-cron-{morning,noon,evening}.js`（Asia/Taipei 05:27 / 11:27 / 17:27，實作共用 `utils/resendExpiryCron.js`）。已記錄的訂閱／食品與到期日會跳過；寄送失敗不寫 log，留給下一時段重試。這不保證部分收件人失敗或跨批次競爭時絕不重複寄送。訂閱的選取條件兩邊一致（`iscontinue !== false`，NULL 視為續訂中）。`resend_notify_log` 不存在或讀寫失敗時，瀏覽器端退回 localStorage（`feng-resend-expiry-notification-log`）。
+
 Resend expiry emails are **window-based, not exact-day**: `useExpiryEmailNotifications.runExpiryEmailNotifications()` sends when `0 <= daysUntil(dueDate) <= threshold` (subscription 2 days, food 8 days) AND that item/due-date pair isn't already logged in `feng-resend-expiry-notification-log` (localStorage). Because it's a window (not `=== threshold`), a missed day (app not opened) still self-heals the next time the app opens — as long as the due date hasn't passed. `checkExpiryEmailStatus()` is a read-only variant that reports, per subscription/food currently inside the window, whether it's already been sent; Settings (鋒兄設定 → Resend Email 通知 → 今日到期信寄送狀態) surfaces this with a 「補寄」 button that re-runs `runExpiryEmailNotifications({ force: true })` for anything still pending.
 
 | Channel | Entry | Notes |
@@ -71,6 +75,7 @@ Resend expiry emails are **window-based, not exact-day**: `useExpiryEmailNotific
 | SW periodic sync | `public/custom-sw.js` | self-contained; keep constants aligned with helpers; same group threshold; honors the shared on/off flag |
 | Netlify cron Web Push | `netlify/functions/send-push-cron.js` | imports helpers; 3-day window; groups when >3 due; stale endpoints (after a local unsubscribe) self-clean on next 404/410 |
 | Resend email | `useExpiryEmailNotifications` | subscription = 2 days before; food = 8 days before; window-based catch-up, see above |
+| Resend email cron | `netlify/functions/resend-expiry-cron-*.js` | 3x daily (Taipei 05:27 / 11:27 / 17:27); shares `utils/resendExpiryCron.js` + `resend_notify_log` with the browser; service-role key |
 | Web Push subscribe | `usePushNotification` | calls `register_push_subscription` to write one device; table + RPC setup is `supabase-push-table.sql`, also shown in Settings table setup |
 | In-app toast UI | `useToast` + `ToastContainer` | generic UI, not expiry-specific |
 | Self-check | `useNotifications.runNotificationSelfCheck` | Settings page diagnostics + optional probes |

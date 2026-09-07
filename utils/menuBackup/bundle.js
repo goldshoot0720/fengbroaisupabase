@@ -73,7 +73,7 @@ export function getBackupFilename(kind) {
   return `supabase-${kind === 'csv' ? 'all-csv' : 'all-menus'}-${todayStamp()}.zip`
 }
 
-export async function exportMenuBundle(kind, filename, helpers = {}, onProgress) {
+export async function exportMenuBundle(kind, filename, helpers = {}, onProgress, options = {}) {
   const JSZip = (await import('jszip')).default
   const zip = new JSZip()
   const results = []
@@ -136,7 +136,9 @@ export async function exportMenuBundle(kind, filename, helpers = {}, onProgress)
   zip.file(MANIFEST_NAME, JSON.stringify(buildManifest(kind, included), null, 2))
   zip.file(REPORT_NAME, formatReport(kind, results))
   const blob = await zip.generateAsync({ type: 'blob' })
-  downloadBlob(blob, filename)
+  // 匯出到 Google 雲端硬碟時傳 { download: false }：呼叫端拿 blob 自己上傳，
+  // 不需要瀏覽器再多下載一份到本機。
+  if (options.download !== false) downloadBlob(blob, filename)
   return { kind, results, blob }
 }
 

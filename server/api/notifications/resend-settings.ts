@@ -1,5 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import {
+  ensureSettingsRow,
+  getSettingsClient,
+  hashNotificationPassword,
+  verifyNotificationPassword,
+} from '../../utils/settingsStore.js'
 
 // Resend 通知設定的雲端讀寫（密碼鎖保護）。
 // 行為對應 fengbroaiappwrite 的 /api/notification-settings：
@@ -13,38 +17,6 @@ import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 const TABLE = 'resendsettings'
 const ROW_KEY = 'main'
 const MAX_SLOTS = 21
-
-const HASH_PREFIX = 'scrypt'
-const SCRYPT_N = 16384
-const SCRYPT_R = 8
-const SCRYPT_P = 1
-const KEY_LENGTH = 32
-const SALT_LENGTH = 16
-
-function hashNotificationPassword(password) {
-  const salt = randomBytes(SALT_LENGTH)
-  const derived = scryptSync(String(password), salt, KEY_LENGTH, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P })
-  return `${HASH_PREFIX}:${SCRYPT_N}:${salt.toString('hex')}:${derived.toString('hex')}`
-}
-
-function verifyNotificationPassword(password, storedHash) {
-  if (!storedHash || !password) return false
-  const [prefix, nPart, saltHex, hashHex] = String(storedHash).split(':')
-  if (prefix !== HASH_PREFIX || !nPart || !saltHex || !hashHex) return false
-  const salt = Buffer.from(saltHex, 'hex')
-  const expected = Buffer.from(hashHex, 'hex')
-  if (!salt.length || expected.length === 0) return false
-  try {
-    const derived = scryptSync(String(password), salt, KEY_LENGTH, {
-      N: Number(nPart) || SCRYPT_N,
-      r: SCRYPT_R,
-      p: SCRYPT_P,
-    })
-    return derived.length === expected.length && timingSafeEqual(derived, expected)
-  } catch {
-    return false
-  }
-}
 
 function parseSlots(raw) {
   if (!raw) return []
@@ -81,41 +53,7 @@ function toPublicPayload(row, includeSecretKeys = false) {
   }
 }
 
-function getClient(event, credentials) {
-  let url = String(credentials?.supabaseUrl || '').trim()
-  let key = String(credentials?.supabaseKey || '').trim()
-  if (!url && !key) {
-    const config = useRuntimeConfig(event)
-    // 與瀏覽器的 .env 來源一致，優先使用 public runtimeConfig。
-    const defaults = [config.public, config]
-      .map((source) => ({
-        url: String(source?.supabaseUrl || '').trim(),
-        key: String(source?.supabaseAnonKey || '').trim(),
-      }))
-      .find((source) => source.url && source.key)
-    url = defaults?.url || ''
-    key = defaults?.key || ''
-  }
-  // 不將不完整的帳號設定與環境設定混用，避免讀寫到另一個專案。
-  if (!url || !key) {
-    throw createError({ statusCode: 400, statusMessage: '缺少 Supabase 連線資訊（supabaseUrl / supabaseKey）' })
-  }
-  return createClient(url, key, { auth: { persistSession: false } })
-}
-
-async function readRow(client) {
-  const { data, error } = await client.from(TABLE).select('*').eq('rowkey', ROW_KEY).limit(1)
-  if (error) throw error
-  return data?.[0] || null
-}
-
-async function ensureRow(client) {
-  const existing = await readRow(client)
-  if (existing) return existing
-  const { data, error } = await client.from(TABLE).insert([{ rowkey: ROW_KEY }]).select().single()
-  if (error) throw error
-  return data
-}
+const ensureRow = (client) => ensureSettingsRow(client, TABLE, ROW_KEY)
 
 export default defineEventHandler(async (event) => {
   const method = event.method
@@ -124,14 +62,14 @@ export default defineEventHandler(async (event) => {
   try {
     if (method === 'GET') {
       // GET 不支援 body：連線資訊走 query。
-      const client = getClient(event, getQuery(event))
+      const client = getSettingsClient(event, getQuery(event))
       const row = await ensureRow(client)
       return toPublicPayload(row)
     }
 
     if (method === 'POST') {
       // verify：驗證密碼後回傳完整設定
-      const client = getClient(event, body)
+      const client = getSettingsClient(event, body)
       const row = await ensureRow(client)
       const password = String(body.password || '')
       const storedHash = row?.password_hash || ''
@@ -146,7 +84,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (method === 'PUT') {
-      const client = getClient(event, body)
+      const client = getSettingsClient(event, body)
       const row = await ensureRow(client)
       const storedHash = row?.password_hash || ''
       const password = String(body.password || '')

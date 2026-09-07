@@ -746,6 +746,8 @@ import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserCl
 import { buildResendSettingsCsv, mergeResendSlots, parseResendSettingsCsv } from '../../utils/resendSettingsCsv'
 import packageJson from '../../package.json'
 import pushSubscriptionSql from '../../supabase-push-table.sql?raw'
+import resendNotifyLogSql from '../../supabase-resend-log-table.sql?raw'
+import googleDriveSettingsSql from '../../googledrive-setup.sql?raw'
 
 const {
   accounts,
@@ -1777,6 +1779,22 @@ CREATE TABLE public.resendsettings (
 INSERT INTO public.resendsettings (rowkey)
 SELECT 'main'
 WHERE NOT EXISTS (SELECT 1 FROM public.resendsettings WHERE rowkey = 'main');`
+  },
+  {
+    name: 'resend_notify_log',
+    label: 'Resend 已寄發紀錄',
+    icon: '📬',
+    checking: false,
+    exists: false,
+    sql: resendNotifyLogSql
+  },
+  {
+    name: 'googledrivesettings',
+    label: 'Google 雲端硬碟連接設定',
+    icon: '🗂️',
+    checking: false,
+    exists: false,
+    sql: googleDriveSettingsSql
   }
 ])
 

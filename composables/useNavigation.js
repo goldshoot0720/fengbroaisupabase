@@ -171,7 +171,7 @@ export const useNavigation = () => {
     if (typeof document !== 'undefined') {
       const config = findPageConfig(pageId)
       if (config) {
-        document.title = `${config.title} - Feng AI Supabase`
+        document.title = `${config.title} - 鋒兄AI Supabase`
       }
     }
   }

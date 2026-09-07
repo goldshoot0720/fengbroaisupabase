@@ -61,15 +61,18 @@ Call `bootstrapNotifications()` once from `app/app.vue` after subscription data 
 
 Shared pure helpers live in `utils/notificationHelpers.js` (date math, day text, payload copy, storage keys, window constants). Prefer these over duplicating day/text logic in composables or cron.
 
-Master on/off switch: `notificationsEnabled` (shared module-level ref in `useNotifications`), toggled in Settings (錨兄設定 → 通知自我檢測). `initNotificationPreference()` loads the saved localStorage flag (`feng-notifications-enabled`) on app boot; `setNotificationsEnabled(bool)` persists it, mirrors it into the same IndexedDB store the Service Worker reads (`fengbroai-sw` / key `notifications-enabled`), and immediately (un)registers periodic sync + Web Push so the change takes effect without a reload. When off, `bootstrapNotifications()` short-circuits and `public/custom-sw.js` skips both `push` and `periodicsync` handling; a missing/undefined flag defaults to enabled for backward compatibility.
+Master on/off switch: `notificationsEnabled`（shared module-level ref in `useNotifications`）, toggled in Settings（鋒兄設定 → 通知開關與自我檢測）. `initNotificationPreference()` loads the saved localStorage flag (`feng-notifications-enabled`) on app boot; `setNotificationsEnabled(bool)` persists it, mirrors it into the same IndexedDB store the Service Worker reads (`fengbroai-sw` / key `notifications-enabled`), and immediately (un)registers periodic sync + Web Push so the change takes effect without a reload. When off, `bootstrapNotifications()` short-circuits and `public/custom-sw.js` skips both `push` and `periodicsync` handling; a missing/undefined flag defaults to enabled for backward compatibility.
+
+Resend expiry emails are **window-based, not exact-day**: `useExpiryEmailNotifications.runExpiryEmailNotifications()` sends when `0 <= daysUntil(dueDate) <= threshold` (subscription 2 days, food 8 days) AND that item/due-date pair isn't already logged in `feng-resend-expiry-notification-log` (localStorage). Because it's a window (not `=== threshold`), a missed day (app not opened) still self-heals the next time the app opens — as long as the due date hasn't passed. `checkExpiryEmailStatus()` is a read-only variant that reports, per subscription/food currently inside the window, whether it's already been sent; Settings (鋒兄設定 → Resend Email 通知 → 今日到期信寄送狀態) surfaces this with a 「補寄」 button that re-runs `runExpiryEmailNotifications({ force: true })` for anything still pending.
 
 | Channel | Entry | Notes |
 |---------|-------|--------|
 | Toast + native | `useNotifications` | 3-day subscription window; **>3 items → one grouped summary** (names + dates) instead of N stacked toasts |
 | SW periodic sync | `public/custom-sw.js` | self-contained; keep constants aligned with helpers; same group threshold; honors the shared on/off flag |
 | Netlify cron Web Push | `netlify/functions/send-push-cron.js` | imports helpers; 3-day window; groups when >3 due; stale endpoints (after a local unsubscribe) self-clean on next 404/410 |
-| Resend email | `useExpiryEmailNotifications` | subscription = 2 days before; food = 8 days before |
+| Resend email | `useExpiryEmailNotifications` | subscription = 2 days before; food = 8 days before; window-based catch-up, see above |
 | Web Push subscribe | `usePushNotification` | calls `register_push_subscription` to write one device; table + RPC setup is `supabase-push-table.sql`, also shown in Settings table setup |
 | In-app toast UI | `useToast` + `ToastContainer` | generic UI, not expiry-specific |
 | Self-check | `useNotifications.runNotificationSelfCheck` | Settings page diagnostics + optional probes |
 | Master switch | `useNotifications.notificationsEnabled` / `setNotificationsEnabled` | Settings page toggle; localStorage + IndexedDB backed |
+| Resend send-status check | `useExpiryEmailNotifications.checkExpiryEmailStatus` | Settings page "今日到期信寄送狀態" panel; read-only, plus a 補寄 action |

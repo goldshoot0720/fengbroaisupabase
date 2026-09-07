@@ -88,6 +88,22 @@ const sendGroupedNotification = async ({ settings, type, items }) => {
   })))
 }
 
+/**
+ * Whether an item is due within [0, daysBefore] days from today.
+ * A window (not an exact-day match) so a missed day (app not opened) still
+ * catches up and sends once the app is opened again, as long as it's not
+ * overdue past the due date itself.
+ */
+const isWithinEmailWindow = (dateValue, daysBefore) => {
+  const daysLeft = daysUntil(dateValue)
+  return daysLeft !== null && daysLeft >= 0 && daysLeft <= daysBefore
+}
+
+const describeItem = (item, type) => ({
+  id: item?.id ?? item?.$id ?? null,
+  name: item?.name || item?.title || (type === 'subscription' ? '未命名訂閱' : '未命名食品')
+})
+
 export function useExpiryEmailNotifications() {
   const runExpiryEmailNotifications = async ({ force = false } = {}) => {
     if (!import.meta.client) return { skipped: 'server' }
@@ -106,11 +122,11 @@ export function useExpiryEmailNotifications() {
 
       const log = readLog()
       const dueSubscriptions = subscriptions.value
-        .filter(item => daysUntil(item.nextdate) === SUBSCRIPTION_EMAIL_DAYS_BEFORE)
+        .filter(item => isWithinEmailWindow(item.nextdate, SUBSCRIPTION_EMAIL_DAYS_BEFORE))
         .filter(item => !log[expiryMarkerFor('subscription', item, item.nextdate)])
 
       const dueFoods = foods.value
-        .filter(item => daysUntil(item.todate) === FOOD_EMAIL_DAYS_BEFORE)
+        .filter(item => isWithinEmailWindow(item.todate, FOOD_EMAIL_DAYS_BEFORE))
         .filter(item => !log[expiryMarkerFor('food', item, item.todate)])
 
       const sent = []
@@ -143,7 +159,54 @@ export function useExpiryEmailNotifications() {
     return await runPromise
   }
 
+  /**
+   * Read-only diagnostic for Settings: which subscriptions/foods are currently
+   * inside their Resend notify window, and whether each has already been sent.
+   * Does not send anything or touch the log.
+   */
+  const checkExpiryEmailStatus = async () => {
+    if (!import.meta.client) {
+      return { skipped: 'server', hasRecipient: false, subscriptions: [], foods: [], pendingCount: 0 }
+    }
+
+    const settings = getResendNotificationSettings()
+    const hasRecipient = Array.isArray(settings.recipients) && settings.recipients.length > 0
+
+    const { subscriptions, loadSubscriptions } = useSubscriptions()
+    const { foods, loadFoods } = useFoods()
+    await Promise.allSettled([loadSubscriptions(), loadFoods()])
+
+    const log = readLog()
+
+    const buildStatus = (items, type, dateField, daysBefore) => items
+      .filter(item => isWithinEmailWindow(item[dateField], daysBefore))
+      .map(item => {
+        const marker = expiryMarkerFor(type, item, item[dateField])
+        return {
+          ...describeItem(item, type),
+          dueDate: dateKey(item[dateField]) || item[dateField] || '',
+          daysLeft: daysUntil(item[dateField]),
+          sent: !!log[marker],
+          sentAt: log[marker] || null
+        }
+      })
+      .sort((a, b) => a.daysLeft - b.daysLeft)
+
+    const subscriptionStatus = buildStatus(subscriptions.value, 'subscription', 'nextdate', SUBSCRIPTION_EMAIL_DAYS_BEFORE)
+    const foodStatus = buildStatus(foods.value, 'food', 'todate', FOOD_EMAIL_DAYS_BEFORE)
+
+    return {
+      checkedAt: new Date().toISOString(),
+      hasRecipient,
+      subscriptions: subscriptionStatus,
+      foods: foodStatus,
+      pendingCount: subscriptionStatus.filter(item => !item.sent).length +
+        foodStatus.filter(item => !item.sent).length
+    }
+  }
+
   return {
-    runExpiryEmailNotifications
+    runExpiryEmailNotifications,
+    checkExpiryEmailStatus
   }
 }

@@ -404,6 +404,50 @@
               <span class="form-hint">會寄送測試信到所有完整填寫的收件組合。CSV 僅含 API Key 與收件 Email，不含寄件人。</span>
             </div>
 
+            <div class="resend-status-panel">
+              <div class="resend-status-panel__head">
+                <h3>今日到期信寄送狀態</h3>
+                <button class="btn-secondary btn-sm" type="button" :disabled="checkingEmailStatus" @click="handleCheckEmailStatus">
+                  {{ checkingEmailStatus ? '檢查中…' : '檢查是否已寄發' }}
+                </button>
+              </div>
+
+              <p v-if="!emailStatusResult" class="form-hint">
+                檢查目前訂閱（提前 2 天）與食品（提前 8 天）是否有進入提醒區間，以及是否已經寄過。
+              </p>
+
+              <template v-else>
+                <p class="form-hint">
+                  檢查時間：{{ formatSelfCheckTime(emailStatusResult.checkedAt) }}
+                  <span v-if="!emailStatusResult.hasRecipient" class="resend-status-missing-hint"> · 尚未設定完整收件組合，無法寄送</span>
+                </p>
+
+                <div v-if="emailStatusEntries.length === 0" class="resend-status-empty">
+                  目前沒有訂閱或食品進入提醒區間（訂閱提前 2 天／食品提前 8 天）。
+                </div>
+
+                <ul v-else class="resend-status-list">
+                  <li
+                    v-for="entry in emailStatusEntries"
+                    :key="`${entry.kind}-${entry.id}-${entry.dueDate}`"
+                    class="resend-status-item"
+                    :class="entry.sent ? 'is-sent' : 'is-pending'"
+                  >
+                    <span class="resend-status-item__tag">{{ entry.kind }}</span>
+                    <strong>{{ entry.name }}</strong>
+                    <span class="resend-status-item__date">{{ entry.dueDate }}（{{ entry.daysLeft }} 天後）</span>
+                    <span class="resend-status-item__state">{{ entry.sent ? '已寄發' : '尚未寄發' }}</span>
+                  </li>
+                </ul>
+
+                <div v-if="emailStatusResult.pendingCount > 0" class="resend-status-actions">
+                  <button class="btn-primary" type="button" :disabled="resendingMissedEmails" @click="handleResendMissedEmails">
+                    {{ resendingMissedEmails ? '補寄中…' : `補寄 ${emailStatusResult.pendingCount} 筆未寄出的提醒` }}
+                  </button>
+                </div>
+              </template>
+            </div>
+
             <div v-if="resendImportPreview" class="resend-import-preview" role="dialog" aria-labelledby="resend-import-title">
               <h3 id="resend-import-title">匯入 Resend 設定預覽</h3>
               <p v-if="resendImportPreview.errors.length" class="import-errors">
@@ -697,6 +741,7 @@ import PageContainer from '../layout/PageContainer.vue'
 import MenuBackupSettings from './MenuBackupSettings.vue'
 import { useSettings, resolveSupabaseBucket } from '../../composables/useSettings'
 import { useNotifications } from '../../composables/useNotifications'
+import { useExpiryEmailNotifications } from '../../composables/useExpiryEmailNotifications'
 import { getSupabaseBrowserClient } from '../../composables/useSupabaseBrowserClient'
 import { buildResendSettingsCsv, mergeResendSlots, parseResendSettingsCsv } from '../../utils/resendSettingsCsv'
 import packageJson from '../../package.json'
@@ -917,6 +962,51 @@ const resendPairClass = (pair) => ({
   'resend-pair-card--complete': resendPairStatus(pair) === '完整',
   'resend-pair-card--partial': resendPairStatus(pair) === '待補'
 })
+
+const { runExpiryEmailNotifications, checkExpiryEmailStatus } = useExpiryEmailNotifications()
+const checkingEmailStatus = ref(false)
+const emailStatusResult = ref(null)
+const resendingMissedEmails = ref(false)
+
+const emailStatusEntries = computed(() => {
+  if (!emailStatusResult.value) return []
+  const subs = (emailStatusResult.value.subscriptions || []).map(entry => ({ ...entry, kind: '訂閱' }))
+  const foods = (emailStatusResult.value.foods || []).map(entry => ({ ...entry, kind: '食品' }))
+  return [...subs, ...foods].sort((a, b) => a.daysLeft - b.daysLeft)
+})
+
+const handleCheckEmailStatus = async () => {
+  checkingEmailStatus.value = true
+  try {
+    emailStatusResult.value = await checkExpiryEmailStatus()
+  } catch (error) {
+    console.error('[Settings] 檢查 Resend 寄送狀態失敗:', error)
+    alert(`檢查失敗：${error?.message || '未知錯誤'}`)
+  } finally {
+    checkingEmailStatus.value = false
+  }
+}
+
+const handleResendMissedEmails = async () => {
+  resendingMissedEmails.value = true
+  try {
+    const result = await runExpiryEmailNotifications({ force: true })
+    if (result?.skipped === 'missing-resend-recipient') {
+      alert('尚未設定完整的 Resend 收件組合，請先完成設定。')
+    } else {
+      const sentCount = Array.isArray(result?.sent)
+        ? result.sent.reduce((sum, entry) => sum + (entry.count || 0), 0)
+        : 0
+      alert(sentCount > 0 ? `已補寄 ${sentCount} 筆到期提醒。` : '目前沒有需要補寄的到期提醒。')
+    }
+    emailStatusResult.value = await checkExpiryEmailStatus()
+  } catch (error) {
+    console.error('[Settings] 補寄到期信失敗:', error)
+    alert(`補寄失敗：${error?.data?.message || error?.statusMessage || error?.message || '未知錯誤'}`)
+  } finally {
+    resendingMissedEmails.value = false
+  }
+}
 
 const testResendEmail = async () => {
   const completePairs = completeResendNotificationPairs.value
@@ -2423,6 +2513,94 @@ useHead({
   justify-content: flex-end;
   gap: 0.6rem;
   flex-wrap: wrap;
+}
+
+.resend-status-panel {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.resend-status-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.resend-status-panel__head h3 {
+  margin: 0;
+}
+
+.resend-status-missing-hint {
+  color: var(--danger-text);
+}
+
+.resend-status-empty {
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+.resend-status-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resend-status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  font-size: var(--font-sm);
+}
+
+.resend-status-item__tag {
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full, 999px);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.resend-status-item__date {
+  color: var(--text-secondary);
+}
+
+.resend-status-item__state {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.resend-status-item.is-sent .resend-status-item__state {
+  color: var(--success-text);
+}
+
+.resend-status-item.is-pending {
+  border-color: color-mix(in oklab, var(--warning) 45%, transparent);
+}
+
+.resend-status-item.is-pending .resend-status-item__state {
+  color: var(--warning-text);
+}
+
+.resend-status-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .resend-cloud-panel {

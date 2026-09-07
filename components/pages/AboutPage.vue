@@ -281,7 +281,7 @@
 
         <div v-else-if="activeAboutPanel === 'cats'" class="cat-list">
           <article v-for="cat in cats" :key="cat.name" class="cat-profile">
-            <img :src="cat.image" :alt="cat.name">
+            <img :src="cat.image" :alt="cat.name" loading="lazy">
             <div><h3>{{ cat.name }} · {{ cat.type }}</h3><p>{{ cat.description }}</p><span>{{ cat.tags.join(' · ') }}</span></div>
           </article>
         </div>
@@ -428,9 +428,11 @@ const aboutPanels = [
   { id: 'plumber', label: '水電大亨' },
   { id: 'services', label: '影音與自動簽到服務' },
 ]
+// 照片放在本站 public/：來源 repo 的 public/ 已清空，原本外連 raw.githubusercontent.com 的兩張圖
+// 現在是 404（而且是 2MB PNG）。這裡改用壓過的本機 webp，不再依賴外部 repo。
 const cats = [
-  { name: '喵布布', type: '三花貓', image: 'https://raw.githubusercontent.com/goldshoot0720/fengbroaiappwrite/main/public/cats2.25fimage1.png', description: '活潑、好奇又親人的三花貓，喜歡曬太陽、逗貓棒與小魚乾。', tags: ['活潑', '好奇', '親人'] },
-  { name: '喵白白', type: '白貓', image: 'https://raw.githubusercontent.com/goldshoot0720/fengbroaiappwrite/main/public/cats2.25fimage2.png', description: '溫柔優雅的白貓，喜歡睡覺、被摸摸與吃罐罐。', tags: ['溫柔', '優雅', '慵懶'] },
+  { name: '喵布布', type: '三花貓', image: '/fengbro-cat-bubu.webp', description: '活潑、好奇又親人的三花貓，喜歡曬太陽、逗貓棒與小魚乾。', tags: ['活潑', '好奇', '親人'] },
+  { name: '喵白白', type: '白貓', image: '/fengbro-cat-baibai.webp', description: '溫柔優雅的白貓，喜歡睡覺、被摸摸與吃罐罐。', tags: ['溫柔', '優雅', '慵懶'] },
 ]
 const businessUnits = [
   ['🔧', '水電工程行', '專業水電工程服務'], ['🧠', '水電人工智慧股份有限公司', 'AI 技術研發與應用'],

@@ -35,6 +35,8 @@ Column source of truth for new tables is the `tables` array in `components/pages
 
 同一張卡片還有 **Google 雲端硬碟**：`utils/googleDrive.js`（Google Identity Services token client + Picker，兩支 script 動態載入，scope 只要 `drive.file`）把備份上傳到使用者雲端硬碟的 `OAuth／fengbroaisupabase` 資料夾，或用 Picker 挑一個備份下載回來直接餵給 `importMenuBundle`。走 Drive 這條路徑時 `exportMenuBundle(..., { download: false })`，不會再重複下載一份到本機。憑證（OAuth Client ID／Browser API Key）存在 `googledrivesettings` 表（`googledrive-setup.sql`），讀寫走 `server/api/settings/google-drive.ts`：GET 回遮蔽值、POST／PUT 需通過**通知密碼**驗證 —— 沿用 `resendsettings.password_hash`，不另開第二組密碼。`composables/useGoogleDrive.js` 是雲端設定與 localStorage 快取之間的黏合層（雲端是來源，本機是快取；表還沒建或離線時仍可只用本機憑證操作）。scrypt 密碼雜湊與 Supabase client 建立集中在 `server/utils/settingsStore.js`，`resend-settings.ts` 與 `google-drive.ts` 共用。這對應 Appwrite 版的 `lib/googleDrive.ts` + `GoogleDriveConnectionSettings.tsx` + `/api/google-drive-settings`。
 
+鋒兄關於 (`AboutPage.vue`) 除了版本與站況，最後一段「鋒兄事業與服務資訊」以 `aboutPanels` 分頁承接 Appwrite 版的展示模組：執行長（`CEOProfile.tsx`）、貓咪家族（`CatShowcase.tsx`）、水電大亨（`PlumberTycoon.tsx`），以及影音／自動簽到服務清單。這些是純展示內容，刻意併進關於頁而不另開導覽項 —— 見 `docs/research/appwrite-feature-gap-2026-07-31.md`。貓咪照片存在本站 `public/fengbro-cat-{bubu,baibai}.webp`：來源 repo 的 `public/` 已清空，原本的 `raw.githubusercontent.com` 外連現在是 404。
+
 ## Supabase accounts & Storage bucket
 
 Multi-account settings store friendly names like `goldshoot0720` / `abuhg17`. **Default Storage bucket comes from Netlify env `SUPABASE_BUCKET`** (or `NUXT_PUBLIC_SUPABASE_BUCKET`). Resolution: explicit settings `bucket` field → env default → `friendlyName` (legacy) → `uploads`. See `resolveSupabaseBucket` in `composables/useSettings.js`.

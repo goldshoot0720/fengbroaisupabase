@@ -12,6 +12,8 @@ import {
   SW_DB_NAME,
   SW_STORE_NAME,
   SW_CREDS_KEY,
+  SW_NOTIFICATIONS_ENABLED_KEY,
+  LOCAL_NOTIFICATIONS_ENABLED_KEY,
   SW_PERIODIC_SYNC_TAG,
   SW_PERIODIC_SYNC_MIN_INTERVAL_MS,
   NOTIF_ICON,
@@ -19,6 +21,7 @@ import {
   SUBSCRIPTION_NOTIF_TITLE,
   SUBSCRIPTION_NOTIFY_WINDOW_DAYS,
   todayKey,
+  isNotificationsEnabledValue,
   buildSubscriptionExpiryBody,
   buildGroupedSubscriptionExpiryBody,
   buildGroupedSubscriptionNotificationOptions,
@@ -60,6 +63,85 @@ const writeLocalNotifyDate = (value) => {
     localStorage.setItem(SUB_NOTIFY_DATE_KEY, value)
   } catch {
     // ignore quota / private mode
+  }
+}
+
+/** Shared across all useNotifications() call sites — same module-scope pattern as useTheme()'s dark mode. */
+const notificationsEnabled = ref(true)
+
+const readNotificationsEnabledLocal = () => {
+  if (!import.meta.client) return true
+  try {
+    const raw = localStorage.getItem(LOCAL_NOTIFICATIONS_ENABLED_KEY)
+    return raw === null ? true : isNotificationsEnabledValue(raw)
+  } catch {
+    return true
+  }
+}
+
+const writeNotificationsEnabledLocal = (value) => {
+  if (!import.meta.client) return
+  try {
+    localStorage.setItem(LOCAL_NOTIFICATIONS_ENABLED_KEY, value ? 'true' : 'false')
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+/** Mirrors the flag into IndexedDB so the Service Worker (periodicsync / push) can honor it too. */
+const writeNotificationsEnabledToSw = async (value) => {
+  if (!import.meta.client || !('indexedDB' in window)) return
+
+  try {
+    await new Promise((resolve, reject) => {
+      const req = indexedDB.open(SW_DB_NAME, 1)
+      req.onupgradeneeded = (event) => {
+        const db = event.target.result
+        if (!db.objectStoreNames.contains(SW_STORE_NAME)) {
+          db.createObjectStore(SW_STORE_NAME)
+        }
+      }
+      req.onsuccess = (event) => {
+        try {
+          const db = event.target.result
+          const tx = db.transaction(SW_STORE_NAME, 'readwrite')
+          tx.objectStore(SW_STORE_NAME).put(value, SW_NOTIFICATIONS_ENABLED_KEY)
+          tx.oncomplete = () => resolve()
+          tx.onerror = () => reject(tx.error)
+        } catch (error) {
+          reject(error)
+        }
+      }
+      req.onerror = () => reject(req.error)
+    })
+  } catch (error) {
+    console.warn('[Notifications] 寫入通知開關到 IndexedDB 失敗:', error)
+  }
+}
+
+const unregisterPeriodicSubscriptionCheck = async () => {
+  if (!import.meta.client || !('serviceWorker' in navigator)) return
+
+  try {
+    const registration = await navigator.serviceWorker.ready
+    if (!('periodicSync' in registration)) return
+    await registration.periodicSync.unregister(SW_PERIODIC_SYNC_TAG)
+    console.log('[Notifications] 背景訂閱檢查已取消')
+  } catch (error) {
+    console.log('[Notifications] 取消背景訂閱檢查失敗:', error?.message || error)
+  }
+}
+
+/** Browser-side unsubscribe only; the stale row is cleaned up by send-push-cron.js on its next 404/410. */
+const disableWebPushSubscription = async () => {
+  if (!import.meta.client || !('serviceWorker' in navigator) || !('PushManager' in window)) return
+
+  try {
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.getSubscription()
+    if (subscription) await subscription.unsubscribe()
+  } catch (error) {
+    console.warn('[Notifications] 取消 Web Push 訂閱失敗:', error)
   }
 }
 
@@ -298,11 +380,49 @@ export function useNotifications() {
     }
   }
 
+  /** Read the saved on/off preference into the shared reactive flag. Call once on app boot. */
+  const initNotificationPreference = () => {
+    if (!import.meta.client) return
+    notificationsEnabled.value = readNotificationsEnabledLocal()
+  }
+
+  /**
+   * Master on/off switch for 鋒兄設定. Persists to localStorage + IndexedDB (for the SW)
+   * and immediately (un)registers periodic sync / Web Push so the change takes effect right away.
+   */
+  const setNotificationsEnabled = async (enabled) => {
+    if (!import.meta.client) return { success: false, error: 'server' }
+
+    const next = !!enabled
+    notificationsEnabled.value = next
+    writeNotificationsEnabledLocal(next)
+    await writeNotificationsEnabledToSw(next)
+
+    if (next) {
+      await storeServiceWorkerCredentials()
+      await registerPeriodicSubscriptionCheck()
+      try {
+        await ensureWebPushSubscription()
+      } catch (error) {
+        console.warn('[Notifications] 重新啟用 Web Push 失敗:', error)
+      }
+      toastSuccess('通知已開啟')
+    } else {
+      await unregisterPeriodicSubscriptionCheck()
+      await disableWebPushSubscription()
+      isPushSubscribed.value = false
+      toastInfo('通知已關閉，不再收到提醒')
+    }
+
+    return { success: true, enabled: next }
+  }
+
   /**
    * Full client bootstrap. Call once from app root after subscription data is loaded.
    */
   const bootstrapNotifications = async () => {
     if (!import.meta.client) return { skipped: 'server' }
+    if (!notificationsEnabled.value) return { skipped: 'disabled-by-user' }
 
     const result = {
       clientAlerts: null,
@@ -707,6 +827,9 @@ export function useNotifications() {
   }
 
   return {
+    notificationsEnabled,
+    initNotificationPreference,
+    setNotificationsEnabled,
     bootstrapNotifications,
     runClientSubscriptionExpiryAlerts,
     storeServiceWorkerCredentials,

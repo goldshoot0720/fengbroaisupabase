@@ -464,7 +464,7 @@ const applyRoutePage = () => {
 applyRoutePage()
 watch(() => [route.path, route.query.page], applyRoutePage)
 const { warning: toastWarning } = useToast()
-const { bootstrapNotifications } = useNotifications()
+const { initNotificationPreference, bootstrapNotifications } = useNotifications()
 const { recordSiteVisit, recordMenuUsage } = useSiteStats()
 const {
   showScrollButtons,
@@ -669,6 +669,7 @@ onMounted(async () => {
   }
 
   // 載入初始資料後，統一啟動通知流程（toast / 原生 / SW / Web Push / Resend Email）
+  initNotificationPreference()
   await loadSubscriptions()
   loadFoods()
   await bootstrapNotifications()

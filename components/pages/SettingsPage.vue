@@ -109,10 +109,27 @@
 
         <section class="settings-section notification-check-section">
           <button type="button" class="section-header section-header-toggle" :aria-expanded="openSections.notification" @click="toggleSection('notification')">
-            <h2 class="section-title">通知自我檢測</h2>
+            <h2 class="section-title">通知開關與自我檢測</h2>
             <span class="section-chevron">{{ openSections.notification ? '▾' : '▸' }}</span>
           </button>
           <div v-show="openSections.notification" class="section-body">
+            <div class="notification-master-toggle">
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  :checked="notificationsEnabled"
+                  @change="handleToggleNotifications($event.target.checked)"
+                />
+                <span class="toggle-switch__track" aria-hidden="true"></span>
+              </label>
+              <div class="notification-master-toggle__text">
+                <strong>{{ notificationsEnabled ? '通知已開啟' : '通知已關閉' }}</strong>
+                <span>
+                  關閉後不會再收到 Toast、系統通知、背景訂閱檢查或 Web Push 推播；Resend 到期信也會停止寄送。
+                </span>
+              </div>
+            </div>
+
             <p class="section-description">
               檢查 Toast、瀏覽器通知權限、Service Worker、Web Push、Resend 設定與伺服器 VAPID / Service Role 是否就緒。
               不會寄出真實到期信；可選擇送出測試 Toast 或系統通知。
@@ -730,12 +747,23 @@ const testingResendEmail = ref(false)
 const visibleResendPairs = computed(() => resendPairs.slice(0, Number(resendGroupCount.value) || 21))
 
 const {
+  notificationsEnabled,
+  setNotificationsEnabled,
   selfCheckRunning,
   selfCheckResult,
   runNotificationSelfCheck,
   requestPushAndRecheck,
   storeServiceWorkerCredentials
 } = useNotifications()
+
+const handleToggleNotifications = async (enabled) => {
+  try {
+    await setNotificationsEnabled(enabled)
+  } catch (error) {
+    console.error('[Settings] 切換通知開關失敗:', error)
+    alert(`切換通知開關失敗：${error?.message || '未知錯誤'}`)
+  }
+}
 
 const selfCheckOverallLabel = computed(() => {
   const overall = selfCheckResult.value?.overall
@@ -2459,6 +2487,86 @@ useHead({
 .btn-sm {
   padding: 0.35rem 0.6rem;
   font-size: 0.85rem;
+}
+
+.notification-master-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+
+.notification-master-toggle__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.notification-master-toggle__text strong {
+  color: var(--text-primary);
+}
+
+.notification-master-toggle__text span {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.toggle-switch__track {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-full, 999px);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  transition: background 0.2s ease;
+}
+
+.toggle-switch__track::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg-primary);
+  box-shadow: 0 1px 3px var(--shadow);
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch input:checked + .toggle-switch__track {
+  background: var(--primary-solid);
+  border-color: var(--primary-solid);
+}
+
+.toggle-switch input:checked + .toggle-switch__track::before {
+  transform: translateX(20px);
+}
+
+.toggle-switch input:focus-visible + .toggle-switch__track {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .notification-check-actions {

@@ -6,6 +6,7 @@
 const SW_DB_NAME = 'fengbroai-sw'
 const SW_STORE = 'config'
 const SW_CREDS_KEY = 'supabase-creds'
+const SW_NOTIFICATIONS_ENABLED_KEY = 'notifications-enabled'
 const SUB_NOTIFY_DATE_KEY = 'sub-notify-date'
 const PERIODIC_SYNC_TAG = 'check-subscriptions'
 const SUBSCRIPTION_NOTIFY_WINDOW_DAYS = 3
@@ -34,14 +35,17 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title || DEFAULT_PUSH_TITLE, {
-      body: data.body || '',
-      icon: data.icon || NOTIF_ICON,
-      badge: data.badge || NOTIF_BADGE,
-      tag: data.tag || 'fengbro-push',
-      vibrate: data.vibrate || [200, 100, 200],
-      requireInteraction: data.requireInteraction !== false,
-      data: { url: data.url || '/' }
+    isNotificationsEnabled().then((enabled) => {
+      if (!enabled) return undefined
+      return self.registration.showNotification(data.title || DEFAULT_PUSH_TITLE, {
+        body: data.body || '',
+        icon: data.icon || NOTIF_ICON,
+        badge: data.badge || NOTIF_BADGE,
+        tag: data.tag || 'fengbro-push',
+        vibrate: data.vibrate || [200, 100, 200],
+        requireInteraction: data.requireInteraction !== false,
+        data: { url: data.url || '/' }
+      })
     })
   )
 })
@@ -97,6 +101,16 @@ async function setInDB(key, value) {
   })
 }
 
+// Undefined (never set by an older client) defaults to enabled; only an explicit false disables.
+async function isNotificationsEnabled() {
+  try {
+    const value = await getFromDB(SW_NOTIFICATIONS_ENABLED_KEY)
+    return value !== false
+  } catch {
+    return true
+  }
+}
+
 function getDayText(daysLeft) {
   if (daysLeft === 0) return '今天'
   if (daysLeft === 1) return '明天'
@@ -146,6 +160,8 @@ self.addEventListener('periodicsync', (event) => {
 
 async function checkSubscriptionExpiry() {
   try {
+    if (!(await isNotificationsEnabled())) return
+
     const today = new Date().toISOString().split('T')[0]
     const lastNotify = await getFromDB(SUB_NOTIFY_DATE_KEY)
     if (lastNotify === today) return

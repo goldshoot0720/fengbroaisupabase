@@ -14,6 +14,14 @@ export const SW_CREDS_KEY = 'supabase-creds'
 export const SW_PERIODIC_SYNC_TAG = 'check-subscriptions'
 export const SW_PERIODIC_SYNC_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000
 
+/** IndexedDB key (SW_STORE_NAME) so the Service Worker can honor the same on/off switch. */
+export const SW_NOTIFICATIONS_ENABLED_KEY = 'notifications-enabled'
+/** localStorage key for the client-side reactive toggle shown in 鋒兄設定. */
+export const LOCAL_NOTIFICATIONS_ENABLED_KEY = 'feng-notifications-enabled'
+
+/** Undefined/null (never set) defaults to enabled; only an explicit false/'false' disables. */
+export const isNotificationsEnabledValue = (raw) => raw !== false && raw !== 'false'
+
 export const NOTIF_ICON = '/pwa-192x192.png'
 export const NOTIF_BADGE = '/pwa-192x192.png'
 export const SUBSCRIPTION_NOTIF_TITLE = '鋒兄訂閱提醒'

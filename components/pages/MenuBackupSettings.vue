@@ -39,12 +39,22 @@
             @change="onPickCsv"
           >
           <div class="backup-actions">
-            <button type="button" class="btn-secondary" :disabled="Boolean(busy)" @click="runExport('csv')">
+            <BaseButton
+              variant="primary"
+              :loading="busy === 'csv' && action === 'export'"
+              :disabled="Boolean(busy)"
+              @click="runExport('csv')"
+            >
               {{ busy === 'csv' && action === 'export' ? '匯出中…' : '一鍵匯出 CSV' }}
-            </button>
-            <button type="button" class="btn-secondary" :disabled="Boolean(busy)" @click="csvInputRef?.click()">
+            </BaseButton>
+            <BaseButton
+              variant="secondary"
+              :loading="busy === 'csv' && action === 'import'"
+              :disabled="Boolean(busy)"
+              @click="csvInputRef?.click()"
+            >
               {{ busy === 'csv' && action === 'import' ? '匯入中…' : '一鍵匯入 CSV' }}
-            </button>
+            </BaseButton>
           </div>
         </div>
 
@@ -59,12 +69,22 @@
             @change="onPickAll"
           >
           <div class="backup-actions">
-            <button type="button" class="btn-secondary" :disabled="Boolean(busy)" @click="runExport('all')">
+            <BaseButton
+              variant="primary"
+              :loading="busy === 'all' && action === 'export'"
+              :disabled="Boolean(busy)"
+              @click="runExport('all')"
+            >
               {{ busy === 'all' && action === 'export' ? '匯出中…' : '一鍵匯出全部' }}
-            </button>
-            <button type="button" class="btn-secondary" :disabled="Boolean(busy)" @click="allInputRef?.click()">
+            </BaseButton>
+            <BaseButton
+              variant="secondary"
+              :loading="busy === 'all' && action === 'import'"
+              :disabled="Boolean(busy)"
+              @click="allInputRef?.click()"
+            >
               {{ busy === 'all' && action === 'import' ? '匯入中…' : '一鍵匯入全部' }}
-            </button>
+            </BaseButton>
           </div>
         </div>
       </div>
@@ -80,15 +100,30 @@
         </p>
 
         <div class="backup-actions">
-          <button type="button" class="btn-secondary" :disabled="Boolean(busy) || driveBusy" @click="exportToDrive('csv')">
+          <BaseButton
+            variant="primary"
+            :loading="driveAction === 'export-csv'"
+            :disabled="Boolean(busy) || driveBusy"
+            @click="exportToDrive('csv')"
+          >
             {{ driveAction === 'export-csv' ? '上傳中…' : '匯出 CSV 到雲端硬碟' }}
-          </button>
-          <button type="button" class="btn-secondary" :disabled="Boolean(busy) || driveBusy" @click="exportToDrive('all')">
+          </BaseButton>
+          <BaseButton
+            variant="primary"
+            :loading="driveAction === 'export-all'"
+            :disabled="Boolean(busy) || driveBusy"
+            @click="exportToDrive('all')"
+          >
             {{ driveAction === 'export-all' ? '上傳中…' : '匯出全部到雲端硬碟' }}
-          </button>
-          <button type="button" class="btn-secondary" :disabled="Boolean(busy) || driveBusy" @click="importFromDrive()">
+          </BaseButton>
+          <BaseButton
+            variant="secondary"
+            :loading="driveAction === 'import'"
+            :disabled="Boolean(busy) || driveBusy"
+            @click="importFromDrive()"
+          >
             {{ driveAction === 'import' ? '讀取中…' : '從雲端硬碟匯入' }}
-          </button>
+          </BaseButton>
         </div>
 
         <button type="button" class="drive-toggle" @click="driveSettingsOpen = !driveSettingsOpen">
@@ -114,9 +149,9 @@
             <input v-model="drivePassword" type="password" placeholder="與 Resend 通知設定同一組" autocomplete="off">
           </label>
           <div class="backup-actions">
-            <button type="button" class="btn-secondary" :disabled="driveBusy" @click="checkDriveCloud">檢查雲端設定</button>
-            <button type="button" class="btn-secondary" :disabled="driveBusy" @click="unlockDriveCloud">解鎖顯示明文</button>
-            <button type="button" class="btn-secondary" :disabled="driveBusy" @click="saveDriveCloud">儲存到雲端</button>
+            <BaseButton variant="secondary" size="sm" :disabled="driveBusy" @click="checkDriveCloud">檢查雲端設定</BaseButton>
+            <BaseButton variant="secondary" size="sm" :disabled="driveBusy" @click="unlockDriveCloud">解鎖顯示明文</BaseButton>
+            <BaseButton variant="primary" size="sm" :disabled="driveBusy" @click="saveDriveCloud">儲存到雲端</BaseButton>
           </div>
           <p v-if="driveState.message" class="drive-message">{{ driveState.message }}</p>
         </div>
@@ -139,6 +174,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import BaseButton from '../ui/BaseButton.vue'
 import { useStorage } from '../../composables/useStorage'
 import { csvMenus, zipMenus } from '../../utils/menuBackup/catalog.js'
 import { exportMenuBundle, getBackupFilename, importMenuBundle, summarize } from '../../utils/menuBackup/bundle.js'
@@ -343,6 +379,41 @@ const onPickAll = (event) => {
   border: 0;
   cursor: pointer;
   text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+/* 這些類名原本只定義在 SettingsPage.vue 的 scoped style，
+   子元件內部的元素吃不到，所以在這裡自帶一份。 */
+.section-header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.section-title {
+  font-size: var(--font-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-body {
+  padding: 2rem;
+}
+
+.section-description {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  line-height: 1.7;
+  margin: 0 0 1.5rem;
 }
 
 .section-subtitle {
@@ -417,7 +488,7 @@ const onPickAll = (event) => {
 .backup-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.6rem;
 }
 
 .hidden-file {

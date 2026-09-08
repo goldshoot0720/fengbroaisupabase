@@ -1,7 +1,8 @@
 import { ref } from 'vue'
 import { resolveSupabaseBucket } from './useSettings'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
-import { STORAGE_UPLOAD_LIMIT_BYTES, formatBytes, useStorageUsage } from './useStorageUsage'
+import { STORAGE_WARNING_BYTES, STORAGE_UPLOAD_LIMIT_BYTES, formatBytes, useStorageUsage } from './useStorageUsage'
+import { useToast } from './useToast'
 import { recordMediaTraffic } from '../utils/mediaTraffic'
 
 const MULTIPART_VIDEO_THRESHOLD = 50 * 1024 * 1024
@@ -33,6 +34,7 @@ export const useStorage = () => {
   const uploading = ref(false)
   const uploadProgress = ref(0)
   const { getStorageUsageSnapshot } = useStorageUsage()
+  const { warning } = useToast()
 
   const sanitizeFileName = (name = '') => {
     return name
@@ -123,14 +125,19 @@ export const useStorage = () => {
     const incomingBytes = Number(file?.size || 0)
     const nextBytes = currentBytes + incomingBytes
 
-    if (nextBytes <= STORAGE_UPLOAD_LIMIT_BYTES) return
+    if (nextBytes <= STORAGE_UPLOAD_LIMIT_BYTES) {
+      if (nextBytes >= STORAGE_WARNING_BYTES) {
+        warning(`File Storage 本次上傳後預計為 ${formatBytes(nextBytes)}，已達 ${formatBytes(STORAGE_WARNING_BYTES)} 警告門檻，仍可上傳；超過 ${formatBytes(STORAGE_UPLOAD_LIMIT_BYTES)} 才會禁止上傳。建議到系統設定的 Supabase Storage 管理區清理不需要的檔案。`)
+      }
+      return
+    }
 
     const fileSizeText = formatBytes(incomingBytes)
     const currentText = formatBytes(currentBytes)
     const nextText = formatBytes(nextBytes)
     const limitText = formatBytes(STORAGE_UPLOAD_LIMIT_BYTES)
     throw new Error(
-      `File Storage 已達 ${currentText}，本次檔案 ${fileSizeText} 上傳後會變成 ${nextText}，超過 ${limitText} 上傳上限。請先到系統設定的 Supabase Storage 管理區手動刪除檔案，直到容量低於 900MB 以下再上傳。`
+      `File Storage 已達 ${currentText}，本次檔案 ${fileSizeText} 上傳後會變成 ${nextText}，超過 ${limitText} 上傳上限。請先到系統設定的 Supabase Storage 管理區手動刪除檔案，讓本次上傳後的總容量不超過 ${limitText} 再上傳。`
     )
   }
 

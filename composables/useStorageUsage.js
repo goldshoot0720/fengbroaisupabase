@@ -3,7 +3,8 @@ import { resolveSupabaseBucket } from './useSettings'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 
 const ONE_GB_BYTES = 1024 * 1024 * 1024
-const STORAGE_UPLOAD_LIMIT_BYTES = 900 * 1024 * 1024
+const STORAGE_WARNING_BYTES = 900 * 1024 * 1024
+const STORAGE_UPLOAD_LIMIT_BYTES = 999 * 1024 * 1024
 
 const getBucketName = () => resolveSupabaseBucket()
 
@@ -119,6 +120,7 @@ export const useStorageUsage = () => {
 
 export {
   ONE_GB_BYTES,
+  STORAGE_WARNING_BYTES,
   STORAGE_UPLOAD_LIMIT_BYTES,
   formatBytes
 }

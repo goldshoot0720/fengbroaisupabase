@@ -23,6 +23,18 @@
       </div>
     </section>
 
+    <section v-if="tubeStaleAlert" class="tube-home-alert" role="alert" aria-live="polite">
+      <div class="tube-home-alert__copy">
+        <span class="tube-home-alert__label">鋒兄tube</span>
+        <strong>{{ tubeStaleAlert.count }} 個頻道超過 3 個月沒更新</strong>
+        <p>{{ tubeStaleAlert.summary }}</p>
+      </div>
+      <div class="tube-home-alert__actions">
+        <button class="hero-btn hero-btn-primary" type="button" @click="openTubeTools">查看鋒兄tube</button>
+        <button class="hero-btn hero-btn-secondary" type="button" @click="dismissTubeStaleAlert">今天略過</button>
+      </div>
+    </section>
+
     <section v-if="financeAlert" class="tube-home-alert finance-home-alert" role="alert" aria-live="polite">
       <div class="tube-home-alert__copy">
         <span class="tube-home-alert__label">鋒兄金融</span>
@@ -176,7 +188,10 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { FENG_TUBE_ACTIVE_TOOL_KEY } from '../../utils/fengTubeChannels'
+import {
+  FENG_TUBE_ACTIVE_TOOL_KEY,
+  FENG_TUBE_CHANNELS_STORAGE_KEY
+} from '../../utils/fengTubeChannels'
 
 const emit = defineEmits(['navigate'])
 const runtimeConfig = useRuntimeConfig()
@@ -197,11 +212,14 @@ const linesOfCodeLabel = computed(() => {
 const currentHour = ref(null)
 const tubeAlertVideos = ref([])
 const tubeAlertDismissed = ref(false)
+const tubeStaleChannels = ref([])
+const tubeStaleDismissed = ref(false)
 const financeHighItems = ref([])
 const financeAlertDismissed = ref(false)
 let sleepWarningTimer = null
 
 const TUBE_ALERT_DISMISS_KEY = 'feng-tube-alert-dismissed-date'
+const TUBE_STALE_ALERT_DISMISS_KEY = 'feng-tube-stale-alert-dismissed-date'
 const FINANCE_ALERT_DISMISS_KEY = 'feng-finance-alert-dismissed-date'
 
 const updateCurrentHour = () => {
@@ -243,6 +261,19 @@ const tubeAlert = computed(() => {
   }
 })
 
+const tubeStaleAlert = computed(() => {
+  if (tubeStaleDismissed.value || tubeStaleChannels.value.length === 0) return null
+  const names = tubeStaleChannels.value
+    .slice(0, 4)
+    .map(channel => `${channel.label}（${channel.daysSinceLatest} 天）`)
+    .join('、')
+
+  return {
+    count: tubeStaleChannels.value.length,
+    summary: `${names}${tubeStaleChannels.value.length > 4 ? ' 等頻道' : ''} 已停更，可到鋒兄tube 移除或保留。`
+  }
+})
+
 const financeAlert = computed(() => {
   if (financeAlertDismissed.value || financeHighItems.value.length === 0) return null
   const labels = financeHighItems.value.map(item => `${item.name} ${item.lastLabel}`).join('、')
@@ -254,10 +285,25 @@ const financeAlert = computed(() => {
 
 const todayKey = () => new Date().toISOString().slice(0, 10)
 
+/** 首頁提醒沿用工具頁存下的頻道清單（產品預設清單已清空）。 */
+const readSavedTubeChannels = () => {
+  if (!import.meta.client) return []
+  try {
+    const saved = JSON.parse(localStorage.getItem(FENG_TUBE_CHANNELS_STORAGE_KEY) || '[]')
+    return Array.isArray(saved) ? saved : []
+  } catch {
+    return []
+  }
+}
+
 const loadTubeAlert = async () => {
   try {
-    const response = await $fetch('/api/feng-tools/youtube')
+    const savedChannels = readSavedTubeChannels()
+    const response = await $fetch('/api/feng-tools/youtube', {
+      query: savedChannels.length > 0 ? { channels: JSON.stringify(savedChannels) } : undefined
+    })
     tubeAlertVideos.value = Array.isArray(response?.newVideos) ? response.newVideos : []
+    tubeStaleChannels.value = Array.isArray(response?.staleChannels) ? response.staleChannels : []
   } catch (error) {
     console.warn('[HomePage] 鋒兄tube 通知載入失敗', error)
   }
@@ -277,6 +323,13 @@ const dismissTubeAlert = () => {
   tubeAlertDismissed.value = true
   if (import.meta.client) {
     localStorage.setItem(TUBE_ALERT_DISMISS_KEY, todayKey())
+  }
+}
+
+const dismissTubeStaleAlert = () => {
+  tubeStaleDismissed.value = true
+  if (import.meta.client) {
+    localStorage.setItem(TUBE_STALE_ALERT_DISMISS_KEY, todayKey())
   }
 }
 
@@ -307,6 +360,7 @@ onMounted(() => {
 
   if (import.meta.client) {
     tubeAlertDismissed.value = localStorage.getItem(TUBE_ALERT_DISMISS_KEY) === todayKey()
+    tubeStaleDismissed.value = localStorage.getItem(TUBE_STALE_ALERT_DISMISS_KEY) === todayKey()
     financeAlertDismissed.value = localStorage.getItem(FINANCE_ALERT_DISMISS_KEY) === todayKey()
   }
   loadTubeAlert()

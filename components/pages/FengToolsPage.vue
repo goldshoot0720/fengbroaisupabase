@@ -551,6 +551,11 @@
         </p>
         <p v-else-if="tubeResult" class="tool-notice">目前 3 天內沒有新影片，仍可查看各頻道最新 10 部。</p>
 
+        <p v-if="tubeStaleChannels.length > 0" class="tool-notice tube-stale-notice" role="alert">
+          有 {{ tubeStaleChannels.length }} 個頻道超過 3 個月（{{ tubeStaleWindowDays }} 天）沒有更新：{{ tubeStaleSummary }}。
+          可到「頻道管理」移除或保留。
+        </p>
+
         <div class="tube-channel-grid">
           <article v-for="channel in tubeChannels" :key="channel.id" class="tube-channel-card">
             <div class="tube-channel-card__header">
@@ -571,6 +576,13 @@
                       {{ formatDownfallIndex(channel.downfallIndexUpdate.value) }}
                     </span>
                   </a>
+                  <span
+                    v-if="channel.isStale"
+                    class="tube-stale-badge"
+                    :title="tubeStaleTitle(channel)"
+                  >
+                    停更 {{ channel.daysSinceLatest }} 天
+                  </span>
                   <span
                     v-if="channel.downfallIndexUpdate?.intervalDays != null"
                     class="tube-interval-badge"
@@ -1093,6 +1105,8 @@ import FengbroNewsPanel from './FengbroNewsPanel.vue'
 import {
   FENG_TUBE_ACTIVE_TOOL_KEY,
   FENG_TUBE_CHANNELS,
+  FENG_TUBE_CHANNELS_STORAGE_KEY,
+  FENG_TUBE_STALE_DAYS,
   REMOVED_FENG_TUBE_HANDLES,
   stripRemovedFengTubeChannels
 } from '../../utils/fengTubeChannels'
@@ -1241,7 +1255,6 @@ const BIGGO_HISTORY_KEY = 'fengbro-tools-biggo-history'
 const PHONE_COMPARE_HISTORY_KEY = 'fengbro-tools-phone-compare-history'
 const MANUAL_PRICE_STORAGE_KEY = 'fengbro-tools-manual-prices'
 const MANUAL_SELECTED_PRODUCT_KEY = 'fengbro-tools-manual-selected-product'
-const TUBE_CHANNELS_STORAGE_KEY = 'fengbro-tools-tube-channels'
 const defaultTubeChannelCount = FENG_TUBE_CHANNELS.length
 
 // ---- 手機比價歷史雲端持久化（取代僅存 localStorage） ----
@@ -1270,12 +1283,12 @@ const tubeChannelsSync = useCloudListSync({
   syncKey: 'tube-channels',
   target: tubeUserChannels,
   readLocal: () => {
-    const savedValue = localStorage.getItem(TUBE_CHANNELS_STORAGE_KEY)
+    const savedValue = localStorage.getItem(FENG_TUBE_CHANNELS_STORAGE_KEY)
     if (savedValue === null) return FENG_TUBE_CHANNELS.map(channel => ({ ...channel }))
     const parsed = safeJsonParse(savedValue, [])
     return Array.isArray(parsed) ? normalizeTubeChannels(stripRemovedFengTubeChannels(parsed)) : []
   },
-  writeLocal: (value) => localStorage.setItem(TUBE_CHANNELS_STORAGE_KEY, JSON.stringify(value)),
+  writeLocal: (value) => localStorage.setItem(FENG_TUBE_CHANNELS_STORAGE_KEY, JSON.stringify(value)),
   normalize: (channel) => normalizeTubeChannels([channel])[0] || null,
   enabled: true,
 })
@@ -1554,6 +1567,13 @@ const formatTubeDate = (value) => {
     hour: '2-digit',
     minute: '2-digit'
   }).format(date)
+}
+
+const tubeStaleTitle = (channel) => {
+  const latest = channel?.latestPublished ? formatTubeDate(channel.latestPublished) : ''
+  return latest
+    ? `最後更新 ${latest}，已 ${channel.daysSinceLatest} 天沒有新影片`
+    : '超過三個月沒有新影片'
 }
 
 const formatDownfallIndex = (value) => {
@@ -1963,6 +1983,14 @@ const tubeChannels = computed(() => {
   return [...channels].sort((left, right) => latestTubeChannelTime(right) - latestTubeChannelTime(left))
 })
 const tubeNewVideos = computed(() => tubeResult.value?.newVideos || [])
+const tubeStaleChannels = computed(() => tubeResult.value?.staleChannels || [])
+const tubeStaleWindowDays = computed(() => tubeResult.value?.staleWindowDays || FENG_TUBE_STALE_DAYS)
+const tubeStaleSummary = computed(() =>
+  tubeStaleChannels.value
+    .slice(0, 4)
+    .map(channel => `${channel.label}（${channel.daysSinceLatest} 天）`)
+    .join('、') + (tubeStaleChannels.value.length > 4 ? ' 等頻道' : '')
+)
 const tubeChannelCount = computed(() => tubeUserChannels.value.length)
 const financeQuotes = computed(() => {
   const raw = financeResult.value?.quotes || financeResult.value?.items || []
@@ -2388,12 +2416,12 @@ const normalizeTubeChannels = (channels) => {
 
 const writeTubeChannels = () => {
   if (!import.meta.client) return
-  localStorage.setItem(TUBE_CHANNELS_STORAGE_KEY, JSON.stringify(tubeUserChannels.value))
+  localStorage.setItem(FENG_TUBE_CHANNELS_STORAGE_KEY, JSON.stringify(tubeUserChannels.value))
 }
 
 const readTubeChannels = () => {
   if (!import.meta.client) return
-  const savedValue = localStorage.getItem(TUBE_CHANNELS_STORAGE_KEY)
+  const savedValue = localStorage.getItem(FENG_TUBE_CHANNELS_STORAGE_KEY)
   if (savedValue === null) {
     tubeUserChannels.value = normalizeTubeChannels(FENG_TUBE_CHANNELS)
     return
@@ -3863,6 +3891,24 @@ watch(
 
 .tube-update-badge span {
   color: var(--danger-text);
+}
+
+.tube-stale-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--warning-solid) 16%, var(--bg-secondary));
+  color: var(--warning-text);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.tube-stale-notice {
+  border-color: color-mix(in oklab, var(--warning-solid) 35%, var(--border-color));
+  background: color-mix(in oklab, var(--warning-solid) 10%, var(--bg-primary));
+  color: var(--warning-text);
 }
 
 .tube-interval-badge {

@@ -1,4 +1,8 @@
-import { FENG_TUBE_CHANNELS } from '../../../utils/fengTubeChannels'
+import {
+  FENG_TUBE_CHANNELS,
+  FENG_TUBE_STALE_DAYS,
+  getFengTubeFreshness
+} from '../../../utils/fengTubeChannels'
 
 const DEFAULT_HEADERS = {
   'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0 Safari/537.36',
@@ -32,6 +36,15 @@ type DownfallIndexUpdate = {
   latestPublished: string
 }
 
+type StaleTubeChannel = {
+  id: string
+  label: string
+  handle: string
+  url: string
+  latestPublished: string
+  daysSinceLatest: number | null
+}
+
 type TubeChannelResult = {
   id: string
   label: string
@@ -39,6 +52,11 @@ type TubeChannelResult = {
   url: string
   channelId: string | null
   videos: TubeVideo[]
+  /** Newest entry in the feed; empty string when nothing could be read. */
+  latestPublished: string
+  daysSinceLatest: number | null
+  /** No upload for over FENG_TUBE_STALE_DAYS days — surfaced to the user. */
+  isStale: boolean
   downfallIndexUpdate: DownfallIndexUpdate
   error: string
 }
@@ -46,7 +64,9 @@ type TubeChannelResult = {
 type TubeResponse = {
   fetchedAt: string
   newWindowDays: number
+  staleWindowDays: number
   channels: TubeChannelResult[]
+  staleChannels: StaleTubeChannel[]
   newVideos: Array<TubeVideo & { channelId: string, channelLabel: string, channelUrl: string }>
 }
 
@@ -218,6 +238,7 @@ const fetchChannelVideos = async (channel: TubeSourceChannel): Promise<TubeChann
       ...channel,
       channelId,
       videos,
+      ...getFengTubeFreshness(feedVideos.map(video => video.published)),
       downfallIndexUpdate: createDownfallIndexUpdate(channel, feedVideos),
       error: ''
     }
@@ -226,6 +247,7 @@ const fetchChannelVideos = async (channel: TubeSourceChannel): Promise<TubeChann
       ...channel,
       channelId: null,
       videos: [],
+      ...getFengTubeFreshness([]),
       downfallIndexUpdate: createDownfallIndexUpdate(channel, []),
       error: error?.message || '抓取頻道失敗'
     }
@@ -285,11 +307,25 @@ export default defineEventHandler(async (event) => {
       }))
   )
 
+  const staleChannels = channels
+    .filter(channel => channel.isStale)
+    .map(({ id, label, handle, url, latestPublished, daysSinceLatest }) => ({
+      id,
+      label,
+      handle,
+      url,
+      latestPublished,
+      daysSinceLatest
+    }))
+    .sort((left, right) => (right.daysSinceLatest || 0) - (left.daysSinceLatest || 0))
+
   const data = {
     fetchedAt: new Date().toISOString(),
     newWindowDays: NEW_VIDEO_WINDOW_DAYS,
+    staleWindowDays: FENG_TUBE_STALE_DAYS,
     channels,
-    newVideos
+    newVideos,
+    staleChannels
   }
 
   tubeCache.set(cacheKey, {

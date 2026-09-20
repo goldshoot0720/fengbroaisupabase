@@ -123,6 +123,8 @@ export default defineNuxtConfig({
           handler: 'NetworkFirst',
           options: {
             cacheName: 'supabase-api-cache',
+            // 網路卡住時最多等 3 秒就改用快取，避免弱網下整頁一直轉圈。
+            networkTimeoutSeconds: 3,
             expiration: {
               maxEntries: 100,
               maxAgeSeconds: 60 * 60 * 24 // 1 day

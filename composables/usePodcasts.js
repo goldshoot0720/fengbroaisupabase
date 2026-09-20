@@ -1,5 +1,5 @@
-import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { useSharedTableState, loadSharedTable } from './useSharedTableState'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 const initSupabase = () => {
@@ -7,29 +7,26 @@ const initSupabase = () => {
 }
 
 export const usePodcasts = () => {
-  const podcasts = ref([])
-  const loading = ref(false)
-  const error = ref(null)
+  // 共用狀態：儀表板與內頁共享同一份 podcast 資料，避免各自重打 Supabase。
+  const tableState = useSharedTableState('podcast')
+  const podcasts = tableState.items
+  const loading = tableState.loading
+  const error = tableState.error
 
   const TABLE = 'podcast'
   const FIELDS = ['name', 'file', 'filetype', 'note', 'ref', 'category', 'hash', 'cover']
 
-  const loadPodcasts = async () => {
+  const loadPodcasts = () => {
     const client = initSupabase()
-    if (!client) return
-    try {
-      loading.value = true
-      error.value = null
+    if (!client) return Promise.resolve(podcasts.value)
+
+    // 交給共用狀態處理：併發去重 + 有快取時靜默更新。
+    return loadSharedTable(tableState, async () => {
       const { data, error: fetchError } = await client
         .from(TABLE).select('*').order('created_at', { ascending: false })
       if (fetchError) throw fetchError
-      podcasts.value = data || []
-    } catch (e) {
-      console.error('Error loading podcasts:', e)
-      error.value = e.message
-    } finally {
-      loading.value = false
-    }
+      return data || []
+    }, { label: 'podcast' })
   }
 
   const addPodcast = async (item) => {

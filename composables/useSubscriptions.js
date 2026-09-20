@@ -24,6 +24,7 @@ const newSubscription = ref({
 let supabase = null
 let isInitialized = false
 let currentCredentials = null // 記錄當前使用的認證
+let subscriptionLoadPromise = null // 進行中的載入，用來併發去重
 
 const isMissingSubscriptionTableError = (error) => {
   const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`
@@ -112,35 +113,41 @@ export const useSubscriptions = () => {
   }
 
   // 載入訂閱資料
-  const loadSubscriptions = async (force = false) => {
+  const loadSubscriptions = (force = false) => {
     const client = initSupabase()
-    if (!client) return
-    
+    if (!client) return Promise.resolve()
+
+    // app.vue 與訂閱頁可能同時觸發：共用同一個進行中的請求。
+    if (subscriptionLoadPromise) return subscriptionLoadPromise
+
     // 避免重複載入
-    if (!force && isInitialized && subscriptions.value.length > 0) return
-    
-    try {
-      subscriptionLoading.value = true
-      subscriptionError.value = ''
-      const { data, error } = await client
-        .from('subscription')
-        .select('*')
-      
-      if (error) throw error
-      console.log('載入訂閱資料:', data)
-      if (data) {
-        subscriptions.value = data.map(normalizeSubscription).filter(Boolean)
-        console.log('處理後資料:', subscriptions.value)
+    if (!force && isInitialized && subscriptions.value.length > 0) return Promise.resolve()
+
+    subscriptionLoadPromise = (async () => {
+      try {
+        subscriptionLoading.value = true
+        subscriptionError.value = ''
+        const { data, error } = await client
+          .from('subscription')
+          .select('*')
+
+        if (error) throw error
+        if (data) {
+          subscriptions.value = data.map(normalizeSubscription).filter(Boolean)
+          isInitialized = true
+        }
+      } catch (error) {
+        console.error('載入訂閱資料失敗:', error)
+        subscriptions.value = []
         isInitialized = true
+        subscriptionError.value = getSubscriptionErrorMessage(error)
+      } finally {
+        subscriptionLoading.value = false
+        subscriptionLoadPromise = null
       }
-    } catch (error) {
-      console.error('載入訂閱資料失敗:', error)
-      subscriptions.value = []
-      isInitialized = true
-      subscriptionError.value = getSubscriptionErrorMessage(error)
-    } finally {
-      subscriptionLoading.value = false
-    }
+    })()
+
+    return subscriptionLoadPromise
   }
 
   // 新增訂閱

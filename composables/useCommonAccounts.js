@@ -1,5 +1,5 @@
-import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { useSharedTableState, loadSharedTable } from './useSharedTableState'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 初始化 Supabase（優先使用 localStorage 設定）
@@ -8,33 +8,26 @@ const initSupabase = () => {
 }
 
 export const useCommonAccounts = () => {
-  const accounts = ref([])
-  const loading = ref(false)
-  const error = ref(null)
+  // 共用狀態：儀表板與內頁共享同一份 commonaccount 資料，避免各自重打 Supabase。
+  const tableState = useSharedTableState('commonaccount')
+  const accounts = tableState.items
+  const loading = tableState.loading
+  const error = tableState.error
 
   // 載入資料
-  const loadAccounts = async () => {
+  const loadAccounts = () => {
     const client = initSupabase()
-    if (!client) return
-    
-    try {
-      loading.value = true
-      error.value = null
-      
+    if (!client) return Promise.resolve(accounts.value)
+
+    // 交給共用狀態處理：併發去重 + 有快取時靜默更新。
+    return loadSharedTable(tableState, async () => {
       const { data, error: fetchError } = await client
         .from('commonaccount')
         .select('*')
         .order('created_at', { ascending: false })
-
       if (fetchError) throw fetchError
-      
-      accounts.value = data || []
-    } catch (e) {
-      console.error('Error loading common accounts:', e)
-      error.value = e.message
-    } finally {
-      loading.value = false
-    }
+      return data || []
+    }, { label: 'commonaccount' })
   }
 
   // 新增資料

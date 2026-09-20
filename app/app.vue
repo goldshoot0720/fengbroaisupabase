@@ -668,14 +668,14 @@ onMounted(async () => {
     }
   }
 
+  // 初始化主題（純本地設定，先套用避免等網路時先閃一次預設配色）
+  initTheme()
+
   // 載入初始資料後，統一啟動通知流程（toast / 原生 / SW / Web Push / Resend Email）
   initNotificationPreference()
-  await loadSubscriptions()
-  loadFoods()
+  // 訂閱與食物互不相依，平行載入；通知流程兩者都要用到，所以一起等。
+  await Promise.all([loadSubscriptions(), loadFoods()])
   await bootstrapNotifications()
-
-  // 初始化主題
-  initTheme()
 
   if (import.meta.client) {
     // 監聽視窗大小變化

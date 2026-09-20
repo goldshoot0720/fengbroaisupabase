@@ -287,24 +287,14 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useDashboard } from '../../composables/useDashboard'
-import { useArticles } from '../../composables/useArticles'
 import { useBanks } from '../../composables/useBanks'
-import { useCommonAccounts } from '../../composables/useCommonAccounts'
-import { useDocuments } from '../../composables/useDocuments'
 import { useFoods } from '../../composables/useFoods'
-import { useImages } from '../../composables/useImages'
-import { useMusicRecords } from '../../composables/useMusicRecords'
-import { usePodcasts } from '../../composables/usePodcasts'
-import { useRoutines } from '../../composables/useRoutines'
+import { useTableCounts } from '../../composables/useTableCounts'
 import { useStorageUsage } from '../../composables/useStorageUsage'
 import { useMediaTraffic } from '../../composables/useMediaTraffic'
 import { formatBytes } from '../../composables/useStorageUsage'
 import { getMediaTrafficAlertPolicy } from '../../utils/mediaTraffic'
 import { useSubscriptions } from '../../composables/useSubscriptions'
-import { useTrialPurchases } from '../../composables/useTrialPurchases'
-import { useQuotas } from '../../composables/useQuotas'
-import { useReinstalls } from '../../composables/useReinstalls'
-import { useVideoRecords } from '../../composables/useVideoRecords'
 import PageContainer from '../layout/PageContainer.vue'
 import BaseCard from '../ui/BaseCard.vue'
 import BaseButton from '../ui/BaseButton.vue'
@@ -326,21 +316,29 @@ const {
   formatDaysRemaining
 } = useDashboard()
 
-// 所有資料表
-const { articles, loadArticles } = useArticles()
-const { banks, loadBanks, bankAccountCount, electronicTicketCount } = useBanks()
-const { accounts, loadAccounts } = useCommonAccounts()
-const { documents, loadDocuments } = useDocuments()
-const { foods, loadFoods } = useFoods()
-const { images, loadImages } = useImages()
-const { musics, loadMusics } = useMusicRecords()
-const { podcasts, loadPodcasts } = usePodcasts()
-const { routines, loadRoutines } = useRoutines()
-const { subscriptions, loadSubscriptions } = useSubscriptions()
-const { trialPurchases, loadTrialPurchases } = useTrialPurchases()
-const { quotas, loadQuotas } = useQuotas()
-const { reinstalls, loadReinstalls } = useReinstalls()
-const { videos, loadVideos } = useVideoRecords()
+// 儀表板只需要筆數的資料表：用 count 查詢，不整批抓資料列。
+const COUNT_TABLES = [
+  'subscription',
+  'trialpurchase',
+  'reinstall',
+  'quota',
+  'food',
+  'article',
+  'commonaccount',
+  'commondocument',
+  'image',
+  'music',
+  'podcast',
+  'routine',
+  'video'
+]
+const { countFor, loadTableCounts } = useTableCounts()
+
+// 銀行要分出「帳戶」與「電子票證」，食物與訂閱要算到期提醒，
+// 這三張表仍需完整資料（共用狀態不會重複請求）。
+const { loadBanks, bankAccountCount, electronicTicketCount } = useBanks()
+const { loadFoods } = useFoods()
+const { loadSubscriptions } = useSubscriptions()
 const {
   loading: storageUsageLoading,
   error: storageUsageError,
@@ -352,21 +350,21 @@ const {
 } = useStorageUsage()
 
 const tableStats = computed(() => [
-  { name: 'subscription', label: '訂閱管理', icon: '💳', count: subscriptions.value.length, page: 'subscription' },
-  { name: 'trialpurchase', label: '試用／首購', icon: '🧾', count: trialPurchases.value.length, page: 'trial-purchase' },
-  { name: 'reinstall', label: '重灌軟體', icon: '💻', count: reinstalls.value.length, page: 'reinstall' },
-  { name: 'quota', label: '鋒兄額度', icon: '📊', count: quotas.value.length, page: 'quota' },
-  { name: 'food', label: '食物庫存', icon: '🍔', count: foods.value.length, page: 'food' },
-  { name: 'article', label: '文章管理', icon: '📰', count: articles.value.length, page: 'note' },
+  { name: 'subscription', label: '訂閱管理', icon: '💳', count: countFor('subscription'), page: 'subscription' },
+  { name: 'trialpurchase', label: '試用／首購', icon: '🧾', count: countFor('trialpurchase'), page: 'trial-purchase' },
+  { name: 'reinstall', label: '重灌軟體', icon: '💻', count: countFor('reinstall'), page: 'reinstall' },
+  { name: 'quota', label: '鋒兄額度', icon: '📊', count: countFor('quota'), page: 'quota' },
+  { name: 'food', label: '食物庫存', icon: '🍔', count: countFor('food'), page: 'food' },
+  { name: 'article', label: '文章管理', icon: '📰', count: countFor('article'), page: 'note' },
   { name: 'bank', label: '銀行帳戶', icon: '🏦', count: bankAccountCount.value, page: 'bank' },
   { name: 'electronic-ticket', label: '電子票證', icon: '💳', count: electronicTicketCount.value, page: 'bank' },
-  { name: 'commonaccount', label: '常用帳號', icon: '🔑', count: accounts.value.length, page: 'common' },
-  { name: 'commondocument', label: '通用文件', icon: '📄', count: documents.value.length, page: 'document' },
-  { name: 'image', label: '圖片管理', icon: '🖼️', count: images.value.length, page: 'gallery' },
-  { name: 'music', label: '音樂管理', icon: '🎵', count: musics.value.length, page: 'music' },
-  { name: 'podcast', label: '播客管理', icon: '🎧', count: podcasts.value.length, page: 'podcast' },
-  { name: 'routine', label: '例行事項', icon: '🔁', count: routines.value.length, page: 'routine' },
-  { name: 'video', label: '影片管理', icon: '🎬', count: videos.value.length, page: 'video' }
+  { name: 'commonaccount', label: '常用帳號', icon: '🔑', count: countFor('commonaccount'), page: 'common' },
+  { name: 'commondocument', label: '通用文件', icon: '📄', count: countFor('commondocument'), page: 'document' },
+  { name: 'image', label: '圖片管理', icon: '🖼️', count: countFor('image'), page: 'gallery' },
+  { name: 'music', label: '音樂管理', icon: '🎵', count: countFor('music'), page: 'music' },
+  { name: 'podcast', label: '播客管理', icon: '🎧', count: countFor('podcast'), page: 'podcast' },
+  { name: 'routine', label: '例行事項', icon: '🔁', count: countFor('routine'), page: 'routine' },
+  { name: 'video', label: '影片管理', icon: '🎬', count: countFor('video'), page: 'video' }
 ])
 
 const totalRecords = computed(() => tableStats.value.reduce((sum, t) => sum + t.count, 0))
@@ -411,20 +409,12 @@ const capacityBadgeVariant = computed(() => {
 })
 
 onMounted(() => {
-  loadArticles()
+  // 一次平行取得所有資料表筆數（每張表只是一個不帶資料列的請求）。
+  loadTableCounts(COUNT_TABLES)
+  // 到期提醒與銀行分類需要實際資料列，這三張表照常載入。
   loadBanks()
-  loadAccounts()
-  loadDocuments()
   loadFoods()
-  loadImages()
-  loadMusics()
-  loadPodcasts()
-  loadRoutines()
   loadSubscriptions()
-  loadTrialPurchases()
-  loadReinstalls()
-  loadQuotas()
-  loadVideos()
   refreshStorageUsage()
 })
 </script>

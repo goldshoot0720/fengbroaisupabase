@@ -1,5 +1,5 @@
-import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { useSharedTableState, loadSharedTable } from './useSharedTableState'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 const initSupabase = () => {
@@ -7,9 +7,11 @@ const initSupabase = () => {
 }
 
 export const useImages = () => {
-  const images = ref([])
-  const loading = ref(false)
-  const error = ref(null)
+  // 共用狀態：儀表板與內頁共享同一份 image 資料，避免各自重打 Supabase。
+  const tableState = useSharedTableState('image')
+  const images = tableState.items
+  const loading = tableState.loading
+  const error = tableState.error
 
   const TABLE = 'image'
   const FIELDS = ['name', 'file', 'filetype', 'note', 'ref', 'category', 'hash', 'cover']
@@ -71,22 +73,17 @@ export const useImages = () => {
     return payload
   }
 
-  const loadImages = async () => {
+  const loadImages = () => {
     const client = initSupabase()
-    if (!client) return
-    try {
-      loading.value = true
-      error.value = null
+    if (!client) return Promise.resolve(images.value)
+
+    // 交給共用狀態處理：併發去重 + 有快取時靜默更新。
+    return loadSharedTable(tableState, async () => {
       const { data, error: fetchError } = await client
         .from(TABLE).select('*').order('created_at', { ascending: false })
       if (fetchError) throw fetchError
-      images.value = data || []
-    } catch (e) {
-      console.error('Error loading images:', e)
-      error.value = e.message
-    } finally {
-      loading.value = false
-    }
+      return data || []
+    }, { label: 'image' })
   }
 
   const addImage = async (item) => {

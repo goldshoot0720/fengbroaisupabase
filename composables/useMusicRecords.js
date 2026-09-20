@@ -1,5 +1,5 @@
-import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { useSharedTableState, loadSharedTable } from './useSharedTableState'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 const initSupabase = () => {
@@ -7,29 +7,26 @@ const initSupabase = () => {
 }
 
 export const useMusicRecords = () => {
-  const musics = ref([])
-  const loading = ref(false)
-  const error = ref(null)
+  // 共用狀態：儀表板與內頁共享同一份 music 資料，避免各自重打 Supabase。
+  const tableState = useSharedTableState('music')
+  const musics = tableState.items
+  const loading = tableState.loading
+  const error = tableState.error
 
   const TABLE = 'music'
   const FIELDS = ['name', 'file', 'filetype', 'lyrics', 'note', 'ref', 'category', 'hash', 'language', 'cover']
 
-  const loadMusics = async () => {
+  const loadMusics = () => {
     const client = initSupabase()
-    if (!client) return
-    try {
-      loading.value = true
-      error.value = null
+    if (!client) return Promise.resolve(musics.value)
+
+    // 交給共用狀態處理：併發去重 + 有快取時靜默更新。
+    return loadSharedTable(tableState, async () => {
       const { data, error: fetchError } = await client
         .from(TABLE).select('*').order('created_at', { ascending: false })
       if (fetchError) throw fetchError
-      musics.value = data || []
-    } catch (e) {
-      console.error('Error loading music:', e)
-      error.value = e.message
-    } finally {
-      loading.value = false
-    }
+      return data || []
+    }, { label: 'music' })
   }
 
   const addMusic = async (item) => {

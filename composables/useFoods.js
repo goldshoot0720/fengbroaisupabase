@@ -21,6 +21,7 @@ const newFood = ref({
 let supabase = null
 let isInitialized = false
 let currentCredentials = null // 記錄當前使用的認證
+let foodLoadPromise = null // 進行中的載入，用來併發去重
 
 const toNullableNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null
@@ -82,29 +83,37 @@ export const useFoods = () => {
   })
 
   // 載入食物資料
-  const loadFoods = async () => {
+  const loadFoods = (force = false) => {
     const client = initSupabase()
-    if (!client) return
-    
+    if (!client) return Promise.resolve()
+
+    // app.vue 與食物頁可能同時觸發：共用同一個進行中的請求。
+    if (foodLoadPromise) return foodLoadPromise
+
     // 避免重複載入
-    if (isInitialized && foods.value.length > 0) return
-    
-    try {
-      foodLoading.value = true
-      const { data, error } = await client
-        .from('food')
-        .select('*')
-      
-      if (error) throw error
-      if (data) {
-        foods.value = data
-        isInitialized = true
+    if (!force && isInitialized && foods.value.length > 0) return Promise.resolve()
+
+    foodLoadPromise = (async () => {
+      try {
+        foodLoading.value = true
+        const { data, error } = await client
+          .from('food')
+          .select('*')
+
+        if (error) throw error
+        if (data) {
+          foods.value = data
+          isInitialized = true
+        }
+      } catch (error) {
+        console.error('載入食物資料失敗:', error)
+      } finally {
+        foodLoading.value = false
+        foodLoadPromise = null
       }
-    } catch (error) {
-      console.error('載入食物資料失敗:', error)
-    } finally {
-      foodLoading.value = false
-    }
+    })()
+
+    return foodLoadPromise
   }
 
   // 新增食物

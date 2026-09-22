@@ -122,7 +122,7 @@
     </div>
 
     <!-- 食物表格 -->
-    <div v-if="foodLoading" class="loading">載入中...</div>
+    <div v-if="foodLoading && foods.length === 0" class="loading">載入中...</div>
     <div v-else-if="filteredFoods.length === 0 && !showAddRow" class="empty-state">暫無食品記錄</div>
     <div v-else class="food-table-container">
       <table class="food-table">

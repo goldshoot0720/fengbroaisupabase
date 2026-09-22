@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 初始化 Supabase（優先使用 localStorage 設定）
@@ -13,28 +14,18 @@ export const useCommonAccounts = () => {
   const error = ref(null)
 
   // 載入資料
-  const loadAccounts = async () => {
+  // 先秀快取（記憶體 / IndexedDB），再背景向 Supabase 更新；同表同時只打一次請求。
+  const loadAccounts = async (options = {}) => {
     const client = initSupabase()
     if (!client) return
-    
-    try {
-      loading.value = true
-      error.value = null
-      
-      const { data, error: fetchError } = await client
-        .from('commonaccount')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (fetchError) throw fetchError
-      
-      accounts.value = data || []
-    } catch (e) {
-      console.error('Error loading common accounts:', e)
-      error.value = e.message
-    } finally {
-      loading.value = false
-    }
+    await loadCachedTable({
+      table: 'commonaccount',
+      listRef: accounts,
+      loadingRef: loading,
+      errorRef: error,
+      force: options?.force === true,
+      fetcher: () => selectWholeTable(client, 'commonaccount', { order: 'created_at', ascending: false })
+    })
   }
 
   // 新增資料
@@ -191,15 +182,23 @@ export const useCommonAccounts = () => {
     }
   }
 
+
+  // 任何寫入成功後同步快取，下次切回此頁可立刻看到最新資料。
+  const withCacheSync = (fn) => async (...args) => {
+    const result = await fn(...args)
+    if (!result || result.success !== false) rememberCachedTable('commonaccount', accounts.value)
+    return result
+  }
+
   return {
     accounts,
     loading,
     error,
     loadAccounts,
-    addAccount,
-    updateAccount,
-    deleteAccount,
-    importAccounts,
+    addAccount: withCacheSync(addAccount),
+    updateAccount: withCacheSync(updateAccount),
+    deleteAccount: withCacheSync(deleteAccount),
+    importAccounts: withCacheSync(importAccounts),
     COMMON_FIELDS
   }
 }

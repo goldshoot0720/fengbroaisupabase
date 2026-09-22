@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 const initSupabase = () => {
@@ -14,22 +15,18 @@ export const usePodcasts = () => {
   const TABLE = 'podcast'
   const FIELDS = ['name', 'file', 'filetype', 'note', 'ref', 'category', 'hash', 'cover']
 
-  const loadPodcasts = async () => {
+  // 先秀快取（記憶體 / IndexedDB），再背景向 Supabase 更新；同表同時只打一次請求。
+  const loadPodcasts = async (options = {}) => {
     const client = initSupabase()
     if (!client) return
-    try {
-      loading.value = true
-      error.value = null
-      const { data, error: fetchError } = await client
-        .from(TABLE).select('*').order('created_at', { ascending: false })
-      if (fetchError) throw fetchError
-      podcasts.value = data || []
-    } catch (e) {
-      console.error('Error loading podcasts:', e)
-      error.value = e.message
-    } finally {
-      loading.value = false
-    }
+    await loadCachedTable({
+      table: 'podcast',
+      listRef: podcasts,
+      loadingRef: loading,
+      errorRef: error,
+      force: options?.force === true,
+      fetcher: () => selectWholeTable(client, 'podcast', { order: 'created_at', ascending: false })
+    })
   }
 
   const addPodcast = async (item) => {
@@ -118,5 +115,13 @@ export const usePodcasts = () => {
     }
   }
 
-  return { podcasts, loading, error, FIELDS, loadPodcasts, addPodcast, updatePodcast, deletePodcast, importPodcasts }
+
+  // 任何寫入成功後同步快取，下次切回此頁可立刻看到最新資料。
+  const withCacheSync = (fn) => async (...args) => {
+    const result = await fn(...args)
+    if (!result || result.success !== false) rememberCachedTable('podcast', podcasts.value)
+    return result
+  }
+
+  return { podcasts, loading, error, FIELDS, loadPodcasts, addPodcast: withCacheSync(addPodcast), updatePodcast: withCacheSync(updatePodcast), deletePodcast: withCacheSync(deletePodcast), importPodcasts: withCacheSync(importPodcasts) }
 }

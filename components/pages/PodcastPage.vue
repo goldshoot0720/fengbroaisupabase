@@ -73,7 +73,7 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
+      <div v-if="loading && podcasts.length === 0" class="loading-state">
         <div class="spinner"></div>
         <p>載入中...</p>
       </div>

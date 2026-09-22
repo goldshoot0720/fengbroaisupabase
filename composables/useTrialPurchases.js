@@ -1,5 +1,7 @@
 import { computed, ref } from 'vue'
 import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
+import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
+import { runGroupedConcurrently } from '../utils/asyncPool.js'
 import {
   buildTrialPurchaseWritePayload,
   isMissingTableError,
@@ -11,7 +13,6 @@ import { trialPurchaseImportKey } from '../utils/trialPurchaseCsv'
 const items = ref([])
 const loading = ref(false)
 const error = ref('')
-const PAGE_SIZE = 1000
 
 let currentCredentials = null
 
@@ -33,22 +34,9 @@ const initClient = () => {
   return getSupabaseBrowserClient()
 }
 
-const fetchAllRows = async (client) => {
-  const rows = []
-  let from = 0
-  while (true) {
-    const { data, error: fetchError } = await client
-      .from('trialpurchase')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(from, from + PAGE_SIZE - 1)
-    if (fetchError) throw fetchError
-    rows.push(...(data || []))
-    if (!data || data.length < PAGE_SIZE) break
-    from += PAGE_SIZE
-  }
-  return rows
-}
+// 超過 1000 筆時第一頁拿到總數後其餘頁面並行抓取。
+const fetchAllRows = (client) =>
+  selectWholeTable(client, 'trialpurchase', { order: 'created_at', ascending: false })
 
 export const useTrialPurchases = () => {
   const serviceNames = computed(() =>
@@ -57,21 +45,23 @@ export const useTrialPurchases = () => {
     ),
   )
 
-  const loadTrialPurchases = async () => {
+  // 先秀快取，再背景更新；同表同時只會有一個請求。
+  const loadTrialPurchases = async (options = {}) => {
     const client = initClient()
     if (!client) return
-    try {
-      loading.value = true
-      error.value = ''
-      const rows = await fetchAllRows(client)
-      items.value = rows.map(trialPurchaseFromDbRow).filter(Boolean)
-    } catch (err) {
-      console.error('載入試用／首購資料失敗:', err)
-      items.value = []
-      error.value = getErrorMessage(err)
-    } finally {
-      loading.value = false
-    }
+    await loadCachedTable({
+      table: 'trialpurchase',
+      listRef: items,
+      loadingRef: loading,
+      errorRef: error,
+      errorValue: '',
+      force: options?.force === true,
+      fetcher: async () => (await fetchAllRows(client)).map(trialPurchaseFromDbRow).filter(Boolean),
+      onError: (err, { showedCache }) => {
+        if (!showedCache) items.value = []
+        error.value = getErrorMessage(err)
+      }
+    })
   }
 
   const writeRecord = async (form, mode, id) => {
@@ -128,8 +118,8 @@ export const useTrialPurchases = () => {
     const index = new Map(items.value.map((item) => [trialPurchaseImportKey(item), item.id]))
     let successCount = 0
     let failCount = 0
-    for (const form of records) {
-      const key = trialPurchaseImportKey(form)
+    // 不同鍵並行寫入（同鍵依序），大量匯入時快很多。
+    await runGroupedConcurrently(records, (form) => trialPurchaseImportKey(form), async (form, key) => {
       const existingId = index.get(key)
       const result = existingId
         ? await updateTrialPurchase(existingId, form)
@@ -140,9 +130,17 @@ export const useTrialPurchases = () => {
       } else {
         failCount += 1
       }
-    }
-    await loadTrialPurchases()
+    })
+    await loadTrialPurchases({ force: true })
     return { success: failCount === 0, successCount, failCount }
+  }
+
+
+  // 寫入成功後同步快取，切換選單回來時立即是最新資料。
+  const withCacheSync = (fn) => async (...args) => {
+    const result = await fn(...args)
+    if (!result || result.success !== false) rememberCachedTable('trialpurchase', items.value)
+    return result
   }
 
   return {
@@ -151,9 +149,9 @@ export const useTrialPurchases = () => {
     trialPurchaseError: error,
     serviceNames,
     loadTrialPurchases,
-    addTrialPurchase,
-    updateTrialPurchase,
-    deleteTrialPurchase,
-    importTrialPurchases,
+    addTrialPurchase: withCacheSync(addTrialPurchase),
+    updateTrialPurchase: withCacheSync(updateTrialPurchase),
+    deleteTrialPurchase: withCacheSync(deleteTrialPurchase),
+    importTrialPurchases: withCacheSync(importTrialPurchases),
   }
 }

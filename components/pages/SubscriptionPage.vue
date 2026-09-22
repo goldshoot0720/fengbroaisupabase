@@ -132,12 +132,12 @@
     </div>
 
     <!-- 訂閱列表 -->
-    <div v-if="subscriptionLoading" class="subscription-skeleton" role="status" aria-live="polite">
+    <div v-if="subscriptionLoading && subscriptions.length === 0" class="subscription-skeleton" role="status" aria-live="polite">
       <strong>正在載入訂閱資料</strong>
       <span>安全連線完成後會顯示目前的訂閱項目。</span>
       <i v-for="n in 6" :key="n"></i>
     </div>
-    <div v-else-if="subscriptionError" class="load-error" role="alert">
+    <div v-else-if="subscriptionError && subscriptions.length === 0" class="load-error" role="alert">
       <div><strong>無法載入訂閱資料</strong><span>{{ subscriptionError }}</span></div>
       <button type="button" @click="loadSubscriptions(true)">重新載入</button>
     </div>

@@ -50,7 +50,7 @@
         </div>
       </div>
 
-      <div v-if="loading" class="loading">載入中...</div>
+      <div v-if="loading && routines.length === 0" class="loading">載入中...</div>
       <div v-else-if="filteredRoutines.length === 0 && !isAddingInline" class="empty-state">
         暫無例行記錄
       </div>

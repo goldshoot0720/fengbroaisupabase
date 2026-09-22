@@ -2,6 +2,7 @@
 // 訂閱管理的完整邏輯 - 使用共享狀態
 import { ref, computed } from 'vue'
 import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
+import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 import { SUBSCRIPTION_NOTIFY_WINDOW_DAYS, isWithinNotifyWindow } from '../utils/notificationHelpers'
 
@@ -112,35 +113,26 @@ export const useSubscriptions = () => {
   }
 
   // 載入訂閱資料
+  // 先秀快取（記憶體 / IndexedDB），再背景向 Supabase 更新；同表同時只打一次請求。
+  // force 可傳 true 或 { force: true }。
   const loadSubscriptions = async (force = false) => {
     const client = initSupabase()
     if (!client) return
-    
-    // 避免重複載入
-    if (!force && isInitialized && subscriptions.value.length > 0) return
-    
-    try {
-      subscriptionLoading.value = true
-      subscriptionError.value = ''
-      const { data, error } = await client
-        .from('subscription')
-        .select('*')
-      
-      if (error) throw error
-      console.log('載入訂閱資料:', data)
-      if (data) {
-        subscriptions.value = data.map(normalizeSubscription).filter(Boolean)
-        console.log('處理後資料:', subscriptions.value)
-        isInitialized = true
+    const result = await loadCachedTable({
+      table: 'subscription',
+      listRef: subscriptions,
+      loadingRef: subscriptionLoading,
+      errorRef: subscriptionError,
+      errorValue: '',
+      force: force === true || force?.force === true,
+      fetcher: async () => (await selectWholeTable(client, 'subscription')).map(normalizeSubscription).filter(Boolean),
+      onError: (error, { showedCache }) => {
+        if (!showedCache) subscriptions.value = []
+        subscriptionError.value = getSubscriptionErrorMessage(error)
       }
-    } catch (error) {
-      console.error('載入訂閱資料失敗:', error)
-      subscriptions.value = []
-      isInitialized = true
-      subscriptionError.value = getSubscriptionErrorMessage(error)
-    } finally {
-      subscriptionLoading.value = false
-    }
+    })
+    isInitialized = true
+    return result
   }
 
   // 新增訂閱
@@ -550,6 +542,14 @@ export const useSubscriptions = () => {
     }
   }
 
+
+  // 寫入成功後同步快取（記憶體 + IndexedDB），重新整理或切換選單都能立即顯示。
+  const withCacheSync = (fn) => async (...args) => {
+    const result = await fn(...args)
+    if (!result || result.success !== false) rememberCachedTable('subscription', subscriptions.value)
+    return result
+  }
+
   return {
     subscriptions,
     subscriptionLoading,
@@ -560,17 +560,17 @@ export const useSubscriptions = () => {
     sortedSubscriptions,
     getUpcomingSubscriptions,
     loadSubscriptions,
-    addSubscription,
-    addSubscriptionInline,
-    importSubscriptions,
+    addSubscription: withCacheSync(addSubscription),
+    addSubscriptionInline: withCacheSync(addSubscriptionInline),
+    importSubscriptions: withCacheSync(importSubscriptions),
     isAppwriteFormat,
     editSubscription,
-    updateSubscription,
-    updateSubscriptionInline,
-    deleteSubscription,
-    batchDeleteSubscriptions,
-    restoreSubscription,
-    toggleIsContinue,
+    updateSubscription: withCacheSync(updateSubscription),
+    updateSubscriptionInline: withCacheSync(updateSubscriptionInline),
+    deleteSubscription: withCacheSync(deleteSubscription),
+    batchDeleteSubscriptions: withCacheSync(batchDeleteSubscriptions),
+    restoreSubscription: withCacheSync(restoreSubscription),
+    toggleIsContinue: withCacheSync(toggleIsContinue),
     resetSubscriptionForm
   }
 }

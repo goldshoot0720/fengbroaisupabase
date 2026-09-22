@@ -463,7 +463,7 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="loading" class="loading">
+      <div v-if="loading && videos.length === 0" class="loading">
         <span class="loading-spinner" aria-hidden="true"></span> 載入中...
       </div>
 

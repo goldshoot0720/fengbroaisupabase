@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 const initSupabase = () => {
@@ -14,22 +15,18 @@ export const useRoutines = () => {
   const TABLE = 'routine'
   const FIELDS = ['name', 'note', 'lastdate1', 'lastdate2', 'lastdate3', 'link', 'photo']
 
-  const loadRoutines = async () => {
+  // 先秀快取（記憶體 / IndexedDB），再背景向 Supabase 更新；同表同時只打一次請求。
+  const loadRoutines = async (options = {}) => {
     const client = initSupabase()
     if (!client) return
-    try {
-      loading.value = true
-      error.value = null
-      const { data, error: fetchError } = await client
-        .from(TABLE).select('*').order('created_at', { ascending: false })
-      if (fetchError) throw fetchError
-      routines.value = data || []
-    } catch (e) {
-      console.error('Error loading routines:', e)
-      error.value = e.message
-    } finally {
-      loading.value = false
-    }
+    await loadCachedTable({
+      table: 'routine',
+      listRef: routines,
+      loadingRef: loading,
+      errorRef: error,
+      force: options?.force === true,
+      fetcher: () => selectWholeTable(client, 'routine', { order: 'created_at', ascending: false })
+    })
   }
 
   const addRoutine = async (item) => {
@@ -118,5 +115,13 @@ export const useRoutines = () => {
     }
   }
 
-  return { routines, loading, error, FIELDS, loadRoutines, addRoutine, updateRoutine, deleteRoutine, importRoutines }
+
+  // 任何寫入成功後同步快取，下次切回此頁可立刻看到最新資料。
+  const withCacheSync = (fn) => async (...args) => {
+    const result = await fn(...args)
+    if (!result || result.success !== false) rememberCachedTable('routine', routines.value)
+    return result
+  }
+
+  return { routines, loading, error, FIELDS, loadRoutines, addRoutine: withCacheSync(addRoutine), updateRoutine: withCacheSync(updateRoutine), deleteRoutine: withCacheSync(deleteRoutine), importRoutines: withCacheSync(importRoutines) }
 }

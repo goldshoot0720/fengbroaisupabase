@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { clearTableCache } from '../utils/tableCache.js'
 
 const STORAGE_KEY = 'feng-settings'
 const ACCOUNTS_KEY = 'feng-accounts'
@@ -410,6 +411,8 @@ export function useSettings() {
     resetTempResend()
     localStorage.removeItem(ACCOUNTS_KEY)
     localStorage.removeItem(STORAGE_KEY)
+    // 清除設定時一併清掉資料表快取（IndexedDB），不留下舊專案的資料副本。
+    clearTableCache().catch(() => {})
   }
 
   const displayName = computed(() => {

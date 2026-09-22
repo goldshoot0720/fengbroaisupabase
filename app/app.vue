@@ -408,6 +408,8 @@ const VoiceInputPanel = lazyPage(() => import('../components/ui/VoiceInputPanel.
 // 使用 composables
 import { useSubscriptions } from '../composables/useSubscriptions'
 import { useFoods } from '../composables/useFoods'
+import { scheduleTablePrefetch } from '../composables/useTablePrefetch'
+import { hydrateTableCache } from '../utils/tableCache.js'
 import { useTheme } from '../composables/useTheme'
 import { useNavigation, isAppPageId } from '../composables/useNavigation'
 import { useScroll } from '../composables/useScroll'
@@ -668,13 +670,7 @@ onMounted(async () => {
     }
   }
 
-  // 載入初始資料後，統一啟動通知流程（toast / 原生 / SW / Web Push / Resend Email）
-  initNotificationPreference()
-  await loadSubscriptions()
-  loadFoods()
-  await bootstrapNotifications()
-
-  // 初始化主題
+  // 主題與版面監聽先就位，不等任何網路請求，避免開站時主題閃爍或卡住。
   initTheme()
 
   if (import.meta.client) {
@@ -685,6 +681,20 @@ onMounted(async () => {
     await nextTick()
     setupScrollListener()
   }
+
+  // 把上次的資料表快照從 IndexedDB 讀進記憶體（非阻塞），切換選單可秒開。
+  hydrateTableCache()
+
+  // 載入初始資料後，統一啟動通知流程（toast / 原生 / SW / Web Push / Resend Email）
+  // 訂閱與食品並行抓取；有快取時會先用快取。
+  initNotificationPreference()
+  const foodsReady = loadFoods()
+  await loadSubscriptions()
+  await bootstrapNotifications()
+  await foodsReady
+
+  // 空閒時背景預抓其他選單的資料表。
+  scheduleTablePrefetch()
 })
 
 onUnmounted(() => {

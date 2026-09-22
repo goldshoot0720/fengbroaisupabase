@@ -2,6 +2,8 @@
 // 圖片庫瀏覽邏輯：從 Supabase `image` 表載入，支援搜尋、檢視模式與燈箱
 import { ref, computed } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { currentTableCacheKey, selectWholeTable } from './useCachedTable'
+import { loadTableWithCache } from '../utils/tableCache.js'
 import { useStorage } from './useStorage'
 
 export const useGallery = () => {
@@ -69,21 +71,26 @@ export const useGallery = () => {
       return { success: false, error: error.value }
     }
 
-    loading.value = true
+    // 與鋒兄圖片共用同一份 image 快取：有快取就先顯示，再背景更新。
+    if (galleryImages.value.length === 0) loading.value = true
     error.value = null
     try {
-      const { data, error: fetchError } = await client
-        .from('image')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (fetchError) throw fetchError
+      const data = await loadTableWithCache(
+        currentTableCacheKey('image'),
+        () => selectWholeTable(client, 'image', { order: 'created_at', ascending: false }),
+        {
+          onCached: (rows) => {
+            galleryImages.value = rows.map(normalizeImage)
+            loading.value = false
+          }
+        }
+      )
       galleryImages.value = (data || []).map(normalizeImage)
       return { success: true, count: galleryImages.value.length }
     } catch (e) {
       console.error('[useGallery] 載入圖片失敗:', e)
       error.value = e?.message || '載入圖片失敗'
-      galleryImages.value = []
+      if (galleryImages.value.length === 0) galleryImages.value = []
       return { success: false, error: error.value }
     } finally {
       loading.value = false

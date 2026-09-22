@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 初始化 Supabase（優先使用 localStorage 設定）
@@ -64,28 +65,18 @@ export const useBanks = () => {
   }
 
   // 載入銀行資料
-  const loadBanks = async () => {
+  // 先秀快取（記憶體 / IndexedDB），再背景向 Supabase 更新；同表同時只打一次請求。
+  const loadBanks = async (options = {}) => {
     const client = initSupabase()
     if (!client) return
-    
-    try {
-      loading.value = true
-      error.value = null
-      
-      const { data, error: fetchError } = await client
-        .from('bank')
-        .select('*')
-        .order('deposit', { ascending: false })
-
-      if (fetchError) throw fetchError
-      
-      banks.value = data || []
-    } catch (e) {
-      console.error('Error loading banks:', e)
-      error.value = e.message
-    } finally {
-      loading.value = false
-    }
+    await loadCachedTable({
+      table: 'bank',
+      listRef: banks,
+      loadingRef: loading,
+      errorRef: error,
+      force: options?.force === true,
+      fetcher: () => selectWholeTable(client, 'bank', { order: 'deposit', ascending: false })
+    })
   }
 
   // 新增銀行資料
@@ -301,6 +292,14 @@ export const useBanks = () => {
     }
   }
 
+
+  // 任何寫入成功後同步快取，下次切回此頁可立刻看到最新資料。
+  const withCacheSync = (fn) => async (...args) => {
+    const result = await fn(...args)
+    if (!result || result.success !== false) rememberCachedTable('bank', banks.value)
+    return result
+  }
+
   return {
     banks,
     loading,
@@ -309,11 +308,11 @@ export const useBanks = () => {
     bankFavicons,
     getBankFavicon,
     loadBanks,
-    addBank,
-    importBanks,
-    updateBank,
-    deleteBank,
-    initDefaultBanks,
+    addBank: withCacheSync(addBank),
+    importBanks: withCacheSync(importBanks),
+    updateBank: withCacheSync(updateBank),
+    deleteBank: withCacheSync(deleteBank),
+    initDefaultBanks: withCacheSync(initDefaultBanks),
     totalAssets,
     bankAccounts,
     electronicTickets,

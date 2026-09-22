@@ -111,7 +111,7 @@
         </div>
       </div>
 
-      <div v-if="loading" class="loading-state"><span class="sp-spinner" aria-hidden="true"></span> 載入中...</div>
+      <div v-if="loading && musics.length === 0" class="loading-state"><span class="sp-spinner" aria-hidden="true"></span> 載入中...</div>
 
       <div v-else-if="filteredMusics.length === 0 && !isAddingInline" class="empty-state">
         <span class="empty-icon" aria-hidden="true">🎧</span>

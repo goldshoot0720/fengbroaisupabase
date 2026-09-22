@@ -2,6 +2,7 @@
 // 食物管理的完整邏輯 - 使用共享狀態
 import { ref, computed } from 'vue'
 import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
+import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 共享狀態（在模組層級定義，所有組件共用）
@@ -82,29 +83,18 @@ export const useFoods = () => {
   })
 
   // 載入食物資料
-  const loadFoods = async () => {
+  // 先秀快取（記憶體 / IndexedDB），再背景向 Supabase 更新；同表同時只打一次請求。
+  const loadFoods = async (options = {}) => {
     const client = initSupabase()
     if (!client) return
-    
-    // 避免重複載入
-    if (isInitialized && foods.value.length > 0) return
-    
-    try {
-      foodLoading.value = true
-      const { data, error } = await client
-        .from('food')
-        .select('*')
-      
-      if (error) throw error
-      if (data) {
-        foods.value = data
-        isInitialized = true
-      }
-    } catch (error) {
-      console.error('載入食物資料失敗:', error)
-    } finally {
-      foodLoading.value = false
-    }
+    const result = await loadCachedTable({
+      table: 'food',
+      listRef: foods,
+      loadingRef: foodLoading,
+      force: options?.force === true,
+      fetcher: () => selectWholeTable(client, 'food')
+    })
+    if (result.success) isInitialized = true
   }
 
   // 新增食物
@@ -458,6 +448,14 @@ export const useFoods = () => {
     }
   }
 
+
+  // 寫入成功後同步快取（記憶體 + IndexedDB），重新整理或切換選單都能立即顯示。
+  const withCacheSync = (fn) => async (...args) => {
+    const result = await fn(...args)
+    if (!result || result.success !== false) rememberCachedTable('food', foods.value)
+    return result
+  }
+
   return {
     foods,
     foodLoading,
@@ -466,15 +464,15 @@ export const useFoods = () => {
     expiringFoods,
     sortedFoods,
     loadFoods,
-    addFood,
-    addFoodInline,
-    importFoods,
+    addFood: withCacheSync(addFood),
+    addFoodInline: withCacheSync(addFoodInline),
+    importFoods: withCacheSync(importFoods),
     isAppwriteFormat,
     editFood,
-    updateFood,
-    updateFoodInline,
-    deleteFood,
-    batchDeleteFoods,
+    updateFood: withCacheSync(updateFood),
+    updateFoodInline: withCacheSync(updateFoodInline),
+    deleteFood: withCacheSync(deleteFood),
+    batchDeleteFoods: withCacheSync(batchDeleteFoods),
     resetFoodForm
   }
 }

@@ -14,6 +14,7 @@ import {
 } from './catalog.js'
 import { exportCsvMenu, importCsvMenu } from './csvMenus.js'
 import { exportZipMenu, importZipMenu } from './zipMenus.js'
+import { clearTableCache } from '../tableCache.js'
 
 function downloadBlob(blob, filename) {
   const link = document.createElement('a')
@@ -142,7 +143,17 @@ export async function exportMenuBundle(kind, filename, helpers = {}, onProgress,
   return { kind, results, blob }
 }
 
+// 匯入會直接寫 Supabase 各資料表，結束後（無論成功與否）清掉讀取快取，
+// 避免切回選單時先看到匯入前的舊快照。
 export async function importMenuBundle(file, kind, helpers = {}, onProgress) {
+  try {
+    return await importMenuBundleInner(file, kind, helpers, onProgress)
+  } finally {
+    await clearTableCache().catch(() => {})
+  }
+}
+
+async function importMenuBundleInner(file, kind, helpers = {}, onProgress) {
   const results = []
   const name = file.name.toLowerCase()
 

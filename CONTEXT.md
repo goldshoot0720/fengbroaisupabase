@@ -43,6 +43,10 @@ Multi-account settings store friendly names like `goldshoot0720` / `abuhg17`. **
 
 Browser data clients are shared by `useSupabaseBrowserClient`. Account switching uses project URL + API key; the app has no Supabase Auth sign-in flow. Keep session persistence, token auto-refresh, and URL session detection disabled on this data client so it does not contend for cross-tab Auth locks.
 
+## Table read cache (speed)
+
+All table composables load through `composables/useCachedTable.js` → `utils/tableCache.js` (stale-while-revalidate): memory cache shared across composable instances + IndexedDB snapshot (`fengbro-table-cache`), keyed by `credKey` + table. A page shows the last snapshot instantly, then refreshes from Supabase in the background; concurrent loads of one table share a single request, and whole-table reads fetch the first page with `count: 'exact'` then the rest in parallel (no silent 1000-row cap). Mutations returned from composables are wrapped in `withCacheSync` so the snapshot stays current; a `load` within `TABLE_FRESH_MS` (4s) of a write reuses the cache. `app.vue` hydrates the snapshot on boot and `useTablePrefetch` warms every menu's table on idle (skipped offline / Save-Data). Menu backup import and clearing settings wipe the cache. Loading placeholders render only when the list is empty (`loading && list.length === 0`), so background refreshes and writes never blank a page. Bulk CSV imports for quota / trialpurchase / shoppinglist / reinstall write in parallel via `utils/asyncPool.js` (same key stays sequential).
+
 ## Bank workflow module
 
 `useBankWorkflow` owns the bank page workflow rules: transaction modal state, batch selection, batch deposit setting/adjustment, previews, validation, and selected deletion.

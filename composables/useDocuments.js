@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 const initSupabase = () => {
@@ -27,22 +28,18 @@ export const useDocuments = () => {
     return payload
   }
 
-  const loadDocuments = async () => {
+  // 先秀快取（記憶體 / IndexedDB），再背景向 Supabase 更新；同表同時只打一次請求。
+  const loadDocuments = async (options = {}) => {
     const client = initSupabase()
     if (!client) return
-    try {
-      loading.value = true
-      error.value = null
-      const { data, error: fetchError } = await client
-        .from(TABLE).select('*').order('created_at', { ascending: false })
-      if (fetchError) throw fetchError
-      documents.value = data || []
-    } catch (e) {
-      console.error('Error loading documents:', e)
-      error.value = e.message
-    } finally {
-      loading.value = false
-    }
+    await loadCachedTable({
+      table: 'commondocument',
+      listRef: documents,
+      loadingRef: loading,
+      errorRef: error,
+      force: options?.force === true,
+      fetcher: () => selectWholeTable(client, 'commondocument', { order: 'created_at', ascending: false })
+    })
   }
 
   const addDocument = async (item) => {
@@ -134,5 +131,13 @@ export const useDocuments = () => {
     }
   }
 
-  return { documents, loading, error, FIELDS, loadDocuments, addDocument, updateDocument, deleteDocument, importDocuments }
+
+  // 任何寫入成功後同步快取，下次切回此頁可立刻看到最新資料。
+  const withCacheSync = (fn) => async (...args) => {
+    const result = await fn(...args)
+    if (!result || result.success !== false) rememberCachedTable('commondocument', documents.value)
+    return result
+  }
+
+  return { documents, loading, error, FIELDS, loadDocuments, addDocument: withCacheSync(addDocument), updateDocument: withCacheSync(updateDocument), deleteDocument: withCacheSync(deleteDocument), importDocuments: withCacheSync(importDocuments) }
 }

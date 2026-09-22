@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 const initSupabase = () => {
@@ -14,22 +15,18 @@ export const useMusicRecords = () => {
   const TABLE = 'music'
   const FIELDS = ['name', 'file', 'filetype', 'lyrics', 'note', 'ref', 'category', 'hash', 'language', 'cover']
 
-  const loadMusics = async () => {
+  // 先秀快取（記憶體 / IndexedDB），再背景向 Supabase 更新；同表同時只打一次請求。
+  const loadMusics = async (options = {}) => {
     const client = initSupabase()
     if (!client) return
-    try {
-      loading.value = true
-      error.value = null
-      const { data, error: fetchError } = await client
-        .from(TABLE).select('*').order('created_at', { ascending: false })
-      if (fetchError) throw fetchError
-      musics.value = data || []
-    } catch (e) {
-      console.error('Error loading music:', e)
-      error.value = e.message
-    } finally {
-      loading.value = false
-    }
+    await loadCachedTable({
+      table: 'music',
+      listRef: musics,
+      loadingRef: loading,
+      errorRef: error,
+      force: options?.force === true,
+      fetcher: () => selectWholeTable(client, 'music', { order: 'created_at', ascending: false })
+    })
   }
 
   const addMusic = async (item) => {
@@ -118,5 +115,13 @@ export const useMusicRecords = () => {
     }
   }
 
-  return { musics, loading, error, FIELDS, loadMusics, addMusic, updateMusic, deleteMusic, importMusics }
+
+  // 任何寫入成功後同步快取，下次切回此頁可立刻看到最新資料。
+  const withCacheSync = (fn) => async (...args) => {
+    const result = await fn(...args)
+    if (!result || result.success !== false) rememberCachedTable('music', musics.value)
+    return result
+  }
+
+  return { musics, loading, error, FIELDS, loadMusics, addMusic: withCacheSync(addMusic), updateMusic: withCacheSync(updateMusic), deleteMusic: withCacheSync(deleteMusic), importMusics: withCacheSync(importMusics) }
 }

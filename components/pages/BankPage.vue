@@ -15,6 +15,10 @@
           <div class="label">電子票證總資產</div>
           <div class="amount">NT$ {{ formatNumber(electronicTicketTotalAssets) }}</div>
         </div>
+        <div class="total-assets-card points-card">
+          <div class="label">點數總計</div>
+          <div class="amount">{{ formatNumber(pointsTotal) }} 點</div>
+        </div>
         <div class="csv-actions">
           <button v-if="banks.length > 0" @click="exportBanksCsv" class="btn-csv export">
             匯出 CSV
@@ -38,7 +42,7 @@
           <button v-if="!batchMode && banks.length > 0" @click="enterBatchMode" class="btn-batch-mode">批量選擇</button>
           <button v-if="banks.length > 0" @click="openTransactionModal('income')" class="btn-transaction income" title="新增收入">新增收入</button>
           <button v-if="banks.length > 0" @click="openTransactionModal('expense')" class="btn-transaction expense" title="新增支出">新增支出</button>
-          <button @click="openAddModal" class="btn-add-account" title="新增銀行(或電子票證)">新增銀行(或電子票證)</button>
+          <button @click="openAddModal" class="btn-add-account" title="新增銀行(或電子票證/點數)">新增銀行(或電子票證/點數)</button>
           <template v-if="batchMode">
             <label class="select-all-label">
               <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll" />
@@ -48,6 +52,7 @@
           </template>
           <span>銀行帳戶 {{ bankAccountCount }} 個</span>
           <span>電子票證 {{ electronicTicketCount }} 個</span>
+          <span>點數 {{ pointsCount }} 個</span>
           <span>共 {{ banks.length }} 個項目</span>
           <span v-if="selectedIds.size > 0" class="selected-count">已選 {{ selectedIds.size }} 項</span>
         </div>
@@ -98,7 +103,7 @@
           </div>
           <div class="bank-info inline-edit-content">
             <div class="inline-edit-form">
-              <div class="inline-field-row"><label>存款</label><input v-model.number="addForm.deposit" type="number" class="inline-input" placeholder="0" /></div>
+              <div class="inline-field-row"><label>存款/點數</label><input v-model.number="addForm.deposit" type="number" class="inline-input" placeholder="0" /></div>
               <div class="inline-field-row"><label>帳號</label><input v-model="addForm.account" type="text" class="inline-input" placeholder="帳號" /></div>
               <div class="inline-field-row"><label>卡號</label><input v-model="addForm.card" type="text" class="inline-input" placeholder="卡號" /></div>
               <div class="inline-field-row"><label>分行</label><input v-model="addForm.site" type="text" class="inline-input" placeholder="分行/網點" /></div>
@@ -130,8 +135,8 @@
             <div class="bank-info inline-edit-content">
               <div class="inline-edit-form">
                 <div class="inline-field-row">
-                  <label>存款</label>
-                  <input v-model.number="editForm.deposit" type="number" class="inline-input" placeholder="存款金額">
+                  <label>{{ isPointsItem(editForm) ? '點數' : '存款' }}</label>
+                  <input v-model.number="editForm.deposit" type="number" class="inline-input" :placeholder="isPointsItem(editForm) ? '點數' : '存款金額'">
                 </div>
                 <div class="inline-field-row">
                   <label>帳號</label>
@@ -159,7 +164,7 @@
                 </div>
                 <div class="inline-field-row">
                   <label>活動</label>
-                  <textarea v-model="editForm.activity" class="inline-input inline-textarea" rows="2" placeholder="活動/備註"></textarea>
+                  <textarea v-model="editForm.activity" class="inline-input inline-textarea" rows="2" :placeholder="isPointsItem(editForm) ? '例如：有效期限至2027年2月7日' : '活動/備註'"></textarea>
                 </div>
               </div>
             </div>
@@ -199,8 +204,13 @@
           
           <div class="bank-info">
             <div class="info-item highlight">
-              <span class="label">存款</span>
-              <span class="value">NT$ {{ formatNumber(bank.deposit) }}</span>
+              <span class="label">{{ isPointsItem(bank) ? '點數' : '存款' }}</span>
+              <span class="value">{{ formatAmount(bank, bank.deposit) }}</span>
+            </div>
+
+            <div v-if="isPointsItem(bank) && bank.activity" class="points-note">
+              <span class="label">備註</span>
+              <span class="value">{{ bank.activity }}</span>
             </div>
             
             <div class="info-row">
@@ -332,7 +342,7 @@
               <div v-for="bank in selectedBanks" :key="bank.id" class="batch-bank-row">
                 <div class="batch-bank-main">
                   <strong>{{ bank.name }}</strong>
-                  <span>目前 NT$ {{ formatNumber(bank.deposit) }}</span>
+                  <span>目前 {{ formatAmount(bank, bank.deposit) }}</span>
                 </div>
                 <input
                   v-if="batchAdjustMode === 'individual'"
@@ -344,9 +354,9 @@
                 >
                 <div class="batch-bank-preview">
                   <span v-if="!hasBatchInput(bank)" class="preview-muted">尚未輸入</span>
-                  <span v-else-if="batchOperation === 'set'">設定 NT$ {{ formatNumber(getBatchAmount(bank)) }}</span>
-                  <span v-else>{{ batchAdjustType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(getBatchAmount(bank)) }}</span>
-                  <strong>更新後 NT$ {{ formatNumber(getAdjustedDeposit(bank)) }}</strong>
+                  <span v-else-if="batchOperation === 'set'">設定 {{ formatAmount(bank, getBatchAmount(bank)) }}</span>
+                  <span v-else>{{ batchAdjustType === 'income' ? '+' : '-' }} {{ formatAmount(bank, getBatchAmount(bank)) }}</span>
+                  <strong>更新後 {{ formatAmount(bank, getAdjustedDeposit(bank)) }}</strong>
                 </div>
               </div>
             </div>
@@ -377,7 +387,7 @@
                   <select v-model="transactionForm.bankId" class="form-select">
                     <option value="" disabled>請選擇銀行帳戶</option>
                     <option v-for="bank in banks" :key="bank.id" :value="String(bank.id)">
-                      {{ bank.name }} (目前 NT$ {{ formatNumber(bank.deposit) }})
+                      {{ bank.name }} (目前 {{ formatAmount(bank, bank.deposit) }})
                     </option>
                   </select>
                 </div>
@@ -420,17 +430,17 @@
             <div v-if="selectedTransactionBank" class="transaction-preview">
               <div class="preview-row">
                 <span>目前金額</span>
-                <strong>NT$ {{ formatNumber(selectedTransactionBank.deposit) }}</strong>
+                <strong>{{ formatAmount(selectedTransactionBank, selectedTransactionBank.deposit) }}</strong>
               </div>
               <div class="preview-row">
                 <span>{{ transactionType === 'income' ? '本次收入' : '本次支出' }}</span>
                 <strong :class="transactionType === 'income' ? 'preview-positive' : 'preview-negative'">
-                  {{ transactionType === 'income' ? '+' : '-' }} NT$ {{ formatNumber(transactionForm.amount || 0) }}
+                  {{ transactionType === 'income' ? '+' : '-' }} {{ formatAmount(selectedTransactionBank, transactionForm.amount || 0) }}
                 </strong>
               </div>
               <div class="preview-row preview-total">
                 <span>更新後餘額</span>
-                <strong>NT$ {{ formatNumber(projectedTransactionBalance) }}</strong>
+                <strong>{{ formatAmount(selectedTransactionBank, projectedTransactionBalance) }}</strong>
               </div>
             </div>
           </div>
@@ -448,7 +458,7 @@
       <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
         <div class="modal-content">
           <div class="modal-header">
-            <h3>{{ isEditing ? '編輯銀行帳戶' : '新增銀行(或電子票證)' }}</h3>
+            <h3>{{ isEditing ? '編輯銀行帳戶' : '新增銀行(或電子票證/點數)' }}</h3>
             <button class="btn-close" @click="closeModal">✕</button>
           </div>
           
@@ -473,7 +483,7 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label>存款金額</label>
+                <label>存款金額／點數</label>
                 <input v-model.number="formData.deposit" type="number" class="form-input">
               </div>
               <div class="form-group">
@@ -511,7 +521,7 @@
 
             <div class="form-group">
               <label>活動/備註</label>
-              <textarea v-model="formData.activity" class="form-textarea" rows="3"></textarea>
+              <textarea v-model="formData.activity" class="form-textarea" rows="3" placeholder="點數可填到期日，例如：有效期限至2027年2月7日"></textarea>
             </div>
           </div>
           
@@ -548,7 +558,10 @@ const {
   bankAccountCount,
   electronicTicketCount,
   bankTotalAssets,
-  electronicTicketTotalAssets
+  electronicTicketTotalAssets,
+  pointsCount,
+  pointsTotal,
+  isPointsItem
 } = useBanks()
 
 // 狀態
@@ -778,6 +791,11 @@ const handleImportCsv = async (e) => {
 // 格式化數字
 const formatNumber = (num) => {
   return Number(num || 0).toLocaleString()
+}
+
+// 點數以「點」顯示，其餘為新台幣
+const formatAmount = (item, num) => {
+  return item && isPointsItem(item) ? `${formatNumber(num)} 點` : `NT$ ${formatNumber(num)}`
 }
 
 // 切換詳細資訊
@@ -1283,6 +1301,24 @@ useHead({
 .ticket-assets-card {
   background: var(--primary-solid);
   color: var(--on-primary);
+}
+
+.points-card {
+  background: var(--success-solid);
+  color: var(--on-solid);
+}
+
+.points-note {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.points-note .value {
+  text-align: right;
+  word-break: break-word;
 }
 
 .total-assets-card .label {

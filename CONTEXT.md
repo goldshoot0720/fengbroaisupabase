@@ -11,7 +11,7 @@ Column source of truth for new tables is the `tables` array in `components/pages
 | UI | Page | Owner composable | Table |
 |----|------|------------------|-------|
 | 鋒兄筆記 | `NotePage.vue` | `useArticles` | `article` |
-| 鋒兄銀行 | `BankPage.vue` | `useBanks` + `useBankWorkflow` | `bank` |
+| 鋒兄銀行（＋電子票證/點數） | `BankPage.vue` | `useBanks` + `useBankWorkflow` | `bank`（名稱含 point／點數／紅利／里程 → 點數：存款欄記點數、到期日寫備註，不計入新台幣資產） |
 | 鋒兄常用 | `CommonPage.vue` | `useCommonAccounts` | `commonaccount` |
 | 鋒兄文件 | `DocumentPage.vue` | `useDocuments` | `commondocument` |
 | 鋒兄食品 | `FoodPage.vue` | `useFoods` | `food` |

@@ -29,7 +29,7 @@ const pages = [
   {
     id: 'finance', name: '財務與帳號', iconName: 'finance', title: '財務與帳號', subtitle: '管理銀行紀錄與常用帳號。',
     children: [
-      { id: 'bank', page: 'bank', name: '銀行', title: '鋒兄銀行', subtitle: '管理銀行與電子票證紀錄。' },
+      { id: 'bank', page: 'bank', name: '銀行/票證/點數', title: '鋒兄銀行', titleHint: '（＋電子票證/點數）', subtitle: '管理銀行、電子票證與點數紀錄。' },
       { id: 'common', page: 'common', name: '常用帳號', title: '鋒兄常用', subtitle: '管理常用帳號與備註。' },
     ]
   },

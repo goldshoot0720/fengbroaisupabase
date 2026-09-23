@@ -328,7 +328,7 @@ const {
 
 // 所有資料表
 const { articles, loadArticles } = useArticles()
-const { banks, loadBanks, bankAccountCount, electronicTicketCount } = useBanks()
+const { banks, loadBanks, bankAccountCount, electronicTicketCount, pointsCount } = useBanks()
 const { accounts, loadAccounts } = useCommonAccounts()
 const { documents, loadDocuments } = useDocuments()
 const { foods, loadFoods } = useFoods()
@@ -360,6 +360,7 @@ const tableStats = computed(() => [
   { name: 'article', label: '文章管理', icon: '📰', count: articles.value.length, page: 'note' },
   { name: 'bank', label: '銀行帳戶', icon: '🏦', count: bankAccountCount.value, page: 'bank' },
   { name: 'electronic-ticket', label: '電子票證', icon: '💳', count: electronicTicketCount.value, page: 'bank' },
+  { name: 'points', label: '點數', icon: '🎁', count: pointsCount.value, page: 'bank' },
   { name: 'commonaccount', label: '常用帳號', icon: '🔑', count: accounts.value.length, page: 'common' },
   { name: 'commondocument', label: '通用文件', icon: '📄', count: documents.value.length, page: 'document' },
   { name: 'image', label: '圖片管理', icon: '🖼️', count: images.value.length, page: 'gallery' },

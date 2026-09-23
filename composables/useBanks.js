@@ -20,11 +20,20 @@ const taiwanBankKeywords = [
   '漁會', '信用合作社', '信合社', '銀行', '信託'
 ]
 
+// 點數：存款欄記點數（例：Line pay point 33 點），到期日寫在活動/備註。優先於銀行判斷。
+const pointsKeywords = ['點數', 'point', '紅利', '里程', '哩程']
+
 const normalizeBankName = (name = '') => String(name).trim().toLowerCase()
+
+const isPointsItem = (item = {}) => {
+  const name = normalizeBankName(item.name)
+  if (!name) return false
+  return pointsKeywords.some(keyword => name.includes(keyword))
+}
 
 const isTaiwanBankAccount = (item = {}) => {
   const name = normalizeBankName(item.name)
-  if (!name) return false
+  if (!name || isPointsItem(item)) return false
   return taiwanBankKeywords.some(keyword => name.includes(keyword.toLowerCase()))
 }
 
@@ -229,9 +238,11 @@ export const useBanks = () => {
     }
   }
 
-  // 計算總資產
+  // 計算總資產（點數不是新台幣，不計入）
   const totalAssets = computed(() => {
-    return banks.value.reduce((sum, bank) => sum + (Number(bank.deposit) || 0), 0)
+    return banks.value
+      .filter(bank => !isPointsItem(bank))
+      .reduce((sum, bank) => sum + (Number(bank.deposit) || 0), 0)
   })
 
   const bankAccounts = computed(() => {
@@ -239,7 +250,11 @@ export const useBanks = () => {
   })
 
   const electronicTickets = computed(() => {
-    return banks.value.filter(bank => !isTaiwanBankAccount(bank))
+    return banks.value.filter(bank => !isTaiwanBankAccount(bank) && !isPointsItem(bank))
+  })
+
+  const pointsItems = computed(() => {
+    return banks.value.filter(bank => isPointsItem(bank))
   })
 
   const bankAccountCount = computed(() => bankAccounts.value.length)
@@ -249,6 +264,10 @@ export const useBanks = () => {
   })
   const electronicTicketTotalAssets = computed(() => {
     return electronicTickets.value.reduce((sum, item) => sum + (Number(item.deposit) || 0), 0)
+  })
+  const pointsCount = computed(() => pointsItems.value.length)
+  const pointsTotal = computed(() => {
+    return pointsItems.value.reduce((sum, item) => sum + (Number(item.deposit) || 0), 0)
   })
 
   // 批次匯入銀行
@@ -320,6 +339,10 @@ export const useBanks = () => {
     electronicTicketCount,
     bankTotalAssets,
     electronicTicketTotalAssets,
-    isTaiwanBankAccount
+    pointsItems,
+    pointsCount,
+    pointsTotal,
+    isTaiwanBankAccount,
+    isPointsItem
   }
 }

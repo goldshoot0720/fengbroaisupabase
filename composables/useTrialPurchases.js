@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
-import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
+import { createOptimisticList, loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { runGroupedConcurrently } from '../utils/asyncPool.js'
 import {
   buildTrialPurchaseWritePayload,
@@ -39,6 +39,9 @@ const fetchAllRows = (client) =>
   selectWholeTable(client, 'trialpurchase', { order: 'created_at', ascending: false })
 
 export const useTrialPurchases = () => {
+  // 新增 / 更新 / 刪除先改畫面，失敗自動還原（見 useCachedTable.createOptimisticList）
+  const optimistic = createOptimisticList({ table: 'trialpurchase', listRef: items, toMessage: getErrorMessage })
+
   const serviceNames = computed(() =>
     [...new Set(items.value.map((item) => item.name.trim()).filter(Boolean))].sort((a, b) =>
       a.localeCompare(b, 'zh-Hant'),
@@ -64,24 +67,25 @@ export const useTrialPurchases = () => {
     })
   }
 
-  const writeRecord = async (form, mode, id) => {
+  const writeRecord = async (form, mode, id, options = {}) => {
     const client = initClient()
     if (!client) return { success: false, error: '尚未連線 Supabase' }
     try {
       loading.value = true
       const payload = buildTrialPurchaseWritePayload(form, mode)
       const row = trialPurchaseToDbRow(payload)
-      const query = mode === 'update'
-        ? client.from('trialpurchase').update(row).eq('id', id).select()
-        : client.from('trialpurchase').insert([row]).select()
-      const { data, error: writeError } = await query
-      if (writeError) throw writeError
-      const saved = trialPurchaseFromDbRow(data?.[0])
-      if (mode === 'update') {
-        items.value = items.value.map((item) => item.id === id ? saved : item)
-      } else {
-        items.value = [saved, ...items.value]
+      // 畫面先用即將寫入的內容，伺服器回傳後換成正式資料列（含 id / created_at）。
+      const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...preview } = trialPurchaseFromDbRow(row)
+      const commitRow = async (query) => {
+        const { data, error: writeError } = await query
+        if (writeError) throw writeError
+        return trialPurchaseFromDbRow(data?.[0])
       }
+      const saved = mode === 'update'
+        ? await optimistic.update(id, preview, (realId) =>
+            commitRow(client.from('trialpurchase').update(row).eq('id', realId).select()), options)
+        : await optimistic.insert(preview, () =>
+            commitRow(client.from('trialpurchase').insert([row]).select()), options)
       error.value = ''
       return { success: true, item: saved }
     } catch (err) {
@@ -98,16 +102,14 @@ export const useTrialPurchases = () => {
     const client = initClient()
     if (!client) return { success: false, error: '尚未連線 Supabase' }
     try {
-      loading.value = true
-      const { error: deleteError } = await client.from('trialpurchase').delete().eq('id', id)
-      if (deleteError) throw deleteError
-      items.value = items.value.filter((item) => item.id !== id)
+      await optimistic.remove([id], async ([realId]) => {
+        const { error: deleteError } = await client.from('trialpurchase').delete().eq('id', realId)
+        if (deleteError) throw deleteError
+      })
       error.value = ''
       return { success: true }
     } catch (err) {
       return { success: false, error: getErrorMessage(err) }
-    } finally {
-      loading.value = false
     }
   }
 
@@ -122,8 +124,8 @@ export const useTrialPurchases = () => {
     await runGroupedConcurrently(records, (form) => trialPurchaseImportKey(form), async (form, key) => {
       const existingId = index.get(key)
       const result = existingId
-        ? await updateTrialPurchase(existingId, form)
-        : await addTrialPurchase(form)
+        ? await writeRecord(form, 'update', existingId, { notify: false })
+        : await writeRecord(form, 'create', undefined, { notify: false })
       if (result.success) {
         successCount += 1
         if (result.item?.id) index.set(key, result.item.id)

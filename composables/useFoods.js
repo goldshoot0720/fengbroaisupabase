@@ -2,7 +2,7 @@
 // 食物管理的完整邏輯 - 使用共享狀態
 import { ref, computed } from 'vue'
 import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
-import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
+import { createOptimisticList, loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 共享狀態（在模組層級定義，所有組件共用）
@@ -28,6 +28,36 @@ const toNullableNumber = (value) => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
 }
+
+// 新增 / 更新 / 刪除先改畫面，失敗自動還原（見 useCachedTable.createOptimisticList）
+const optimistic = createOptimisticList({ table: 'food', listRef: foods })
+
+const buildFoodRow = (form) => ({
+  name: form.name,
+  amount: toNullableNumber(form.amount),
+  price: form.price || null,
+  shop: form.shop || null,
+  todate: form.todate || null,
+  photo: form.photo || null,
+  photohash: form.photohash || null
+})
+
+const insertFoodRow = (client, row) => optimistic.insert(row, async () => {
+  const { data, error } = await client.from('food').insert(row).select().single()
+  if (error) throw error
+  return data
+})
+
+const updateFoodRow = (client, id, row) => optimistic.update(id, row, async (realId) => {
+  const { data, error } = await client.from('food').update(row).eq('id', realId).select().single()
+  if (error) throw error
+  return data
+})
+
+const deleteFoodRows = (client, ids) => optimistic.remove(ids, async (realIds) => {
+  const { error } = await client.from('food').delete().in('id', realIds)
+  if (error) throw error
+})
 
 export const useFoods = () => {
   // 初始化 Supabase（優先使用 localStorage 設定）
@@ -114,23 +144,7 @@ export const useFoods = () => {
     try {
       foodLoading.value = true
 
-      const { data, error } = await client
-        .from('food')
-        .insert({
-          name: newFood.value.name,
-          amount: toNullableNumber(newFood.value.amount),
-          price: newFood.value.price || null,
-          shop: newFood.value.shop || null,
-          todate: newFood.value.todate || null,
-          photo: newFood.value.photo || null,
-          photohash: newFood.value.photohash || null
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      foods.value.unshift(data)
+      await insertFoodRow(client, buildFoodRow(newFood.value))
       resetFoodForm()
       alert('食物新增成功！')
     } catch (error) {
@@ -151,23 +165,7 @@ export const useFoods = () => {
     }
 
     try {
-      const { data, error } = await client
-        .from('food')
-        .insert({
-          name: formData.name,
-          amount: toNullableNumber(formData.amount),
-          price: formData.price || null,
-          shop: formData.shop || null,
-          todate: formData.todate || null,
-          photo: formData.photo || null,
-          photohash: formData.photohash || null
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      foods.value.unshift(data)
+      await insertFoodRow(client, buildFoodRow(formData))
       return { success: true }
     } catch (error) {
       console.error('行内新增失敗:', error.message)
@@ -212,29 +210,7 @@ export const useFoods = () => {
     try {
       foodLoading.value = true
 
-      const { data, error } = await client
-        .from('food')
-        .update({
-          name: newFood.value.name,
-          amount: toNullableNumber(newFood.value.amount),
-          price: newFood.value.price || null,
-          shop: newFood.value.shop || null,
-          todate: newFood.value.todate || null,
-          photo: newFood.value.photo || null,
-          photohash: newFood.value.photohash || null
-        })
-        .eq('id', editingFood.value.id)
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // 更新本地資料
-      const index = foods.value.findIndex(f => f.id === editingFood.value.id)
-      if (index !== -1) {
-        foods.value[index] = data
-      }
-
+      await updateFoodRow(client, editingFood.value.id, buildFoodRow(newFood.value))
       resetFoodForm()
       alert('食物更新成功！')
     } catch (error) {
@@ -251,28 +227,7 @@ export const useFoods = () => {
     if (!client) return { success: false, error: '無法連接資料庫' }
 
     try {
-      const { data, error } = await client
-        .from('food')
-        .update({
-          name: formData.name,
-          amount: toNullableNumber(formData.amount),
-          price: formData.price || null,
-          shop: formData.shop || null,
-          todate: formData.todate || null,
-          photo: formData.photo || null,
-          photohash: formData.photohash || null
-        })
-        .eq('id', id)
-        .select()
-        .single()
-
-      if (error) throw error
-
-      const index = foods.value.findIndex(f => f.id === id)
-      if (index !== -1) {
-        foods.value[index] = data
-      }
-
+      await updateFoodRow(client, id, buildFoodRow(formData))
       return { success: true }
     } catch (error) {
       console.error('行内更新失敗:', error.message)
@@ -288,22 +243,10 @@ export const useFoods = () => {
     if (!confirm('確定要刪除此食物項目嗎？')) return
 
     try {
-      foodLoading.value = true
-
-      const { error } = await client
-        .from('food')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-
-      foods.value = foods.value.filter(f => f.id !== id)
-      alert('食物已刪除！')
+      await deleteFoodRows(client, [id])
     } catch (error) {
       console.error('刪除食物失敗:', error.message)
       alert('刪除食物失敗: ' + error.message)
-    } finally {
-      foodLoading.value = false
     }
   }
 
@@ -313,22 +256,11 @@ export const useFoods = () => {
     if (!client || ids.length === 0) return { success: false, error: '無效操作' }
 
     try {
-      foodLoading.value = true
-
-      const { error } = await client
-        .from('food')
-        .delete()
-        .in('id', ids)
-
-      if (error) throw error
-
-      foods.value = foods.value.filter(f => !ids.includes(f.id))
+      await deleteFoodRows(client, [...ids])
       return { success: true, count: ids.length }
     } catch (error) {
       console.error('批量刪除失敗:', error.message)
       return { success: false, error: error.message }
-    } finally {
-      foodLoading.value = false
     }
   }
 

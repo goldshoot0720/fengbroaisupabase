@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
-import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
+import { createOptimisticList, loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 const initSupabase = () => {
@@ -11,6 +11,8 @@ export const useImages = () => {
   const images = ref([])
   const loading = ref(false)
   const error = ref(null)
+  // 新增 / 更新 / 刪除先改畫面，失敗自動還原（見 useCachedTable.createOptimisticList）
+  const optimistic = createOptimisticList({ table: 'image', listRef: images })
 
   const TABLE = 'image'
   const FIELDS = ['name', 'file', 'filetype', 'note', 'ref', 'category', 'hash', 'cover']
@@ -92,9 +94,11 @@ export const useImages = () => {
     try {
       loading.value = true
       const payload = buildPayload(item)
-      const { data, error: err } = await client.from(TABLE).insert([payload]).select()
-      if (err) throw err
-      if (data) images.value.unshift(data[0])
+      await optimistic.insert(payload, async () => {
+        const { data, error: err } = await client.from(TABLE).insert([payload]).select()
+        if (err) throw err
+        return data?.[0] || null
+      })
       return { success: true }
     } catch (e) {
       return { success: false, error: e.message }
@@ -109,12 +113,11 @@ export const useImages = () => {
     try {
       loading.value = true
       const payload = buildPayload(item)
-      const { data, error: err } = await client.from(TABLE).update(payload).eq('id', id).select()
-      if (err) throw err
-      if (data) {
-        const idx = images.value.findIndex(a => a.id === id)
-        if (idx !== -1) images.value[idx] = data[0]
-      }
+      await optimistic.update(id, payload, async (realId) => {
+        const { data, error: err } = await client.from(TABLE).update(payload).eq('id', realId).select()
+        if (err) throw err
+        return data?.[0] || null
+      })
       return { success: true }
     } catch (e) {
       return { success: false, error: e.message }
@@ -127,15 +130,13 @@ export const useImages = () => {
     const client = initSupabase()
     if (!client) return { success: false, error: 'No client' }
     try {
-      loading.value = true
-      const { error: err } = await client.from(TABLE).delete().eq('id', id)
-      if (err) throw err
-      images.value = images.value.filter(a => a.id !== id)
+      await optimistic.remove([id], async ([realId]) => {
+        const { error: err } = await client.from(TABLE).delete().eq('id', realId)
+        if (err) throw err
+      })
       return { success: true }
     } catch (e) {
       return { success: false, error: e.message }
-    } finally {
-      loading.value = false
     }
   }
 

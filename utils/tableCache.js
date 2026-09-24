@@ -13,8 +13,11 @@
 // 本模組刻意不依賴 Vue / Nuxt，可以直接在 node --test 中測試。
 
 export const TABLE_PAGE_SIZE = 1000
-// 在這個時間內剛抓過的表，再次 load 只用快取、不重打網路（例如寫入後頁面又呼叫 load）。
-export const TABLE_FRESH_MS = 4000
+// 在這個時間內抓過（或寫入過）的表，再次 load 只用快取、不重打網路。
+// 本站自己的寫入都會同步更新快取（Optimistic UI + rememberCachedTable），
+// 所以一分鐘內切換選單回來資料一定是最新的，不需要再問 Supabase；
+// 超過後才背景重新驗證，用來接住其他裝置 / 分頁的變更。要立即更新可傳 force。
+export const TABLE_FRESH_MS = 60_000
 
 const IDB_NAME = 'fengbro-table-cache'
 const IDB_STORE = 'tables'
@@ -23,6 +26,7 @@ const IDB_VERSION = 1
 const memory = new Map() // key -> { rows, at }
 const inflight = new Map() // key -> Promise<rows>
 const listeners = new Map() // key -> Set<fn>
+const mutations = new Map() // key -> { pending, epoch }
 let dbPromise = null
 let hydratePromise = null
 let hydrated = false
@@ -158,6 +162,45 @@ export const writeTableCache = (key, rows, { silent = false } = {}) => {
   if (!silent) notify(key, entry.rows)
 }
 
+// ── 寫入追蹤（Optimistic UI 用）───────────────────────────────
+// 樂觀寫入進行中，或背景讀取開始後有寫入完成時，那次讀取拿到的是「寫入前」的資料：
+// 不能拿它覆蓋畫面或快取，否則剛刪掉的列會復活、剛新增的列會消失。
+const mutationState = (key) => {
+  if (!mutations.has(key)) mutations.set(key, { pending: 0, epoch: 0 })
+  return mutations.get(key)
+}
+
+export const beginTableMutation = (key) => {
+  const state = mutationState(key)
+  state.pending += 1
+  state.epoch += 1
+}
+
+export const endTableMutation = (key) => {
+  const state = mutationState(key)
+  state.pending = Math.max(0, state.pending - 1)
+  state.epoch += 1
+}
+
+export const isTableMutating = (key) => (mutations.get(key)?.pending || 0) > 0
+
+export const tableMutationEpoch = (key) => mutations.get(key)?.epoch || 0
+
+// 讀取開始時記下 epoch，結束時用這個判斷資料是否已經被寫入超車。
+export const isTableReadStale = (key, epochAtStart) =>
+  isTableMutating(key) || tableMutationEpoch(key) !== epochAtStart
+
+// 兩份資料列內容完全相同（背景更新拿到一樣的資料時用來避免整頁重新渲染）。
+export const sameRows = (a, b) => {
+  if (a === b) return true
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+  try {
+    return JSON.stringify(a) === JSON.stringify(b)
+  } catch {
+    return false
+  }
+}
+
 export const invalidateTableCache = (key) => {
   memory.delete(key)
   idbDelete(key)
@@ -237,10 +280,19 @@ export const loadTableWithCache = async (key, fetcher, { onCached, force = false
   if (inflight.has(key)) return inflight.get(key)
 
   const promise = (async () => {
+    const epochAtStart = tableMutationEpoch(key)
     try {
-      const rows = await fetcher()
-      writeTableCache(key, rows || [], { silent: true })
-      return rows || []
+      const rows = (await fetcher()) || []
+      // 讀取期間有寫入：這份資料已過時，保留快取裡（寫入後）的版本。
+      if (isTableReadStale(key, epochAtStart)) return memory.get(key)?.rows || rows
+      // 資料沒變：沿用同一個陣列、只更新時間戳，畫面不必重畫。
+      const previous = memory.get(key)
+      if (previous && sameRows(previous.rows, rows)) {
+        previous.at = Date.now()
+        return previous.rows
+      }
+      writeTableCache(key, rows, { silent: true })
+      return rows
     } finally {
       inflight.delete(key)
     }
@@ -254,6 +306,7 @@ export const __resetTableCacheForTests = () => {
   memory.clear()
   inflight.clear()
   listeners.clear()
+  mutations.clear()
   dbPromise = null
   hydratePromise = null
   hydrated = false

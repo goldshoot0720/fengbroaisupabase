@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
-import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
+import { createOptimisticList, loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 初始化 Supabase（優先使用 localStorage 設定）
@@ -41,6 +41,9 @@ export const useBanks = () => {
   const banks = ref([])
   const loading = ref(false)
   const error = ref(null)
+  // 新增 / 更新 / 刪除先改畫面，失敗自動還原；清單維持依存款由高到低。
+  const sortByDeposit = (list) => [...list].sort((a, b) => (Number(b.deposit) || 0) - (Number(a.deposit) || 0))
+  const optimistic = createOptimisticList({ table: 'bank', listRef: banks, sort: sortByDeposit })
 
   // 預設銀行列表
   const defaultBankNames = [
@@ -108,17 +111,15 @@ export const useBanks = () => {
         created_at: new Date().toISOString()
       }
 
-      const { data, error: insertError } = await client
-        .from('bank')
-        .insert([payload])
-        .select()
+      await optimistic.insert(payload, async () => {
+        const { data, error: insertError } = await client
+          .from('bank')
+          .insert([payload])
+          .select()
 
-      if (insertError) throw insertError
-
-      if (data) {
-        banks.value.push(data[0])
-        banks.value.sort((a, b) => (Number(b.deposit) || 0) - (Number(a.deposit) || 0))
-      }
+        if (insertError) throw insertError
+        return data?.[0] || null
+      }, { prepend: false })
       return { success: true }
     } catch (e) {
       console.error('Error adding bank:', e)
@@ -147,21 +148,16 @@ export const useBanks = () => {
         account: bankData.account || null
       }
 
-      const { data, error: updateError } = await client
-        .from('bank')
-        .update(payload)
-        .eq('id', id)
-        .select()
+      await optimistic.update(id, payload, async (realId) => {
+        const { data, error: updateError } = await client
+          .from('bank')
+          .update(payload)
+          .eq('id', realId)
+          .select()
 
-      if (updateError) throw updateError
-
-      if (data) {
-        const index = banks.value.findIndex(b => b.id === id)
-        if (index !== -1) {
-          banks.value[index] = data[0]
-        }
-        banks.value.sort((a, b) => (Number(b.deposit) || 0) - (Number(a.deposit) || 0))
-      }
+        if (updateError) throw updateError
+        return data?.[0] || null
+      })
       return { success: true }
     } catch (e) {
       console.error('Error updating bank:', e)
@@ -177,21 +173,18 @@ export const useBanks = () => {
     if (!client) return { success: false, error: 'No client' }
     
     try {
-      loading.value = true
-      const { error: deleteError } = await client
-        .from('bank')
-        .delete()
-        .eq('id', id)
+      await optimistic.remove([id], async ([realId]) => {
+        const { error: deleteError } = await client
+          .from('bank')
+          .delete()
+          .eq('id', realId)
 
-      if (deleteError) throw deleteError
-
-      banks.value = banks.value.filter(b => b.id !== id)
+        if (deleteError) throw deleteError
+      })
       return { success: true }
     } catch (e) {
       console.error('Error deleting bank:', e)
       return { success: false, error: e.message }
-    } finally {
-      loading.value = false
     }
   }
 

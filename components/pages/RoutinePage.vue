@@ -416,14 +416,10 @@ const saveInlineEdit = async () => {
     alert('請輸入例行名稱')
     return
   }
-  try {
-    await updateRoutine(editForm.id, { ...editForm })
-    editingId.value = null
-    await loadRoutines()
-  } catch (error) {
-    console.error('Inline edit save error:', error)
-    alert('儲存失敗: ' + error.message)
-  }
+  // 樂觀更新：列表已立即套用，直接關閉編輯列；失敗時會還原並跳出提示。
+  const pending = updateRoutine(editForm.id, { ...editForm })
+  editingId.value = null
+  await pending
 }
 const formData = ref({
   id: null,
@@ -450,10 +446,12 @@ const deleteSelected = async () => {
     const input = prompt(`即將刪除全部 ${count} 筆！\n\n請輸入 DELETE routine 確認：`)
     if (input !== 'DELETE routine') { alert('輸入不正確，已取消'); return }
   } else { if (!confirm(`確定要刪除選中的 ${count} 筆嗎？`)) return }
-  let ok = 0
-  for (const id of [...selectedIds.value]) { const r = await deleteRoutine(id); if (r.success) ok++ }
+  // 樂觀刪除：選中的列立刻消失、請求並行送出；失敗的會自動還原。
+  const ids = [...selectedIds.value]
   selectedIds.value = new Set(); batchMode.value = false
-  alert(`已刪除 ${ok} 筆`)
+  const results = await Promise.all(ids.map(id => deleteRoutine(id)))
+  const ok = results.filter(r => r.success).length
+  if (ok < ids.length) alert(`已刪除 ${ok} 筆，失敗 ${ids.length - ok} 筆（已還原）`)
 }
 
 const getRoutineDateSortValue = (dateString) => {
@@ -528,10 +526,10 @@ const openInlineAdd = () => { addForm.value = { name: '', note: '', lastdate1: '
 const cancelInlineAdd = () => { isAddingInline.value = false }
 const saveInlineAdd = async () => {
   if (!addForm.value.name) { alert('請輸入例行名稱'); return }
-  try {
-    await addRoutine({ ...addForm.value, lastdate1: addForm.value.lastdate1 || null, lastdate2: addForm.value.lastdate2 || null, lastdate3: addForm.value.lastdate3 || null })
-    isAddingInline.value = false; await loadRoutines()
-  } catch (e) { alert('新增失敗: ' + e.message) }
+  // 樂觀新增：新列立即出現，直接關閉新增列；失敗時會移除並跳出提示。
+  const payload = { ...addForm.value, lastdate1: addForm.value.lastdate1 || null, lastdate2: addForm.value.lastdate2 || null, lastdate3: addForm.value.lastdate3 || null }
+  isAddingInline.value = false
+  await addRoutine(payload)
 }
 
 const openAddModal = () => {
@@ -599,12 +597,15 @@ const handleSubmit = async () => {
       photo: formData.value.photo
     }
 
-    if (isEditMode.value) {
-      await updateRoutine(formData.value.id, data)
+    // 樂觀寫入：列表已立即更新，先關閉視窗再等伺服器確認。
+    const id = formData.value.id
+    const editing = isEditMode.value
+    closeModal()
+    if (editing) {
+      await updateRoutine(id, data)
     } else {
       await addRoutine(data)
     }
-    closeModal()
   } catch (error) {
     console.error('Failed to save routine:', error)
     alert('儲存失敗: ' + error.message)

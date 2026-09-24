@@ -846,23 +846,22 @@ const applyCategoriesToSelected = async () => {
   const categoriesToApply = normalizeBatchCategories(batchCategoryInput.value)
   if (selectedIds.value.size === 0 || categoriesToApply.length === 0) return
 
-  let successCount = 0
-  for (const id of selectedIds.value) {
+  // 樂觀更新：所有選中的筆記立刻換上新分類，請求並行送出。
+  const results = await Promise.all([...selectedIds.value].map((id) => {
     const article = findArticleById(id)
-    if (!article) continue
+    if (!article) return null
 
     const mergedCategories = [...new Set([
       ...splitCategories(article.category),
       ...categoriesToApply
     ])]
 
-    const result = await updateArticle(id, {
+    return updateArticle(id, {
       ...article,
       category: joinCategories(mergedCategories)
     })
-
-    if (result.success) successCount++
-  }
+  }))
+  const successCount = results.filter((result) => result?.success).length
 
   if (successCount > 0) {
     batchCategoryInput.value = ''
@@ -873,18 +872,15 @@ const clearCategoriesFromSelected = async () => {
   if (selectedIds.value.size === 0) return
   if (!confirm(`確定要清除 ${selectedIds.value.size} 篇筆記的分類嗎？`)) return
 
-  let successCount = 0
-  for (const id of selectedIds.value) {
+  const results = await Promise.all([...selectedIds.value].map((id) => {
     const article = findArticleById(id)
-    if (!article) continue
-
-    const result = await updateArticle(id, {
+    if (!article) return null
+    return updateArticle(id, {
       ...article,
       category: ''
     })
-
-    if (result.success) successCount++
-  }
+  }))
+  const successCount = results.filter((result) => result?.success).length
 
   if (successCount > 0) {
     batchCategoryInput.value = ''
@@ -1028,17 +1024,15 @@ const deleteSelected = async () => {
     if (!confirm(`確定要刪除選中的 ${count} 筆筆記嗎？`)) return
   }
 
-  let successCount = 0
+  // 樂觀刪除：選中的筆記立刻消失、請求並行送出；失敗的會自動還原。
   const ids = [...selectedIds.value]
   const deletedRecords = articles.value.filter((article) => selectedIds.value.has(article.id))
-  for (const id of ids) {
-    const result = await deleteArticleRecord(id)
-    if (result.success) successCount++
-  }
-  saveArticlesToTrash(deletedRecords.filter((record) => !articles.value.some((article) => article.id === record.id)))
   selectedIds.value = new Set()
   batchMode.value = false
-  alert(`已刪除 ${successCount} 筆筆記`)
+  const results = await Promise.all(ids.map((id) => deleteArticleRecord(id)))
+  const successCount = results.filter((result) => result.success).length
+  saveArticlesToTrash(deletedRecords.filter((record) => !articles.value.some((article) => article.id === record.id)))
+  if (successCount < ids.length) alert(`已刪除 ${successCount} 筆筆記，失敗 ${ids.length - successCount} 筆（已還原）`)
 }
 
 const zipFileInput = ref(null)

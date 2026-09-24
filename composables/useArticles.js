@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
-import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
+import { createOptimisticList, loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 初始化 Supabase（優先使用 localStorage 設定）
@@ -12,6 +12,9 @@ export const useArticles = () => {
   const articles = ref([])
   const loading = ref(false)
   const error = ref(null)
+  // 新增 / 更新 / 刪除先改畫面，失敗自動還原；清單維持依 newdate 由新到舊。
+  const sortByNewdate = (list) => [...list].sort((a, b) => new Date(b.newdate) - new Date(a.newdate))
+  const optimistic = createOptimisticList({ table: 'article', listRef: articles, sort: sortByNewdate })
 
   // 載入筆記資料
   // 先秀快取（記憶體 / IndexedDB），再背景向 Supabase 更新；同表同時只打一次請求。
@@ -56,17 +59,15 @@ export const useArticles = () => {
         file3type: articleData.file3type || null
       }
 
-      const { data, error: insertError } = await client
-        .from('article')
-        .insert([payload])
-        .select()
+      await optimistic.insert(payload, async () => {
+        const { data, error: insertError } = await client
+          .from('article')
+          .insert([payload])
+          .select()
 
-      if (insertError) throw insertError
-
-      if (data) {
-        articles.value.unshift(data[0])
-        articles.value.sort((a, b) => new Date(b.newdate) - new Date(a.newdate))
-      }
+        if (insertError) throw insertError
+        return data?.[0] || null
+      })
       return { success: true }
     } catch (e) {
       console.error('Error adding article:', e)
@@ -104,21 +105,16 @@ export const useArticles = () => {
         file3type: articleData.file3type || null
       }
 
-      const { data, error: updateError } = await client
-        .from('article')
-        .update(payload)
-        .eq('id', id)
-        .select()
+      await optimistic.update(id, payload, async (realId) => {
+        const { data, error: updateError } = await client
+          .from('article')
+          .update(payload)
+          .eq('id', realId)
+          .select()
 
-      if (updateError) throw updateError
-
-      if (data) {
-        const index = articles.value.findIndex(a => a.id === id)
-        if (index !== -1) {
-          articles.value[index] = data[0]
-          articles.value.sort((a, b) => new Date(b.newdate) - new Date(a.newdate))
-        }
-      }
+        if (updateError) throw updateError
+        return data?.[0] || null
+      })
       return { success: true }
     } catch (e) {
       console.error('Error updating article:', e)
@@ -134,21 +130,18 @@ export const useArticles = () => {
     if (!client) return { success: false, error: 'No client' }
 
     try {
-      loading.value = true
-      const { error: deleteError } = await client
-        .from('article')
-        .delete()
-        .eq('id', id)
+      await optimistic.remove([id], async ([realId]) => {
+        const { error: deleteError } = await client
+          .from('article')
+          .delete()
+          .eq('id', realId)
 
-      if (deleteError) throw deleteError
-
-      articles.value = articles.value.filter(a => a.id !== id)
+        if (deleteError) throw deleteError
+      })
       return { success: true }
     } catch (e) {
       console.error('Error deleting article:', e)
       return { success: false, error: e.message }
-    } finally {
-      loading.value = false
     }
   }
 
@@ -158,10 +151,11 @@ export const useArticles = () => {
     const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...payload } = record
     try {
       loading.value = true
-      const { data, error: insertError } = await client.from('article').insert(payload).select().single()
-      if (insertError) throw insertError
-      articles.value.unshift(data)
-      articles.value.sort((a, b) => new Date(b.newdate) - new Date(a.newdate))
+      const data = await optimistic.insert(payload, async () => {
+        const { data: inserted, error: insertError } = await client.from('article').insert(payload).select().single()
+        if (insertError) throw insertError
+        return inserted
+      })
       return { success: true, data }
     } catch (e) {
       return { success: false, error: e.message }

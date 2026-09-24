@@ -171,6 +171,11 @@
             <p>整合 BigGo、手動價錢、手機通路比價、YouTube、金融、新聞、圖片語音成片、PNG／JPEG 轉換，以及多段影片合併。</p>
           </article>
           <article class="feature-card">
+            <span class="feature-icon">⚡</span>
+            <h3>秒開與 Optimistic UI</h3>
+            <p>選單切換先顯示快取、一分鐘內回來不重打網路且資料沒變不重畫；新增、修改、刪除立刻反映在畫面，失敗自動還原並提示，批次操作並行送出。</p>
+          </article>
+          <article class="feature-card">
             <span class="feature-icon">🗂️</span>
             <h3>系統設定</h3>
             <p>可檢查資料表、管理帳號、掃描 Storage 多餘檔案與查看版本資訊。</p>
@@ -215,6 +220,7 @@
               <li>使用 Nuxt 4 + Vue 3 Composition API。</li>
               <li>各頁面以 composables 與 page components 分工。</li>
               <li>工具頁與設定頁都走同一套 UI 風格與本地歷史快照策略。</li>
+              <li>資料表讀取走 stale-while-revalidate 快取（記憶體＋IndexedDB），寫入走 Optimistic UI，背景更新不會蓋掉尚未確認的變更。</li>
             </ul>
           </article>
         </div>

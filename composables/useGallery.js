@@ -75,17 +75,20 @@ export const useGallery = () => {
     if (galleryImages.value.length === 0) loading.value = true
     error.value = null
     try {
+      let shownRows = null
       const data = await loadTableWithCache(
         currentTableCacheKey('image'),
         () => selectWholeTable(client, 'image', { order: 'created_at', ascending: false }),
         {
           onCached: (rows) => {
+            shownRows = rows
             galleryImages.value = rows.map(normalizeImage)
             loading.value = false
           }
         }
       )
-      galleryImages.value = (data || []).map(normalizeImage)
+      // 快取沒過期或資料沒變時會拿回同一個陣列，不必重新轉換、重畫。
+      if (data !== shownRows) galleryImages.value = (data || []).map(normalizeImage)
       return { success: true, count: galleryImages.value.length }
     } catch (e) {
       console.error('[useGallery] 載入圖片失敗:', e)

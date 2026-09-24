@@ -362,14 +362,13 @@ const deleteSelected = async () => {
   } else {
     if (!confirm(`確定要刪除選中的 ${count} 筆嗎？`)) return
   }
-  let ok = 0
-  for (const id of [...selectedIds.value]) {
-    const r = await deleteAccount(id)
-    if (r.success) ok++
-  }
+  // 樂觀刪除：選中的列立刻消失、請求並行送出；失敗的會自動還原。
+  const ids = [...selectedIds.value]
   selectedIds.value = new Set()
   batchMode.value = false
-  alert(`已刪除 ${ok} 筆`)
+  const results = await Promise.all(ids.map(id => deleteAccount(id)))
+  const ok = results.filter(r => r.success).length
+  if (ok < ids.length) alert(`已刪除 ${ok} 筆，失敗 ${ids.length - ok} 筆（已還原）`)
 }
 
 // 行內編輯功能

@@ -2,7 +2,7 @@
 // 訂閱管理的完整邏輯 - 使用共享狀態
 import { ref, computed } from 'vue'
 import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
-import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
+import { createOptimisticList, loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 import { SUBSCRIPTION_NOTIFY_WINDOW_DAYS, isWithinNotifyWindow } from '../utils/notificationHelpers'
 
@@ -40,6 +40,24 @@ const getSubscriptionErrorMessage = (error) => {
   }
   return error?.message || String(error)
 }
+
+// 新增 / 更新 / 刪除先改畫面，失敗自動還原（見 useCachedTable.createOptimisticList）
+const optimistic = createOptimisticList({
+  table: 'subscription',
+  listRef: subscriptions,
+  toMessage: getSubscriptionErrorMessage
+})
+
+const buildSubscriptionRow = (form) => ({
+  name: form.name,
+  site: form.site || null,
+  account: form.account || null,
+  price: form.price || null,
+  nextdate: form.nextdate || null,
+  note: form.note || null,
+  iscontinue: form.iscontinue !== false,
+  currency: form.currency || 'TWD'
+})
 
 export const useSubscriptions = () => {
   // 初始化 Supabase（優先使用 localStorage 設定）
@@ -100,6 +118,23 @@ export const useSubscriptions = () => {
     }
   }
   
+  const insertSubscriptionRow = (client, row) => optimistic.insert(normalizeSubscription(row), async () => {
+    const { data, error } = await client.from('subscription').insert(row).select().single()
+    if (error) throw error
+    return normalizeSubscription(data)
+  })
+
+  const updateSubscriptionRow = (client, id, row) => optimistic.update(id, normalizeSubscription(row), async (realId) => {
+    const { data, error } = await client.from('subscription').update(row).eq('id', realId).select().single()
+    if (error) throw error
+    return normalizeSubscription(data)
+  })
+
+  const deleteSubscriptionRows = (client, ids) => optimistic.remove(ids, async (realIds) => {
+    const { error } = await client.from('subscription').delete().in('id', realIds)
+    if (error) throw error
+  })
+
   // CSV 欄位名映射（Appwrite 格式）
   const CSV_FIELD_MAP = {
     name: 'name',
@@ -152,24 +187,7 @@ export const useSubscriptions = () => {
     try {
       subscriptionLoading.value = true
       
-      const { data, error } = await client
-        .from('subscription')
-        .insert({
-          name: newSubscription.value.name,
-          site: newSubscription.value.site || null,
-          account: newSubscription.value.account || null,
-          price: newSubscription.value.price || null,
-          nextdate: newSubscription.value.nextdate || null,
-          note: newSubscription.value.note || null,
-          "iscontinue": newSubscription.value.iscontinue !== false,
-          currency: newSubscription.value.currency || 'TWD'
-        })
-        .select()
-        .single()
-      
-      if (error) throw error
-      
-      subscriptions.value.unshift(normalizeSubscription(data))
+      await insertSubscriptionRow(client, buildSubscriptionRow(newSubscription.value))
       resetSubscriptionForm()
       alert('訂閱已新增成功！')
     } catch (error) {
@@ -190,25 +208,7 @@ export const useSubscriptions = () => {
     }
     
     try {
-      const { data, error } = await client
-        .from('subscription')
-        .insert({
-          name: formData.name,
-          site: formData.site || null,
-          account: formData.account || null,
-          price: formData.price || null,
-          nextdate: formData.nextdate || null,
-          note: formData.note || null,
-          "iscontinue": formData.iscontinue !== false,
-          currency: formData.currency || 'TWD'
-        })
-        .select()
-        .single()
-      
-      if (error) throw error
-      
-      const created = normalizeSubscription(data)
-      subscriptions.value.unshift(created)
+      const created = await insertSubscriptionRow(client, buildSubscriptionRow(formData))
       return { success: true, item: created }
     } catch (error) {
       console.error('行内新增失敗:', error.message)
@@ -254,30 +254,7 @@ export const useSubscriptions = () => {
     try {
       subscriptionLoading.value = true
       
-      const { data, error } = await client
-        .from('subscription')
-        .update({
-          name: newSubscription.value.name,
-          site: newSubscription.value.site || null,
-          account: newSubscription.value.account || null,
-          price: newSubscription.value.price || null,
-          nextdate: newSubscription.value.nextdate || null,
-          note: newSubscription.value.note || null,
-          "iscontinue": newSubscription.value.iscontinue !== false,
-          currency: newSubscription.value.currency || 'TWD'
-        })
-        .eq('id', editingSubscription.value.id)
-        .select()
-        .single()
-      
-      if (error) throw error
-      
-      // 更新本地資料
-      const index = subscriptions.value.findIndex(s => s.id === editingSubscription.value.id)
-      if (index !== -1) {
-        subscriptions.value[index] = normalizeSubscription(data)
-      }
-      
+      await updateSubscriptionRow(client, editingSubscription.value.id, buildSubscriptionRow(newSubscription.value))
       resetSubscriptionForm()
       alert('訂閱已更新成功！')
     } catch (error) {
@@ -294,30 +271,7 @@ export const useSubscriptions = () => {
     if (!client) return { success: false, error: '無法連接資料庫' }
     
     try {
-      const { data, error } = await client
-        .from('subscription')
-        .update({
-          name: formData.name,
-          site: formData.site || null,
-          account: formData.account || null,
-          nextdate: formData.nextdate || null,
-          price: formData.price || null,
-          currency: formData.currency || 'TWD',
-          note: formData.note || null,
-          "iscontinue": formData.iscontinue !== false
-        })
-        .eq('id', id)
-        .select()
-        .single()
-      
-      if (error) throw error
-      
-      // 更新本地資料
-      const index = subscriptions.value.findIndex(s => s.id === id)
-      if (index !== -1) {
-        subscriptions.value[index] = normalizeSubscription(data)
-      }
-      
+      await updateSubscriptionRow(client, id, buildSubscriptionRow(formData))
       return { success: true }
     } catch (error) {
       console.error('行内更新失敗:', error.message)
@@ -333,24 +287,13 @@ export const useSubscriptions = () => {
     if (!options.skipConfirm && !confirm('確定要將此訂閱項目移到垃圾桶嗎？')) return { success: false, cancelled: true }
     
     try {
-      subscriptionLoading.value = true
-      
-      const { error } = await client
-        .from('subscription')
-        .delete()
-        .eq('id', id)
-      
-      if (error) throw error
-      
-      subscriptions.value = subscriptions.value.filter(s => s.id !== id)
+      await deleteSubscriptionRows(client, [id])
       if (!options.silent) alert('訂閱已移到垃圾桶！')
       return { success: true }
     } catch (error) {
       console.error('刪除訂閱失敗:', error.message)
       alert('刪除訂閱失敗: ' + getSubscriptionErrorMessage(error))
       return { success: false, error: getSubscriptionErrorMessage(error) }
-    } finally {
-      subscriptionLoading.value = false
     }
   }
 
@@ -359,9 +302,7 @@ export const useSubscriptions = () => {
     if (!client || !record) return { success: false, error: 'No client' }
     const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...payload } = record
     try {
-      const { data, error } = await client.from('subscription').insert(payload).select().single()
-      if (error) throw error
-      subscriptions.value.unshift(normalizeSubscription(data))
+      const data = await insertSubscriptionRow(client, payload)
       return { success: true, data }
     } catch (error) {
       return { success: false, error: getSubscriptionErrorMessage(error) }
@@ -374,22 +315,11 @@ export const useSubscriptions = () => {
     if (!client || ids.length === 0) return { success: false, error: '無效操作' }
     
     try {
-      subscriptionLoading.value = true
-      
-      const { error } = await client
-        .from('subscription')
-        .delete()
-        .in('id', ids)
-      
-      if (error) throw error
-      
-      subscriptions.value = subscriptions.value.filter(s => !ids.includes(s.id))
+      await deleteSubscriptionRows(client, [...ids])
       return { success: true, count: ids.length }
     } catch (error) {
       console.error('批量刪除失敗:', error.message)
       return { success: false, error: getSubscriptionErrorMessage(error) }
-    } finally {
-      subscriptionLoading.value = false
     }
   }
 
@@ -398,16 +328,17 @@ export const useSubscriptions = () => {
     const client = initSupabase()
     if (!client) return
     try {
-      const newIsContinue = subscription.iscontinue !== true
-      const { data, error } = await client
-        .from('subscription')
-        .update({ iscontinue: newIsContinue })
-        .eq('id', subscription.id)
-        .select()
-        .single()
-      if (error) throw error
-      const idx = subscriptions.value.findIndex(s => s.id === subscription.id)
-      if (idx !== -1) subscriptions.value[idx] = data
+      const row = { iscontinue: subscription.iscontinue !== true }
+      await optimistic.update(subscription.id, row, async (realId) => {
+        const { data, error } = await client
+          .from('subscription')
+          .update(row)
+          .eq('id', realId)
+          .select()
+          .single()
+        if (error) throw error
+        return normalizeSubscription(data)
+      })
     } catch (error) {
       console.error('切換續訂狀態失敗:', error.message)
       alert('切換續訂狀態失敗: ' + getSubscriptionErrorMessage(error))

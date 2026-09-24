@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
-import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
+import { createOptimisticList, loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { buildImportMessage, filterDuplicateImports } from '../utils/importDedupe'
 
 // 初始化 Supabase（優先使用 localStorage 設定）
@@ -12,6 +12,8 @@ export const useCommonAccounts = () => {
   const accounts = ref([])
   const loading = ref(false)
   const error = ref(null)
+  // 新增 / 更新 / 刪除先改畫面，失敗自動還原（見 useCachedTable.createOptimisticList）
+  const optimistic = createOptimisticList({ table: 'commonaccount', listRef: accounts })
 
   // 載入資料
   // 先秀快取（記憶體 / IndexedDB），再背景向 Supabase 更新；同表同時只打一次請求。
@@ -38,16 +40,15 @@ export const useCommonAccounts = () => {
       
       const { id, ...payload } = accountData
       
-      const { data, error: insertError } = await client
-        .from('commonaccount')
-        .insert([payload])
-        .select()
+      await optimistic.insert(payload, async () => {
+        const { data, error: insertError } = await client
+          .from('commonaccount')
+          .insert([payload])
+          .select()
 
-      if (insertError) throw insertError
-
-      if (data) {
-        accounts.value.unshift(data[0])
-      }
+        if (insertError) throw insertError
+        return data?.[0] || null
+      })
       return { success: true }
     } catch (e) {
       console.error('Error adding common account:', e)
@@ -67,20 +68,16 @@ export const useCommonAccounts = () => {
       
       const { id: _, created_at: __, ...payload } = accountData
 
-      const { data, error: updateError } = await client
-        .from('commonaccount')
-        .update(payload)
-        .eq('id', id)
-        .select()
+      await optimistic.update(id, payload, async (realId) => {
+        const { data, error: updateError } = await client
+          .from('commonaccount')
+          .update(payload)
+          .eq('id', realId)
+          .select()
 
-      if (updateError) throw updateError
-
-      if (data) {
-        const index = accounts.value.findIndex(a => a.id === id)
-        if (index !== -1) {
-          accounts.value[index] = data[0]
-        }
-      }
+        if (updateError) throw updateError
+        return data?.[0] || null
+      })
       return { success: true }
     } catch (e) {
       console.error('Error updating common account:', e)
@@ -164,21 +161,18 @@ export const useCommonAccounts = () => {
     if (!client) return { success: false, error: 'No client' }
     
     try {
-      loading.value = true
-      const { error: deleteError } = await client
-        .from('commonaccount')
-        .delete()
-        .eq('id', id)
+      await optimistic.remove([id], async ([realId]) => {
+        const { error: deleteError } = await client
+          .from('commonaccount')
+          .delete()
+          .eq('id', realId)
 
-      if (deleteError) throw deleteError
-
-      accounts.value = accounts.value.filter(a => a.id !== id)
+        if (deleteError) throw deleteError
+      })
       return { success: true }
     } catch (e) {
       console.error('Error deleting common account:', e)
       return { success: false, error: e.message }
-    } finally {
-      loading.value = false
     }
   }
 

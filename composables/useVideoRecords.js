@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
-import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
+import { createOptimisticList, loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 
 const initSupabase = () => {
   return getSupabaseBrowserClient()
@@ -10,6 +10,8 @@ export const useVideoRecords = () => {
   const videos = ref([])
   const loading = ref(false)
   const error = ref(null)
+  // 新增 / 更新 / 刪除先改畫面，失敗自動還原（見 useCachedTable.createOptimisticList）
+  const optimistic = createOptimisticList({ table: 'video', listRef: videos })
 
   const TABLE = 'video'
   const FIELDS = ['name', 'file', 'filetype', 'note', 'ref', 'category', 'hash', 'cover']
@@ -36,9 +38,11 @@ export const useVideoRecords = () => {
       const payload = {}
       FIELDS.forEach(f => { payload[f] = item[f] || null })
       payload.name = item.name || ''
-      const { data, error: err } = await client.from(TABLE).insert([payload]).select()
-      if (err) throw err
-      if (data) videos.value.unshift(data[0])
+      await optimistic.insert(payload, async () => {
+        const { data, error: err } = await client.from(TABLE).insert([payload]).select()
+        if (err) throw err
+        return data?.[0] || null
+      })
       return { success: true }
     } catch (e) {
       return { success: false, error: e.message }
@@ -55,12 +59,11 @@ export const useVideoRecords = () => {
       const payload = {}
       FIELDS.forEach(f => { payload[f] = item[f] || null })
       payload.name = item.name || ''
-      const { data, error: err } = await client.from(TABLE).update(payload).eq('id', id).select()
-      if (err) throw err
-      if (data) {
-        const idx = videos.value.findIndex(a => a.id === id)
-        if (idx !== -1) videos.value[idx] = data[0]
-      }
+      await optimistic.update(id, payload, async (realId) => {
+        const { data, error: err } = await client.from(TABLE).update(payload).eq('id', realId).select()
+        if (err) throw err
+        return data?.[0] || null
+      })
       return { success: true }
     } catch (e) {
       return { success: false, error: e.message }
@@ -73,15 +76,13 @@ export const useVideoRecords = () => {
     const client = initSupabase()
     if (!client) return { success: false, error: 'No client' }
     try {
-      loading.value = true
-      const { error: err } = await client.from(TABLE).delete().eq('id', id)
-      if (err) throw err
-      videos.value = videos.value.filter(a => a.id !== id)
+      await optimistic.remove([id], async ([realId]) => {
+        const { error: err } = await client.from(TABLE).delete().eq('id', realId)
+        if (err) throw err
+      })
       return { success: true }
     } catch (e) {
       return { success: false, error: e.message }
-    } finally {
-      loading.value = false
     }
   }
 

@@ -798,13 +798,12 @@ const deleteSelected = async () => {
   }
 
   try {
+    // 樂觀刪除：選中的項目立刻消失、請求並行送出；失敗的會自動還原。
     const idsToDelete = Array.from(selectedIds.value)
-    for (const id of idsToDelete) {
-      await deleteMusic(id)
-    }
-    await loadMusics()
     exitBatchMode()
-    alert(`成功刪除 ${count} 個項目`)
+    const results = await Promise.all(idsToDelete.map(id => deleteMusic(id)))
+    const ok = results.filter(r => r?.success).length
+    if (ok < idsToDelete.length) alert(`已刪除 ${ok} 個項目，失敗 ${idsToDelete.length - ok} 個（已還原）`)
   } catch (error) {
     console.error('Error deleting selected:', error)
     alert('批量刪除失敗: ' + error.message)

@@ -149,17 +149,18 @@ export const useBankWorkflow = ({ banks, updateBank, deleteBank }) => {
     let ok = 0
     const failed = []
 
-    for (const bank of targets) {
-      const result = await updateBank(bank.id, {
-        ...bank,
-        deposit: getAdjustedDeposit(bank)
-      })
+    // 樂觀更新：所有選中的銀行立刻顯示新金額，請求並行送出。
+    const results = await Promise.all(targets.map(bank => updateBank(bank.id, {
+      ...bank,
+      deposit: getAdjustedDeposit(bank)
+    })))
+    results.forEach((result, index) => {
       if (result.success) {
         ok++
       } else {
-        failed.push(`${bank.name}: ${result.error}`)
+        failed.push(`${targets[index].name}: ${result.error}`)
       }
-    }
+    })
 
     if (failed.length > 0) {
       alert(`已更新 ${ok} 筆，失敗 ${failed.length} 筆\n${failed.join('\n')}`)
@@ -182,13 +183,12 @@ export const useBankWorkflow = ({ banks, updateBank, deleteBank }) => {
       return
     }
 
-    let ok = 0
-    for (const id of [...selectedIds.value]) {
-      const result = await deleteBank(id)
-      if (result.success) ok++
-    }
+    // 樂觀刪除：選中的列立刻消失，請求並行送出；失敗的會自動還原。
+    const ids = [...selectedIds.value]
     exitSelectionMode()
-    alert(`已刪除 ${ok} 筆`)
+    const results = await Promise.all(ids.map(id => deleteBank(id)))
+    const ok = results.filter(result => result.success).length
+    if (ok < ids.length) alert(`已刪除 ${ok} 筆，失敗 ${ids.length - ok} 筆（已還原）`)
   }
 
   const resetTransactionForm = () => {

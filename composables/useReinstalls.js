@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
-import { loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
+import { createOptimisticList, loadCachedTable, rememberCachedTable, selectWholeTable } from './useCachedTable'
 import { runGroupedConcurrently } from '../utils/asyncPool.js'
 import {
   buildReinstallSoftwareWritePayload,
@@ -47,6 +47,9 @@ const fetchAllRows = (client) =>
   selectWholeTable(client, 'reinstall', { order: 'created_at', ascending: false })
 
 export const useReinstalls = () => {
+  // 新增 / 更新 / 刪除先改畫面，失敗自動還原（見 useCachedTable.createOptimisticList）
+  const optimistic = createOptimisticList({ table: 'reinstall', listRef: items, toMessage: getErrorMessage })
+
   // 先秀快取，再背景更新；同表同時只會有一個請求。
   const loadReinstalls = async (options = {}) => {
     const client = initClient()
@@ -66,24 +69,25 @@ export const useReinstalls = () => {
     })
   }
 
-  const writeRecord = async (form, mode, id) => {
+  const writeRecord = async (form, mode, id, options = {}) => {
     const client = initClient()
     if (!client) return { success: false, error: '尚未連線 Supabase' }
     try {
       loading.value = true
       const payload = buildReinstallSoftwareWritePayload(form, mode)
       const row = reinstallToDbRow(payload)
-      const query = mode === 'update'
-        ? client.from('reinstall').update(row).eq('id', id).select()
-        : client.from('reinstall').insert([row]).select()
-      const { data, error: writeError } = await query
-      if (writeError) throw writeError
-      const saved = reinstallFromDbRow(data?.[0])
-      if (mode === 'update') {
-        items.value = items.value.map((item) => item.id === id ? saved : item)
-      } else {
-        items.value = [saved, ...items.value]
+      // 畫面先用即將寫入的內容，伺服器回傳後換成正式資料列（含 id / created_at）。
+      const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...preview } = reinstallFromDbRow(row)
+      const commitRow = async (query) => {
+        const { data, error: writeError } = await query
+        if (writeError) throw writeError
+        return reinstallFromDbRow(data?.[0])
       }
+      const saved = mode === 'update'
+        ? await optimistic.update(id, preview, (realId) =>
+            commitRow(client.from('reinstall').update(row).eq('id', realId).select()), options)
+        : await optimistic.insert(preview, () =>
+            commitRow(client.from('reinstall').insert([row]).select()), options)
       error.value = ''
       return { success: true, item: saved }
     } catch (err) {
@@ -107,8 +111,8 @@ export const useReinstalls = () => {
     await runGroupedConcurrently(records, (form) => reinstallImportKey(form), async (form, key) => {
       const existingId = index.get(key)
       const result = existingId
-        ? await updateReinstall(existingId, form)
-        : await addReinstall(form)
+        ? await writeRecord(form, 'update', existingId, { notify: false })
+        : await writeRecord(form, 'create', undefined, { notify: false })
       if (result.success) {
         successCount += 1
         if (result.item?.id) index.set(key, result.item.id)
@@ -124,16 +128,14 @@ export const useReinstalls = () => {
     const client = initClient()
     if (!client) return { success: false, error: '尚未連線 Supabase' }
     try {
-      loading.value = true
-      const { error: deleteError } = await client.from('reinstall').delete().eq('id', id)
-      if (deleteError) throw deleteError
-      items.value = items.value.filter((item) => item.id !== id)
+      await optimistic.remove([id], async ([realId]) => {
+        const { error: deleteError } = await client.from('reinstall').delete().eq('id', realId)
+        if (deleteError) throw deleteError
+      })
       error.value = ''
       return { success: true }
     } catch (err) {
       return { success: false, error: getErrorMessage(err) }
-    } finally {
-      loading.value = false
     }
   }
 

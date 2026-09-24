@@ -788,10 +788,12 @@ const deleteSelected = async () => {
     const input = prompt(`即將刪除全部 ${count} 筆！\n\n請輸入 DELETE image 確認：`)
     if (input !== 'DELETE image') { alert('輸入不正確，已取消'); return }
   } else { if (!confirm(`確定要刪除選中的 ${count} 筆嗎？`)) return }
-  let ok = 0
-  for (const id of [...selectedIds.value]) { const r = await deleteImage(id); if (r.success) ok++ }
+  // 樂觀刪除：選中的列立刻消失、請求並行送出；失敗的會自動還原。
+  const ids = [...selectedIds.value]
   exitBatchMode()
-  alert(`已刪除 ${ok} 筆`)
+  const results = await Promise.all(ids.map(id => deleteImage(id)))
+  const ok = results.filter(r => r.success).length
+  if (ok < ids.length) alert(`已刪除 ${ok} 筆，失敗 ${ids.length - ok} 筆（已還原）`)
 }
 
 // 上傳狀態

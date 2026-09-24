@@ -432,13 +432,12 @@ const confirmBulkDelete = async () => {
   pendingBulkDelete.value = true
   actionError.value = ''
   try {
-    for (const item of selectedItems.value) {
-      const result = await deleteQuota(item.id)
-      if (!result.success) {
-        actionError.value = result.error || '部分刪除失敗，請稍後再試。'
-      }
-    }
+    // 樂觀刪除：選中的列立刻消失、請求並行送出；失敗的會自動還原。
+    const targets = [...selectedItems.value]
     exitSelectionMode()
+    const results = await Promise.all(targets.map((item) => deleteQuota(item.id)))
+    const failed = results.find((result) => !result.success)
+    if (failed) actionError.value = failed.error || '部分刪除失敗，請稍後再試。'
   } finally {
     pendingBulkDelete.value = false
   }

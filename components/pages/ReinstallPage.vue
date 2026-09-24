@@ -496,11 +496,12 @@ const requestBulkDelete = async () => {
   if (!selectedCount.value) return
   if (!window.confirm(`確定刪除選取的 ${selectedCount.value} 套重灌軟體？此操作無法復原。`)) return
   actionError.value = ''
-  for (const item of selectedItems.value) {
-    const result = await deleteReinstall(item.id)
-    if (!result.success) actionError.value = result.error || '部分刪除失敗，請稍後再試。'
-  }
+  // 樂觀刪除：選中的列立刻消失、請求並行送出；失敗的會自動還原。
+  const targets = [...selectedItems.value]
   exitSelectionMode()
+  const results = await Promise.all(targets.map((item) => deleteReinstall(item.id)))
+  const failed = results.find((result) => !result.success)
+  if (failed) actionError.value = failed.error || '部分刪除失敗，請稍後再試。'
 }
 
 const confirmDelete = async () => {

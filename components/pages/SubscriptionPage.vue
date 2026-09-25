@@ -214,7 +214,7 @@
           </tr>
           
           <tr 
-            v-for="sub in paginatedSubscriptions"
+            v-for="sub in filteredSubscriptions"
             :key="sub.id"
             :data-subscription-id="sub.id"
             :class="{ selected: selectedIds.includes(sub.id), editing: editingRowId === sub.id }"
@@ -338,11 +338,7 @@
       </table>
     </div>
 
-    <nav v-if="totalPages > 1" class="pagination" aria-label="訂閱分頁">
-      <button type="button" :disabled="currentPage === 1" @click="currentPage--">上一頁</button>
-      <span>第 {{ currentPage }} / {{ totalPages }} 頁 · 共 {{ filteredSubscriptions.length }} 筆</span>
-      <button type="button" :disabled="currentPage === totalPages" @click="currentPage++">下一頁</button>
-    </nav>
+    <p v-if="filteredSubscriptions.length" class="list-total">共 {{ filteredSubscriptions.length }} 筆</p>
 
     <Teleport to="body">
       <div v-if="selectedSubscription" class="detail-backdrop" @click.self="selectedSubscription = null">
@@ -414,7 +410,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useSubscriptions } from '../../composables/useSubscriptions'
 import { useFormatters } from '../../composables/useFormatters'
 import { useCommonAccounts } from '../../composables/useCommonAccounts'
@@ -425,8 +421,6 @@ import { useLocalTrash } from '../../composables/useLocalTrash'
 
 const searchQuery = ref('')
 const sortBy = ref('date')
-const currentPage = ref(1)
-const pageSize = 20
 const selectedSubscription = ref(null)
 const renewFilter = ref('all')
 const selectedYear = ref('')
@@ -645,8 +639,7 @@ const saveAddRow = async () => {
   const result = await addSubscriptionInline(addForm.value)
   if (result.success) {
     showAddRow.value = false
-    // 新列會排進第一頁頂端：回到第一頁後把該筆捲回視窗頂端
-    currentPage.value = 1
+    // 新列會出現在清單裡：把該筆捲回視窗頂端
     if (result.item?.id) revealSubscriptionRow(result.item.id)
   } else {
     alert('新增失敗: ' + result.error)
@@ -889,10 +882,6 @@ const filteredSubscriptions = computed(() => {
   })
 })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredSubscriptions.value.length / pageSize)))
-const paginatedSubscriptions = computed(() => filteredSubscriptions.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize))
-watch([searchQuery, selectedYear, selectedMonth, renewFilter, sortBy], () => { currentPage.value = 1 })
-watch(totalPages, (value) => { if (currentPage.value > value) currentPage.value = value })
 
 const maskAccount = (value) => {
   const text = String(value || '').trim()
@@ -2094,9 +2083,8 @@ defineExpose({ subscriptions, totalMonthlyCost })
 @keyframes skeleton-shift { to { background-position: -200% 0; } }
 .load-error { flex-direction: row; align-items: center; justify-content: space-between; background: var(--danger-light); }
 .load-error div { display: flex; flex-direction: column; gap: var(--spacing-2xs); }
-.load-error button, .pagination button { min-height: 40px; padding: 0 var(--spacing-md); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text-primary); background: var(--bg-elevated); cursor: pointer; font-weight: 700; }
-.pagination { display: flex; align-items: center; justify-content: center; gap: var(--spacing-md); padding: var(--spacing-lg); color: var(--text-secondary); }
-.pagination button:disabled { cursor: not-allowed; opacity: .45; }
+.load-error button { min-height: 40px; padding: 0 var(--spacing-md); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text-primary); background: var(--bg-elevated); cursor: pointer; font-weight: 700; }
+.list-total { margin: 0; padding: var(--spacing-lg); text-align: center; color: var(--text-secondary); }
 .detail-backdrop { position: fixed; inset: 0; z-index: var(--z-modal-backdrop); display: flex; justify-content: flex-end; background: color-mix(in oklab, var(--surface-strong) 45%, transparent); }
 .detail-drawer { width: min(100%, 440px); height: 100%; display: flex; flex-direction: column; gap: var(--spacing-xl); padding: var(--spacing-xl); overflow-y: auto; color: var(--text-primary); background: var(--bg-elevated); box-shadow: var(--elevation-3); }
 .detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-md); }
@@ -2121,6 +2109,5 @@ defineExpose({ subscriptions, totalMonthlyCost })
   .sub-table td { min-width: 0 !important; padding: var(--spacing-xs) 0; border: 0; }
   .sub-table .col-actions { display: flex; justify-content: flex-end; gap: var(--spacing-xs); padding-top: var(--spacing-sm); border-top: 1px solid var(--border-subtle); }
   .service-note { max-width: 100%; }
-  .pagination { flex-wrap: wrap; }
 }
 </style>

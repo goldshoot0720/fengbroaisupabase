@@ -53,12 +53,12 @@ export const useDocuments = () => {
       FIELDS.forEach(f => { payload[f] = item[f] || null })
       payload.name = item.name || ''
       sanitizePayload(payload)
-      await optimistic.insert(payload, async () => {
+      const saved = await optimistic.insert(payload, async () => {
         const { data, error: err } = await client.from(TABLE).insert([payload]).select()
         if (err) throw err
         return data?.[0] || null
       })
-      return { success: true }
+      return { success: true, item: saved }
     } catch (e) {
       return { success: false, error: e.message }
     } finally {

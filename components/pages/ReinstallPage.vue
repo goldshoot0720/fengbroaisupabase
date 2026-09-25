@@ -223,7 +223,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in filteredItems" :key="item.id">
+            <tr v-for="item in filteredItems" :key="item.id" :data-reveal-id="item.id">
               <td v-if="isSelectionMode" class="col-check">
                 <input type="checkbox" :checked="selectedIds.has(item.id)" @change="toggleSelect(item.id)" :aria-label="`選取 ${item.name}`">
               </td>
@@ -316,6 +316,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import { useReinstalls } from '../../composables/useReinstalls'
 import { useNavigation } from '../../composables/useNavigation'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
@@ -481,7 +482,9 @@ const handleSubmit = async () => {
       return
     }
     revealedIds.value = new Set()
+    const revealId = result.item?.id ?? editingId.value
     closeForm()
+    revealItem(revealId)
   } finally {
     saving.value = false
   }

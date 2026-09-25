@@ -111,7 +111,7 @@ export const useBanks = () => {
         created_at: new Date().toISOString()
       }
 
-      await optimistic.insert(payload, async () => {
+      const saved = await optimistic.insert(payload, async () => {
         const { data, error: insertError } = await client
           .from('bank')
           .insert([payload])
@@ -120,7 +120,7 @@ export const useBanks = () => {
         if (insertError) throw insertError
         return data?.[0] || null
       }, { prepend: false })
-      return { success: true }
+      return { success: true, item: saved }
     } catch (e) {
       console.error('Error adding bank:', e)
       return { success: false, error: e.message }

@@ -117,6 +117,7 @@
         <div
           v-for="bank in banks"
           :key="bank.id"
+          :data-reveal-id="bank.id"
           class="bank-card"
           :class="{ 'card-editing': editingId === bank.id, selected: selectedIds.has(bank.id) }"
           @click="batchMode && editingId !== bank.id ? toggleSelect(bank.id) : null"
@@ -539,6 +540,7 @@
 
 <script setup>
 import { ref, onMounted, reactive, watch } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import PageContainer from '../layout/PageContainer.vue'
 import { useBanks } from '../../composables/useBanks'
 import { useBankWorkflow } from '../../composables/useBankWorkflow'
@@ -599,9 +601,11 @@ const saveInlineEdit = async () => {
     alert('請輸入銀行名稱')
     return
   }
-  const result = await updateBank(editForm.id, { ...editForm })
+  const id = editForm.id
+  const result = await updateBank(id, { ...editForm })
   if (result.success) {
     editingId.value = null
+    revealItem(id)
   } else {
     alert('儲存失敗: ' + result.error)
   }
@@ -811,7 +815,7 @@ const cancelInlineAdd = () => { isAddingInline.value = false }
 const saveInlineAdd = async () => {
   if (!addForm.name) { alert('請輸入銀行名稱'); return }
   const result = await addBank({ ...addForm })
-  if (result.success) { isAddingInline.value = false } else { alert('新增失敗: ' + result.error) }
+  if (result.success) { isAddingInline.value = false; revealItem(result.item?.id) } else { alert('新增失敗: ' + result.error) }
 }
 
 // 開啟新增 Modal
@@ -878,7 +882,9 @@ const handleSubmit = async () => {
   }
 
   if (result.success) {
+    const revealId = isEditing.value ? payload.id : result.item?.id
     closeModal()
+    revealItem(revealId)
   } else {
     alert('儲存失敗: ' + result.error)
   }

@@ -181,6 +181,7 @@
           <tr
             v-for="food in filteredFoods"
             :key="food.id"
+            :data-reveal-id="food.id"
             :class="{ selected: selectedIds.includes(food.id), editing: editingRowId === food.id }"
           >
             <!-- 批量選擇 Checkbox -->
@@ -337,6 +338,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import { useFoods } from '../../composables/useFoods'
 import { useFormatters } from '../../composables/useFormatters'
 import { useStorage } from '../../composables/useStorage'
@@ -540,6 +542,7 @@ const saveAddRow = async () => {
   const result = await addFoodInline(addForm.value)
   if (result.success) {
     showAddRow.value = false
+    revealItem(result.item?.id)
   } else {
     alert('新增失敗: ' + result.error)
   }
@@ -566,6 +569,7 @@ const saveInlineEdit = async (id) => {
   const result = await updateFoodInline(id, editForm.value)
   if (result.success) {
     editingRowId.value = null
+    revealItem(id)
   } else {
     alert('儲存失敗: ' + result.error)
   }

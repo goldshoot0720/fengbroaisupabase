@@ -51,6 +51,10 @@ All table composables load through `composables/useCachedTable.js` → `utils/ta
 
 Single-row add / update / delete in every table composable goes through `createOptimisticList` (`composables/useCachedTable.js`) → `utils/optimisticList.js`: the list changes immediately, the Supabase call runs after, and on failure only that row is rolled back plus an error toast (identical toasts are collapsed; CSV imports pass `notify: false`). New rows carry a temporary `optimistic-…` id until the server answers; editing or deleting one waits for the real id via `resolveOptimisticId`, and temporary rows are never written to the cache. While a write is pending (or finished after a read started) `utils/tableCache.js` marks reads stale (`beginTableMutation` / `endTableMutation` / `isTableReadStale`), so a background refresh can't resurrect a deleted row or drop a new one. Tables with a fixed order pass `sort` (bank by deposit, article by `newdate`). Page batch actions (delete selected, bank batch deposit, note batch categories) fire requests in parallel instead of one at a time. Deletes don't toggle `loading`, so removing the last row never flashes the loading placeholder.
 
+## Reveal after save
+
+After an add or edit succeeds, list pages call `revealItem(id)` (`utils/revealItem.js`): it scrolls the saved row to just below the sticky `.top-header` (header's sticky `top` + height + 16px gap, so the row is never hidden under the console header) and briefly outlines it (`.reveal-flash` in `variables.css`). Rows opt in with `data-reveal-id="<id>"`; add functions in the table composables return `{ success, item }` so pages know the new id. 鋒兄音樂 groups same-name songs, so it reveals by `music:<name>` instead of id. A missing element (e.g. filtered out by search) is a no-op.
+
 ## Bank workflow module
 
 `useBankWorkflow` owns the bank page workflow rules: transaction modal state, batch selection, batch deposit setting/adjustment, previews, validation, and selected deletion.

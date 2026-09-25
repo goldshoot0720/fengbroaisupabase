@@ -59,7 +59,7 @@ export const useArticles = () => {
         file3type: articleData.file3type || null
       }
 
-      await optimistic.insert(payload, async () => {
+      const saved = await optimistic.insert(payload, async () => {
         const { data, error: insertError } = await client
           .from('article')
           .insert([payload])
@@ -68,7 +68,7 @@ export const useArticles = () => {
         if (insertError) throw insertError
         return data?.[0] || null
       })
-      return { success: true }
+      return { success: true, item: saved }
     } catch (e) {
       console.error('Error adding article:', e)
       return { success: false, error: e.message }

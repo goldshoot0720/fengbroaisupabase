@@ -107,7 +107,7 @@
             </template>
             <template v-for="routine in filteredRoutines" :key="routine.id">
               <!-- 行內編輯模式 - 整合單列 -->
-              <tr v-if="editingId === routine.id" class="row-editing">
+              <tr v-if="editingId === routine.id" class="row-editing" :data-reveal-id="routine.id">
                 <td colspan="7" class="td-inline-edit-full">
                   <div class="inline-edit-panel">
                     <div class="inline-field-row">
@@ -178,7 +178,7 @@
               </tr>
 
               <!-- 顯示模式 -->
-              <tr v-else>
+              <tr v-else :data-reveal-id="routine.id">
                 <td class="td-name" data-label="名稱">{{ routine.name }}</td>
                 <td class="td-note" data-label="備註">{{ routine.note || '' }}</td>
                 <td class="td-photo" data-label="圖片">
@@ -312,6 +312,7 @@
 
 <script setup>
 import { ref, computed, onMounted, reactive, nextTick } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useRoutines } from '../../composables/useRoutines'
@@ -417,8 +418,10 @@ const saveInlineEdit = async () => {
     return
   }
   // 樂觀更新：列表已立即套用，直接關閉編輯列；失敗時會還原並跳出提示。
-  const pending = updateRoutine(editForm.id, { ...editForm })
+  const id = editForm.id
+  const pending = updateRoutine(id, { ...editForm })
   editingId.value = null
+  revealItem(id)
   await pending
 }
 const formData = ref({
@@ -529,7 +532,8 @@ const saveInlineAdd = async () => {
   // 樂觀新增：新列立即出現，直接關閉新增列；失敗時會移除並跳出提示。
   const payload = { ...addForm.value, lastdate1: addForm.value.lastdate1 || null, lastdate2: addForm.value.lastdate2 || null, lastdate3: addForm.value.lastdate3 || null }
   isAddingInline.value = false
-  await addRoutine(payload)
+  const result = await addRoutine(payload)
+  if (result.success) revealItem(result.item?.id)
 }
 
 const openAddModal = () => {
@@ -602,9 +606,12 @@ const handleSubmit = async () => {
     const editing = isEditMode.value
     closeModal()
     if (editing) {
-      await updateRoutine(id, data)
+      const pending = updateRoutine(id, data)
+      revealItem(id)
+      await pending
     } else {
-      await addRoutine(data)
+      const result = await addRoutine(data)
+      if (result.success) revealItem(result.item?.id)
     }
   } catch (error) {
     console.error('Failed to save routine:', error)

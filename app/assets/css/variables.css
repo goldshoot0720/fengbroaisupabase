@@ -587,3 +587,29 @@ a:hover {
   letter-spacing: var(--tracking-label);
   color: var(--text-muted);
 }
+
+/* 新增／修改後剛存好的那一筆：短暫描邊＋淡底色提示（utils/revealItem.js） */
+@keyframes reveal-flash {
+  0%, 35% {
+    outline-color: var(--primary);
+    background-color: var(--primary-muted);
+  }
+  100% {
+    outline-color: transparent;
+    background-color: transparent;
+  }
+}
+
+.reveal-flash {
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  animation: reveal-flash 1.6s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-flash {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    outline-color: var(--primary);
+  }
+}

@@ -322,6 +322,7 @@
           <div
             v-for="article in filteredArticles"
             :key="article.id"
+            :data-reveal-id="article.id"
             class="note-card"
             :class="[
               {
@@ -619,6 +620,7 @@
 
 <script setup>
 import { ref, onMounted, reactive, computed } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import PageContainer from '../layout/PageContainer.vue'
 import { useArticles } from '../../composables/useArticles'
 import { useStorage } from '../../composables/useStorage'
@@ -930,6 +932,7 @@ const saveAddRow = async () => {
   const result = await addArticle({ ...addForm })
   if (result.success) {
     showAddRow.value = false
+    revealItem(result.item?.id)
   } else {
     alert('新增失敗: ' + result.error)
   }
@@ -959,6 +962,7 @@ const saveInlineEdit = async (id) => {
   const result = await updateArticle(id, { ...editForm })
   if (result.success) {
     editingRowId.value = null
+    revealItem(id)
   } else {
     alert('儲存失敗: ' + result.error)
   }

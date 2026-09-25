@@ -178,7 +178,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in group.items" :key="item.id">
+                <tr v-for="item in group.items" :key="item.id" :data-reveal-id="item.id">
                   <td v-if="isSelectionMode" class="col-check">
                     <input type="checkbox" :checked="selectedIds.has(item.id)" @change="toggleSelect(item.id)" :aria-label="`選取 ${item.account || item.name}`">
                   </td>
@@ -220,6 +220,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import { useTrialPurchases } from '../../composables/useTrialPurchases'
 import { useNavigation } from '../../composables/useNavigation'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
@@ -367,7 +368,9 @@ const handleSubmit = async () => {
     const next = new Set(expandedServices.value)
     next.add(trialPurchaseServiceKey(result.item?.name || form.value.name))
     expandedServices.value = next
+    const revealId = result.item?.id ?? editingId.value
     closeForm()
+    revealItem(revealId)
   } finally {
     saving.value = false
   }

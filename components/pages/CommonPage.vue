@@ -129,7 +129,7 @@
             </div>
           </div>
         </div>
-        <div v-for="account in filteredAccounts" :key="account.id" class="common-card" :class="{ 'card-editing': editingId === account.id }">
+        <div v-for="account in filteredAccounts" :key="account.id" :data-reveal-id="account.id" class="common-card" :class="{ 'card-editing': editingId === account.id }">
           <!-- 行內編輯模式 -->
           <template v-if="editingId === account.id">
             <div class="card-header">
@@ -295,6 +295,7 @@
 
 <script setup>
 import { ref, onMounted, reactive, computed } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import PageContainer from '../layout/PageContainer.vue'
 import { useCommonAccounts } from '../../composables/useCommonAccounts'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
@@ -430,10 +431,12 @@ const saveInlineEdit = async () => {
   }
   if (!payload.photohash) payload.photohash = null
 
-  const result = await updateAccount(editForm.id, payload)
+  const id = editForm.id
+  const result = await updateAccount(id, payload)
   if (result.success) {
     editingId.value = null
     showAllSlots.value = false
+    revealItem(id)
   } else {
     alert('儲存失敗: ' + result.error)
   }
@@ -593,7 +596,7 @@ const saveInlineAdd = async () => {
   for (let i = 1; i <= 37; i++) { const k = padIndex(i); if (!payload[`site${k}`]) payload[`site${k}`] = null; if (!payload[`note${k}`]) payload[`note${k}`] = null }
   if (!payload.photohash) payload.photohash = null
   const result = await addAccount(payload)
-  if (result.success) { isAddingInline.value = false }
+  if (result.success) { isAddingInline.value = false; revealItem(result.item?.id) }
   else {
     if (result.error.includes('duplicate key')) alert('項目名稱已存在')
     else alert('新增失敗: ' + result.error)
@@ -690,7 +693,9 @@ const handleSubmit = async () => {
   }
 
   if (result.success) {
+    const revealId = isEditing.value ? formData.id : result.item?.id
     closeModal()
+    revealItem(revealId)
   } else {
     // 處理錯誤訊息
     if (result.error.includes('duplicate key') && result.error.includes('commonaccount_name_key')) {

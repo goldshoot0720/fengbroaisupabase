@@ -146,6 +146,7 @@
         <div
           v-for="(podcast, pi) in filteredPodcasts"
           :key="podcast.id"
+          :data-reveal-id="podcast.id"
           class="podcast-card"
           :class="{
             selected: selectedIds.has(podcast.id),
@@ -536,6 +537,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { usePodcasts } from '../../composables/usePodcasts'
@@ -735,9 +737,11 @@ const startInlineEdit = (podcast) => {
 const saveInlineEdit = async () => {
   if (!inlineEditId.value) return
   try {
-    await updatePodcast(inlineEditId.value, inlineForm.value)
+    const id = inlineEditId.value
+    await updatePodcast(id, inlineForm.value)
     inlineEditId.value = null
     inlineForm.value = {}
+    revealItem(id)
   } catch (error) {
     console.error('Inline edit error:', error)
     alert('儲存失敗: ' + error.message)
@@ -1039,7 +1043,7 @@ const openInlineAdd = () => { addForm.value = { name: '', file: '', filetype: ''
 const cancelInlineAdd = () => { isAddingInline.value = false }
 const saveInlineAdd = async () => {
   if (!addForm.value.name) { alert('請輸入播客名稱'); return }
-  try { await addPodcast(addForm.value); isAddingInline.value = false } catch(e) { alert('新增失敗: ' + e.message) }
+  try { const result = await addPodcast(addForm.value); isAddingInline.value = false; if (result.success) revealItem(result.item?.id) } catch(e) { alert('新增失敗: ' + e.message) }
 }
 
 // Methods
@@ -1152,12 +1156,16 @@ const removeCover = () => {
 
 const handleSubmit = async () => {
   try {
+    let revealId = null
     if (isEditMode.value && currentPodcast.value) {
-      await updatePodcast(currentPodcast.value.id, formData.value)
+      revealId = currentPodcast.value.id
+      await updatePodcast(revealId, formData.value)
     } else {
-      await addPodcast(formData.value)
+      const result = await addPodcast(formData.value)
+      revealId = result.item?.id
     }
     closeModal()
+    revealItem(revealId)
   } catch (error) {
     console.error('Error saving podcast:', error)
     alert('儲存失敗，請稍後再試')

@@ -150,6 +150,9 @@ export async function requestGoogleDriveAccessToken(options = {}) {
       const tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: DRIVE_SCOPE,
+        // GIS 預設會把這組 Client ID 以前授權過的 scope（例如別的專案要的 YouTube）
+        // 一起併進來，Google 會拒絕 drive.file 和 youtube 同時請求（400 invalid_request）。
+        include_granted_scopes: false,
         callback: (response) => {
           if (response.error || !response.access_token) {
             reject(new Error(response.error || '取得 Google 授權失敗'))

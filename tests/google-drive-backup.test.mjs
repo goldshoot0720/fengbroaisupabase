@@ -49,7 +49,7 @@ function installTokenClient() {
   window.google.accounts = {
     oauth2: {
       initTokenClient: (config) => {
-        tokenRequests.push({ clientId: config.client_id, scope: config.scope })
+        tokenRequests.push({ clientId: config.client_id, scope: config.scope, includeGrantedScopes: config.include_granted_scopes })
         return {
           requestAccessToken: ({ prompt }) => {
             tokenRequests[tokenRequests.length - 1].prompt = prompt
@@ -199,6 +199,9 @@ describe('requestGoogleDriveAccessToken', () => {
     // drive.file keeps the app out of Google's restricted-scope review: it only
     // sees files this app created or the user picked.
     assert.equal(tokenRequests[0].scope, 'https://www.googleapis.com/auth/drive.file')
+    // Don't merge scopes this Client ID was granted elsewhere (e.g. YouTube):
+    // Google rejects drive.file + youtube in one request with 400 invalid_request.
+    assert.equal(tokenRequests[0].includeGrantedScopes, false)
     assert.equal(isGoogleDriveConnected(), true)
   })
 

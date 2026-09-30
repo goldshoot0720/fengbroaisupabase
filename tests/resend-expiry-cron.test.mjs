@@ -7,6 +7,13 @@ import { beforeEach, describe, it, mock } from 'node:test'
 import { createResendExpiryCronHandler, runResendExpiryCronCheck } from '../utils/resendExpiryCron.js'
 import { SUBSCRIPTION_EMAIL_DAYS_BEFORE, FOOD_EMAIL_DAYS_BEFORE, dateKey } from '../utils/notificationHelpers.js'
 
+// Nitro auto-imports for the browser-triggered route (server/api/notifications/resend-expiry.post.ts).
+globalThis.defineEventHandler = (handler) => handler
+globalThis.readBody = async (event) => event.body || {}
+globalThis.useRuntimeConfig = () => ({ public: {} })
+globalThis.createError = (options) => Object.assign(new Error(options.statusMessage), options)
+const { default: handleResendExpiry } = await import('../server/api/notifications/resend-expiry.post.ts')
+
 const SUPABASE_URL = 'https://cron-project.supabase.co'
 const SERVICE_KEY = 'test-service-role-key'
 const credentials = { supabaseUrl: SUPABASE_URL, supabaseServiceKey: SERVICE_KEY }
@@ -253,5 +260,40 @@ describe('createResendExpiryCronHandler', () => {
 
     assert.equal(response.status, 500)
     assert.match(await response.text(), /Resend expiry check failed/)
+  })
+})
+
+describe('POST /api/notifications/resend-expiry (browser open)', () => {
+  const event = { body: { supabaseUrl: SUPABASE_URL, supabaseKey: 'test-account-anon-key' } }
+
+  it('loads recipients from resendsettings and runs the same check as the cron', async () => {
+    const result = await handleResendExpiry(event)
+
+    assert.equal(result.source, 'resendsettings')
+    assert.deepEqual(result.sent, [
+      { type: 'subscription', count: 1 },
+      { type: 'food', count: 1 },
+    ])
+    assert.equal(callsTo('resendsettings').length, 1)
+    assert.equal(callsTo('resendsettings')[0].params.rowkey, 'eq.main')
+    assert.deepEqual(resendCalls().map((email) => email.apiKey), ['Bearer re_test_key_1', 'Bearer re_test_key_1'])
+    // API keys are only used server-side; nothing about them is returned.
+    assert.doesNotMatch(JSON.stringify(result), /re_test_key/)
+  })
+
+  it('reports missing recipients so the browser can fall back to local settings', async () => {
+    settingsRow.slots_json = '[]'
+
+    const result = await handleResendExpiry(event)
+
+    assert.deepEqual(result, { source: 'resendsettings', skipped: 'missing-resend-recipient' })
+    assert.equal(resendCalls().length, 0)
+  })
+
+  it('turns an unreadable resendsettings table into a 500', async () => {
+    mock.restoreAll()
+    mock.method(globalThis, 'fetch', async () => jsonResponse({ message: 'relation does not exist' }, 404))
+
+    await assert.rejects(handleResendExpiry(event), { statusCode: 500 })
   })
 })

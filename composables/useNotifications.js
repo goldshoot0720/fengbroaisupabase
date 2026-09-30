@@ -6,7 +6,7 @@ import { getSupabaseCredentials, getResendNotificationSettings } from './useSett
 import { useSubscriptions } from './useSubscriptions'
 import { useToast } from './useToast'
 import { usePushNotification } from './usePushNotification'
-import { useExpiryEmailNotifications } from './useExpiryEmailNotifications'
+import { useExpiryEmailNotifications, fetchCloudResendRecipientCount } from './useExpiryEmailNotifications'
 import {
   SUB_NOTIFY_DATE_KEY,
   SW_DB_NAME,
@@ -687,15 +687,24 @@ export function useNotifications() {
           : '今天尚未發送過客戶端到期通知'
       ))
 
-      // --- Resend recipients (client settings) ---
+      // --- Resend recipients (resendsettings 表優先，本機帳號設定為備援) ---
+      const cloudRecipientCount = await fetchCloudResendRecipientCount()
       const resendSettings = getResendNotificationSettings()
       const recipientCount = Array.isArray(resendSettings.recipients) ? resendSettings.recipients.length : 0
-      if (recipientCount > 0) {
+      if (cloudRecipientCount > 0) {
         checks.push(makeCheck(
           'resend-recipients',
           'Resend 收件設定',
           checkStatus.pass,
-          `${recipientCount} 組完整（訂閱提前 2 天、食品提前 8 天）`
+          `resendsettings 表 ${cloudRecipientCount} 組完整（訂閱提前 2 天、食品提前 8 天）`
+        ))
+      } else if (recipientCount > 0) {
+        checks.push(makeCheck(
+          'resend-recipients',
+          'Resend 收件設定',
+          checkStatus.warn,
+          `只有本機帳號設定 ${recipientCount} 組；resendsettings 表${cloudRecipientCount === null ? '無法讀取' : '沒有收件組合'}，Netlify 排程不會寄送`,
+          { fix: '到下方「Resend Email 通知」輸入通知密碼後「提交至 resendsettings」' }
         ))
       } else {
         checks.push(makeCheck(
@@ -703,7 +712,7 @@ export function useNotifications() {
           'Resend 收件設定',
           checkStatus.warn,
           '尚未完整設定任何一組 API Key + 收件信箱',
-          { fix: '到下方「Resend Email 通知」填寫並儲存帳號' }
+          { fix: '到下方「Resend Email 通知」填寫後「提交至 resendsettings」' }
         ))
       }
 

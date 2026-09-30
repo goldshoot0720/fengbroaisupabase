@@ -3,8 +3,8 @@
 // Plain Node/ESM — no Vue, no Nuxt auto-imports. Talks to Resend directly via
 // fetch and to Supabase with the service-role key (bypasses RLS), so it can
 // read the resendsettings row and read/write the shared resend_notify_log
-// dedupe table that the browser composable (useExpiryEmailNotifications.js)
-// also uses.
+// dedupe table. The browser composable (useExpiryEmailNotifications.js) runs
+// the same check through server/api/notifications/resend-expiry.post.ts.
 
 import { createClient } from '@supabase/supabase-js'
 import {
@@ -64,29 +64,40 @@ const sendResendEmail = async ({ apiKey, from, to, subject, text, html, idempote
 }
 
 /**
- * One check-and-send pass: find subscriptions/foods due within their notify
- * window, skip anything already logged in resend_notify_log, send grouped
- * emails for the rest, and log whatever actually sent successfully.
- *
- * Safe to call repeatedly (05:27 / 11:27 / 17:27 Asia/Taipei) — if an earlier
- * check already sent an item, later checks see it in resend_notify_log and
- * skip it; if a send failed, it stays unlogged so the next scheduled check
- * retries it.
+ * Resend 收件組合的唯一來源：resendsettings 表（rowkey = 'main'）。
+ * Netlify 排程與瀏覽器開站（server/api/notifications/resend-expiry.post.ts）
+ * 都從這裡載入，所以兩條路徑的 recipientIndex／idempotency key 一致。
  */
-export async function runResendExpiryCronCheck({ supabaseUrl, supabaseServiceKey }) {
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-  const settingsResult = await supabase
+export async function loadResendRecipients(supabase) {
+  const { data, error } = await supabase
     .from(RESEND_SETTINGS_TABLE)
     .select('from_email, slots_json')
     .eq('rowkey', RESEND_SETTINGS_ROW_KEY)
     .limit(1)
 
-  if (settingsResult.error) {
-    throw new Error(`Query ${RESEND_SETTINGS_TABLE} failed: ${settingsResult.error.message}`)
+  if (error) {
+    throw new Error(`Query ${RESEND_SETTINGS_TABLE} failed: ${error.message}`)
   }
+  return parseRecipients(data?.[0])
+}
 
-  const { fromEmail, recipients } = parseRecipients(settingsResult.data?.[0])
+/**
+ * One check-and-send pass: find subscriptions/foods due within their notify
+ * window, skip anything already logged in resend_notify_log, send grouped
+ * emails for the rest, and log whatever actually sent successfully.
+ *
+ * Safe to call repeatedly (05:27 / 11:27 / 17:27 Asia/Taipei, plus every
+ * browser open) — if an earlier check already sent an item, later checks see
+ * it in resend_notify_log and skip it; if a send failed, it stays unlogged so
+ * the next check retries it.
+ *
+ * Pass either an existing Supabase `supabase` client (the browser-triggered
+ * route uses the current account's anon client) or url + service-role key.
+ */
+export async function runResendExpiryCronCheck({ supabase: existingClient, supabaseUrl, supabaseServiceKey }) {
+  const supabase = existingClient || createClient(supabaseUrl, supabaseServiceKey)
+
+  const { fromEmail, recipients } = await loadResendRecipients(supabase)
   if (recipients.length === 0) {
     return { skipped: 'missing-resend-recipient' }
   }

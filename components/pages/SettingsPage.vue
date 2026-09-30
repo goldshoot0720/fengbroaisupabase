@@ -210,6 +210,7 @@
           <div v-show="openSections.resend" class="section-body">
             <p class="section-description">
               有設定時，鋒兄訂閱提前 2 天、鋒兄食品提前 8 天寄出提醒。完整填寫 API Key 與收件信箱的組合才會寄送。
+              到期信的收件組合從 Supabase 的 resendsettings 表載入（與 Netlify 排程同一份）；表內沒有組合時才改用本機帳號設定。
             </p>
             <div class="form-row">
               <label for="resendGroupCount">顯示通知組數</label>
@@ -420,6 +421,7 @@
                 <p class="form-hint">
                   檢查時間：{{ formatSelfCheckTime(emailStatusResult.checkedAt) }}
                   <span v-if="!emailStatusResult.hasRecipient" class="resend-status-missing-hint"> · 尚未設定完整收件組合，無法寄送</span>
+                  <span v-else> · 收件來源：{{ emailStatusResult.recipientSource === 'resendsettings' ? 'resendsettings 表' : '本機帳號設定' }}（{{ emailStatusResult.recipientCount }} 組）</span>
                 </p>
 
                 <div v-if="emailStatusEntries.length === 0" class="resend-status-empty">
@@ -476,8 +478,9 @@
             <div class="resend-cloud-panel">
               <h3>雲端備份／跨裝置同步</h3>
               <p class="form-hint">
-                把目前帳號的 Resend 組合（含 API Key）以通知密碼保護後存入 Supabase 的 resendsettings 表，
-                可在其他裝置解鎖後下載回本機。密碼只保護「顯示／上傳／下載」操作，請牢記密碼。
+                把目前帳號的 Resend 組合（含 API Key）以通知密碼保護後提交至 Supabase 的 resendsettings 表；
+                到期信與 Netlify 排程都從這張表載入收件組合。輸入通知密碼後，按「儲存並切換」也會一併提交。
+                可在其他裝置解鎖後下載回本機。密碼只保護「顯示／提交／下載」操作，請牢記密碼。
               </p>
               <div class="resend-cloud-status">
                 <span>雲端狀態：</span>
@@ -500,7 +503,7 @@
                   >
                 </label>
                 <div class="resend-cloud-actions">
-                  <button class="btn-secondary" type="button" :disabled="cloudBusy" @click="uploadCloudResendSettings">上傳到雲端</button>
+                  <button class="btn-primary" type="button" :disabled="cloudBusy" @click="submitResendSettingsToCloud">提交至 resendsettings</button>
                   <button class="btn-secondary" type="button" :disabled="cloudBusy" @click="downloadCloudResendSettings">下載並覆蓋本機</button>
                   <button class="btn-secondary" type="button" :disabled="cloudBusy" @click="changeCloudResendPassword">設定／變更密碼</button>
                 </div>
@@ -790,6 +793,10 @@ const openSections = reactive({
 })
 const toggleSection = (key) => {
   openSections[key] = !openSections[key]
+  // 打開 Resend 區塊時自動載入 resendsettings 表的狀態（API Key 仍遮蔽）。
+  if (key === 'resend' && openSections.resend && !cloudSettingsLoaded.value && !cloudChecking.value) {
+    checkCloudResendSettings()
+  }
 }
 const testingResendEmail = ref(false)
 const visibleResendPairs = computed(() => resendPairs.slice(0, Number(resendGroupCount.value) || 21))
@@ -1000,7 +1007,11 @@ const handleResendMissedEmails = async () => {
       const sentCount = Array.isArray(result?.sent)
         ? result.sent.reduce((sum, entry) => sum + (entry.count || 0), 0)
         : 0
-      alert(sentCount > 0 ? `已補寄 ${sentCount} 筆到期提醒。` : '目前沒有需要補寄的到期提醒。')
+      const failedCount = Array.isArray(result?.failures)
+        ? result.failures.reduce((sum, entry) => sum + (entry.count || 0), 0)
+        : 0
+      const summary = sentCount > 0 ? `已補寄 ${sentCount} 筆到期提醒。` : '目前沒有需要補寄的到期提醒。'
+      alert(failedCount > 0 ? `${summary}\n另有 ${failedCount} 筆寄送失敗，下次檢查會重試。` : summary)
     }
     emailStatusResult.value = await checkExpiryEmailStatus()
   } catch (error) {
@@ -1158,7 +1169,7 @@ const checkCloudResendSettings = async () => {
       query: { supabaseUrl: url, supabaseKey: key },
     })
     if (!cloudSettings.value.hasPassword) {
-      setCloudMessage('雲端尚未設定通知密碼；可直接「設定／變更密碼」初始化，或「上傳到雲端」一併建立。')
+      setCloudMessage('雲端尚未設定通知密碼；可直接「設定／變更密碼」初始化，或「提交至 resendsettings」一併建立。')
     }
   } catch (error) {
     setCloudMessage(`檢查失敗：${error?.data?.statusMessage || error?.statusMessage || error?.message || '未知錯誤'}`)
@@ -1167,11 +1178,15 @@ const checkCloudResendSettings = async () => {
   }
 }
 
-const uploadCloudResendSettings = async () => {
+/**
+ * 把目前表單的 Resend 組合提交至 resendsettings 表（需通知密碼；首次提交即設定密碼）。
+ * 回傳 true 表示提交成功。
+ */
+const submitResendSettingsToCloud = async () => {
   const password = cloudPassword.value
   if (password.length < 4) {
-    setCloudMessage('請輸入至少 4 碼的通知密碼。')
-    return
+    setCloudMessage('請在「通知密碼」輸入至少 4 碼，才能提交至 resendsettings。')
+    return false
   }
   cloudBusy.value = true
   cloudMessage.value = ''
@@ -1187,13 +1202,17 @@ const uploadCloudResendSettings = async () => {
       },
     })
     cloudSettings.value = result
-    setCloudMessage(`已上傳到雲端（${Array.isArray(result.slots) ? result.slots.length : 0} 組）。`)
+    setCloudMessage(`已提交至 resendsettings（${Array.isArray(result.slots) ? result.slots.length : 0} 組）。`)
+    return true
   } catch (error) {
-    setCloudMessage(`上傳失敗：${error?.data?.statusMessage || error?.statusMessage || error?.message || '未知錯誤'}`)
+    setCloudMessage(`提交失敗：${error?.data?.statusMessage || error?.statusMessage || error?.message || '未知錯誤'}`)
+    return false
   } finally {
     cloudBusy.value = false
   }
 }
+
+const hasResendFormContent = () => readCloudSlots().some((slot) => slot.apiKey || slot.toEmail)
 
 const downloadCloudResendSettings = async () => {
   const password = cloudPassword.value
@@ -2267,11 +2286,28 @@ onMounted(() => {
   checkAllTables()
 })
 
-const handleSave = () => {
+const handleSave = async () => {
   const urlValidationMessage = getSupabaseUrlValidationMessage(supabaseUrl.value)
   if (urlValidationMessage) {
     alert(urlValidationMessage)
     return
+  }
+
+  // Resend 組合同時提交至 resendsettings 表（到期信與 Netlify 排程都從這裡載入）。
+  // 必須在本機儲存前送出：新增帳號時 saveSettings() 會清空暫存的 Resend 欄位。
+  let resendNote = ''
+  if (hasResendFormContent()) {
+    if (!cloudPassword.value) {
+      openSections.resend = true
+      if (!confirm('尚未輸入通知密碼，Resend 設定不會提交至 resendsettings（到期信與排程讀不到）。\n仍要只儲存到本機嗎？')) return
+      resendNote = '（Resend 設定未提交至 resendsettings）'
+    } else if (await submitResendSettingsToCloud()) {
+      resendNote = '（Resend 設定已提交至 resendsettings）'
+    } else {
+      openSections.resend = true
+      if (!confirm(`提交至 resendsettings 失敗：${cloudMessage.value}\n仍要只儲存到本機嗎？`)) return
+      resendNote = '（Resend 設定未提交至 resendsettings）'
+    }
   }
 
   if (editingAccountId.value) {
@@ -2287,13 +2323,13 @@ const handleSave = () => {
     })
     // 切換到該帳號
     switchAccount(editingAccountId.value)
-    alert('帳號已更新並切換，即將重新載入...')
+    alert(`帳號已更新並切換${resendNote}，即將重新載入...`)
     window.location.reload()
   } else {
     // 新增帳號
     const result = saveSettings()
     if (result.success) {
-      alert('帳號已儲存並切換，即將重新載入...')
+      alert(`帳號已儲存並切換${resendNote}，即將重新載入...`)
       window.location.reload()
     } else {
       alert('儲存失敗: ' + result.error)

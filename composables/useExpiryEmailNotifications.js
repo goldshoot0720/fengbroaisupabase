@@ -1,4 +1,4 @@
-import { getResendNotificationSettings } from './useSettings'
+import { getResendNotificationSettings, getSupabaseCredentials } from './useSettings'
 import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
 import { useSubscriptions } from './useSubscriptions'
 import { useFoods } from './useFoods'
@@ -106,6 +106,53 @@ const markMarkersNotified = async (markers, cloud) => {
   writeLocalLog(localLog)
 }
 
+// resendsettings 表是 Resend 收件組合的主要來源（與 Netlify 排程同一份）。
+// 連線沿用目前帳號；未設定帳號時由伺服器改用環境設定。
+const cloudCredentials = () => {
+  const credentials = getSupabaseCredentials()
+  return { supabaseUrl: credentials?.url || '', supabaseKey: credentials?.key || '' }
+}
+
+/**
+ * How many complete recipient slots resendsettings holds (API keys stay masked).
+ * `null` means the table could not be read (not created yet, offline, …).
+ */
+export const fetchCloudResendRecipientCount = async () => {
+  if (!import.meta.client) return null
+  try {
+    const settings = await $fetch('/api/notifications/resend-settings', {
+      method: 'GET',
+      query: cloudCredentials()
+    })
+    return Array.isArray(settings?.slots) ? settings.slots.length : 0
+  } catch (error) {
+    console.warn('[ResendExpiry] 無法讀取 resendsettings:', error)
+    return null
+  }
+}
+
+/**
+ * Check-and-send with recipients loaded from resendsettings, on the server.
+ * Returns null when the table is unreachable or has no complete slot, so the
+ * caller can fall back to this browser's local account settings.
+ */
+const runCloudExpiryCheck = async () => {
+  try {
+    const result = await $fetch('/api/notifications/resend-expiry', {
+      method: 'POST',
+      body: cloudCredentials()
+    })
+    if (result?.skipped === 'missing-resend-recipient') return null
+    if (result?.failures?.length) {
+      console.warn('[ResendExpiry] 部分到期信寄送失敗，下次檢查會重試:', result.failures)
+    }
+    return result
+  } catch (error) {
+    console.warn('[ResendExpiry] 載入 resendsettings 寄送失敗，改用本機 Resend 設定:', error)
+    return null
+  }
+}
+
 const sendGroupedNotification = async ({ settings, type, items }) => {
   const { subject, text, html } = buildResendEmailContent(type, items)
   const recipients = Array.isArray(settings.recipients) ? settings.recipients : []
@@ -130,6 +177,10 @@ export function useExpiryEmailNotifications() {
     if (runPromise) return await runPromise
 
     runPromise = (async () => {
+      const cloudResult = await runCloudExpiryCheck()
+      if (cloudResult) return cloudResult
+
+      // 備援：resendsettings 尚未建立或沒有完整組合時，沿用本機帳號的 Resend 設定。
       const settings = getResendNotificationSettings()
       if (!Array.isArray(settings.recipients) || settings.recipients.length === 0) {
         return { skipped: 'missing-resend-recipient' }
@@ -180,7 +231,7 @@ export function useExpiryEmailNotifications() {
         await markMarkersNotified(newlySentMarkers, cloud)
       }
 
-      return { sent }
+      return { source: 'local', sent }
     })().finally(() => {
       runPromise = null
     })
@@ -195,15 +246,22 @@ export function useExpiryEmailNotifications() {
    */
   const checkExpiryEmailStatus = async () => {
     if (!import.meta.client) {
-      return { skipped: 'server', hasRecipient: false, subscriptions: [], foods: [], pendingCount: 0 }
+      return { skipped: 'server', hasRecipient: false, recipientSource: null, recipientCount: 0, subscriptions: [], foods: [], pendingCount: 0 }
     }
-
-    const settings = getResendNotificationSettings()
-    const hasRecipient = Array.isArray(settings.recipients) && settings.recipients.length > 0
 
     const { subscriptions, loadSubscriptions } = useSubscriptions()
     const { foods, loadFoods } = useFoods()
-    await Promise.allSettled([loadSubscriptions(), loadFoods()])
+    const [cloudRecipientCount] = await Promise.all([
+      fetchCloudResendRecipientCount(),
+      Promise.allSettled([loadSubscriptions(), loadFoods()])
+    ])
+
+    const settings = getResendNotificationSettings()
+    const localRecipientCount = Array.isArray(settings.recipients) ? settings.recipients.length : 0
+    const recipientSource = cloudRecipientCount > 0
+      ? 'resendsettings'
+      : localRecipientCount > 0 ? 'local' : null
+    const hasRecipient = recipientSource !== null
 
     const candidateSubscriptions = subscriptions.value
       .filter(item => isSubscriptionActive(item) && isWithinEmailWindow(item.nextdate, SUBSCRIPTION_EMAIL_DAYS_BEFORE))
@@ -234,6 +292,8 @@ export function useExpiryEmailNotifications() {
     return {
       checkedAt: new Date().toISOString(),
       hasRecipient,
+      recipientSource,
+      recipientCount: recipientSource === 'resendsettings' ? cloudRecipientCount : localRecipientCount,
       subscriptions: subscriptionStatus,
       foods: foodStatus,
       pendingCount: subscriptionStatus.filter(item => !item.sent).length +

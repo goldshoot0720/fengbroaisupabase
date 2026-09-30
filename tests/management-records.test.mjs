@@ -332,4 +332,17 @@ describe('reinstall software records', () => {
     )
     assert.deepEqual(filtered.map((item) => item.name), ['Pages'])
   })
+
+  it('lists win/mac software under both the Windows and Mac filters', () => {
+    const items = [
+      { name: 'foobar2000', system: 'win/mac' },
+      { name: 'IINA', system: 'mac' },
+      { name: 'EaseUS', system: 'win' },
+    ]
+    const names = (filter) => filterReinstallSoftware(items, '', filter).map((item) => item.name)
+
+    assert.deepEqual(names('win'), ['EaseUS', 'foobar2000'])
+    assert.deepEqual(names('mac'), ['foobar2000', 'IINA'])
+    assert.deepEqual(names('win/mac'), ['foobar2000'])
+  })
 })

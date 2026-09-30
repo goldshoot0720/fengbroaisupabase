@@ -327,6 +327,7 @@ import {
   REINSTALL_PERIOD_UNIT_OPTIONS,
   REINSTALL_SOFTWARE_TYPE_OPTIONS,
   REINSTALL_SYSTEM_OPTIONS,
+  reinstallSystemMatches,
   emptyReinstallSoftwareForm,
   filterReinstallSoftware,
   formatReinstallFee,
@@ -397,8 +398,8 @@ const {
   selectAllForDelete,
   exitSelectionMode,
 } = useSelectionSet(filteredItems)
-const windowsCount = computed(() => reinstalls.value.filter((item) => item.system === 'win').length)
-const macCount = computed(() => reinstalls.value.filter((item) => item.system === 'mac').length)
+const windowsCount = computed(() => reinstalls.value.filter((item) => reinstallSystemMatches(item.system, 'win')).length)
+const macCount = computed(() => reinstalls.value.filter((item) => reinstallSystemMatches(item.system, 'mac')).length)
 const serialCount = computed(() => reinstalls.value.filter((item) => item.licenseType === 'paid_serial').length)
 const deleteOpen = computed({
   get: () => pendingDelete.value !== null,

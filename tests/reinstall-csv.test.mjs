@@ -126,4 +126,17 @@ describe('reinstall CSV', () => {
       },
     ])
   })
+
+  it('accepts the Appwrite win/mac system for software on both platforms', () => {
+    const { data, errors } = parseReinstallCsv([
+      'name,category,system,softwareType,licenseType,serial,viewPassword,subscriptionSoftware,subscriptionPeriod,subscriptionPrice,subscriptionCurrency,site,note',
+      'foobar2000,,win/mac,free,none,,,false,,0,TWD,,',
+      'Motrix,,Windows / Mac,free,none,,,false,,0,TWD,,暫時無法正常使用',
+      'IINA,,mac,free,none,,,false,,0,TWD,,',
+    ].join('\n'))
+
+    assert.deepEqual(errors, [])
+    assert.deepEqual(data.map((item) => item.system), ['win/mac', 'win/mac', 'mac'])
+    assert.match(buildReinstallCsv([{ ...sample, system: 'win/mac' }]), /\nAdobe Acrobat,win\/mac,/)
+  })
 })

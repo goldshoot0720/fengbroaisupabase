@@ -70,6 +70,14 @@ const SYSTEM_ALIASES = {
   osx: 'mac',
   Mac: 'mac',
   Macintosh: 'mac',
+  'win/mac': 'win/mac',
+  'mac/win': 'win/mac',
+  'windows/mac': 'win/mac',
+  'windows / mac': 'win/mac',
+  'mac/windows': 'win/mac',
+  'win+mac': 'win/mac',
+  both: 'win/mac',
+  雙平台: 'win/mac',
 }
 
 const SOFTWARE_TYPE_ALIASES = {

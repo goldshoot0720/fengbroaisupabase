@@ -12,7 +12,17 @@ export const PURCHASE_STATUS_OPTIONS = [
 export const REINSTALL_SYSTEM_OPTIONS = [
   { value: 'win', label: 'Windows' },
   { value: 'mac', label: 'Mac' },
+  { value: 'win/mac', label: 'Windows / Mac' },
 ]
+
+/**
+ * `win/mac`（兩個平台都能用，與 Appwrite 版同值）同時算在 Windows 與 Mac：
+ * 篩選 Windows／Mac 時都會出現，篩選 Windows / Mac 只列雙平台軟體。
+ */
+export function reinstallSystemMatches(system, filter) {
+  if (filter === 'all' || system === filter) return true
+  return system === 'win/mac' && (filter === 'win' || filter === 'mac')
+}
 
 export const REINSTALL_SOFTWARE_TYPE_OPTIONS = [
   { value: 'trial', label: '試用軟體' },
@@ -385,7 +395,7 @@ export function filterReinstallSoftware(items, query = '', systemFilter = 'all',
     .filter((item) => {
       const matchesQuery = !normalizedQuery || [item.name, item.site, item.note]
         .some((value) => String(value || '').toLocaleLowerCase('zh-Hant').includes(normalizedQuery))
-      const matchesSystem = systemFilter === 'all' || item.system === systemFilter
+      const matchesSystem = reinstallSystemMatches(item.system, systemFilter)
       const matchesSoftware = softwareFilter === 'all' || item.softwareType === softwareFilter
       const matchesSubscription = subscriptionFilter === 'all'
         || (subscriptionFilter === 'yes' && item.subscriptionSoftware)

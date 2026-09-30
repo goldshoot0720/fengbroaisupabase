@@ -488,6 +488,24 @@ CREATE TABLE IF NOT EXISTS public.resend_notify_log (
 );
 
 -- =====================================================
+-- 24. FINANCEINSTRUMENT 表（鋒兄金融自訂標的，每檔一列；對應 Appwrite financeinstrument2）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.financeinstrument (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(80) NOT NULL,
+  symbol VARCHAR(32) NOT NULL,
+  provider VARCHAR(10) NOT NULL DEFAULT 'cnbc',
+  region VARCHAR(20) NOT NULL DEFAULT 'other',
+  imageurls JSONB NOT NULL DEFAULT '[]'::jsonb,
+  sortorder INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (provider, symbol)
+);
+
+CREATE INDEX IF NOT EXISTS idx_financeinstrument_sortorder ON public.financeinstrument(sortorder);
+
+-- =====================================================
 -- 驗證：查看所有建立的表結構
 -- =====================================================
 SELECT 
@@ -499,7 +517,7 @@ SELECT
 FROM information_schema.columns 
 WHERE table_schema = 'public' 
   AND table_name IN (
-    'article', 'bank', 'commonaccount', 'commondocument', 'food',
+    'article', 'bank', 'commonaccount', 'commondocument', 'financeinstrument', 'food',
     'googledrivesettings', 'image', 'landtop_history', 'menuusage', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'resend_notify_log', 'resendsettings', 'routine',
     'shoppinglist', 'sitevisit', 'subscription', 'toollistsync', 'trialpurchase', 'video'
   )

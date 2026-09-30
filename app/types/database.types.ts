@@ -517,6 +517,29 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['shoppinglist']['Insert']>
       }
+      financeinstrument: {
+        Row: {
+          id: RowId
+          name: string
+          symbol: string
+          provider: string
+          region: string
+          imageurls: Json
+          sortorder: number
+        } & Timestamps
+        Insert: {
+          id?: RowId
+          name: string
+          symbol: string
+          provider?: string
+          region?: string
+          imageurls?: Json
+          sortorder?: number
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['financeinstrument']['Insert']>
+      }
       toollistsync: {
         Row: {
           id: RowId

@@ -1729,6 +1729,29 @@ CREATE TABLE public.toollistsync (
 );`
   },
   {
+    name: 'financeinstrument',
+    label: '鋒兄金融自訂標的',
+    icon: '📈',
+    checking: false,
+    exists: false,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE public.financeinstrument (
+  ${UUID_PRIMARY_KEY_SQL}
+  name VARCHAR(80) NOT NULL,
+  symbol VARCHAR(32) NOT NULL,
+  provider VARCHAR(10) NOT NULL DEFAULT 'cnbc',
+  region VARCHAR(20) NOT NULL DEFAULT 'other',
+  imageurls JSONB NOT NULL DEFAULT '[]'::jsonb,
+  sortorder INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (provider, symbol)
+);
+
+CREATE INDEX IF NOT EXISTS idx_financeinstrument_sortorder ON public.financeinstrument(sortorder);`
+  },
+  {
     name: 'landtop_history',
     label: '手機比價歷史',
     icon: '📱',

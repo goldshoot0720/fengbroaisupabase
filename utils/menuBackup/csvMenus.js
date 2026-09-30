@@ -34,7 +34,13 @@ import {
   parseVideoMetaCsv,
 } from './simpleCsv.js'
 import { csvMenus } from './catalog.js'
-import { byName, fetchAllRows, upsertByKey, upsertToolList } from './supabaseTables.js'
+import {
+  fetchFinanceInstrumentRows,
+  financeInstrumentFromDbRow,
+  isFinanceInstrumentTableMissing,
+  saveFinanceInstrumentList,
+} from '../financeInstrumentStore.js'
+import { byName, fetchAllRows, requireClient, upsertByKey, upsertToolList } from './supabaseTables.js'
 
 const TUBE_CHANNELS_STORAGE_KEY = 'fengbro-tools-tube-channels'
 const FINANCE_CUSTOM_INSTRUMENTS_KEY = 'fengbro.tools.finance.customInstruments'
@@ -99,6 +105,17 @@ async function saveToolList(storageKey, syncKey, list) {
   }
 }
 
+// 鋒兄金融自訂標的以 financeinstrument 表為準；表還沒建時退回本機快取＋toollistsync。
+async function loadFinanceInstruments() {
+  try {
+    const rows = await fetchFinanceInstrumentRows(requireClient())
+    return { rows, items: rows.map(financeInstrumentFromDbRow).filter(Boolean), table: true }
+  } catch (error) {
+    if (!isFinanceInstrumentTableMissing(error)) throw error
+    return { rows: [], items: loadJson(FINANCE_CUSTOM_INSTRUMENTS_KEY), table: false }
+  }
+}
+
 export async function exportCsvMenu(entry, onProgress) {
   onProgress?.({ stage: 'export-csv', current: 0, total: 1, message: `讀取 ${entry.label}`, menuId: entry.id })
 
@@ -156,7 +173,7 @@ export async function exportCsvMenu(entry, onProgress) {
       return { csv: buildFengbroTubeCsv(items), rows: items.length }
     }
     case 'fengbro-finance': {
-      const items = loadJson(FINANCE_CUSTOM_INSTRUMENTS_KEY)
+      const { items } = await loadFinanceInstruments()
       return { csv: buildFinanceCustomCsv(items), rows: items.length }
     }
     case 'fengbro-news': {
@@ -420,8 +437,14 @@ export async function importCsvMenu(entry, csv, onProgress) {
       case 'fengbro-finance': {
         const parsed = parseFinanceCustomCsv(csv)
         if (parsed.data.length === 0) return report('error', 0, parsed.errors[0] || 'CSV 沒有可匯入的標的')
-        const merged = mergeFinanceCustomInstruments(loadJson(FINANCE_CUSTOM_INSTRUMENTS_KEY), parsed.data)
-        await saveToolList(FINANCE_CUSTOM_INSTRUMENTS_KEY, 'finance-custom-instruments', merged)
+        const current = await loadFinanceInstruments()
+        const merged = mergeFinanceCustomInstruments(current.items, parsed.data)
+        if (current.table) {
+          await saveFinanceInstrumentList(requireClient(), merged, current.rows)
+          saveJson(FINANCE_CUSTOM_INSTRUMENTS_KEY, merged)
+        } else {
+          await saveToolList(FINANCE_CUSTOM_INSTRUMENTS_KEY, 'finance-custom-instruments', merged)
+        }
         return report('ok', parsed.data.length)
       }
       case 'fengbro-news': {

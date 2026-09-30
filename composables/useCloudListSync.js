@@ -1,5 +1,8 @@
 import { ref, watch } from 'vue'
 import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
+import { parseCloudPayload } from '../utils/toolListPayload.js'
+
+export { parseCloudPayload }
 
 // 鋒兄工具個人清單的「雲端為主、本機為離線快取」同步。
 // 與 Appwrite 版 useRemoteListSync 對應，但 supabase 端直接用瀏覽器
@@ -40,20 +43,6 @@ const toPayloadList = (value) => {
   } catch {
     return []
   }
-}
-
-// 相容舊版：早期寫入的是 JSON 字串，讀取時解開成陣列。
-export const parseCloudPayload = (payload) => {
-  if (Array.isArray(payload)) return payload
-  if (typeof payload === 'string') {
-    try {
-      const parsed = JSON.parse(payload || '[]')
-      return Array.isArray(parsed) ? parsed : null
-    } catch {
-      return null
-    }
-  }
-  return null
 }
 
 /**

@@ -1135,6 +1135,7 @@ import {
 import { isKospiMarketOpen, KOSPI_LIVE_POLL_MS } from '../../utils/kospiMarketHours'
 import { useGallery } from '../../composables/useGallery'
 import { useCloudListSync } from '../../composables/useCloudListSync'
+import { useFinanceInstrumentSync } from '../../composables/useFinanceInstrumentSync'
 import { useLandtopHistory } from '../../composables/useLandtopHistory'
 
 // Lazy-load heavier tool panels so a panel-level failure does not blank the whole app shell.
@@ -1270,13 +1271,12 @@ const financeDefaultsSync = useCloudListSync({
   enabled: true,
 })
 
-const financeCustomSync = useCloudListSync({
-  syncKey: 'finance-custom-instruments',
+// 自訂標的走獨立表 financeinstrument（每檔一列），首次載入時從 toollistsync 舊清單搬過去。
+const financeCustomSync = useFinanceInstrumentSync({
   target: financeCustomInstruments,
   readLocal: () => safeJsonParse(localStorage.getItem(FINANCE_CUSTOM_INSTRUMENTS_KEY) || '[]', []),
   writeLocal: (value) => localStorage.setItem(FINANCE_CUSTOM_INSTRUMENTS_KEY, JSON.stringify(value)),
   normalize: (item) => normalizeCustomFinanceInstrument(item),
-  enabled: true,
 })
 
 const tubeChannelsSync = useCloudListSync({

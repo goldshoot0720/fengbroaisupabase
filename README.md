@@ -72,7 +72,7 @@ Storage bucket 解析順序：設定頁明確的 bucket 欄位 → **Netlify / �
 
 產品表：`article`、`bank`、`commonaccount`、`commondocument`、`food`、`image`、`music`、`podcast`、`quota`、`reinstall`、`routine`、`subscription`、`trialpurchase`、`video`。設定頁產生的 SQL 使用 UUID 主鍵；舊腳本可能是 `BIGSERIAL`。
 
-鋒兄工具的個人清單（手動比價商品、鋒兄tube 頻道、金融自訂標的）走共用表 `toollistsync`；手機比價歷史則走專屬的 `landtop_history`，兩者都可在 **鋒兄設定** 建立。
+鋒兄工具的個人清單（手動比價商品、鋒兄tube 頻道、金融預設標的勾選）走共用表 `toollistsync`；鋒兄金融自訂標的走獨立表 `financeinstrument`；手機比價歷史則走專屬的 `landtop_history`，這些表都可在 **鋒兄設定** 建立。
 
 並建立 public Storage bucket（預設 `uploads`）。
 

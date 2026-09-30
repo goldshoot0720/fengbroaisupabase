@@ -130,7 +130,7 @@
           {{ driveSettingsOpen ? '▾' : '▸' }} 連接設定（OAuth Client ID／API Key）
         </button>
 
-        <div v-show="driveSettingsOpen" class="drive-settings">
+        <div v-show="driveSettingsOpen" ref="driveSettingsRef" class="drive-settings">
           <p class="drive-hint">
             在 Google Cloud Console 建立「網頁應用程式」OAuth 用戶端與瀏覽器 API 金鑰，
             並把本站網域加入已授權的 JavaScript 來源／HTTP 參照網址限制。憑證存在
@@ -138,7 +138,7 @@
           </p>
           <label class="drive-field">
             <span>OAuth Client ID</span>
-            <input v-model="driveClientId" type="text" placeholder="xxxxxxxx.apps.googleusercontent.com" autocomplete="off">
+            <input ref="driveClientIdRef" v-model="driveClientId" type="text" placeholder="xxxxxxxx.apps.googleusercontent.com" autocomplete="off">
           </label>
           <label class="drive-field">
             <span>Browser API Key</span>
@@ -173,7 +173,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import BaseButton from '../ui/BaseButton.vue'
 import { useStorage } from '../../composables/useStorage'
 import { csvMenus, zipMenus } from '../../utils/menuBackup/catalog.js'
@@ -208,6 +208,8 @@ const {
 } = useGoogleDrive()
 
 const driveSettingsOpen = ref(false)
+const driveSettingsRef = ref(null)
+const driveClientIdRef = ref(null)
 const driveAction = ref(null)
 const driveClientId = ref('')
 const driveApiKey = ref('')
@@ -318,8 +320,27 @@ const saveDriveCloud = async () => {
   await saveToCloud({ clientId, apiKey, password: drivePassword.value })
 }
 
+// 本機還沒有 Client ID 時，直接展開「連接設定」並捲過去，
+// 不先跑完整個匯出才用 alert 告訴使用者去找設定。
+const ensureDriveConfigured = async () => {
+  if (localClientId()) return true
+  driveSettingsOpen.value = true
+  await nextTick()
+  driveSettingsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  driveClientIdRef.value?.focus({ preventScroll: true })
+  const cloud = await loadCloudStatus()
+  if (!cloud) return false // 讀取失敗訊息已由 loadCloudStatus 顯示
+  if (!cloud.configured) {
+    setDriveMessage('尚未設定 Google Client ID：請在這裡填入 OAuth Client ID、Browser API Key 與通知密碼，再按「儲存到雲端」。')
+  } else {
+    setDriveMessage('雲端已有憑證：輸入通知密碼後按「解鎖顯示明文」，即可在這台裝置使用。')
+  }
+  return false
+}
+
 const exportToDrive = async (kind) => {
   if (busy.value || driveAction.value) return
+  if (!(await ensureDriveConfigured())) return
   driveAction.value = `export-${kind}`
   results.value = null
   progress.value = { stage: 'export', current: 0, total: 1, message: '準備匯出…' }
@@ -341,6 +362,7 @@ const exportToDrive = async (kind) => {
 
 const importFromDrive = async () => {
   if (busy.value || driveAction.value) return
+  if (!(await ensureDriveConfigured())) return
   driveAction.value = 'import'
   try {
     const picked = await pickBackupFromGoogleDrive()

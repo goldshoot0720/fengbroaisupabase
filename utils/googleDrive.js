@@ -137,7 +137,7 @@ export const disconnectGoogleDrive = () => { cachedToken = null }
 export async function requestGoogleDriveAccessToken(options = {}) {
   const clientId = getGoogleClientId()
   if (!clientId) {
-    throw new Error('尚未設定 Google Client ID，請先在鋒兄設定 → 選單備份／還原填入。')
+    throw new Error('尚未設定 Google Client ID，請到鋒兄設定 → 選單備份／還原 → Google 雲端硬碟 → 展開「連接設定（OAuth Client ID／API Key）」填入。')
   }
   if (!options.forcePrompt && cachedToken && cachedToken.expiresAt > Date.now() + 30_000) {
     return cachedToken.accessToken

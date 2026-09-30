@@ -1,6 +1,6 @@
-// 鋒兄金融自訂標的 ↔ public.financeinstrument（每檔一列）。
-// 對應 Appwrite 版的 financeinstrument2 collection；預設標的仍寫在
-// server/api/feng-tools/finance.get.ts，不進這張表。
+// 鋒兄金融標的 ↔ public.financeinstrument（每檔一列）。
+// 對應 Appwrite 版的 financeinstrument2 collection。原本寫在程式裡的 34 檔預設標的
+// 已由 financeinstrument-setup.sql 搬進這張表（slug 保留舊 id，例如 kospi）。
 //
 // 這裡只放資料列轉換與 Supabase 讀寫（client 由呼叫端傳入），
 // composables/useFinanceInstrumentSync.js（畫面）與 utils/menuBackup（CSV 備份）共用。
@@ -19,7 +19,10 @@ export const LEGACY_FINANCE_SYNC_KEY = 'finance-custom-instruments'
 export const isFinanceInstrumentTableMissing = (err) =>
   isMissingTableError(err, FINANCE_INSTRUMENT_TABLE)
 
-/** 資料列 → 畫面用的自訂標的（region 欄位對應 group）。 */
+const jsonList = (value) => (Array.isArray(value) ? value : parseCloudPayload(value) || [])
+const numberOrUndefined = (value) => (value == null || value === '' ? undefined : Number(value))
+
+/** 資料列 → 畫面用的標的（region 欄位對應 group）。 */
 export function financeInstrumentFromDbRow(row) {
   if (!row) return null
   return normalizeCustomFinanceInstrument({
@@ -27,11 +30,25 @@ export function financeInstrumentFromDbRow(row) {
     symbol: row.symbol,
     provider: row.provider,
     group: row.region,
-    imageUrls: Array.isArray(row.imageurls) ? row.imageurls : parseCloudPayload(row.imageurls) || [],
+    imageUrls: jsonList(row.imageurls),
+    slug: row.slug,
+    sourceUrl: row.sourceurl,
+    historySymbol: row.historysymbol,
+    alertThreshold: numberOrUndefined(row.alertthreshold),
+    localLabel: row.locallabel,
+    periodLabel: row.periodlabel,
+    referenceLevels: jsonList(row.referencelevels),
+    youtubeUrl: row.youtubeurl,
+    youtubeLabel: row.youtubelabel,
+    youtubeLinks: jsonList(row.youtubelinks),
+    bilibiliUrl: row.bilibiliurl,
+    relatedLinks: jsonList(row.relatedlinks),
+    featured: row.featured === true,
+    subtitle: row.subtitle,
   })
 }
 
-/** 自訂標的 → 寫入用資料列；sortorder 保留畫面上的順序。 */
+/** 標的 → 寫入用資料列；每個欄位都寫（清空的欄位寫 null），sortorder 保留畫面上的順序。 */
 export function financeInstrumentToDbRow(instrument, sortorder = 0) {
   const normalized = normalizeCustomFinanceInstrument(instrument || {})
   if (!normalized) return null
@@ -42,6 +59,20 @@ export function financeInstrumentToDbRow(instrument, sortorder = 0) {
     region: normalized.group,
     imageurls: normalized.imageUrls || [],
     sortorder,
+    slug: normalized.slug ?? null,
+    sourceurl: normalized.sourceUrl ?? null,
+    historysymbol: normalized.historySymbol ?? null,
+    alertthreshold: normalized.alertThreshold ?? null,
+    locallabel: normalized.localLabel ?? null,
+    periodlabel: normalized.periodLabel ?? null,
+    referencelevels: normalized.referenceLevels || [],
+    youtubeurl: normalized.youtubeUrl ?? null,
+    youtubelabel: normalized.youtubeLabel ?? null,
+    youtubelinks: normalized.youtubeLinks || [],
+    bilibiliurl: normalized.bilibiliUrl ?? null,
+    relatedlinks: normalized.relatedLinks || [],
+    featured: normalized.featured === true,
+    subtitle: normalized.subtitle ?? null,
   }
 }
 

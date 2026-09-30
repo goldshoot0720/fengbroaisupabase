@@ -9,7 +9,7 @@ import {
   writeLegacyFinanceList,
 } from '../utils/financeInstrumentStore.js'
 
-// 鋒兄金融自訂標的的雲端同步：public.financeinstrument 每檔一列，雲端為主、
+// 鋒兄金融標的（全部標的，含遷移進來的原預設標的）的雲端同步：public.financeinstrument 每檔一列，雲端為主、
 // localStorage 為離線快取。對外介面與 useCloudListSync 相同（hydrateFromCloud /
 // cloudReady / syncState / loadVersion），FengToolsPage 的新增、編輯、刪除、
 // CSV 匯入只要改 target 清單即可。
@@ -76,7 +76,7 @@ export const useFinanceInstrumentSync = (options) => {
       lastSynced = snapshot
       syncState.value = 'idle'
     } catch (err) {
-      console.error('鋒兄金融自訂標的同步失敗:', err)
+      console.error('鋒兄金融標的同步失敗:', err)
       syncState.value = 'error'
       // 單次失敗不中斷；下次變更會重試。
     } finally {
@@ -132,7 +132,7 @@ export const useFinanceInstrumentSync = (options) => {
       loadVersion.value += 1
       await uploadCurrent()
     } catch (err) {
-      console.error('鋒兄金融自訂標的載入失敗:', err)
+      console.error('鋒兄金融標的載入失敗:', err)
       mode = null
       cloudReady.value = false
       syncState.value = 'error'

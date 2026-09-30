@@ -526,6 +526,20 @@ export interface Database {
           region: string
           imageurls: Json
           sortorder: number
+          slug: string | null
+          sourceurl: string | null
+          historysymbol: string | null
+          alertthreshold: number | null
+          locallabel: string | null
+          periodlabel: string | null
+          referencelevels: Json
+          youtubeurl: string | null
+          youtubelabel: string | null
+          youtubelinks: Json
+          bilibiliurl: string | null
+          relatedlinks: Json
+          featured: boolean
+          subtitle: string | null
         } & Timestamps
         Insert: {
           id?: RowId
@@ -535,6 +549,20 @@ export interface Database {
           region?: string
           imageurls?: Json
           sortorder?: number
+          slug?: string | null
+          sourceurl?: string | null
+          historysymbol?: string | null
+          alertthreshold?: number | null
+          locallabel?: string | null
+          periodlabel?: string | null
+          referencelevels?: Json
+          youtubeurl?: string | null
+          youtubelabel?: string | null
+          youtubelinks?: Json
+          bilibiliurl?: string | null
+          relatedlinks?: Json
+          featured?: boolean
+          subtitle?: string | null
           created_at?: string
           updated_at?: string | null
         }

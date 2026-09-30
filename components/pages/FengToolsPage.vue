@@ -654,7 +654,7 @@
             <button
               type="button"
               class="tool-secondary-btn"
-              title="匯出自訂指數／股票 CSV（含 imageUrls：Supabase 公開網址）"
+              title="匯出全部標的 CSV（含圖片網址、警示價、參考線與連結）"
               @click="exportFinanceCustomCsv"
             >
               匯出 CSV
@@ -687,7 +687,7 @@
               :key="`featured-${item.id}`"
               class="finance-card finance-card--featured"
               :class="[
-                financeFeaturedMeta[item.id]?.cardClass,
+                FINANCE_FEATURED_CARD_CLASSES[idx % FINANCE_FEATURED_CARD_CLASSES.length],
                 {
                   'finance-card--high': item.recordTag === 'new-high' || item.isThresholdAlert,
                   'finance-card--low': item.recordTag === 'new-low'
@@ -695,11 +695,11 @@
               ]"
             >
               <p class="finance-featured__index">BLOCK {{ idx + 1 }}</p>
-              <p class="store-card__name">{{ financeFeaturedMeta[item.id]?.subtitle || item.symbol }}</p>
-              <h4>{{ financeFeaturedMeta[item.id]?.title || getFinanceQuoteTitle(item) }}</h4>
+              <p class="store-card__name">{{ item.subtitle || item.symbol }}</p>
+              <h4>{{ getFinanceQuoteTitle(item) }}</h4>
               <div class="finance-badge-row">
                 <span v-if="item.localLabel" class="finance-badge">{{ item.localLabel }}</span>
-                <span v-if="item.id === 'kospi'" class="finance-badge" :class="kospiLiveOpen ? 'finance-badge--live' : ''">
+                <span v-if="isKospiQuote(item)" class="finance-badge" :class="kospiLiveOpen ? 'finance-badge--live' : ''">
                   {{ kospiLiveOpen ? (kospiLiveRefreshing ? '即時更新中…' : '即時 · 每分鐘') : '休市' }}
                 </span>
                 <span
@@ -945,28 +945,6 @@
         </div>
 
         <div class="finance-controls">
-          <details class="finance-watchlist">
-            <summary>預設追蹤清單（{{ selectedDefaultInstrumentIds.length }} / {{ financeDefaultInstruments.length }}）</summary>
-            <div class="finance-watchlist__body">
-              <div class="finance-watchlist__actions">
-                <select class="tool-input" :disabled="deletedDefaultInstruments.length === 0" @change="addDefaultInstrument($event.target.value); $event.target.value = ''">
-                  <option value="">{{ deletedDefaultInstruments.length ? '加回預設標的' : '預設標的已全數啟用' }}</option>
-                  <option v-for="item in deletedDefaultInstruments" :key="item.id" :value="item.id">
-                    {{ item.name }} ({{ item.symbol }})
-                  </option>
-                </select>
-                <button type="button" class="tool-secondary-btn" @click="resetDefaultInstruments">重設預設</button>
-              </div>
-              <div class="finance-chip-row">
-                <span v-for="item in selectedDefaultInstruments" :key="item.id" class="finance-chip">
-                  <strong>{{ item.name }}</strong>
-                  <span>{{ item.symbol }}</span>
-                  <button type="button" class="finance-chip__btn" :aria-label="`刪除 ${item.name}`" @click="removeDefaultInstrument(item.id)">×</button>
-                </span>
-              </div>
-            </div>
-          </details>
-
           <div class="finance-custom-form" :class="{ 'finance-custom-form--editing': financeEditingCustomKey }">
             <p class="store-card__name">{{ financeEditingCustomKey ? '編輯指數或股票' : '新增指數或股票' }}</p>
             <p class="tool-notice tool-notice--inline">可貼 Yahoo 奇摩／CNBC 網址或代號（如 2330.TW、.SOX）；台股會自動辨識。圖片可從 Supabase 圖片庫選取或貼上公開網址。</p>
@@ -990,6 +968,12 @@
                 <select v-model="financeCustomDraft.provider" class="tool-input" :disabled="isFinanceQuoteUrl(financeCustomDraft.urlOrSymbol)">
                   <option value="cnbc">CNBC</option>
                   <option value="yahoo">{{ isTaiwanYahooStockSource(financeCustomDraft.urlOrSymbol) ? 'Yahoo 奇摩' : 'Yahoo' }}</option>
+                  <option
+                    v-if="!['cnbc', 'yahoo'].includes(financeCustomDraft.provider)"
+                    :value="financeCustomDraft.provider"
+                  >
+                    {{ financeCustomDraft.provider.toUpperCase() }}
+                  </option>
                 </select>
               </label>
               <label>
@@ -997,6 +981,10 @@
                 <select v-model="financeCustomDraft.group" class="tool-input">
                   <option v-for="group in FINANCE_CUSTOM_GROUPS" :key="group" :value="group">{{ FINANCE_GROUP_LABELS[group] }}</option>
                 </select>
+              </label>
+              <label class="finance-custom-form__featured">
+                <input v-model="financeCustomDraft.featured" type="checkbox" />
+                <span>精選焦點（顯示在最上方並排）</span>
               </label>
               <label class="finance-custom-form__images">
                 <span>圖片（選填 · Supabase 公開網址，每行一張，最多 {{ MAX_CUSTOM_IMAGE_URLS }} 張）</span>
@@ -1073,6 +1061,7 @@
                 <strong>{{ item.name }}</strong>
                 <span>{{ item.provider.toUpperCase() }}: {{ item.symbol }}</span>
                 <span>{{ FINANCE_GROUP_LABELS[item.group] || item.group }}</span>
+                <span v-if="item.featured" class="finance-chip__media" title="精選焦點">★</span>
                 <span v-if="(item.imageUrls || []).length || item.imageUrl" class="finance-chip__media" title="已設定圖片">🖼</span>
                 <button type="button" class="finance-chip__btn" @click="editCustomFinanceInstrument(item)">編輯</button>
                 <button type="button" class="finance-chip__btn" @click="deleteCustomFinanceInstrument(item)">×</button>
@@ -1111,12 +1100,11 @@ import {
   stripRemovedFengTubeChannels
 } from '../../utils/fengTubeChannels'
 import { buildFengbroTubeCsv, parseFengbroTubeCsv } from '../../utils/fengTubeCsv'
-import { FENG_FINANCE_DEFAULT_INSTRUMENTS } from '../../utils/fengFinanceInstruments'
 import {
   FINANCE_CUSTOM_GROUPS,
   FINANCE_GROUP_LABELS,
   MAX_CUSTOM_IMAGE_URLS,
-  buildCustomFinanceInstrumentFromDraft,
+  applyFinanceDraft,
   createEmptyCustomFinanceDraft,
   draftFromCustomFinanceInstrument,
   getCustomFinanceInstrumentKey,
@@ -1128,6 +1116,7 @@ import {
   parseFinanceQuoteInput
 } from '../../utils/fengbroFinanceCustom'
 import {
+  MAX_FINANCE_INSTRUMENTS,
   buildFinanceCustomCsv,
   mergeFinanceCustomInstruments,
   parseFinanceCustomCsv
@@ -1222,10 +1211,8 @@ const tubeCsvBusy = ref(false)
 const financeLoading = ref(false)
 const financeError = ref('')
 const financeResult = ref(null)
-const financeDefaultInstruments = FENG_FINANCE_DEFAULT_INSTRUMENTS
-const FINANCE_DEFAULT_IDS_KEY = 'fengbro.tools.finance.defaultInstrumentIds'
 const FINANCE_CUSTOM_INSTRUMENTS_KEY = 'fengbro.tools.finance.customInstruments'
-const selectedDefaultInstrumentIds = ref(financeDefaultInstruments.map((item) => item.id))
+// 全部標的（含原本寫死的 34 檔預設標的）都在 financeinstrument 表，這裡是畫面用的清單。
 const financeCustomInstruments = ref([])
 const financeCustomDraft = ref(createEmptyCustomFinanceDraft())
 const financeEditingCustomKey = ref(null)
@@ -1262,16 +1249,7 @@ const defaultTubeChannelCount = FENG_TUBE_CHANNELS.length
 const { loadLandtopHistory, recordLandtopSnapshot } = useLandtopHistory()
 
 // ---- 個人清單雲端同步（雲端為主、本機為離線快取） ----
-const financeDefaultsSync = useCloudListSync({
-  syncKey: 'finance-default-instrument-ids',
-  target: selectedDefaultInstrumentIds,
-  readLocal: () => safeJsonParse(localStorage.getItem(FINANCE_DEFAULT_IDS_KEY) || 'null', []),
-  writeLocal: (value) => localStorage.setItem(FINANCE_DEFAULT_IDS_KEY, JSON.stringify(value)),
-  normalize: (id) => String(id || ''),
-  enabled: true,
-})
-
-// 自訂標的走獨立表 financeinstrument（每檔一列），首次載入時從 toollistsync 舊清單搬過去。
+// 標的走獨立表 financeinstrument（每檔一列），首次載入時從 toollistsync 舊清單搬過去。
 const financeCustomSync = useFinanceInstrumentSync({
   target: financeCustomInstruments,
   readLocal: () => safeJsonParse(localStorage.getItem(FINANCE_CUSTOM_INSTRUMENTS_KEY) || '[]', []),
@@ -1305,24 +1283,11 @@ const FINANCE_HISTORY_RANGE_LABELS = {
   '1y': '最近一年走勢',
   '3y': '最近三年走勢'
 }
-const FINANCE_FEATURED_IDS = ['kospi', 'nikkei-225', 'phlx-semiconductor']
-const financeFeaturedMeta = {
-  kospi: {
-    title: 'KOSPI Index',
-    subtitle: '韓國綜合指數 코스피 · 6000點以上不再製作AI圖片與AI影片',
-    cardClass: 'finance-card--kospi'
-  },
-  'nikkei-225': {
-    title: 'Nikkei 225 Index',
-    subtitle: '日經平均指數 日経平均株価',
-    cardClass: 'finance-card--nikkei'
-  },
-  'phlx-semiconductor': {
-    title: '費城半導體指數',
-    subtitle: 'Philadelphia Semiconductor · SOX',
-    cardClass: 'finance-card--sox'
-  }
-}
+// 精選焦點卡片的配色依序輪替（原本 KOSPI／日經／費半三張卡的顏色）。
+const FINANCE_FEATURED_CARD_CLASSES = ['finance-card--kospi', 'finance-card--nikkei', 'finance-card--sox']
+const KOSPI_SYMBOL = '.KS11'
+const isKospiQuote = (quote) =>
+  quote?.id === 'kospi' || quote?.slug === 'kospi' || String(quote?.symbol || '').toUpperCase() === KOSPI_SYMBOL
 
 const createManualId = (prefix) => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -1711,7 +1676,7 @@ const buildFinanceHistoryChart = (points, quote = null) => {
 
   let min = Math.min(...priced.map((p) => p.value))
   let max = Math.max(...priced.map((p) => p.value))
-  if (quote?.id === 'kospi') {
+  if (isKospiQuote(quote)) {
     if (typeof quote.low52 === 'number') min = Math.min(min, quote.low52)
     if (typeof quote.high52 === 'number') max = Math.max(max, quote.high52)
   }
@@ -1997,11 +1962,8 @@ const financeQuotes = computed(() => {
   return raw.map(normalizeFinanceQuote)
 })
 
-const financeFeaturedQuotes = computed(() =>
-  FINANCE_FEATURED_IDS
-    .map((id) => financeQuotes.value.find((quote) => quote.id === id))
-    .filter(Boolean)
-)
+// 精選焦點：financeinstrument.featured，依清單順序。
+const financeFeaturedQuotes = computed(() => financeQuotes.value.filter((quote) => quote.featured))
 
 const financeGroupedQuotes = computed(() => {
   const order = ['korea', 'japan', 'taiwan', 'us', 'other']
@@ -2015,53 +1977,19 @@ const financeGroupedQuotes = computed(() => {
     .filter((item) => item.quotes.length > 0)
 })
 
-const selectedDefaultInstruments = computed(() =>
-  financeDefaultInstruments.filter((item) => selectedDefaultInstrumentIds.value.includes(item.id))
-)
-
-const deletedDefaultInstruments = computed(() =>
-  financeDefaultInstruments.filter((item) => !selectedDefaultInstrumentIds.value.includes(item.id))
-)
-
 const persistFinanceWatchlist = () => {
   if (!import.meta.client) return
-  localStorage.setItem(FINANCE_DEFAULT_IDS_KEY, JSON.stringify(selectedDefaultInstrumentIds.value))
   localStorage.setItem(FINANCE_CUSTOM_INSTRUMENTS_KEY, JSON.stringify(financeCustomInstruments.value))
 }
 
 const readFinanceWatchlist = () => {
   if (!import.meta.client) return
-  const defaultIds = safeJsonParse(localStorage.getItem(FINANCE_DEFAULT_IDS_KEY) || 'null', null)
-  if (Array.isArray(defaultIds)) {
-    const allowed = new Set(financeDefaultInstruments.map((item) => item.id))
-    const next = defaultIds.map((id) => String(id)).filter((id) => allowed.has(id))
-    if (next.length) selectedDefaultInstrumentIds.value = next
-  }
   const custom = safeJsonParse(localStorage.getItem(FINANCE_CUSTOM_INSTRUMENTS_KEY) || '[]', [])
   if (Array.isArray(custom)) {
     financeCustomInstruments.value = custom
       .map((item) => normalizeCustomFinanceInstrument(item))
       .filter(Boolean)
   }
-}
-
-const addDefaultInstrument = (id) => {
-  if (!id || selectedDefaultInstrumentIds.value.includes(id)) return
-  selectedDefaultInstrumentIds.value = [...selectedDefaultInstrumentIds.value, id]
-  persistFinanceWatchlist()
-  runFinanceLookup()
-}
-
-const removeDefaultInstrument = (id) => {
-  selectedDefaultInstrumentIds.value = selectedDefaultInstrumentIds.value.filter((item) => item !== id)
-  persistFinanceWatchlist()
-  runFinanceLookup()
-}
-
-const resetDefaultInstruments = () => {
-  selectedDefaultInstrumentIds.value = financeDefaultInstruments.map((item) => item.id)
-  persistFinanceWatchlist()
-  runFinanceLookup()
 }
 
 const onFinanceCustomUrlInput = (value) => {
@@ -2135,20 +2063,21 @@ const scheduleFinanceNameResolve = () => {
 }
 
 const saveCustomFinanceInstrument = () => {
-  const next = buildCustomFinanceInstrumentFromDraft(financeCustomDraft.value)
+  const draft = financeCustomDraft.value
+  const findIndex = (key) =>
+    financeCustomInstruments.value.findIndex((item) => getCustomFinanceInstrumentKey(item) === key)
+  const editingIndex = financeEditingCustomKey.value ? findIndex(financeEditingCustomKey.value) : -1
+  let next = applyFinanceDraft(draft, financeCustomInstruments.value[editingIndex])
   if (!next) {
     financeError.value = '請輸入有效的網址或代號。'
     return
   }
-  const key = getCustomFinanceInstrumentKey(next)
-  const existingIndex = financeCustomInstruments.value.findIndex(
-    (item) => getCustomFinanceInstrumentKey(item) === (financeEditingCustomKey.value || key)
-  )
-  if (financeEditingCustomKey.value && existingIndex >= 0) {
-    const copy = [...financeCustomInstruments.value]
-    copy[existingIndex] = next
-    financeCustomInstruments.value = copy
-  } else if (existingIndex >= 0) {
+  const existingIndex = editingIndex >= 0 ? editingIndex : findIndex(getCustomFinanceInstrumentKey(next))
+  if (editingIndex < 0 && existingIndex >= 0) {
+    // 新增的代號已存在：當成編輯那一檔，保留它原本的其他欄位。
+    next = applyFinanceDraft(draft, financeCustomInstruments.value[existingIndex]) || next
+  }
+  if (existingIndex >= 0) {
     const copy = [...financeCustomInstruments.value]
     copy[existingIndex] = next
     financeCustomInstruments.value = copy
@@ -2189,7 +2118,7 @@ const financeCsvInputRef = ref(null)
 const exportFinanceCustomCsv = () => {
   try {
     if (!financeCustomInstruments.value.length) {
-      financeError.value = '目前沒有自訂指數／股票可匯出（內建預設標的不含在 CSV 內）。請先在下方「新增指數或股票」加入，或匯入 CSV。'
+      financeError.value = '目前沒有標的可匯出。請先在下方「新增指數或股票」加入，或匯入 CSV。'
       return
     }
     const csv = buildFinanceCustomCsv(financeCustomInstruments.value)
@@ -2244,8 +2173,8 @@ const importFinanceCustomCsv = (file) => {
 
       if (financeCustomInstruments.value.length > 0) {
         const ok = window.confirm(
-          `將合併匯入 ${data.length} 筆自訂標的（相同來源+代號會覆蓋）。\n` +
-            `目前 ${financeCustomInstruments.value.length} 筆，合併後最多保留 30 筆。\n\n` +
+          `將合併匯入 ${data.length} 筆標的（相同來源+代號會覆蓋）。\n` +
+            `目前 ${financeCustomInstruments.value.length} 筆，合併後最多保留 ${MAX_FINANCE_INSTRUMENTS} 筆。\n\n` +
             `確定匯入？`
         )
         if (!ok) return
@@ -2359,22 +2288,21 @@ const pollKospiLive = async () => {
   }
   kospiLiveOpen.value = true
   if (!financeResult.value || financeLoading.value) return
+  const kospi = financeCustomInstruments.value.find(isKospiQuote)
+  if (!kospi) return
   kospiLiveRefreshing.value = true
   try {
     const data = await $fetch('/api/feng-tools/finance', {
-      query: {
-        defaults: JSON.stringify(['kospi']),
-        custom: JSON.stringify([]),
-        skipHistory: '1'
-      }
+      method: 'POST',
+      body: { instruments: [kospi], skipHistory: true }
     })
-    const live = (data?.quotes || []).find((quote) => quote.id === 'kospi')
+    const live = (data?.quotes || []).find(isKospiQuote)
     if (!live || !financeResult.value?.quotes) return
     financeResult.value = {
       ...financeResult.value,
       fetchedAt: data.fetchedAt || financeResult.value.fetchedAt,
       quotes: financeResult.value.quotes.map((quote) =>
-        quote.id === 'kospi'
+        isKospiQuote(quote)
           ? {
               ...quote,
               price: live.price,
@@ -2829,10 +2757,8 @@ const runFinanceLookup = async () => {
 
   try {
     financeResult.value = await $fetch('/api/feng-tools/finance', {
-      query: {
-        defaults: JSON.stringify(selectedDefaultInstrumentIds.value),
-        custom: JSON.stringify(financeCustomInstruments.value)
-      }
+      method: 'POST',
+      body: { instruments: financeCustomInstruments.value }
     })
     startFinanceImageCarousel()
     startKospiLivePoll()
@@ -2849,7 +2775,6 @@ onMounted(async () => {
   readFinanceWatchlist()
   // 個人清單雲端同步：本機快取先顯示，再以雲端覆蓋或把本機遷移上雲。
   await Promise.all([
-    financeDefaultsSync.hydrateFromCloud(),
     financeCustomSync.hydrateFromCloud(),
     tubeChannelsSync.hydrateFromCloud(),
     manualProductsSync.hydrateFromCloud(),
@@ -3376,7 +3301,6 @@ watch(
   margin-bottom: 1rem;
 }
 
-.finance-watchlist,
 .finance-custom-form {
   border: 1px solid var(--border-color);
   border-radius: 18px;
@@ -3384,18 +3308,6 @@ watch(
   padding: 0.9rem 1rem;
 }
 
-.finance-watchlist summary {
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.finance-watchlist__body {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-}
-
-.finance-watchlist__actions,
 .finance-custom-form__actions {
   display: flex;
   flex-wrap: wrap;
@@ -3421,6 +3333,14 @@ watch(
   gap: 0.3rem;
   font-size: 0.8rem;
   color: var(--text-secondary);
+}
+
+.finance-custom-form__grid .finance-custom-form__featured {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-primary);
 }
 
 .finance-custom-form__images,

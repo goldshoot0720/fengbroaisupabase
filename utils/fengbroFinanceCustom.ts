@@ -1,11 +1,20 @@
 /**
- * Client-side helpers for custom 鋒兄金融 instruments:
- * parse Yahoo / CNBC quote URLs (or bare tickers) and guess a display group.
+ * Helpers for 鋒兄金融 instruments (all stored in public.financeinstrument):
+ * parse Yahoo / CNBC quote URLs (or bare tickers), guess a display group, and
+ * normalize the instrument shape shared by the page, CSV backup and the quote API.
  *
  * Groups are region-based: 韓國 / 日本 / 台灣 / 美國 / 其他.
  */
 
+/** Providers a user can add from a URL / ticker. */
 export type FinanceCustomProvider = "cnbc" | "yahoo";
+/** Every quote provider the finance API understands (multpl / mis / taifex come from migrated rows). */
+export type FinanceProvider = FinanceCustomProvider | "multpl" | "mis" | "taifex";
+
+export const FINANCE_PROVIDERS: FinanceProvider[] = ["cnbc", "yahoo", "multpl", "mis", "taifex"];
+
+export type FinanceLink = { label: string; url: string };
+export type FinanceReferenceLevel = { value: number; label: string };
 
 /** Region groups for 鋒兄金融 display & custom instruments. */
 export type FinanceCustomGroup = "korea" | "japan" | "taiwan" | "us" | "other";
@@ -13,12 +22,31 @@ export type FinanceCustomGroup = "korea" | "japan" | "taiwan" | "us" | "other";
 export type CustomFinanceInstrument = {
   name: string;
   symbol: string;
-  provider: FinanceCustomProvider;
+  provider: FinanceProvider;
   group: FinanceCustomGroup;
   /** Primary card image (first of imageUrls). Absolute Supabase public URL or site path. */
   imageUrl?: string;
   /** Up to MAX_CUSTOM_IMAGE_URLS card images (carousel). */
   imageUrls?: string[];
+  /** Stable quote id kept from the former built-in list (e.g. "kospi"). */
+  slug?: string;
+  /** Quote page link; derived from provider + symbol when empty. */
+  sourceUrl?: string;
+  /** Yahoo chart symbol for 1y/3y history when it differs from `symbol` (e.g. .KS11 → ^KS11). */
+  historySymbol?: string;
+  alertThreshold?: number;
+  localLabel?: string;
+  periodLabel?: string;
+  referenceLevels?: FinanceReferenceLevel[];
+  youtubeUrl?: string;
+  youtubeLabel?: string;
+  youtubeLinks?: FinanceLink[];
+  bilibiliUrl?: string;
+  relatedLinks?: FinanceLink[];
+  /** Shown in the 精選焦點 row. */
+  featured?: boolean;
+  /** Small caption on the 精選焦點 card. */
+  subtitle?: string;
 };
 
 export type CustomFinanceDraft = {
@@ -26,10 +54,11 @@ export type CustomFinanceDraft = {
   name: string;
   /** 報價網址或代號 */
   urlOrSymbol: string;
-  provider: FinanceCustomProvider;
+  provider: FinanceProvider;
   group: FinanceCustomGroup;
   /** One image URL per line (optional). Supabase Storage public URL or `/path`. */
   imageUrlsText: string;
+  featured: boolean;
 };
 
 /** Max images per custom instrument (carousel). */
@@ -526,10 +555,13 @@ export function normalizeFinanceImageUrls(input: unknown): string[] {
 export function draftFromCustomFinanceInstrument(
   instrument: CustomFinanceInstrument
 ): CustomFinanceDraft {
+  // multpl / mis / taifex have no pasteable quote URL: edit by symbol and keep the provider.
   const urlOrSymbol =
     instrument.provider === "yahoo"
       ? buildYahooQuoteSourceUrl(instrument.symbol, { group: instrument.group })
-      : buildCnbcQuoteSourceUrl(instrument.symbol);
+      : instrument.provider === "cnbc"
+        ? buildCnbcQuoteSourceUrl(instrument.symbol)
+        : instrument.symbol;
 
   const imageUrls = normalizeFinanceImageUrls(
     instrument.imageUrls?.length
@@ -545,20 +577,107 @@ export function draftFromCustomFinanceInstrument(
     provider: instrument.provider,
     group: migrateFinanceGroup(instrument.group),
     imageUrlsText: imageUrls.join("\n"),
+    featured: Boolean(instrument.featured),
   };
+}
+
+export function normalizeFinanceProvider(value: unknown): FinanceProvider {
+  const text = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return (FINANCE_PROVIDERS as string[]).includes(text) ? (text as FinanceProvider) : "cnbc";
+}
+
+function cleanText(value: unknown, max: number): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const text = value.trim();
+  return text ? text.slice(0, max) : undefined;
+}
+
+function cleanHttpUrl(value: unknown): string | undefined {
+  const text = cleanText(value, 1000);
+  if (!text || !/^https?:\/\//i.test(text)) return undefined;
+  try {
+    new URL(text);
+    return text;
+  } catch {
+    return undefined;
+  }
+}
+
+function cleanNumber(value: unknown): number | undefined {
+  const number = typeof value === "string" && value.trim() ? Number(value) : value;
+  return typeof number === "number" && Number.isFinite(number) ? number : undefined;
+}
+
+export function normalizeFinanceLinks(value: unknown, max = 12): FinanceLink[] {
+  if (!Array.isArray(value)) return [];
+  const links: FinanceLink[] = [];
+  for (const item of value) {
+    const url = cleanHttpUrl((item as FinanceLink)?.url);
+    if (!url) continue;
+    links.push({ label: cleanText((item as FinanceLink)?.label, 80) || new URL(url).hostname, url });
+    if (links.length >= max) break;
+  }
+  return links;
+}
+
+export function normalizeFinanceReferenceLevels(value: unknown, max = 6): FinanceReferenceLevel[] {
+  if (!Array.isArray(value)) return [];
+  const levels: FinanceReferenceLevel[] = [];
+  for (const item of value) {
+    const level = cleanNumber((item as FinanceReferenceLevel)?.value);
+    if (level == null) continue;
+    levels.push({ value: level, label: cleanText((item as FinanceReferenceLevel)?.label, 120) || String(level) });
+    if (levels.length >= max) break;
+  }
+  return levels;
+}
+
+/** Optional fields carried over from the former built-in list; omitted when empty. */
+function normalizeFinanceExtras(input: Partial<CustomFinanceInstrument>) {
+  const extras: Partial<CustomFinanceInstrument> = {};
+  const slug = cleanText(input.slug, 48);
+  if (slug) extras.slug = slug;
+  const sourceUrl = cleanHttpUrl(input.sourceUrl);
+  if (sourceUrl) extras.sourceUrl = sourceUrl;
+  const historySymbol = cleanText(input.historySymbol, 32);
+  if (historySymbol) extras.historySymbol = historySymbol;
+  const alertThreshold = cleanNumber(input.alertThreshold);
+  if (alertThreshold != null) extras.alertThreshold = alertThreshold;
+  const localLabel = cleanText(input.localLabel, 120);
+  if (localLabel) extras.localLabel = localLabel;
+  const periodLabel = cleanText(input.periodLabel, 40);
+  if (periodLabel) extras.periodLabel = periodLabel;
+  const referenceLevels = normalizeFinanceReferenceLevels(input.referenceLevels);
+  if (referenceLevels.length) extras.referenceLevels = referenceLevels;
+  const youtubeUrl = cleanHttpUrl(input.youtubeUrl);
+  if (youtubeUrl) extras.youtubeUrl = youtubeUrl;
+  const youtubeLabel = cleanText(input.youtubeLabel, 80);
+  if (youtubeLabel) extras.youtubeLabel = youtubeLabel;
+  const youtubeLinks = normalizeFinanceLinks(input.youtubeLinks);
+  if (youtubeLinks.length) extras.youtubeLinks = youtubeLinks;
+  const bilibiliUrl = cleanHttpUrl(input.bilibiliUrl);
+  if (bilibiliUrl) extras.bilibiliUrl = bilibiliUrl;
+  const relatedLinks = normalizeFinanceLinks(input.relatedLinks);
+  if (relatedLinks.length) extras.relatedLinks = relatedLinks;
+  if (input.featured === true) extras.featured = true;
+  const subtitle = cleanText(input.subtitle, 120);
+  if (subtitle) extras.subtitle = subtitle;
+  return extras;
 }
 
 export function normalizeCustomFinanceInstrument(
   input: Partial<CustomFinanceInstrument> & { imageUrlsText?: string }
 ): CustomFinanceInstrument | null {
-  const symbol = typeof input.symbol === "string" ? input.symbol.trim().toUpperCase() : "";
+  const provider = normalizeFinanceProvider(input.provider);
+  const rawSymbol = typeof input.symbol === "string" ? input.symbol.trim() : "";
+  // CNBC / Yahoo tickers are case-insensitive; MIS codes like otc_o00.tw are not.
+  const symbol = provider === "cnbc" || provider === "yahoo" ? rawSymbol.toUpperCase() : rawSymbol;
   if (!symbol || symbol.length > 32) return null;
 
   const name =
     typeof input.name === "string" && input.name.trim()
       ? input.name.trim().slice(0, 80)
       : symbol;
-  const provider = input.provider === "yahoo" ? "yahoo" : "cnbc";
   const group = migrateFinanceGroup(input.group);
 
   const imageUrls = normalizeFinanceImageUrls(
@@ -576,6 +695,7 @@ export function normalizeCustomFinanceInstrument(
     group,
     ...(imageUrls[0] ? { imageUrl: imageUrls[0] } : {}),
     ...(imageUrls.length > 0 ? { imageUrls } : {}),
+    ...normalizeFinanceExtras(input),
   };
 }
 
@@ -607,6 +727,54 @@ export function buildCustomFinanceInstrumentFromDraft(
     provider,
     group,
     imageUrls: normalizeFinanceImageUrls(draft.imageUrlsText),
+    featured: draft.featured === true,
+  });
+}
+
+/**
+ * Apply the add/edit form to an instrument. The form only covers name, symbol/provider,
+ * group, images and featured; every other field (alert, reference levels, YouTube /
+ * Bilibili, related links…) is kept from `existing`. When the symbol or provider
+ * changes, the old slug / quote page / history symbol no longer apply and are dropped.
+ */
+export function applyFinanceDraft(
+  draft: CustomFinanceDraft,
+  existing?: CustomFinanceInstrument | null
+): CustomFinanceInstrument | null {
+  // multpl / mis / taifex have no pasteable quote URL: keep their source while the symbol is unchanged.
+  const keepQuoteSource =
+    existing != null &&
+    existing.provider !== "cnbc" &&
+    existing.provider !== "yahoo" &&
+    draft.urlOrSymbol.trim() === existing.symbol;
+  const edited = keepQuoteSource
+    ? normalizeCustomFinanceInstrument({
+        name: draft.name,
+        symbol: existing.symbol,
+        provider: existing.provider,
+        group: draft.group,
+        imageUrls: normalizeFinanceImageUrls(draft.imageUrlsText),
+        featured: draft.featured === true,
+      })
+    : buildCustomFinanceInstrumentFromDraft(draft);
+  if (!edited || !existing) return edited;
+
+  const sameQuote = getCustomFinanceInstrumentKey(edited) === getCustomFinanceInstrumentKey(existing);
+  const {
+    imageUrl: _imageUrl,
+    imageUrls: _imageUrls,
+    featured: _featured,
+    slug,
+    sourceUrl,
+    historySymbol,
+    ...extras
+  } = existing;
+  return normalizeCustomFinanceInstrument({
+    ...extras,
+    ...(sameQuote ? { slug, sourceUrl, historySymbol } : {}),
+    ...edited,
+    imageUrls: edited.imageUrls || [],
+    featured: edited.featured === true,
   });
 }
 
@@ -619,6 +787,7 @@ export function createEmptyCustomFinanceDraft(
     provider: "cnbc",
     group: "us",
     imageUrlsText: "",
+    featured: false,
     ...overrides,
   };
 }

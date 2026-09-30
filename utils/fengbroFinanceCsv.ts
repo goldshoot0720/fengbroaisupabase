@@ -1,14 +1,16 @@
 /**
- * CSV export / import for 鋒兄金融 custom instruments (localStorage watchlist).
+ * CSV export / import for 鋒兄金融 instruments (public.financeinstrument).
  *
- * Columns (compatible with Appwrite fengbroFinanceCsv):
+ * The first 9 columns match Appwrite fengbroFinanceCsv, so CSVs move between projects:
  * name,symbol,provider,group,imageUrls,youtubeUrl,bilibiliUrl,relatedLinks,featured
+ * The rest carry fields the former built-in list used (Appwrite ignores unknown columns):
+ * subtitle,localLabel,periodLabel,alertThreshold,referenceLevels,youtubeLabel,youtubeLinks,
+ * sourceUrl,historySymbol,slug
  *
- * Supabase instruments store name/symbol/provider/group/imageUrls.
- * Extra columns are accepted on import (ignored) and written empty on export so
- * CSVs can move between Appwrite / Supabase projects.
- *
- * Multi-value cells use `;` as separator for imageUrls.
+ * Multi-value cells use `;`:
+ * - imageUrls: url1;url2
+ * - relatedLinks / youtubeLinks: 標籤|url;標籤|url  (a bare url is also accepted)
+ * - referenceLevels: 6472|融資平均水平線;7000|標籤
  * media-proxy URLs are unwrapped so API keys are not written to CSV.
  */
 
@@ -16,7 +18,10 @@ import {
   migrateFinanceGroup,
   normalizeCustomFinanceInstrument,
   normalizeFinanceImageUrls,
+  normalizeFinanceProvider,
   type CustomFinanceInstrument,
+  type FinanceLink,
+  type FinanceReferenceLevel,
 } from "./fengbroFinanceCustom.ts";
 
 export const FINANCE_CUSTOM_CSV_HEADERS = [
@@ -29,6 +34,16 @@ export const FINANCE_CUSTOM_CSV_HEADERS = [
   "bilibiliUrl",
   "relatedLinks",
   "featured",
+  "subtitle",
+  "localLabel",
+  "periodLabel",
+  "alertThreshold",
+  "referenceLevels",
+  "youtubeLabel",
+  "youtubeLinks",
+  "sourceUrl",
+  "historySymbol",
+  "slug",
 ] as const;
 
 export type FinanceCustomCsvHeader = (typeof FINANCE_CUSTOM_CSV_HEADERS)[number];
@@ -62,9 +77,22 @@ const HEADER_ALIASES: Record<string, FinanceCustomCsvHeader> = {
   featured: "featured",
   精選: "featured",
   精選焦點: "featured",
+  subtitle: "subtitle",
+  locallabel: "localLabel",
+  periodlabel: "periodLabel",
+  alertthreshold: "alertThreshold",
+  警示價: "alertThreshold",
+  referencelevels: "referenceLevels",
+  參考線: "referenceLevels",
+  youtubelabel: "youtubeLabel",
+  youtubelinks: "youtubeLinks",
+  sourceurl: "sourceUrl",
+  historysymbol: "historySymbol",
+  slug: "slug",
 };
 
-const MAX_CUSTOM_INSTRUMENTS = 30;
+/** Most instruments the list keeps (was 30 before the built-in 34 moved into the table). */
+export const MAX_FINANCE_INSTRUMENTS = 80;
 
 export function escapeFinanceCsvValue(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -95,19 +123,62 @@ export function imageUrlsToCsvCell(instrument: CustomFinanceInstrument): string 
   return urls.join(";");
 }
 
+const linksToCsvCell = (links: FinanceLink[] | undefined) =>
+  (links || []).map((link) => `${link.label.replace(/[|;]/g, " ")}|${link.url}`).join(";");
+
+const levelsToCsvCell = (levels: FinanceReferenceLevel[] | undefined) =>
+  (levels || []).map((level) => `${level.value}|${level.label.replace(/[|;]/g, " ")}`).join(";");
+
+function parseLinksCell(value: string): FinanceLink[] {
+  const links: FinanceLink[] = [];
+  for (const part of value.split(";")) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const match = trimmed.match(/^(.+?)\s*[|｜]\s*(https?:\/\/\S+)$/i);
+    links.push(match ? { label: match[1].trim(), url: match[2].trim() } : { label: "", url: trimmed });
+  }
+  return links;
+}
+
+function parseLevelsCell(value: string): FinanceReferenceLevel[] {
+  const levels: FinanceReferenceLevel[] = [];
+  for (const part of value.split(";")) {
+    const [rawValue, ...labelParts] = part.split(/[|｜]/);
+    const number = Number(String(rawValue || "").replace(/[,\s]/g, ""));
+    if (!rawValue?.trim() || !Number.isFinite(number)) continue;
+    levels.push({ value: number, label: labelParts.join("|").trim() });
+  }
+  return levels;
+}
+
+function parseFeaturedFlag(value: string): boolean {
+  return /^(1|true|yes|y|是|精選)$/i.test(value.trim());
+}
+
 export function toFinanceCustomCsvRow(instrument: CustomFinanceInstrument): string {
   return [
-    escapeFinanceCsvValue(instrument.name),
-    escapeFinanceCsvValue(instrument.symbol),
-    escapeFinanceCsvValue(instrument.provider),
-    escapeFinanceCsvValue(instrument.group),
-    escapeFinanceCsvValue(imageUrlsToCsvCell(instrument)),
-    // Reserved for Appwrite CSV compatibility
-    "",
-    "",
-    "",
-    "0",
-  ].join(",");
+    instrument.name,
+    instrument.symbol,
+    instrument.provider,
+    instrument.group,
+    imageUrlsToCsvCell(instrument),
+    instrument.youtubeUrl,
+    instrument.bilibiliUrl,
+    linksToCsvCell(instrument.relatedLinks),
+    instrument.featured ? "1" : "0",
+    instrument.subtitle,
+    instrument.localLabel,
+    instrument.periodLabel,
+    instrument.alertThreshold,
+    levelsToCsvCell(instrument.referenceLevels),
+    instrument.youtubeLabel,
+    linksToCsvCell(instrument.youtubeLinks),
+    instrument.sourceUrl,
+    instrument.historySymbol,
+    instrument.slug,
+  ]
+    .map(escapeFinanceCsvValue)
+    .join(",");
 }
 
 export function buildFinanceCustomCsv(instruments: CustomFinanceInstrument[]): string {
@@ -207,7 +278,7 @@ export function mergeFinanceCustomInstruments(
   return order
     .map((key) => map.get(key)!)
     .filter(Boolean)
-    .slice(0, MAX_CUSTOM_INSTRUMENTS);
+    .slice(0, MAX_FINANCE_INSTRUMENTS);
 }
 
 export function parseFinanceCustomCsv(text: string): {
@@ -254,18 +325,31 @@ export function parseFinanceCustomCsv(text: string): {
       continue;
     }
 
-    const imageUrlsRaw = cell("imageUrls");
     const providerRaw = (cell("provider") || "yahoo").toLowerCase();
-    const provider = providerRaw === "cnbc" ? "cnbc" : "yahoo";
+    // 空白或不認得的來源沿用舊行為當 Yahoo；cnbc / multpl / mis / taifex 照填。
+    const provider = normalizeFinanceProvider(providerRaw) === providerRaw ? providerRaw : "yahoo";
     const group = migrateFinanceGroup(cell("group") || "other");
 
-    const imageUrls = normalizeFinanceImageUrls(imageUrlsRaw);
     const normalized = normalizeCustomFinanceInstrument({
       name: cell("name") || symbol,
       symbol,
-      provider,
+      provider: normalizeFinanceProvider(provider),
       group,
-      imageUrls,
+      imageUrls: normalizeFinanceImageUrls(cell("imageUrls")),
+      youtubeUrl: cell("youtubeUrl"),
+      bilibiliUrl: cell("bilibiliUrl"),
+      relatedLinks: parseLinksCell(cell("relatedLinks")),
+      featured: parseFeaturedFlag(cell("featured")),
+      subtitle: cell("subtitle"),
+      localLabel: cell("localLabel"),
+      periodLabel: cell("periodLabel"),
+      alertThreshold: cell("alertThreshold") === "" ? undefined : Number(cell("alertThreshold").replace(/,/g, "")),
+      referenceLevels: parseLevelsCell(cell("referenceLevels")),
+      youtubeLabel: cell("youtubeLabel"),
+      youtubeLinks: parseLinksCell(cell("youtubeLinks")),
+      sourceUrl: cell("sourceUrl"),
+      historySymbol: cell("historySymbol"),
+      slug: cell("slug"),
     });
 
     if (!normalized) {
@@ -281,9 +365,9 @@ export function parseFinanceCustomCsv(text: string): {
     seenKeys.add(key);
     data.push(normalized);
 
-    if (data.length >= MAX_CUSTOM_INSTRUMENTS) {
+    if (data.length >= MAX_FINANCE_INSTRUMENTS) {
       if (i < rows.length - 1) {
-        errors.push(`已達上限 ${MAX_CUSTOM_INSTRUMENTS} 筆，其餘列略過`);
+        errors.push(`已達上限 ${MAX_FINANCE_INSTRUMENTS} 筆，其餘列略過`);
       }
       break;
     }

@@ -105,7 +105,7 @@ async function saveToolList(storageKey, syncKey, list) {
   }
 }
 
-// 鋒兄金融自訂標的以 financeinstrument 表為準；表還沒建時退回本機快取＋toollistsync。
+// 鋒兄金融標的以 financeinstrument 表為準；表還沒建時退回本機快取＋toollistsync。
 async function loadFinanceInstruments() {
   try {
     const rows = await fetchFinanceInstrumentRows(requireClient())

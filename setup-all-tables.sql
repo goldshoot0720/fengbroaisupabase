@@ -488,7 +488,8 @@ CREATE TABLE IF NOT EXISTS public.resend_notify_log (
 );
 
 -- =====================================================
--- 24. FINANCEINSTRUMENT 表（鋒兄金融自訂標的，每檔一列；對應 Appwrite financeinstrument2）
+-- 24. FINANCEINSTRUMENT 表（鋒兄金融標的，每檔一列；對應 Appwrite financeinstrument2）
+--     原本寫在程式裡的 34 檔預設標的由 financeinstrument-setup.sql 遷移進來。
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.financeinstrument (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -502,6 +503,23 @@ CREATE TABLE IF NOT EXISTS public.financeinstrument (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (provider, symbol)
 );
+
+-- provider：cnbc / yahoo / multpl（Shiller PE）/ mis（櫃買指數）/ taifex（夜盤台指期）
+ALTER TABLE public.financeinstrument
+  ADD COLUMN IF NOT EXISTS slug VARCHAR(48),
+  ADD COLUMN IF NOT EXISTS sourceurl TEXT,
+  ADD COLUMN IF NOT EXISTS historysymbol VARCHAR(32),
+  ADD COLUMN IF NOT EXISTS alertthreshold NUMERIC,
+  ADD COLUMN IF NOT EXISTS locallabel VARCHAR(120),
+  ADD COLUMN IF NOT EXISTS periodlabel VARCHAR(40),
+  ADD COLUMN IF NOT EXISTS referencelevels JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS youtubeurl TEXT,
+  ADD COLUMN IF NOT EXISTS youtubelabel VARCHAR(80),
+  ADD COLUMN IF NOT EXISTS youtubelinks JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS bilibiliurl TEXT,
+  ADD COLUMN IF NOT EXISTS relatedlinks JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS subtitle VARCHAR(120);
 
 CREATE INDEX IF NOT EXISTS idx_financeinstrument_sortorder ON public.financeinstrument(sortorder);
 

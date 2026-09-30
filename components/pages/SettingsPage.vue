@@ -748,6 +748,7 @@ import packageJson from '../../package.json'
 import pushSubscriptionSql from '../../supabase-push-table.sql?raw'
 import resendNotifyLogSql from '../../supabase-resend-log-table.sql?raw'
 import googleDriveSettingsSql from '../../googledrive-setup.sql?raw'
+import financeInstrumentSql from '../../financeinstrument-setup.sql?raw'
 
 const {
   accounts,
@@ -1730,26 +1731,11 @@ CREATE TABLE public.toollistsync (
   },
   {
     name: 'financeinstrument',
-    label: '鋒兄金融自訂標的',
+    label: '鋒兄金融標的',
     icon: '📈',
     checking: false,
     exists: false,
-    sql: `${TABLE_UUID_EXTENSION_SQL}
-
-CREATE TABLE public.financeinstrument (
-  ${UUID_PRIMARY_KEY_SQL}
-  name VARCHAR(80) NOT NULL,
-  symbol VARCHAR(32) NOT NULL,
-  provider VARCHAR(10) NOT NULL DEFAULT 'cnbc',
-  region VARCHAR(20) NOT NULL DEFAULT 'other',
-  imageurls JSONB NOT NULL DEFAULT '[]'::jsonb,
-  sortorder INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (provider, symbol)
-);
-
-CREATE INDEX IF NOT EXISTS idx_financeinstrument_sortorder ON public.financeinstrument(sortorder);`
+    sql: financeInstrumentSql
   },
   {
     name: 'landtop_history',

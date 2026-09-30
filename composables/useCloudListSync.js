@@ -32,12 +32,28 @@ const initClient = () => {
   return getSupabaseBrowserClient()
 }
 
-const stringifyPayload = (value) => {
+// payload 欄位是 JSONB：寫入時直接送陣列（不可先 JSON.stringify，否則會存成
+// JSONB 字串，讀回來不是陣列而被當成「雲端空白」，進而被本機空清單覆蓋）。
+const toPayloadList = (value) => {
   try {
-    return JSON.stringify(value ?? [])
+    return JSON.parse(JSON.stringify(Array.isArray(value) ? value : []))
   } catch {
-    return '[]'
+    return []
   }
+}
+
+// 相容舊版：早期寫入的是 JSON 字串，讀取時解開成陣列。
+export const parseCloudPayload = (payload) => {
+  if (Array.isArray(payload)) return payload
+  if (typeof payload === 'string') {
+    try {
+      const parsed = JSON.parse(payload || '[]')
+      return Array.isArray(parsed) ? parsed : null
+    } catch {
+      return null
+    }
+  }
+  return null
 }
 
 /**
@@ -112,7 +128,7 @@ export const useCloudListSync = (options) => {
     try {
       const client = initClient()
       if (!client) throw new Error('尚未連線 Supabase')
-      await pushCloudRow(client, stringifyPayload(target.value))
+      await pushCloudRow(client, toPayloadList(target.value))
       syncState.value = 'idle'
     } catch (err) {
       syncState.value = 'error'
@@ -134,7 +150,7 @@ export const useCloudListSync = (options) => {
     try {
       const remote = await readCloudRow(client)
       cloudReady.value = true
-      const remoteList = Array.isArray(remote) ? remote : null
+      const remoteList = parseCloudPayload(remote)
 
       if (remoteList === null || remoteList.length === 0) {
         // 首次雲端啟用：保留本機資料，由同步引擎上傳。

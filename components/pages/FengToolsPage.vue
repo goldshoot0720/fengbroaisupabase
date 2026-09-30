@@ -2188,15 +2188,22 @@ const financeCsvInputRef = ref(null)
 
 const exportFinanceCustomCsv = () => {
   try {
+    if (!financeCustomInstruments.value.length) {
+      financeError.value = '目前沒有自訂指數／股票可匯出（內建預設標的不含在 CSV 內）。請先在下方「新增指數或股票」加入，或匯入 CSV。'
+      return
+    }
     const csv = buildFinanceCustomCsv(financeCustomInstruments.value)
     const BOM = '\uFEFF'
     const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     const stamp = new Date().toISOString().slice(0, 10)
-    link.href = URL.createObjectURL(blob)
+    const href = URL.createObjectURL(blob)
+    link.href = href
     link.download = `fengbro-finance-${stamp}.csv`
+    document.body.appendChild(link)
     link.click()
-    URL.revokeObjectURL(link.href)
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(href), 1000)
     financeError.value = ''
   } catch (error) {
     financeError.value = error instanceof Error ? error.message : '匯出 CSV 失敗'

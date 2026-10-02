@@ -165,8 +165,8 @@ export const useFoods = () => {
     }
 
     try {
-      await insertFoodRow(client, buildFoodRow(formData))
-      return { success: true }
+      const saved = await insertFoodRow(client, buildFoodRow(formData))
+      return { success: true, item: saved }
     } catch (error) {
       console.error('行内新增失敗:', error.message)
       return { success: false, error: error.message }

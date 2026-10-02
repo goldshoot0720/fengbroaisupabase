@@ -611,6 +611,7 @@
         <div
           v-for="video in (videoLayoutMode === 'rail' ? [] : filteredVideos)"
           :key="video.id"
+          :data-reveal-id="video.id"
           class="video-card"
           :class="[
             { 'is-selected': selectedIds.has(video.id), 'is-playing': playingVideoId === video.id },
@@ -930,6 +931,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useVideoRecords } from '../../composables/useVideoRecords'
@@ -2053,13 +2055,15 @@ async function saveInlineEdit() {
     return
   }
   try {
-    const result = await updateVideo(inlineEditId.value, inlineEditData.value)
+    const id = inlineEditId.value
+    const result = await updateVideo(id, inlineEditData.value)
     if (!result.success) throw new Error(result.error || '更新失敗')
 
     await loadVideos()
     setPreviewSrc(inlineVideoPreviewSrc, '')
     inlineEditId.value = null
     inlineEditData.value = {}
+    revealItem(id)
   } catch (error) {
     console.error('更新失敗:', error)
     alert('更新失敗: ' + error.message)
@@ -2413,6 +2417,7 @@ const saveInlineAdd = async () => {
     setPreviewSrc(addVideoPreviewSrc, '')
     isAddingInline.value = false
     await loadVideos()
+    revealItem(result.item?.id)
   } catch(e) {
     alert('新增失敗: ' + e.message)
   }
@@ -2550,17 +2555,21 @@ async function handleSubmit() {
   }
 
   try {
+    let revealId = null
     if (isEditing.value) {
-      const result = await updateVideo(editingId.value, formData.value)
+      revealId = editingId.value
+      const result = await updateVideo(revealId, formData.value)
       if (!result.success) throw new Error(result.error || '更新失敗')
       alert('影片已更新')
     } else {
       const result = await addVideo(formData.value)
       if (!result.success) throw new Error(result.error || '新增失敗')
+      revealId = result.item?.id
       alert('影片已新增')
     }
     closeModal()
     await loadVideos()
+    revealItem(revealId)
   } catch (error) {
     console.error('操作失敗:', error)
     alert('操作失敗: ' + error.message)

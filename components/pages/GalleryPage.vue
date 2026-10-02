@@ -235,6 +235,7 @@
         <div
           v-for="image in filteredImages"
           :key="image.id"
+          :data-reveal-id="image.id"
           class="image-card"
           :class="[
             { 'card-editing': editingId === image.id, 'is-selected': selectedIds.has(image.id) },
@@ -581,6 +582,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, reactive, computed } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import PageContainer from '../layout/PageContainer.vue'
 import { useImages } from '../../composables/useImages'
 import { useStorage } from '../../composables/useStorage'
@@ -1126,10 +1128,12 @@ const handleEditImageUpload = async (event) => {
 const saveInlineEdit = async () => {
   if (!editForm.name) { alert('請輸入圖片名稱'); return }
   try {
-    const result = await updateImage(editingId.value, { ...editForm })
+    const id = editingId.value
+    const result = await updateImage(id, { ...editForm })
     if (result.success) {
       editingId.value = null
       await loadImages()
+      revealItem(id)
       await refreshImageSizes()
     }
     else { alert('儲存失敗: ' + result.error) }
@@ -1261,6 +1265,7 @@ const saveInlineAdd = async () => {
       resetAddForm()
       isAddingInline.value = false
       await loadImages()
+      revealItem(result.item?.id)
       await refreshImageSizes()
     }
     else { alert('新增失敗: ' + result.error) }
@@ -1385,8 +1390,10 @@ const handleSubmit = async () => {
   }
 
   if (result.success) {
+    const revealId = isEditing.value ? formData.id : result.item?.id
     closeModal()
     await loadImages()
+    revealItem(revealId)
     await refreshImageSizes()
   } else {
     alert('儲存失敗: ' + result.error)

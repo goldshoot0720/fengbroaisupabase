@@ -40,7 +40,7 @@ export const useCommonAccounts = () => {
       
       const { id, ...payload } = accountData
       
-      await optimistic.insert(payload, async () => {
+      const saved = await optimistic.insert(payload, async () => {
         const { data, error: insertError } = await client
           .from('commonaccount')
           .insert([payload])
@@ -49,7 +49,7 @@ export const useCommonAccounts = () => {
         if (insertError) throw insertError
         return data?.[0] || null
       })
-      return { success: true }
+      return { success: true, item: saved }
     } catch (e) {
       console.error('Error adding common account:', e)
       return { success: false, error: e.message }

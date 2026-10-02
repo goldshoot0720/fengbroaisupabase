@@ -217,6 +217,7 @@
             v-for="sub in filteredSubscriptions"
             :key="sub.id"
             :data-subscription-id="sub.id"
+            :data-reveal-id="sub.id"
             :class="{ selected: selectedIds.includes(sub.id), editing: editingRowId === sub.id }"
           >
             <!-- 批量選擇 Checkbox -->
@@ -410,7 +411,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import { useSubscriptions } from '../../composables/useSubscriptions'
 import { useFormatters } from '../../composables/useFormatters'
 import { useCommonAccounts } from '../../composables/useCommonAccounts'
@@ -639,32 +641,15 @@ const saveAddRow = async () => {
   const result = await addSubscriptionInline(addForm.value)
   if (result.success) {
     showAddRow.value = false
-    // 新列會出現在清單裡：把該筆捲回視窗頂端
+    // 新列會出現在清單裡：把該筆捲到表頭略下方
     if (result.item?.id) revealSubscriptionRow(result.item.id)
   } else {
     alert('新增失敗: ' + result.error)
   }
 }
 
-/** 關閉 inline 編輯表單（儲存或取消）後，把該筆訂閱列捲回視窗頂端。
- *  等兩幀讓 Vue 完成列縮回、排序重算與瀏覽器新佈局後再捲動。 */
-const revealSubscriptionRow = (subscriptionId) => {
-  if (!process.client) return
-  const selector = `[data-subscription-id="${String(subscriptionId).replace(/"/g, '\\"')}"]`
-  const anchor = document.querySelector(selector)
-  if (!anchor) return
-  nextTick(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const current = document.querySelector(selector)
-        if (current && typeof current.scrollIntoView === 'function') {
-          const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-          current.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' })
-        }
-      })
-    })
-  })
-}
+/** 新增、儲存或取消編輯後，把該筆訂閱捲到黏頂表頭略下方並短暫標示（utils/revealItem）。 */
+const revealSubscriptionRow = (subscriptionId) => revealItem(subscriptionId)
 
 const startInlineEdit = (sub) => {
   editingRowId.value = sub.id
@@ -683,7 +668,7 @@ const startInlineEdit = (sub) => {
 const cancelInlineEdit = () => {
   const id = editingRowId.value
   editingRowId.value = null
-  if (id) revealSubscriptionRow(id)
+  if (id) revealItem(id, { highlight: false })
 }
 
 const saveInlineEdit = async (id) => {

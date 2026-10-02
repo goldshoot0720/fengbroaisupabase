@@ -264,6 +264,7 @@
           <div
             v-for="document in filteredDocuments"
             :key="document.id"
+            :data-reveal-id="document.id"
             class="document-card"
             :class="{
               'batch-selected': selectedIds.has(document.id),
@@ -740,6 +741,7 @@
 
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useDocuments } from '../../composables/useDocuments'
@@ -1007,9 +1009,10 @@ const handleAddFileUpload = async (event) => {
 const saveInlineAdd = async () => {
   if (!addForm.name) { alert('請輸入文件名稱'); return }
   try {
-    await addDocument({ ...addForm })
+    const result = await addDocument({ ...addForm })
     isAddingInline.value = false
     await loadDocuments()
+    if (result.success) revealItem(result.item?.id)
   } catch (error) {
     alert('新增失敗: ' + error.message)
   }
@@ -1067,9 +1070,11 @@ const saveInlineEdit = async () => {
     return
   }
   try {
-    await updateDocument(editForm.id, { ...editForm })
+    const id = editForm.id
+    await updateDocument(id, { ...editForm })
     inlineEditingId.value = null
     await loadDocuments()
+    revealItem(id)
   } catch (error) {
     console.error('Inline edit save error:', error)
     alert('儲存失敗: ' + error.message)
@@ -1256,13 +1261,16 @@ const resetForm = () => {
 
 const handleSubmit = async () => {
   try {
+    let revealId = editingId.value
     if (isEditing.value) {
       await updateDocument(editingId.value, formData.value)
     } else {
-      await addDocument(formData.value)
+      const result = await addDocument(formData.value)
+      revealId = result.item?.id
     }
     closeModal()
     await loadDocuments()
+    revealItem(revealId)
   } catch (error) {
     console.error('Error saving document:', error)
     alert('儲存失敗，請稍後再試')

@@ -240,7 +240,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in filteredItems" :key="item.id">
+            <tr v-for="item in filteredItems" :key="item.id" :data-reveal-id="item.id">
               <td v-if="isSelectionMode" class="col-check">
                 <input type="checkbox" :checked="selectedIds.has(item.id)" @change="toggleSelect(item.id)" :aria-label="`選取 ${item.name}`">
               </td>
@@ -309,6 +309,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import { useShoppingList } from '../../composables/useShoppingList'
 import { useNavigation } from '../../composables/useNavigation'
 import { useRecentSearchHistory } from '../../composables/useRecentSearchHistory'
@@ -561,7 +562,9 @@ const handleSubmit = async () => {
       actionError.value = result.error || '儲存失敗，請稍後再試。'
       return
     }
+    const revealId = result.item?.id ?? editingId.value
     closeForm()
+    revealItem(revealId)
   } finally {
     saving.value = false
   }

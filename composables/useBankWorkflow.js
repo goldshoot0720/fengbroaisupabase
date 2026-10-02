@@ -1,4 +1,5 @@
 import { computed, reactive, ref } from 'vue'
+import { revealItem } from '../utils/revealItem.js'
 import { useSelectionSet } from './useSelectionSet'
 
 const formatNumber = (num) => Number(num || 0).toLocaleString()
@@ -233,6 +234,7 @@ export const useBankWorkflow = ({ banks, updateBank, deleteBank }) => {
     if (result.success) {
       closeTransactionModal()
       alert(`${bank.name} 已更新為 NT$ ${formatNumber(nextDeposit)}`)
+      revealItem(bank.id)
     } else {
       alert('更新失敗: ' + result.error)
     }

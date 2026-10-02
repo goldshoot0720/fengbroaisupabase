@@ -201,7 +201,7 @@
 
             <template v-for="(group, gi) in groupedMusics" :key="group.name + gi">
               <!-- 行內編輯：整列展開成表單 -->
-              <div v-if="editingId === getActiveItem(group).id" class="music-card card-editing">
+              <div v-if="editingId === getActiveItem(group).id" class="music-card card-editing" :data-reveal-id="musicRevealKey(group.name)">
                 <div class="card-header">
                   <input v-model="editForm.name" type="text" class="inline-input inline-name" placeholder="歌曲名稱">
                   <div class="card-actions">
@@ -286,6 +286,7 @@
               <div
                 v-else
                 class="sp-track"
+                :data-reveal-id="musicRevealKey(group.name)"
                 :class="{
                   'is-current': currentTrackId === getActiveItem(group).id,
                   'is-selected': group.items.some(m => selectedIds.has(m.id))
@@ -622,6 +623,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, reactive, nextTick } from 'vue'
+import { revealItem } from '../../utils/revealItem.js'
 import { useHead } from '#app'
 import PageContainer from '../layout/PageContainer.vue'
 import { useMusicRecords } from '../../composables/useMusicRecords'
@@ -709,6 +711,7 @@ const saveInlineEdit = async () => {
     await updateMusic(editForm.id, { ...editForm })
     editingId.value = null
     await loadMusics()
+    revealItem(musicRevealKey(editForm.name))
   } catch (error) {
     console.error('Inline edit save error:', error)
     alert('儲存失敗: ' + error.message)
@@ -840,6 +843,9 @@ const languageChips = computed(() => {
 })
 
 // 按歌曲名稱分組
+// 同名歌曲會併成一組（多語言版本），所以用歌名定位要捲到的那一列。
+const musicRevealKey = (name) => `music:${String(name || '').trim().toLowerCase()}`
+
 const groupedMusics = computed(() => {
   const map = new Map()
   for (const music of filteredMusics.value) {
@@ -1283,7 +1289,8 @@ const saveInlineAdd = async () => {
   }
 
   if (!addForm.value.name) { alert('請輸入歌曲名稱'); return }
-  try { await addMusic(addForm.value); resetInlineAddForm(); isAddingInline.value = false; await loadMusics() } catch(e) { alert('新增失敗: ' + e.message) }
+  const revealKey = musicRevealKey(addForm.value.name)
+  try { await addMusic(addForm.value); resetInlineAddForm(); isAddingInline.value = false; await loadMusics(); revealItem(revealKey) } catch(e) { alert('新增失敗: ' + e.message) }
 }
 
 // 行內新增上傳狀態
@@ -1469,6 +1476,7 @@ const handleLanguageChange = () => {
 }
 
 const saveMusic = async () => {
+  let revealKey = ''
   try {
     if (!editingMusic.value && modalSelectedAudios.value.length > 0) {
       const records = []
@@ -1492,11 +1500,14 @@ const saveMusic = async () => {
       if (!result.success) throw new Error(result.error || '匯入失敗')
     } else if (editingMusic.value) {
       await updateMusic(editingMusic.value.id, formData.value)
+      revealKey = musicRevealKey(formData.value.name)
     } else {
       await addMusic(formData.value)
+      revealKey = musicRevealKey(formData.value.name)
     }
     closeModal()
     await loadMusics()
+    if (revealKey) revealItem(revealKey)
   } catch (error) {
     console.error('Error saving music:', error)
     alert('儲存失敗: ' + error.message)

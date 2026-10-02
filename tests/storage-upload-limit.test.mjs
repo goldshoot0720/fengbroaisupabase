@@ -8,7 +8,7 @@ const hooks = registerHooks({
     const stubs = {
       vue: 'export const ref = value => ({ value }); export const computed = fn => ({ get value() { return fn() } });',
       './useSettings': 'export const resolveSupabaseBucket = () => "test-bucket";',
-      './useSupabaseBrowserClient': 'export const getSupabaseBrowserClient = () => globalThis.storageTestClient;',
+      './useSupabaseBrowserClient': 'export const getSupabaseBrowserClient = () => globalThis.storageTestClient; export const getSupabaseBrowserConfig = () => ({ credKey: "test" });',
       './useToast': 'export const useToast = () => ({ warning: message => globalThis.storageTestWarnings.push(message) });',
       '../utils/mediaTraffic': 'export const recordMediaTraffic = () => {};',
     }

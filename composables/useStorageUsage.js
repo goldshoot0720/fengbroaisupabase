@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { resolveSupabaseBucket } from './useSettings'
-import { getSupabaseBrowserClient } from './useSupabaseBrowserClient'
+import { getSupabaseBrowserClient, getSupabaseBrowserConfig } from './useSupabaseBrowserClient'
 
 const ONE_GB_BYTES = 1024 * 1024 * 1024
 const STORAGE_WARNING_BYTES = 900 * 1024 * 1024
@@ -27,12 +27,21 @@ const getObjectSize = (item) => {
   return Number.isFinite(Number(size)) ? Number(size) : 0
 }
 
+// 共用狀態：Storage 掃描成本高，所有呼叫者共用同一份結果與同一個進行中的請求。
+const loading = ref(false)
+const error = ref('')
+const bucket = ref('')
+const usedBytes = ref(0)
+const fileCount = ref(0)
+let scannedAt = 0
+let scannedFor = ''
+let scanInflight = null
+
+// 同一個分頁上限內重複進入儀表板時，沒必要再整個桶掃一次。
+const USAGE_CACHE_MS = 5 * 60 * 1000
+
 export const useStorageUsage = () => {
-  const loading = ref(false)
-  const error = ref('')
-  const bucket = ref(getBucketName())
-  const usedBytes = ref(0)
-  const fileCount = ref(0)
+  if (!bucket.value) bucket.value = getBucketName()
 
   const quotaBytes = ONE_GB_BYTES
   const usedLabel = computed(() => formatBytes(usedBytes.value))
@@ -43,6 +52,8 @@ export const useStorageUsage = () => {
   })
   const displayLabel = computed(() => `${usedLabel.value} / ${quotaLabel.value}`)
 
+  // 子資料夾改成平行展開：原本是一層一層串行等待，
+  // 資料夾一多時間就是所有往返的總和。
   const listStorageUsageRecursive = async (client, bucketName, prefix = '') => {
     const { data, error: listError } = await client.storage.from(bucketName).list(prefix, {
       limit: 1000,
@@ -53,20 +64,24 @@ export const useStorageUsage = () => {
 
     let totalBytes = 0
     let totalFiles = 0
+    const folderScans = []
 
     for (const item of data || []) {
       const path = prefix ? `${prefix}/${item.name}` : item.name
       const isFolder = item.id === null
 
       if (isFolder) {
-        const nested = await listStorageUsageRecursive(client, bucketName, path)
-        totalBytes += nested.bytes
-        totalFiles += nested.files
+        folderScans.push(listStorageUsageRecursive(client, bucketName, path))
         continue
       }
 
       totalBytes += getObjectSize(item)
       totalFiles += 1
+    }
+
+    for (const nested of await Promise.all(folderScans)) {
+      totalBytes += nested.bytes
+      totalFiles += nested.files
     }
 
     return { bytes: totalBytes, files: totalFiles }
@@ -76,29 +91,49 @@ export const useStorageUsage = () => {
     return await listStorageUsageRecursive(client, bucketName)
   }
 
-  const refreshStorageUsage = async () => {
+  const refreshStorageUsage = async ({ force = false } = {}) => {
     const client = getSupabaseBrowserClient()
-    bucket.value = getBucketName()
+    const nextBucket = getBucketName()
+    // 換帳號或換桶就不能沿用舊數字（不同帳號的桶名可能相同，例如都是 uploads）。
+    const scanKey = `${getSupabaseBrowserConfig().credKey || ''}\0${nextBucket}`
+    if (nextBucket !== bucket.value || scanKey !== scannedFor) {
+      bucket.value = nextBucket
+      scannedFor = scanKey
+      scannedAt = 0
+    }
 
     if (!client) {
       error.value = '尚未設定 Supabase 連線'
       return
     }
 
-    loading.value = true
-    error.value = ''
+    // 進行中的掃描直接共用，別再發一輪請求。
+    if (scanInflight) return scanInflight
+    if (!force && scannedAt && Date.now() - scannedAt < USAGE_CACHE_MS) return
 
-    try {
-      const usage = await listStorageUsageRecursive(client, bucket.value)
-      usedBytes.value = usage.bytes
-      fileCount.value = usage.files
-    } catch (err) {
-      error.value = err?.message || '讀取 Storage 容量失敗'
-      usedBytes.value = 0
-      fileCount.value = 0
-    } finally {
-      loading.value = false
-    }
+    const hasCache = scannedAt > 0
+
+    scanInflight = (async () => {
+      if (!hasCache) loading.value = true
+      error.value = ''
+
+      try {
+        const usage = await listStorageUsageRecursive(client, bucket.value)
+        usedBytes.value = usage.bytes
+        fileCount.value = usage.files
+        scannedAt = Date.now()
+      } catch (err) {
+        error.value = err?.message || '讀取 Storage 容量失敗'
+        usedBytes.value = 0
+        fileCount.value = 0
+        scannedAt = 0
+      } finally {
+        loading.value = false
+        scanInflight = null
+      }
+    })()
+
+    return scanInflight
   }
 
   return {

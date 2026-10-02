@@ -23,6 +23,7 @@ Column source of truth for new tables is the `tables` array in `components/pages
 | 鋒兄試用/首購 | `TrialPurchasePage.vue` | `useTrialPurchases` | `trialpurchase` |
 | 鋒兄額度 | `QuotaPage.vue` | `useQuotas` | `quota` |
 | 鋒兄購物清單 | `ShoppingPage.vue` | `useShoppingList` | `shoppinglist` |
+| 鋒兄 Udemy | `UdemyPage.vue` | `useUdemyCourses` | `udemy`（一筆一門課；程式語言／框架／技術名稱以「,」「、」分隔多值，分類時每個值各成一群；已完整收看算 100%；CSV 以課程名稱對應，與 Appwrite 版 `udemy` 同 10 欄） |
 | 鋒兄重灌 | `ReinstallPage.vue` | `useReinstalls` | `reinstall`（含訂閱週期／費用與 CSV；`system` 為 `win`／`mac`／`win/mac`，雙平台同時算在 Windows 與 Mac 篩選） |
 | 鋒兄影片 | `VideoDBPage.vue` | `useVideoRecords` | `video` |
 | Web Push | Settings / SW | `usePushNotification` | `push_subscriptions` |

@@ -99,6 +99,11 @@
             v-if="currentPage === 'shopping'"
           />
 
+          <!-- Udemy 課程 -->
+          <UdemyPage
+            v-if="currentPage === 'udemy'"
+          />
+
           <!-- 食物管理 -->
           <FoodPage 
             v-if="currentPage === 'food'"

@@ -517,6 +517,37 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['shoppinglist']['Insert']>
       }
+      udemy: {
+        Row: {
+          id: RowId
+          name: string
+          instructor: string | null
+          language: string | null
+          framework: string | null
+          technology: string | null
+          watchedlectures: number | null
+          totallectures: number | null
+          courseupdatedat: string | null
+          totalhours: number | null
+          completed: boolean | null
+        } & Timestamps
+        Insert: {
+          id?: RowId
+          name: string
+          instructor?: string | null
+          language?: string | null
+          framework?: string | null
+          technology?: string | null
+          watchedlectures?: number | null
+          totallectures?: number | null
+          courseupdatedat?: string | null
+          totalhours?: number | null
+          completed?: boolean | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['udemy']['Insert']>
+      }
       financeinstrument: {
         Row: {
           id: RowId

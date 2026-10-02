@@ -68,9 +68,9 @@ Storage bucket 解析順序：設定頁明確的 bucket 欄位 → **Netlify / �
 - `setup-all-tables.sql`（產品資料表；新帳號也可在 **鋒兄設定** 複製各表 SQL）
 - `supabase-push-table.sql`（Web Push 訂閱表 `push_subscriptions`）
 - `landtop-history-setup.sql`（手機比價歷史快照表 `landtop_history`，供每週排程與跨裝置歷史使用）
-- 或各模組 `*-setup.sql` / `simple-subscription-setup.sql`（含 `quota-setup.sql`）
+- 或各模組 `*-setup.sql` / `simple-subscription-setup.sql`（含 `quota-setup.sql`、`udemy-setup.sql`）
 
-產品表：`article`、`bank`、`commonaccount`、`commondocument`、`food`、`image`、`music`、`podcast`、`quota`、`reinstall`、`routine`、`subscription`、`trialpurchase`、`video`。設定頁產生的 SQL 使用 UUID 主鍵；舊腳本可能是 `BIGSERIAL`。
+產品表：`article`、`bank`、`commonaccount`、`commondocument`、`food`、`image`、`music`、`podcast`、`quota`、`reinstall`、`routine`、`subscription`、`trialpurchase`、`udemy`、`video`。設定頁產生的 SQL 使用 UUID 主鍵；舊腳本可能是 `BIGSERIAL`。
 
 鋒兄工具的個人清單（手動比價商品、鋒兄tube 頻道）走共用表 `toollistsync`；鋒兄金融的全部標的（含原本寫死的 34 檔預設標的，由 `financeinstrument-setup.sql` 遷移）走獨立表 `financeinstrument`；手機比價歷史則走專屬的 `landtop_history`，這些表都可在 **鋒兄設定** 建立。
 

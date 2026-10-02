@@ -1733,6 +1733,30 @@ ALTER TABLE public.shoppinglist
   ALTER COLUMN pickupmethod TYPE VARCHAR(30) USING LEFT(pickupmethod, 30);`
   },
   {
+    name: 'udemy',
+    label: '鋒兄 Udemy',
+    icon: '🎓',
+    checking: false,
+    exists: false,
+    sql: `${TABLE_UUID_EXTENSION_SQL}
+
+CREATE TABLE public.udemy (
+  ${UUID_PRIMARY_KEY_SQL}
+  name VARCHAR(200) NOT NULL,
+  instructor VARCHAR(200),
+  language VARCHAR(200),
+  framework VARCHAR(200),
+  technology VARCHAR(200),
+  watchedlectures INTEGER DEFAULT 0,
+  totallectures INTEGER DEFAULT 0,
+  courseupdatedat DATE,
+  totalhours NUMERIC(8, 2) DEFAULT 0,
+  completed BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);`
+  },
+  {
     name: 'toollistsync',
     label: '工具雲端清單',
     icon: '☁️',

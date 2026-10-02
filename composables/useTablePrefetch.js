@@ -14,6 +14,7 @@ import { useQuotas } from './useQuotas'
 import { useTrialPurchases } from './useTrialPurchases'
 import { useShoppingList } from './useShoppingList'
 import { useReinstalls } from './useReinstalls'
+import { useUdemyCourses } from './useUdemyCourses'
 import { mapWithConcurrency } from '../utils/asyncPool.js'
 
 let prefetchScheduled = false
@@ -37,6 +38,7 @@ export const prefetchAllTables = async () => {
     () => useTrialPurchases().loadTrialPurchases(),
     () => useShoppingList().loadShoppingItems(),
     () => useReinstalls().loadReinstalls(),
+    () => useUdemyCourses().loadUdemyCourses(),
     () => useDocuments().loadDocuments(),
     () => useImages().loadImages(),
     () => useMusicRecords().loadMusics(),

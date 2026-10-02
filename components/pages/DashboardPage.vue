@@ -304,6 +304,7 @@ import { useSubscriptions } from '../../composables/useSubscriptions'
 import { useTrialPurchases } from '../../composables/useTrialPurchases'
 import { useQuotas } from '../../composables/useQuotas'
 import { useReinstalls } from '../../composables/useReinstalls'
+import { useUdemyCourses } from '../../composables/useUdemyCourses'
 import { useVideoRecords } from '../../composables/useVideoRecords'
 import PageContainer from '../layout/PageContainer.vue'
 import BaseCard from '../ui/BaseCard.vue'
@@ -340,6 +341,7 @@ const { subscriptions, loadSubscriptions } = useSubscriptions()
 const { trialPurchases, loadTrialPurchases } = useTrialPurchases()
 const { quotas, loadQuotas } = useQuotas()
 const { reinstalls, loadReinstalls } = useReinstalls()
+const { udemyCourses, loadUdemyCourses } = useUdemyCourses()
 const { videos, loadVideos } = useVideoRecords()
 const {
   loading: storageUsageLoading,
@@ -356,6 +358,7 @@ const tableStats = computed(() => [
   { name: 'trialpurchase', label: '試用／首購', icon: '🧾', count: trialPurchases.value.length, page: 'trial-purchase' },
   { name: 'reinstall', label: '重灌軟體', icon: '💻', count: reinstalls.value.length, page: 'reinstall' },
   { name: 'quota', label: '鋒兄額度', icon: '📊', count: quotas.value.length, page: 'quota' },
+  { name: 'udemy', label: 'Udemy 課程', icon: '🎓', count: udemyCourses.value.length, page: 'udemy' },
   { name: 'food', label: '食物庫存', icon: '🍔', count: foods.value.length, page: 'food' },
   { name: 'article', label: '文章管理', icon: '📰', count: articles.value.length, page: 'note' },
   { name: 'bank', label: '銀行帳戶', icon: '🏦', count: bankAccountCount.value, page: 'bank' },
@@ -424,6 +427,7 @@ onMounted(() => {
   loadSubscriptions()
   loadTrialPurchases()
   loadReinstalls()
+  loadUdemyCourses()
   loadQuotas()
   loadVideos()
   refreshStorageUsage()

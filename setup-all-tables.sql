@@ -524,6 +524,28 @@ ALTER TABLE public.financeinstrument
 CREATE INDEX IF NOT EXISTS idx_financeinstrument_sortorder ON public.financeinstrument(sortorder);
 
 -- =====================================================
+-- 25. UDEMY 表（鋒兄 Udemy 課程與觀看進度；對應 Appwrite udemy）
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.udemy (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(200) NOT NULL,
+  instructor VARCHAR(200),
+  language VARCHAR(200),
+  framework VARCHAR(200),
+  technology VARCHAR(200),
+  watchedlectures INTEGER DEFAULT 0,
+  totallectures INTEGER DEFAULT 0,
+  courseupdatedat DATE,
+  totalhours NUMERIC(8, 2) DEFAULT 0,
+  completed BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_udemy_name ON public.udemy(name);
+CREATE INDEX IF NOT EXISTS idx_udemy_instructor ON public.udemy(instructor);
+
+-- =====================================================
 -- 驗證：查看所有建立的表結構
 -- =====================================================
 SELECT 
@@ -537,6 +559,6 @@ WHERE table_schema = 'public'
   AND table_name IN (
     'article', 'bank', 'commonaccount', 'commondocument', 'financeinstrument', 'food',
     'googledrivesettings', 'image', 'landtop_history', 'menuusage', 'music', 'podcast', 'push_subscriptions', 'quota', 'reinstall', 'resend_notify_log', 'resendsettings', 'routine',
-    'shoppinglist', 'sitevisit', 'subscription', 'toollistsync', 'trialpurchase', 'video'
+    'shoppinglist', 'sitevisit', 'subscription', 'toollistsync', 'trialpurchase', 'udemy', 'video'
   )
 ORDER BY table_name, ordinal_position;

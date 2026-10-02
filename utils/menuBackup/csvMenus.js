@@ -2,6 +2,7 @@ import { buildQuotaCsv, parseQuotaCsv, quotaImportKey } from '../quotaCsv.js'
 import { buildReinstallCsv, parseReinstallCsv, reinstallImportKey } from '../reinstallCsv.js'
 import { buildShoppingCsv, parseShoppingCsv, shoppingImportKey } from '../shoppingCsv.js'
 import { buildTrialPurchaseCsv, parseTrialPurchaseCsv, trialPurchaseImportKey } from '../trialPurchaseCsv.js'
+import { buildUdemyCsv, parseUdemyCsv, udemyImportKey } from '../udemyCsv.js'
 import { buildFinanceCustomCsv, mergeFinanceCustomInstruments, parseFinanceCustomCsv } from '../fengbroFinanceCsv.ts'
 import { buildFengbroTubeCsv, parseFengbroTubeCsv } from '../fengTubeCsv.ts'
 import { buildFengbroNewsCsv, mergeFengbroNewsSites, parseFengbroNewsCsv } from '../fengbroNewsCsv.ts'
@@ -16,6 +17,8 @@ import {
   shoppingItemToDbRow,
   trialPurchaseFromDbRow,
   trialPurchaseToDbRow,
+  udemyFromDbRow,
+  udemyToDbRow,
 } from '../managementRecords.js'
 import {
   buildBankCsv,
@@ -143,6 +146,10 @@ export async function exportCsvMenu(entry, onProgress) {
     case 'shopping-list': {
       const items = (await fetchAllRows('shoppinglist')).map(shoppingItemFromDbRow).filter(Boolean)
       return { csv: buildShoppingCsv(items), rows: items.length }
+    }
+    case 'udemy': {
+      const items = (await fetchAllRows('udemy')).map(udemyFromDbRow).filter(Boolean)
+      return { csv: buildUdemyCsv(items), rows: items.length }
     }
     case 'common': {
       const items = await fetchAllRows('commonaccount')
@@ -303,6 +310,21 @@ export async function importCsvMenu(entry, csv, onProgress) {
           keyOfExisting: (item) => shoppingImportKey({ name: item.name }),
           keyOfRow: (row) => shoppingImportKey({ name: row.name }),
           toDb: (row) => shoppingItemToDbRow(row),
+          onRow: (current, total, name) => progress(`${entry.label} ${name}`, current, total),
+        })
+        return report(fail ? 'error' : 'ok', ok, fail ? `成功 ${ok}、失敗 ${fail}` : undefined)
+      }
+      case 'udemy': {
+        const parsed = parseUdemyCsv(csv)
+        if (parsed.errors.length && parsed.data.length === 0) return report('error', 0, parsed.errors[0])
+        const existing = await fetchAllRows('udemy')
+        const { ok, fail } = await upsertByKey({
+          table: 'udemy',
+          existing,
+          rows: parsed.data,
+          keyOfExisting: (item) => udemyImportKey({ name: item.name }),
+          keyOfRow: (row) => udemyImportKey({ name: row.name }),
+          toDb: (row) => udemyToDbRow(row),
           onRow: (current, total, name) => progress(`${entry.label} ${name}`, current, total),
         })
         return report(fail ? 'error' : 'ok', ok, fail ? `成功 ${ok}、失敗 ${fail}` : undefined)

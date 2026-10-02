@@ -827,3 +827,206 @@ export function formatShoppingFee(amount, currency = 'TWD') {
   const symbol = SHOPPING_CURRENCY_SYMBOLS[currency] || currency
   return `NT$ ${Math.round(value * rate).toLocaleString()} (${symbol} ${value.toLocaleString()})`
 }
+
+// 鋒兄 Udemy：一筆代表一門課程；已觀看堂數不可超過課程總堂數（對應 Appwrite 的 udemy collection）
+export const UDEMY_GROUP_MODES = [
+  { value: 'instructor', label: '講師' },
+  { value: 'name', label: '課程名稱' },
+  { value: 'language', label: '程式語言' },
+  { value: 'framework', label: '框架' },
+  { value: 'technology', label: '技術名稱' },
+  { value: 'status', label: '收看狀態' },
+]
+
+/** 依欄位分類時，空白欄位歸到這一群（排在最後） */
+export const UDEMY_UNSET_LABELS = {
+  instructor: '未填講師',
+  language: '未填程式語言',
+  framework: '未填框架',
+  technology: '未填技術名稱',
+}
+
+function asNonNegativeNumber(value, label) {
+  if (value == null || value === '') return 0
+  const parsed = Number(value)
+  if ((typeof value !== 'string' && typeof value !== 'number') || !Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${label}必須是 0 以上的數字`)
+  }
+  return parsed
+}
+
+/** 程式語言／框架／技術名稱欄位可填多個值，以「,」「、」「，」分隔。 */
+export function splitUdemyTags(value) {
+  return [...new Set(String(value || '').split(/[,、，]/).map((tag) => tag.trim()).filter(Boolean))]
+}
+
+/** 已觀看比重（0–100）；完整收看一律算 100%，未填總堂數算 0%。 */
+export function udemyWatchedPercent(course) {
+  if (course?.completed) return 100
+  const total = Number(course?.totalLectures) || 0
+  if (total <= 0) return 0
+  return Math.min(100, Math.round(((Number(course?.watchedLectures) || 0) / total) * 100))
+}
+
+export function emptyUdemyCourseForm(name = '') {
+  return {
+    name,
+    instructor: '',
+    language: '',
+    framework: '',
+    technology: '',
+    watchedLectures: 0,
+    totalLectures: 0,
+    courseUpdatedAt: '',
+    totalHours: 0,
+    completed: false,
+  }
+}
+
+export function toUdemyCourseForm(source) {
+  return {
+    name: source.name || '',
+    instructor: source.instructor || '',
+    language: source.language || '',
+    framework: source.framework || '',
+    technology: source.technology || '',
+    watchedLectures: Number(source.watchedLectures || 0),
+    totalLectures: Number(source.totalLectures || 0),
+    courseUpdatedAt: source.courseUpdatedAt ? String(source.courseUpdatedAt).slice(0, 10) : '',
+    totalHours: Number(source.totalHours || 0),
+    completed: source.completed === true,
+  }
+}
+
+export function buildUdemyCourseWritePayload(body, mode) {
+  validateBody(body)
+  const name = asText(body.name, '課程名稱', 200)
+  if (!name) throw new Error('請填寫課程名稱')
+
+  const watchedLectures = asNonNegativeInteger(body.watchedLectures, '已觀看堂數')
+  const totalLectures = asNonNegativeInteger(body.totalLectures, '課程總堂數')
+  if (totalLectures > 0 && watchedLectures > totalLectures) {
+    throw new Error('已觀看堂數不能超過課程總堂數')
+  }
+  const totalHours = asNonNegativeNumber(body.totalHours, '課程總時長')
+  const courseUpdatedAt = asOptionalDate(body.courseUpdatedAt)
+
+  const payload = {
+    name,
+    instructor: asText(body.instructor, '講師名稱', 200),
+    language: asText(body.language, '程式語言', 200),
+    framework: asText(body.framework, '框架', 200),
+    technology: asText(body.technology, '技術名稱', 200),
+    watchedLectures,
+    totalLectures,
+    totalHours: Math.round(totalHours * 100) / 100,
+    completed: asBoolean(body.completed, false, '課程已經完整收看'),
+  }
+
+  if (courseUpdatedAt) payload.courseUpdatedAt = courseUpdatedAt
+  else if (mode === 'update') payload.courseUpdatedAt = null
+  return payload
+}
+
+export function udemyToDbRow(payload) {
+  return {
+    name: payload.name,
+    instructor: payload.instructor || '',
+    language: payload.language || '',
+    framework: payload.framework || '',
+    technology: payload.technology || '',
+    watchedlectures: payload.watchedLectures ?? 0,
+    totallectures: payload.totalLectures ?? 0,
+    courseupdatedat: payload.courseUpdatedAt ? String(payload.courseUpdatedAt).slice(0, 10) : null,
+    totalhours: payload.totalHours ?? 0,
+    completed: payload.completed === true,
+  }
+}
+
+export function udemyFromDbRow(row) {
+  if (!row) return null
+  return {
+    id: row.id,
+    name: row.name || '',
+    instructor: row.instructor || '',
+    language: row.language || '',
+    framework: row.framework || '',
+    technology: row.technology || '',
+    watchedLectures: Number(row.watchedlectures || 0),
+    totalLectures: Number(row.totallectures || 0),
+    courseUpdatedAt: row.courseupdatedat ? String(row.courseupdatedat).slice(0, 10) : '',
+    totalHours: Number(row.totalhours || 0),
+    completed: row.completed === true,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+const compareZh = (a, b) => String(a || '').localeCompare(String(b || ''), 'zh-Hant')
+
+/** 講師是單一名稱；程式語言／框架／技術名稱可多值，同一門課會出現在每個值的群組。 */
+export function udemyGroupValues(course, field) {
+  if (field === 'instructor') return course.instructor?.trim() ? [course.instructor.trim()] : []
+  return splitUdemyTags(course[field])
+}
+
+export function filterUdemyCourses(items, query = '', statusFilter = 'all') {
+  const normalizedQuery = String(query || '').trim().toLocaleLowerCase('zh-Hant')
+  return (items || []).filter((course) => {
+    if (statusFilter === 'completed' && course.completed !== true) return false
+    if (statusFilter === 'incomplete' && course.completed === true) return false
+    return !normalizedQuery || [course.name, course.instructor, course.language, course.framework, course.technology]
+      .some((value) => String(value || '').toLocaleLowerCase('zh-Hant').includes(normalizedQuery))
+  })
+}
+
+export function groupUdemyCourses(courses, mode) {
+  const sorted = [...(courses || [])].sort((a, b) => compareZh(a.name, b.name))
+  if (mode === 'name') return [{ key: 'all', title: '', courses: sorted }]
+  if (mode === 'status') {
+    return [
+      { key: 'incomplete', title: '課程尚未完整收看', courses: sorted.filter((course) => course.completed !== true) },
+      { key: 'completed', title: '課程已經完整收看', courses: sorted.filter((course) => course.completed === true) },
+    ].filter((group) => group.courses.length > 0)
+  }
+  const unset = UDEMY_UNSET_LABELS[mode]
+  const byValue = new Map()
+  for (const course of sorted) {
+    const values = udemyGroupValues(course, mode)
+    for (const value of values.length ? values : [unset]) {
+      byValue.set(value, [...(byValue.get(value) || []), course])
+    }
+  }
+  return [...byValue.entries()]
+    .sort(([a], [b]) => (a === unset ? 1 : b === unset ? -1 : compareZh(a, b)))
+    .map(([value, list]) => ({ key: value, title: value, courses: list }))
+}
+
+/** 群組合計：已觀看／總堂數與比重（已完整收看的課程以總堂數計） */
+export function summarizeUdemyCourses(courses) {
+  let watched = 0
+  let total = 0
+  let hours = 0
+  for (const course of courses || []) {
+    const courseTotal = Number(course.totalLectures) || 0
+    total += courseTotal
+    watched += course.completed ? courseTotal : Math.min(Number(course.watchedLectures) || 0, courseTotal || Infinity)
+    hours += Number(course.totalHours) || 0
+  }
+  return {
+    watched,
+    total,
+    hours: Math.round(hours * 10) / 10,
+    percent: total > 0 ? Math.round((watched / total) * 100) : 0,
+    completedCount: (courses || []).filter((course) => course.completed === true).length,
+  }
+}
+
+export function formatUdemyHours(value) {
+  const hours = Number(value) || 0
+  return hours ? `${Number.isInteger(hours) ? hours : hours.toFixed(1)} 小時` : '—'
+}
+
+export function formatUdemyUpdated(value) {
+  return value ? String(value).slice(0, 7).replace('-', '/') : '未填'
+}

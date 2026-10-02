@@ -13,7 +13,7 @@ declare
   private_tables text[] := array[
     'article', 'bank', 'commonaccount', 'commondocument', 'food', 'image',
     'music', 'podcast', 'quota', 'reinstall', 'routine', 'subscription', 'trialpurchase', 'video', 'push_subscriptions',
-    'manualprice', 'landtop_history'
+    'manualprice', 'landtop_history', 'udemy'
   ];
 begin
   if owner_uuid = '00000000-0000-0000-0000-000000000000' then

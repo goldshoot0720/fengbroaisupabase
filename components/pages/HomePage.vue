@@ -51,9 +51,6 @@
       <article class="hero-panel hero-primary">
         <div class="hero-ascii-shell" aria-label="feng bro ascii art">
           <div class="hero-ascii-head">
-            <span class="hero-ascii-dot"></span>
-            <span class="hero-ascii-dot"></span>
-            <span class="hero-ascii-dot"></span>
             <p>feng bro / home signal</p>
           </div>
           <pre class="hero-ascii-art">{{ asciiArt }}</pre>
@@ -64,7 +61,6 @@
           <figcaption>鋒兄人物圖</figcaption>
         </figure>
 
-        <p class="eyebrow">今日工作台</p>
         <h1 class="hero-title">
           先處理今天，
           <span>再安心安排接下來的日常。</span>
@@ -91,18 +87,18 @@
       </article>
 
       <aside class="hero-panel hero-briefing">
-        <p class="briefing-label">今日優先</p>
+        <h2 class="briefing-title">今日優先</h2>
         <div class="briefing-item">
-          <span class="briefing-index">A1</span>
+          <span class="briefing-mark">A1</span>
           <div>
-            <h2>訂閱</h2>
+            <p class="briefing-name">訂閱</p>
             <p>先確認 3 天內到期、已過期，以及可能需要取消的項目。</p>
           </div>
         </div>
         <div class="briefing-item">
-          <span class="briefing-index">B2</span>
+          <span class="briefing-mark">B2</span>
           <div>
-            <h2>食品</h2>
+            <p class="briefing-name">食品</p>
             <p>先處理即將過期與數量不足的食品，再安排補貨。</p>
           </div>
         </div>
@@ -115,7 +111,6 @@
 
     <section class="editorial-strip">
       <div class="strip-heading">
-        <p class="eyebrow">快速新增與處理</p>
         <h2>今天最重要的三件事</h2>
       </div>
       <div class="strip-grid">
@@ -129,7 +124,6 @@
 
     <section class="feature-layout">
       <div class="section-copy">
-        <p class="eyebrow">Interface system</p>
         <h2>不是一般儀表板，而是可掃讀的工作版面</h2>
         <p>
           新版介面以科技編輯排版為核心，混合強對比字級、細線框架、模組化資訊塊與節奏化留白，讓管理行為更像閱讀一份精簡週報。
@@ -138,7 +132,6 @@
 
       <div class="feature-list">
         <article v-for="feature in features" :key="feature.title" class="feature-card">
-          <span class="feature-kicker">{{ feature.kicker }}</span>
           <h3>{{ feature.title }}</h3>
           <p>{{ feature.description }}</p>
         </article>
@@ -147,7 +140,6 @@
 
     <section class="channel-layout">
       <div class="channel-panel">
-        <p class="eyebrow">Content channels</p>
         <h2>延伸模組仍保持在同一份編輯系統裡</h2>
         <p>圖庫、影片、音樂、文件與例行流程會維持一致的色彩、字體與資訊密度，不再像不同年代拼接出來的頁面。</p>
       </div>
@@ -394,17 +386,14 @@ const primaryRoutes = [
 
 const features = [
   {
-    kicker: 'Typography',
     title: '更強的文字階層',
     description: '用編輯式字級與對比建立視覺節奏，讓你先看到重要資訊，再看細節。'
   },
   {
-    kicker: 'Navigation',
     title: '導覽像目錄，不像表單',
     description: '側欄改成具有章節感的目錄系統，每個入口都帶有簡短上下文。'
   },
   {
-    kicker: 'Mood',
     title: '冷靜、專業、帶未來感',
     description: '避免廉價霓虹與過度玻璃化，用乾淨的留白、深色結構與精準高亮塑造質感。'
   }
@@ -465,7 +454,7 @@ const channels = [
   padding: 1rem 1.15rem;
   border: 1px solid color-mix(in oklab, var(--warning) 44%, var(--border-color));
   border-radius: 24px;
-  background: linear-gradient(135deg, color-mix(in oklab, var(--warning-light) 84%, var(--bg-secondary)), color-mix(in oklab, var(--bg-secondary) 92%, white));
+  background: var(--warning-light);
   box-shadow: var(--shadow-soft);
   color: var(--warning-text);
 }
@@ -478,8 +467,7 @@ const channels = [
 .tube-home-alert__label {
   font-family: var(--font-display);
   font-size: 0.78rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .tube-home-alert strong {
@@ -493,7 +481,7 @@ const channels = [
 
 .finance-home-alert {
   border-color: color-mix(in oklab, var(--danger) 44%, var(--border-color));
-  background: linear-gradient(135deg, color-mix(in oklab, var(--danger-light) 82%, var(--bg-secondary)), color-mix(in oklab, var(--warning-light) 70%, var(--bg-secondary)));
+  background: var(--danger-light);
   color: var(--danger-text);
 }
 
@@ -540,35 +528,13 @@ const channels = [
   position: relative;
   overflow: hidden;
   min-height: 520px;
-  background:
-    radial-gradient(circle at top right, color-mix(in oklab, var(--accent) 18%, transparent), transparent 28%),
-    linear-gradient(180deg, color-mix(in oklab, var(--bg-secondary) 96%, white 4%), color-mix(in oklab, var(--bg-tertiary) 62%, transparent));
+  background: var(--bg-surface);
 }
 
-.hero-primary::after {
-  content: '';
-  position: absolute;
-  inset: auto -10% -22% auto;
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  border: 1px solid color-mix(in oklab, var(--primary) 18%, transparent);
-}
-
-.eyebrow,
-.briefing-label,
-.feature-kicker,
 .strip-index,
 .channel-no {
   font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-
-.eyebrow,
-.briefing-label {
-  font-size: 0.78rem;
-  color: var(--text-muted);
+  letter-spacing: 0;
 }
 
 .hero-title {
@@ -580,7 +546,7 @@ const channels = [
 
 .hero-title span {
   display: block;
-  color: var(--primary-text);
+  color: inherit;
 }
 
 .hero-copy {
@@ -635,9 +601,7 @@ const channels = [
   border: 1px solid color-mix(in oklab, var(--border-color) 84%, transparent);
   border-radius: 24px;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, var(--surface-strong) 10%, var(--bg-secondary)), color-mix(in oklab, var(--bg-secondary) 94%, black 6%));
-  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--text-inverse) 35%, transparent);
+  background: var(--bg-inset);
 }
 
 .hero-ascii-head {
@@ -650,26 +614,10 @@ const channels = [
 }
 
 .hero-ascii-head p {
-  margin: 0 0 0 0.35rem;
+  margin: 0;
   color: var(--text-secondary);
   font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.hero-ascii-dot {
-  width: 0.58rem;
-  height: 0.58rem;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--accent) 62%, white);
-}
-
-.hero-ascii-dot:nth-child(2) {
-  background: color-mix(in oklab, var(--warning) 70%, white);
-}
-
-.hero-ascii-dot:nth-child(3) {
-  background: color-mix(in oklab, var(--success) 68%, white);
+  letter-spacing: 0;
 }
 
 .hero-ascii-art {
@@ -677,7 +625,7 @@ const channels = [
   padding: 1rem 1rem 1.1rem;
   overflow-x: auto;
   color: color-mix(in oklab, var(--text-primary) 82%, var(--primary));
-  font-family: "Cascadia Code", "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: clamp(0.48rem, 0.36rem + 0.34vw, 0.78rem);
   line-height: 1.18;
   letter-spacing: 0.02em;
@@ -704,7 +652,7 @@ const channels = [
 }
 
 .hero-briefing {
-  background: linear-gradient(180deg, color-mix(in oklab, var(--surface-strong) 94%, white 6%), color-mix(in oklab, var(--surface-strong) 90%, black 10%));
+  background: var(--surface-strong);
   color: var(--text-inverse);
 }
 
@@ -744,7 +692,7 @@ const channels = [
   margin-top: 1.1rem;
 }
 
-.briefing-index {
+.briefing-mark {
   width: 52px;
   height: 52px;
   border-radius: 18px;
@@ -754,8 +702,12 @@ const channels = [
   font-family: var(--font-display);
 }
 
-.hero-briefing h2 {
+.hero-briefing h2,
+.hero-briefing .briefing-name {
+  margin: 0;
+  color: var(--text-inverse);
   font-size: 1.2rem;
+  font-weight: 600;
 }
 
 .hero-briefing p {
@@ -892,8 +844,7 @@ const channels = [
 .home-repo-meta__label {
   font-family: var(--font-display);
   font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--text-muted);
 }
 
@@ -915,7 +866,7 @@ const channels = [
   text-align: center;
   font-family: var(--font-display);
   font-size: 0.9rem;
-  letter-spacing: 0.1em;
+  letter-spacing: 0;
   color: var(--text-secondary);
 }
 
@@ -994,7 +945,7 @@ const channels = [
     gap: 0.75rem;
   }
 
-  .briefing-index {
+  .briefing-mark {
     width: 44px;
     height: 44px;
     border-radius: 14px;
@@ -1025,7 +976,7 @@ const channels = [
 
   .home-footer__copyright {
     font-size: 0.82rem;
-    letter-spacing: 0.06em;
+    letter-spacing: 0;
   }
 
   .sleep-warning {

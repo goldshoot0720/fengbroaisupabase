@@ -634,7 +634,7 @@ useHead({
   flex-direction: column;
   align-items: center;
   gap: 0.45rem;
-  transition: all 0.3s ease;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s ease;
 }
 
 .stat-card:hover,
@@ -680,7 +680,7 @@ useHead({
 .feature-card {
   padding: 1.6rem;
   text-align: center;
-  transition: all 0.3s ease;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s ease;
 }
 
 .feature-icon {
@@ -702,7 +702,7 @@ useHead({
 .doc-card li,
 .manual-content p,
 .info-text {
-  font-size: 0.92rem;
+  font-size: 1rem;
   color: var(--text-secondary);
   line-height: 1.6;
 }
@@ -713,7 +713,7 @@ useHead({
 
 .doc-card {
   padding: 1.5rem;
-  transition: all 0.3s ease;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s ease;
 }
 
 .doc-icon {
@@ -737,7 +737,7 @@ useHead({
   gap: 1.2rem;
   align-items: flex-start;
   padding: 1.2rem 1.5rem;
-  transition: all 0.3s ease;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s ease;
 }
 
 .manual-step {

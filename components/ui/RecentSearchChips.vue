@@ -62,8 +62,7 @@ defineEmits(['apply', 'remove', 'clear'])
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
+  letter-spacing: 0;
 }
 
 .recent-clear {

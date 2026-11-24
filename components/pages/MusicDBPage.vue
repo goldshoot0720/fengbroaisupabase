@@ -8,7 +8,7 @@
           <span v-else class="sp-hero-note">♫</span>
         </div>
         <div class="sp-hero-copy">
-          <p class="sp-hero-label">公開歌單</p>
+          <p class="sp-hero-kind">公開歌單</p>
           <h1 class="sp-hero-title">鋒兄音樂</h1>
           <p class="sp-hero-meta">
             <span class="sp-hero-owner"><span class="sp-owner-dot">鋒</span> 鋒兄</span>
@@ -1912,12 +1912,11 @@ onBeforeUnmount(async () => {
   padding-bottom: var(--sp-2);
 }
 
-.sp-hero-label {
+.sp-hero-kind {
   margin: 0 0 var(--sp-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  letter-spacing: 0;
   color: var(--sp-text-2);
 }
 
@@ -2125,7 +2124,7 @@ onBeforeUnmount(async () => {
   color: var(--sp-text-2);
   font-size: var(--text-xs);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .sp-chip:hover {
@@ -2192,7 +2191,7 @@ onBeforeUnmount(async () => {
   display: block;
   height: 100%;
   background: var(--sp-green);
-  transition: width var(--transition-normal);
+  transition: transform var(--transition-normal);
 }
 
 .cache-actions {
@@ -2298,8 +2297,7 @@ onBeforeUnmount(async () => {
   margin-bottom: var(--sp-2);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--sp-text-3);
 }
 
@@ -2471,7 +2469,7 @@ onBeforeUnmount(async () => {
   color: var(--sp-text-3);
   font-size: 10px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .lang-chip:hover {
@@ -2542,7 +2540,7 @@ onBeforeUnmount(async () => {
   color: var(--sp-text-2);
   font-size: 0.8125rem;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .btn-icon:hover:not(:disabled) {
@@ -2881,8 +2879,7 @@ onBeforeUnmount(async () => {
   padding-top: 8px;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--sp-text-3);
 }
 
@@ -3062,7 +3059,7 @@ onBeforeUnmount(async () => {
 .import-progress-fill {
   height: 100%;
   background: var(--sp-green);
-  transition: width var(--transition-normal);
+  transition: transform var(--transition-normal);
 }
 
 .import-stats {
@@ -3159,8 +3156,7 @@ onBeforeUnmount(async () => {
 .form-group label {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--sp-text-3);
 }
 

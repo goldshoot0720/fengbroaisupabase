@@ -128,8 +128,7 @@ const formattedValue = computed(() => {
   margin-bottom: var(--sp-1);
   font-size: var(--text-2xs);
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
+  letter-spacing: 0;
 }
 
 .stat-number {

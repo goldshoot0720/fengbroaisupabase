@@ -14,7 +14,7 @@
     <div v-if="isExpanded" class="voice-card">
       <div class="voice-card__head">
         <div>
-          <p class="voice-kicker">{{ currentPageName }}</p>
+          <p class="voice-where">{{ currentPageName }}</p>
           <h2>鋒兄語音輸入</h2>
         </div>
         <button type="button" class="voice-close" @click="closePanel" aria-label="關閉語音輸入">Close</button>
@@ -1297,7 +1297,7 @@ onBeforeUnmount(() => {
   right: clamp(0.75rem, 2vw, 1.25rem);
   bottom: clamp(0.75rem, 2vw, 1.25rem);
   z-index: 1200;
-  max-width: min(420px, calc(100vw - 1.5rem));
+  max-width: min(420px, calc(100% - 1.5rem));
   font-family: var(--font-body);
 }
 
@@ -1358,12 +1358,11 @@ onBeforeUnmount(() => {
   margin-bottom: 0.75rem;
 }
 
-.voice-kicker {
+.voice-where {
   margin: 0 0 0.2rem;
   color: var(--text-muted);
   font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
 }
 
 .voice-card h2 {
@@ -1456,8 +1455,7 @@ onBeforeUnmount(() => {
   color: var(--warning-text);
   font-size: 0.72rem;
   font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
 }
 
 .voice-hints {
@@ -1532,7 +1530,7 @@ onBeforeUnmount(() => {
     left: auto;
     right: max(0.75rem, env(safe-area-inset-right, 0px));
     bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
-    max-width: min(360px, calc(100vw - 1.5rem));
+    max-width: min(360px, calc(100% - 1.5rem));
     display: flex;
     flex-direction: column;
     align-items: flex-end;

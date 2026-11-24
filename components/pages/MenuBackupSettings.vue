@@ -475,7 +475,7 @@ const onPickAll = (event) => {
 .backup-progress-bar {
   height: 100%;
   background: var(--primary);
-  transition: width 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
 .backup-grid {

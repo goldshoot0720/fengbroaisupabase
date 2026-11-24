@@ -54,7 +54,6 @@
             </button>
 
             <div class="birthday-easter-egg__copy">
-              <p class="birthday-easter-egg__eyebrow">{{ birthdayEasterEggContent.eyebrow }}</p>
               <h2>{{ birthdayEasterEggContent.title }}</h2>
               <p class="birthday-easter-egg__lead">{{ birthdayEasterEggContent.lead }}</p>
               <p class="birthday-easter-egg__headline">{{ birthdayEasterEggContent.headline }}</p>
@@ -233,7 +232,7 @@
     <!-- Toast 通知容器 -->
     <div v-if="showPersistentAudioPlayer" class="persistent-audio-bar">
       <div class="persistent-audio-copy">
-        <p class="persistent-audio-kicker">Now Playing</p>
+        <p class="persistent-audio-name">正在播放</p>
         <strong>{{ persistentAudioTrack.name }}</strong>
         <span>{{ persistentAudioTrack.meta || '鋒兄音樂' }}</span>
       </div>
@@ -304,7 +303,7 @@
 
       <div class="persistent-video-main">
         <div class="persistent-video-copy">
-          <p class="persistent-video-kicker">正在觀看</p>
+          <p class="persistent-video-name">正在觀看</p>
           <strong>{{ persistentVideoTrack.name }}</strong>
           <span>{{ persistentVideoTrack.meta || '鋒兄影片' }}</span>
         </div>
@@ -564,7 +563,6 @@ const SUPABASE_URL_WARNING_KEY = 'feng-supabase-url-warning'
 const BIRTHDAY_EASTER_EGG_KEY_PREFIX = 'feng-birthday-easter-egg'
 const showBirthdayEasterEgg = ref(false)
 const birthdayEasterEggContent = ref({
-  eyebrow: 'APRIL 03 SPECIAL',
   title: '塗哥生日快樂',
   lead: '今天全站開啟限定彩蛋，祝福直接拉滿。',
   headline: '今彩539頭獎得主鋒兄',
@@ -596,14 +594,12 @@ const checkBirthdayEasterEgg = () => {
   const eventKey = `${month}-${day}`
   const easterEggConfigs = {
     '4-3': {
-      eyebrow: 'APRIL 03 SPECIAL',
       title: '塗哥生日快樂',
       lead: '今天全站開啟限定彩蛋，祝福直接拉滿。',
       headline: '今彩539頭獎得主鋒兄',
       note: '願今天手氣、福氣、靈感一起爆發。'
     },
     '11-27': {
-      eyebrow: 'NOVEMBER 27 SPECIAL',
       title: '鋒兄生日快樂',
       lead: '今天網站切換成壽星模式，替鋒兄送上專屬歡呼。',
       headline: '高考三級資訊處理榜首鋒兄',
@@ -755,7 +751,7 @@ watch(currentPage, async () => {
   padding: 0.6rem 0.35rem 1.75rem;
   overflow: visible;
   background: transparent;
-  transition: all var(--transition-normal);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-normal);
   min-height: auto;
   max-height: none;
 }
@@ -790,7 +786,7 @@ watch(currentPage, async () => {
   .scroll-buttons { bottom: 9rem; }
   .persistent-audio-bar,
   .persistent-video-bar {
-    width: calc(100vw - 1.5rem);
+    width: calc(100% - 1.5rem);
     border-radius: var(--radius-xl);
   }
   .persistent-audio-bar {
@@ -823,10 +819,7 @@ watch(currentPage, async () => {
   .mobile-overlay { display: block; }
 
   #app {
-    background:
-      radial-gradient(circle at 12% -8%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 34%),
-      radial-gradient(circle at 92% 8%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 28%),
-      var(--bg-primary);
+    background: var(--bg-primary);
   }
 
   .app-container {
@@ -1007,7 +1000,7 @@ watch(currentPage, async () => {
   left: 50%;
   bottom: 1rem;
   transform: translateX(-50%);
-  width: min(1120px, calc(100vw - 2rem));
+  width: min(1120px, calc(100% - 2rem));
   display: grid;
   grid-template-columns: minmax(220px, 280px) 1fr;
   gap: 1rem;
@@ -1025,10 +1018,9 @@ watch(currentPage, async () => {
   min-width: 0;
 }
 
-.persistent-audio-kicker {
+.persistent-audio-name {
   font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0;
   color: var(--text-muted);
 }
 
@@ -1093,7 +1085,7 @@ watch(currentPage, async () => {
   left: 50%;
   bottom: 7.25rem;
   transform: translateX(-50%);
-  width: min(960px, calc(100vw - 2rem));
+  width: min(960px, calc(100% - 2rem));
   display: grid;
   grid-template-columns: 148px minmax(0, 1fr) auto;
   gap: 0.85rem 1rem;
@@ -1165,7 +1157,7 @@ watch(currentPage, async () => {
   min-width: 0;
 }
 
-.persistent-video-kicker {
+.persistent-video-name {
   margin: 0;
   color: var(--text-muted);
   font-size: var(--text-xs);
@@ -1380,9 +1372,7 @@ watch(currentPage, async () => {
   padding: 1.45rem 1.6rem 1.35rem;
   border: 1px solid color-mix(in oklab, var(--warning) 28%, var(--border-color));
   border-radius: var(--radius-xl);
-  background:
-    radial-gradient(circle at top right, color-mix(in oklab, var(--accent) 16%, transparent), transparent 46%),
-    var(--bg-surface);
+  background: var(--bg-surface);
   box-shadow: var(--elevation-1);
   display: flex;
   align-items: center;
@@ -1415,8 +1405,7 @@ watch(currentPage, async () => {
   color: var(--primary-strong);
   font-size: 0.78rem;
   font-weight: 600;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .birthday-easter-egg__card h2 {

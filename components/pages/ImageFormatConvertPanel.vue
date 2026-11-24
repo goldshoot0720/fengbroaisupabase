@@ -2,7 +2,7 @@
   <section class="tool-panel ifc-panel">
     <div class="tool-panel__header">
       <div>
-        <p class="panel-kicker">圖片格式轉換</p>
+        <p class="panel-name">圖片格式轉換</p>
         <h3>批次上傳圖片，轉成 JPEG 或 PNG</h3>
         <p class="tool-subtitle">
           參考
@@ -589,12 +589,11 @@ onBeforeUnmount(() => {
   margin-bottom: 1rem;
 }
 
-.panel-kicker {
+.panel-name {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.74rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .tool-panel h3 {

@@ -51,7 +51,7 @@ const iconMap = {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  max-width: min(400px, calc(100vw - 2rem));
+  max-width: min(400px, calc(100% - 2rem));
   max-height: min(70vh, 520px);
   overflow-y: auto;
   pointer-events: none;

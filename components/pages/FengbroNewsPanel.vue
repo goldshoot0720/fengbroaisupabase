@@ -3,7 +3,7 @@
     <section class="tool-panel">
       <div class="tool-panel__header">
         <div>
-          <p class="panel-kicker">FengBro News</p>
+          <p class="panel-name">FengBro News</p>
           <h3>鋒兄新聞</h3>
           <p class="tool-subtitle">
             鎖定網站焦點後，只在指定網站搜尋「標題包含關鍵字」的文章（最多三年內）。
@@ -223,7 +223,7 @@
         </div>
 
         <div v-if="result.bySite?.length" class="news-by-site">
-          <p class="panel-kicker">各站結果</p>
+          <p class="panel-name">各站結果</p>
           <div class="news-by-site__grid">
             <div v-for="site in result.bySite" :key="site.siteId" class="news-by-site__card">
               <strong>{{ site.siteName }}</strong>
@@ -240,7 +240,7 @@
     <section class="tool-panel news-bento">
       <div class="tool-panel__header">
         <div>
-          <p class="panel-kicker">TRA Bento</p>
+          <p class="panel-name">TRA Bento</p>
           <h3>台鐵便當門市據點</h3>
           <p class="tool-subtitle">來源：臺鐵官網門市據點（預設顯示桃園／中壢）</p>
         </div>
@@ -287,7 +287,7 @@
     <section class="tool-panel news-pop">
       <div class="tool-panel__header">
         <div>
-          <p class="panel-kicker">Population</p>
+          <p class="panel-name">Population</p>
           <h3>桃園／中壢人口統計</h3>
           <p class="tool-subtitle">
             最近三個月人口數與新增人口數，以及近十年（年底）走勢。來源：桃園市政府資料開放平台民政局。
@@ -326,7 +326,7 @@
         >
           <div class="news-pop-card__header">
             <div>
-              <p class="panel-kicker">{{ region.id === 'zhongli' ? 'Zhongli' : 'Taoyuan City' }}</p>
+              <p class="panel-name">{{ region.id === 'zhongli' ? 'Zhongli' : 'Taoyuan City' }}</p>
               <h4>{{ region.label }}人口統計</h4>
             </div>
             <div class="news-pop-card__latest">
@@ -915,12 +915,11 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.panel-kicker {
+.panel-name {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.74rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .tool-panel h3,

@@ -11,7 +11,6 @@
         <div class="brand-lockup">
           <div class="brand-mark">FA</div>
           <div class="brand-copy">
-            <p class="brand-kicker">Feng Console</p>
             <div class="header-title-row">
               <h1>{{ title }}</h1>
               <span v-if="titleHint" class="title-hint">{{ titleHint }}</span>
@@ -256,10 +255,10 @@ onUnmounted(() => {
   color: var(--on-primary);
   display: grid;
   place-items: center;
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-weight: 600;
-  font-size: var(--text-sm);
-  letter-spacing: 0.04em;
+  font-size: 1rem;
+  letter-spacing: 0;
   flex-shrink: 0;
 }
 
@@ -271,8 +270,7 @@ onUnmounted(() => {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
+  letter-spacing: 0;
   color: var(--text-muted);
   margin-bottom: 1px;
 }
@@ -312,11 +310,10 @@ onUnmounted(() => {
 }
 
 .signal-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: var(--text-2xs);
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
+  letter-spacing: 0;
   color: var(--text-muted);
 }
 
@@ -366,17 +363,17 @@ onUnmounted(() => {
 }
 
 .dark-mode-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 
 .account-chip,
 .dropdown-arrow,
 .account-item-icon {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 
 .account-chip {
@@ -466,7 +463,7 @@ onUnmounted(() => {
 .dark-mode-icon {
   font-family: var(--font-display);
   font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
 }
 
 /* ── 導航列 ── */
@@ -694,7 +691,7 @@ onUnmounted(() => {
   .brand-mark {
     width: 38px;
     height: 38px;
-    font-size: 0.72rem;
+    font-size: 1rem;
     border-radius: var(--radius-sm);
     background: var(--primary-solid);
     border-color: transparent;
@@ -707,7 +704,7 @@ onUnmounted(() => {
 
   .brand-kicker {
     font-size: 0.62rem;
-    letter-spacing: 0.14em;
+    letter-spacing: 0;
   }
 
   .top-header h1 {

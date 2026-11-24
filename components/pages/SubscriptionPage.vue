@@ -1070,7 +1070,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   font-weight: 500;
   background: transparent;
   color: var(--text-secondary);
-  transition: all 0.2s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s;
 }
 
 .filter-btn:hover {
@@ -1114,7 +1114,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 500;
-  transition: all 0.3s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s;
 }
 
 .btn-export:hover,
@@ -1203,7 +1203,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  transition: all 0.3s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s;
 }
 
 .btn-batch-mode:hover {
@@ -1224,7 +1224,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s;
   line-height: 1;
   padding-bottom: 4px;
 }
@@ -1243,7 +1243,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s;
 }
 
 .btn-cancel-batch:hover {
@@ -1259,7 +1259,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  transition: all 0.3s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s;
 }
 
 .btn-trash {
@@ -1372,7 +1372,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   border-radius: var(--radius-sm);
   font-size: 0.9rem;
   font-family: inherit;
-  transition: all 0.2s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s;
 }
 
 .inline-input:focus {
@@ -1429,7 +1429,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s;
 }
 
 .btn-date-adjust:hover {
@@ -1614,7 +1614,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s;
   margin: 0 0.25rem;
 }
 
@@ -1795,7 +1795,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 700;
-  transition: all 0.3s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s;
   min-width: 60px;
 }
 
@@ -1850,10 +1850,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
 .modal-header h2 {
   margin: 0;
   font-size: 1.5rem;
-  background: var(--success-solid);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--success-text);
 }
 
 .btn-close {
@@ -1870,7 +1867,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.3s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s;
 }
 
 .btn-close:hover {
@@ -1952,7 +1949,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   cursor: pointer;
   font-size: 1rem;
   font-weight: 600;
-  transition: all 0.3s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s;
 }
 
 .btn-cancel {
@@ -1987,10 +1984,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
 }
 
 .modal-header.danger h2 {
-  background: var(--danger-solid);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--danger-text);
 }
 
 .confirm-body {
@@ -2019,7 +2013,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
   background: var(--bg-surface);
   padding: 0.25rem 0.5rem;
   border-radius: var(--radius-xs);
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   color: var(--danger-text);
   font-weight: 600;
 }
@@ -2030,10 +2024,10 @@ defineExpose({ subscriptions, totalMonthlyCost })
   border: 2px solid var(--border-subtle);
   border-radius: var(--radius-md);
   font-size: 1rem;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   text-align: center;
-  letter-spacing: 1px;
-  transition: all 0.3s;
+  letter-spacing: 0;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s;
 }
 
 .confirm-input:focus {
@@ -2048,7 +2042,7 @@ defineExpose({ subscriptions, totalMonthlyCost })
 
 .confirm-error {
   color: var(--danger-text);
-  font-size: 0.9rem;
+  font-size: 1rem;
   margin-top: 0.75rem;
   text-align: center;
 }

@@ -1803,7 +1803,7 @@ useHead({
   --ig-blue: #0095f6;
   --ig-blue-hover: #1877f2;
   --ig-red: #ed4956;
-  --ig-gradient: linear-gradient(45deg, #f9ce34 0%, #ee2a7b 45%, #6228d7 100%);
+  --ig-gradient: var(--primary);
   --ig-tile-gap: 4px;
 
   display: flex;
@@ -1912,7 +1912,7 @@ useHead({
   color: var(--ig-text-2);
   font-size: 1rem;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .ig-icon-btn:hover {
@@ -2082,7 +2082,7 @@ useHead({
   color: var(--ig-text-3);
   font-size: var(--text-xs);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .view-chip:hover {
@@ -2227,7 +2227,7 @@ useHead({
 .import-progress-fill {
   height: 100%;
   background: var(--ig-gradient);
-  transition: width var(--transition-normal);
+  transition: transform var(--transition-normal);
 }
 
 .import-progress-meta {
@@ -2395,7 +2395,6 @@ useHead({
   right: 8px;
   font-family: var(--font-mono);
   font-size: 9px;
-  text-transform: uppercase;
   padding: 2px 5px;
   border-radius: 3px;
   background: rgba(0, 0, 0, 0.6);
@@ -2557,8 +2556,7 @@ useHead({
 
 .extra-label {
   font-family: var(--font-mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--ig-text-3);
 }
 
@@ -2652,7 +2650,6 @@ useHead({
 .file-type-badge {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  text-transform: uppercase;
   padding: 2px 6px;
   border-radius: var(--radius-xs);
   background: var(--ig-inset);
@@ -2743,8 +2740,7 @@ useHead({
   flex: 0 0 84px;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--ig-text-3);
 }
 
@@ -2960,8 +2956,7 @@ useHead({
 .form-group label {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--ig-text-3);
 }
 
@@ -3258,8 +3253,7 @@ useHead({
 .lightbox-facts dt {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: #7a7a83;
 }
 

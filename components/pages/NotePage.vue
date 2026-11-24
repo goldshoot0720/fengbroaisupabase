@@ -1721,8 +1721,7 @@ useHead({
   margin: 0 var(--sp-2) var(--sp-1);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--nb-text-3);
 }
 
@@ -1852,7 +1851,7 @@ useHead({
   font-size: var(--text-sm);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .nb-view-tab:hover {
@@ -2017,7 +2016,7 @@ useHead({
 .zip-import-progress-fill {
   height: 100%;
   background: var(--nb-blue);
-  transition: width var(--transition-normal);
+  transition: transform var(--transition-normal);
 }
 
 /* ══════════ 狀態 ══════════ */
@@ -2076,8 +2075,7 @@ useHead({
 .th {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--nb-text-3);
 }
 
@@ -2387,8 +2385,7 @@ useHead({
   margin: 0 0 var(--sp-2);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--nb-text-3);
 }
 
@@ -2465,7 +2462,6 @@ useHead({
 .file-type {
   font-family: var(--font-mono);
   font-size: 10px;
-  text-transform: uppercase;
   color: var(--nb-text-3);
 }
 
@@ -2578,8 +2574,7 @@ useHead({
 .category-picker-label {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--nb-text-3);
 }
 
@@ -2599,7 +2594,7 @@ useHead({
   color: var(--nb-text-2);
   font-size: var(--text-2xs);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .category-chip:hover {
@@ -2673,7 +2668,6 @@ useHead({
 .attachment-label {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  text-transform: uppercase;
   color: var(--nb-text-3);
 }
 
@@ -2728,7 +2722,6 @@ useHead({
 .attachment-type-badge {
   font-family: var(--font-mono);
   font-size: 10px;
-  text-transform: uppercase;
   color: var(--nb-text-3);
 }
 
@@ -2758,7 +2751,7 @@ useHead({
   color: var(--nb-text-3);
   font-size: var(--text-xs);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .attachment-drop-zone:hover {
@@ -2784,7 +2777,7 @@ useHead({
 .progress-fill {
   height: 100%;
   background: var(--nb-blue);
-  transition: width var(--transition-normal);
+  transition: transform var(--transition-normal);
 }
 
 .progress-text {

@@ -8,7 +8,7 @@
           <span v-else class="pc-hero-note">🎙</span>
         </div>
         <div class="pc-hero-copy">
-          <p class="pc-hero-label">Podcast</p>
+          <p class="pc-hero-kind">Podcast</p>
           <h1 class="pc-hero-title">鋒兄播客</h1>
           <p class="pc-hero-meta">
             <span class="pc-hero-owner"><span class="pc-owner-dot">鋒</span> 鋒兄</span>
@@ -1583,12 +1583,11 @@ onBeforeUnmount(async () => {
   padding-bottom: var(--sp-2);
 }
 
-.pc-hero-label {
+.pc-hero-kind {
   margin: 0 0 var(--sp-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  letter-spacing: 0;
   color: var(--pc-text-2);
 }
 
@@ -1792,7 +1791,7 @@ onBeforeUnmount(async () => {
   color: var(--pc-text-2);
   font-size: var(--text-xs);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .pc-chip:hover {
@@ -1930,7 +1929,7 @@ onBeforeUnmount(async () => {
 .pc-ep-index {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   color: var(--pc-text-3);
 }
 
@@ -2018,7 +2017,7 @@ onBeforeUnmount(async () => {
   font-size: 0.8125rem;
   text-decoration: none;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .btn-icon:hover {
@@ -2080,8 +2079,7 @@ onBeforeUnmount(async () => {
   padding-top: 8px;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--pc-text-3);
 }
 
@@ -2464,7 +2462,7 @@ onBeforeUnmount(async () => {
 .import-progress-fill {
   height: 100%;
   background: var(--pc-green);
-  transition: width var(--transition-normal);
+  transition: transform var(--transition-normal);
 }
 
 .import-stats {
@@ -2562,8 +2560,7 @@ onBeforeUnmount(async () => {
 .form-group label {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--pc-text-3);
 }
 
@@ -2632,7 +2629,7 @@ onBeforeUnmount(async () => {
   font-family: inherit;
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .btn:hover {

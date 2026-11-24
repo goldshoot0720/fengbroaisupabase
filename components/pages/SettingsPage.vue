@@ -2449,7 +2449,7 @@ useHead({
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: all var(--transition-slow);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-slow);
 }
 
 .btn-copy-all-sql:hover {
@@ -2986,7 +2986,7 @@ useHead({
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  transition: all 0.2s ease;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s ease;
 }
 
 .account-card.active {
@@ -3017,7 +3017,7 @@ useHead({
 .account-url {
   font-size: 0.8rem;
   color: var(--text-muted);
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
 }
 
 .account-bucket {
@@ -3040,7 +3040,7 @@ useHead({
   font-weight: 500;
   border-radius: var(--radius-xs);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.15s ease;
   border: none;
 }
 
@@ -3094,7 +3094,7 @@ useHead({
   color: var(--on-solid);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s ease;
 }
 
 .btn-danger:hover:not(:disabled) {
@@ -3242,7 +3242,7 @@ useHead({
 
 .form-textarea {
   resize: vertical;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   line-height: 1.5;
 }
 
@@ -3270,7 +3270,7 @@ useHead({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all var(--transition-slow);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-slow);
 }
 
 .btn-primary:hover {
@@ -3291,7 +3291,7 @@ useHead({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all var(--transition-slow);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-slow);
 }
 
 .btn-secondary:hover {
@@ -3339,7 +3339,7 @@ useHead({
 .table-db-name {
   font-size: var(--font-xs);
   color: var(--text-muted);
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
 }
 
 .table-state {
@@ -3379,7 +3379,7 @@ useHead({
   font-size: var(--font-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-slow);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-slow);
 }
 
 .btn-create-table:hover {
@@ -3397,7 +3397,7 @@ useHead({
   font-size: var(--font-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .btn-show-sql:hover {
@@ -3417,7 +3417,7 @@ useHead({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .btn-check:hover:not(:disabled) {
@@ -3509,7 +3509,7 @@ useHead({
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 1rem;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: var(--font-sm);
   color: var(--text-primary);
   white-space: pre-wrap;

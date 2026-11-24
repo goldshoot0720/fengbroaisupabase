@@ -3,7 +3,6 @@
     <div class="feng-tools-page">
       <section class="tools-hero">
         <div class="tools-hero__copy">
-          <p class="tools-kicker">FENGBRO TOOLKIT</p>
           <h2>鋒兄工具</h2>
           <p class="tools-lead">{{ toolsHeroLead }}</p>
         </div>
@@ -12,7 +11,7 @@
       <section v-if="activeTool === 'biggo'" class="tool-panel">
         <div class="tool-panel__header">
           <div>
-            <p class="panel-kicker">鋒兄比價</p>
+            <p class="panel-name">鋒兄比價</p>
             <h3>貼上商品網址或關鍵字，查 BigGo 價格區間</h3>
           </div>
         </div>
@@ -82,7 +81,7 @@
           <div class="chart-shell">
             <div class="chart-shell__header">
               <div>
-                <p class="panel-kicker">價格統計圖</p>
+                <p class="panel-name">價格統計圖</p>
                 <h4>BigGo 歷史快照</h4>
               </div>
               <p class="chart-caption">每 7 天更新一次目前價格</p>
@@ -123,7 +122,7 @@
       <section v-else-if="activeTool === 'manual'" class="tool-panel">
         <div class="tool-panel__header">
           <div>
-            <p class="panel-kicker">手動紀錄</p>
+            <p class="panel-name">手動紀錄</p>
             <h3>自行輸入商品與價錢，追蹤紀錄與走勢</h3>
             <p class="tool-subtitle">資料保存在此裝置瀏覽器本機，可隨時新增、刪除與查看價格走勢。</p>
           </div>
@@ -131,7 +130,7 @@
 
         <div class="manual-block">
           <div class="manual-block__header">
-            <p class="panel-kicker">商品</p>
+            <p class="panel-name">商品</p>
             <h4>新增要追蹤的商品</h4>
           </div>
           <div class="tool-input-grid manual-product-form">
@@ -197,7 +196,7 @@
           <div class="manual-block">
             <div class="manual-block__header">
               <div>
-                <p class="panel-kicker">價錢</p>
+                <p class="panel-name">價錢</p>
                 <h4>為「{{ selectedManualProduct.name }}」新增價錢</h4>
                 <p v-if="selectedManualProduct.note" class="tool-subtitle">{{ selectedManualProduct.note }}</p>
               </div>
@@ -265,7 +264,7 @@
           <div class="chart-shell">
             <div class="chart-shell__header">
               <div>
-                <p class="panel-kicker">價格走勢圖</p>
+                <p class="panel-name">價格走勢圖</p>
                 <h4>{{ selectedManualProduct.name }}</h4>
               </div>
               <p class="chart-caption">依日期排序，至少兩筆才會顯示折線</p>
@@ -309,7 +308,7 @@
           <div class="manual-block">
             <div class="manual-block__header">
               <div>
-                <p class="panel-kicker">價錢紀錄</p>
+                <p class="panel-name">價錢紀錄</p>
                 <h4>完整列表（新到舊）</h4>
               </div>
             </div>
@@ -351,7 +350,7 @@
       <section v-else-if="activeTool === 'phone'" class="tool-panel">
         <div class="tool-panel__header">
           <div>
-            <p class="panel-kicker">手機比價</p>
+            <p class="panel-name">手機比價</p>
             <h3>比對地標網通與傑昇通信</h3>
           </div>
         </div>
@@ -425,7 +424,7 @@
           <div class="chart-shell">
             <div class="chart-shell__header">
               <div>
-                <p class="panel-kicker">價格統計圖</p>
+                <p class="panel-name">價格統計圖</p>
                 <h4>{{ phoneCompareResult.productName }} 歷史紀錄</h4>
               </div>
               <p class="chart-caption">每 7 天記錄一次各容量目前價格</p>
@@ -461,7 +460,7 @@
       <section v-else-if="activeTool === 'tube'" class="tool-panel">
         <div class="tool-panel__header">
           <div>
-            <p class="panel-kicker">鋒兄tube</p>
+            <p class="panel-name">鋒兄tube</p>
             <h3>各頻道最新影片各 10 部</h3>
             <p class="tool-subtitle">目前追蹤 {{ tubeChannelCount }} 個頻道，預設清單 {{ defaultTubeChannelCount }} 個。</p>
           </div>
@@ -636,7 +635,7 @@
       <section v-else-if="activeTool === 'finance'" class="tool-panel">
         <div class="tool-panel__header">
           <div>
-            <p class="panel-kicker">鋒兄金融</p>
+            <p class="panel-name">鋒兄金融</p>
             <h3>金融市場觀察</h3>
             <p class="tool-notice tool-notice--inline">
               地區：韓國／日本／台灣／美國／其他 · KOSPI 交易中每分鐘更新
@@ -680,7 +679,7 @@
         </p>
 
         <div v-if="financeFeaturedQuotes.length" id="fengbro-finance-featured" class="finance-featured">
-          <p class="panel-kicker">精選焦點 · 同時並排</p>
+          <p class="panel-name">精選焦點 · 同時並排</p>
           <div class="finance-featured__grid">
             <article
               v-for="(item, idx) in financeFeaturedQuotes"
@@ -1074,7 +1073,7 @@
       <section v-else class="tool-panel">
         <div class="tool-panel__header">
           <div>
-            <p class="panel-kicker">鋒兄工具</p>
+            <p class="panel-name">鋒兄工具</p>
             <h3>請從上方子選單選擇一項工具</h3>
             <p class="tool-subtitle">
               比價、手動紀錄、手機通路、YouTube、金融、新聞、圖片語音成片、圖片格式轉換、影片合併，或 YT／B 站轉檔。
@@ -2889,13 +2888,12 @@ watch(
   padding: 1.4rem;
 }
 
-.tools-kicker,
-.panel-kicker {
+.tools-name,
+.panel-name {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.74rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .tools-hero h2,
@@ -2977,7 +2975,7 @@ watch(
 
 .tool-field span {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .tool-input {
@@ -3034,6 +3032,7 @@ watch(
 
 .tool-notice {
   margin: 0;
+  font-size: 1rem;
   padding: 0.8rem 0.95rem;
   border-radius: var(--radius-xl);
   border: 1px solid color-mix(in oklab, var(--primary) 22%, var(--border-color));
@@ -3526,7 +3525,7 @@ watch(
   margin: 0;
   font-size: 0.7rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   opacity: 0.45;
 }
 

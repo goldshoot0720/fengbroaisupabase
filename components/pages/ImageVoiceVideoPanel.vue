@@ -2,7 +2,7 @@
   <section class="tool-panel ivv-panel">
     <div class="tool-panel__header">
       <div>
-        <p class="panel-kicker">圖片 + 語音 = 影片</p>
+        <p class="panel-name">圖片 + 語音 = 影片</p>
         <h3>上傳圖片與語音稿，產生含字幕的影片</h3>
         <p class="tool-subtitle">
           參考
@@ -1101,12 +1101,11 @@ onBeforeUnmount(() => {
   margin-bottom: 1rem;
 }
 
-.panel-kicker {
+.panel-name {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.74rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .tool-panel h3 {

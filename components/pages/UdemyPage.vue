@@ -767,7 +767,7 @@ const executeImport = async () => {
   height: 100%;
   border-radius: inherit;
   background: var(--primary);
-  transition: width 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
 .progress span.done {

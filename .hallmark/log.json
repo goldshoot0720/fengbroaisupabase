@@ -1,0 +1,15 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "polish",
+  "scope": "app",
+  "prompt": "personal ops console, clear generated tells, keep the Supabase green and IBM Plex",
+  "theme": "locked DESIGN.md",
+  "shape": "app screen",
+  "genre": "modern-minimal",
+  "entry": "polish of the existing shell",
+  "signature": "home workbench without tracked labels",
+  "waived": [],
+  "date": "2026-11-24"
+ }
+]

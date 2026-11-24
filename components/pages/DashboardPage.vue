@@ -481,15 +481,14 @@ onMounted(() => {
   font-weight: 900;
   color: var(--on-solid);
   text-shadow: var(--elevation-1);
-  letter-spacing: 1.5px;
+  letter-spacing: 0;
 }
 
 .company-tagline {
   font-size: 0.9rem;
   color: color-mix(in oklab, var(--on-solid) 90%, transparent);
   font-weight: 600;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .copyright-text { margin: 0; font-size: 1rem; line-height: 1.8; }
@@ -582,7 +581,7 @@ onMounted(() => {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s ease;
 }
 
 .table-stat-card:hover {
@@ -656,7 +655,7 @@ onMounted(() => {
   border-radius: var(--radius-xl);
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  transition: all 0.3s ease;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s ease;
 }
 
 .action-card:hover {
@@ -723,7 +722,7 @@ onMounted(() => {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid color-mix(in oklab, var(--text-primary) 5%, transparent);
   background: var(--bg-secondary);
-  transition: all 0.3s ease;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s ease;
 }
 
 .alert-item:last-child { border-bottom: none; }
@@ -765,7 +764,7 @@ onMounted(() => {
   padding: 1rem;
   background: var(--bg-tertiary);
   border-radius: var(--radius-lg);
-  transition: all 0.3s ease;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s ease;
 }
 
 .info-item:hover { transform: translateY(-2px); box-shadow: 0 4px 15px var(--shadow); }
@@ -795,7 +794,7 @@ onMounted(() => {
 .capacity-panel__header h3 { margin: 0 0 var(--spacing-2xs); color: var(--text-primary); }
 .capacity-panel__header p { margin: 0; max-width: 70ch; color: var(--text-secondary); font-size: var(--text-sm); }
 .capacity-meter { height: 0.65rem; margin: var(--spacing-md) 0; overflow: hidden; border-radius: var(--radius-full); background: var(--bg-inset); }
-.capacity-meter span { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width var(--transition-normal); }
+.capacity-meter span { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: transform var(--transition-normal); }
 .capacity-panel__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--spacing-md); }
 .capacity-panel__metrics div { display: flex; flex-direction: column; gap: var(--spacing-2xs); }
 .capacity-panel__metrics strong { color: var(--text-primary); font-size: var(--text-lg); font-variant-numeric: tabular-nums; }

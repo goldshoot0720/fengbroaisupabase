@@ -132,8 +132,8 @@ One family for everything readable, one for everything countable.
 - **UI / display**: IBM Plex Sans 500–600, Chinese via Noto Sans TC. Page titles 20px
   (`--text-xl`), header title 17px (`--text-lg`), tracking `-0.01em`.
 - **Body**: IBM Plex Sans 400, `--text-md` (15px), line-height 1.6.
-- **Data**: IBM Plex Mono for numbers, amounts, dates, IDs and small uppercase labels
-  (`.eyebrow` / `.kicker`, table headers, stat titles) at `--text-2xs` (11px) / `0.12em`.
+- **Data**: IBM Plex Mono for numbers, amounts, dates and IDs. Labels, captions,
+  table heads and nav are the body face, a step smaller, sentence case, untracked.
 - **Scale**: `--text-2xs` 11 → `--text-3xl` 30, plus `--display-lg` / `--display-xl` for Home only.
 - Numbers use tabular figures automatically (`.stat-number`, `.stat-value`, `[data-numeric]`, `time`).
 

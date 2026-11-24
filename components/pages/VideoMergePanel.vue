@@ -2,7 +2,7 @@
   <section class="tool-panel vm-panel">
     <div class="tool-panel__header">
       <div>
-        <p class="panel-kicker">影片合併</p>
+        <p class="panel-name">影片合併</p>
         <h3>多段影片串接，輸出 MP4</h3>
         <p class="tool-subtitle">
           參考
@@ -1008,12 +1008,11 @@ onBeforeUnmount(() => {
   gap: 1rem;
 }
 
-.panel-kicker {
+.panel-name {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.74rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .tool-panel h3 {
@@ -1222,7 +1221,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  font-size: 0.85rem;
+  font-size: 1rem;
   color: var(--text-muted);
   margin-top: 0.5rem;
 }
@@ -1423,7 +1422,7 @@ onBeforeUnmount(() => {
   height: 100%;
   background: var(--primary);
   border-radius: 999px;
-  transition: width 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
 .vm-log {

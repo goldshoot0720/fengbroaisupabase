@@ -2141,8 +2141,7 @@ onMounted(() => {
   margin: 0 0 var(--sp-1);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--dc-text-3);
 }
 
@@ -2169,7 +2168,7 @@ onMounted(() => {
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--dc-red), #ff6b4a);
-  transition: width var(--transition-normal);
+  transition: transform var(--transition-normal);
 }
 
 .mg-kinds {
@@ -2273,7 +2272,7 @@ onMounted(() => {
   background: var(--dc-surface);
   text-align: left;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .dr-quick-card:hover {
@@ -2443,7 +2442,7 @@ onMounted(() => {
   color: var(--dc-text-3);
   font-size: var(--text-xs);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .view-switch-btn:hover {
@@ -2544,8 +2543,7 @@ onMounted(() => {
   border-bottom: 1px solid var(--dc-line);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--dc-text-3);
 }
 
@@ -2627,7 +2625,6 @@ onMounted(() => {
   bottom: 8px;
   font-family: var(--font-mono);
   font-size: 10px;
-  text-transform: uppercase;
   padding: 2px 6px;
   border-radius: var(--radius-xs);
   background: rgba(0, 0, 0, 0.62);
@@ -2733,7 +2730,6 @@ onMounted(() => {
 .file-type-badge {
   font-family: var(--font-mono);
   font-size: 10px;
-  text-transform: uppercase;
   padding: 2px 6px;
   border-radius: var(--radius-xs);
   background: var(--dc-inset);
@@ -2778,7 +2774,6 @@ onMounted(() => {
 
 .ref-info .label {
   font-family: var(--font-mono);
-  text-transform: uppercase;
 }
 
 .ref-info .value {
@@ -2962,7 +2957,6 @@ onMounted(() => {
 .dr-detail-facts dt {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  text-transform: uppercase;
   color: var(--dc-text-3);
 }
 
@@ -2986,7 +2980,6 @@ onMounted(() => {
   margin: 0 0 var(--sp-1);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  text-transform: uppercase;
   color: var(--dc-text-3);
 }
 
@@ -3017,7 +3010,7 @@ onMounted(() => {
   font-size: var(--text-sm);
   cursor: pointer;
   text-decoration: none;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .btn-primary {
@@ -3114,8 +3107,7 @@ onMounted(() => {
   padding-top: 8px;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--dc-text-3);
 }
 
@@ -3283,7 +3275,7 @@ onMounted(() => {
 .import-progress-fill {
   height: 100%;
   background: var(--dc-blue);
-  transition: width var(--transition-normal);
+  transition: transform var(--transition-normal);
 }
 
 .import-stats {
@@ -3384,8 +3376,7 @@ onMounted(() => {
 .form-label {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--dc-text-3);
 }
 
@@ -3579,7 +3570,6 @@ onMounted(() => {
   background: var(--dc-inset);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  text-transform: uppercase;
   color: var(--dc-text-3);
   z-index: 1;
 }

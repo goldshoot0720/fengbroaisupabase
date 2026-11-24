@@ -2,7 +2,7 @@
   <section class="tool-panel ybc-panel">
     <div class="tool-panel__header">
       <div>
-        <p class="panel-kicker">YouTube / Bilibili</p>
+        <p class="panel-name">YouTube / Bilibili</p>
         <h3>網址轉成 MP3 或 MP4</h3>
         <p class="tool-subtitle">
           參考
@@ -458,12 +458,11 @@ onBeforeUnmount(() => {
   gap: 1rem;
 }
 
-.panel-kicker {
+.panel-name {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.74rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .tool-panel h3 {

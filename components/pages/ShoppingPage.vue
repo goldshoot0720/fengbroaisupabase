@@ -961,7 +961,7 @@ const executeImport = async () => {
   right: auto;
   bottom: auto;
   transform: translate(-50%, -50%);
-  width: min(560px, calc(100vw - 2rem));
+  width: min(560px, calc(100% - 2rem));
   max-height: 80vh;
   display: flex;
   flex-direction: column;
@@ -1015,8 +1015,7 @@ const executeImport = async () => {
   top: 0;
   background: var(--bg-surface);
   font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   color: var(--text-secondary);
   white-space: nowrap;
 }
@@ -1111,8 +1110,7 @@ const executeImport = async () => {
     font-weight: 700;
     font-size: 0.75rem;
     color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0;
   }
 
   .shopping-table td.row-actions {

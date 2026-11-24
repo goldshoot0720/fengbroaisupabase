@@ -6,7 +6,6 @@
           <span>FA</span>
         </div>
         <div class="brand-copy">
-          <p class="brand-kicker">Mobile Menu</p>
           <h2 class="brand-title">鋒兄選單</h2>
           <p class="brand-subtitle">子項目已全部展開，點選即可直接切換。</p>
         </div>
@@ -97,13 +96,14 @@ const handleParentNavigate = (page) => {
   color: var(--sidebar-text);
   position: fixed;
   top: 0;
-  left: -236px;
+  left: 0;
+  transform: translateX(-100%);
   height: 100vh;
   padding: var(--sp-3);
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
-  transition: left var(--transition-slow), box-shadow var(--transition-normal);
+  transition: transform var(--transition-slow), box-shadow var(--transition-normal);
   z-index: 1000;
   overflow-y: auto;
   border-right: 1px solid var(--sidebar-border);
@@ -111,7 +111,7 @@ const handleParentNavigate = (page) => {
 }
 
 .sidebar.sidebar-open {
-  left: 0;
+  transform: translateX(0);
   box-shadow: var(--elevation-3);
 }
 
@@ -145,20 +145,18 @@ const handleParentNavigate = (page) => {
   color: var(--on-primary);
   display: grid;
   place-items: center;
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-weight: 600;
-  font-size: var(--text-sm);
-  letter-spacing: 0.04em;
+  font-size: 1rem;
+  letter-spacing: 0;
 }
 
-.brand-kicker,
 .section-label,
 .footer-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: var(--text-2xs);
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
+  letter-spacing: 0;
   color: var(--text-muted);
 }
 
@@ -357,6 +355,7 @@ const handleParentNavigate = (page) => {
     position: sticky;
     top: var(--sp-3);
     left: auto;
+    transform: none;
     width: 248px;
     height: calc(100vh - (var(--sp-3) * 2));
     flex-shrink: 0;
@@ -372,7 +371,8 @@ const handleParentNavigate = (page) => {
 @media (max-width: 768px) {
   .sidebar {
     width: min(86vw, 320px);
-    left: calc(-1 * min(86vw, 320px));
+    left: 0;
+    transform: translateX(-100%);
     top: 0;
     height: 100dvh;
     height: 100vh;
@@ -383,11 +383,11 @@ const handleParentNavigate = (page) => {
     border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
     box-shadow: none;
     background: var(--sidebar-bg);
-    transition: left var(--duration-slow) var(--ease-out-expo), box-shadow var(--duration-normal) var(--ease-out-expo);
+    transition: transform var(--duration-slow) var(--ease-out-expo), box-shadow var(--duration-normal) var(--ease-out-expo);
   }
 
   .sidebar.sidebar-open {
-    left: 0;
+    transform: translateX(0);
     box-shadow: var(--elevation-3);
   }
 

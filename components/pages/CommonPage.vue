@@ -898,7 +898,7 @@ useHead({
   border: 2px solid color-mix(in oklab, var(--primary) 32%, transparent);
   border-radius: var(--radius-md);
   font-size: 1rem;
-  transition: all 0.2s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s;
   background: var(--bg-surface);
 }
 
@@ -931,7 +931,7 @@ useHead({
   cursor: pointer;
   font-size: 0.8rem;
   color: var(--text-secondary);
-  transition: all 0.2s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s;
   white-space: nowrap;
 }
 
@@ -978,7 +978,7 @@ useHead({
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  transition: all 0.2s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s;
 }
 
 .btn-export:hover {
@@ -1165,7 +1165,7 @@ useHead({
   cursor: pointer;
   font-size: 0.8rem;
   width: 100%;
-  transition: all 0.2s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s;
 }
 
 .btn-show-all-slots:hover {
@@ -1226,7 +1226,7 @@ useHead({
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s;
   font-size: 0.9rem;
 }
 
@@ -1557,13 +1557,13 @@ useHead({
 .select-all-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500; }
 .select-all-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
 .selected-count { background: var(--primary-solid); color: var(--on-primary); padding: 0.25rem 0.75rem; border-radius: var(--radius-lg); font-size: 0.85rem; font-weight: 600; }
-.btn-batch-mode { padding: 0.5rem 1rem; background: var(--primary-solid); color: var(--on-primary); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
+.btn-batch-mode { padding: 0.5rem 1rem; background: var(--primary-solid); color: var(--on-primary); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s; }
 .btn-batch-mode:hover { transform: translateY(-2px); box-shadow: var(--elevation-2); }
-.btn-add-icon { width: 36px; height: 36px; border: none; border-radius: 50%; background: var(--success-solid); color: var(--on-solid); font-size: 1.5rem; font-weight: 300; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.3s; line-height: 1; padding-bottom: 4px; }
+.btn-add-icon { width: 36px; height: 36px; border: none; border-radius: 50%; background: var(--success-solid); color: var(--on-solid); font-size: 1.5rem; font-weight: 300; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s; line-height: 1; padding-bottom: 4px; }
 .btn-add-icon:hover { transform: translateY(-2px) scale(1.1); box-shadow: var(--elevation-2); }
-.btn-cancel-batch { padding: 0.35rem 0.75rem; background: var(--bg-inset); color: var(--text-secondary); border: none; border-radius: var(--radius-xs); cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; }
+.btn-cancel-batch { padding: 0.35rem 0.75rem; background: var(--bg-inset); color: var(--text-secondary); border: none; border-radius: var(--radius-xs); cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: color, background-color, border-color, box-shadow, opacity, transform 0.2s; }
 .btn-cancel-batch:hover { background: var(--border-strong); }
-.btn-batch-delete { padding: 0.5rem 1rem; background: var(--danger-solid); color: var(--on-solid); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.3s; }
+.btn-batch-delete { padding: 0.5rem 1rem; background: var(--danger-solid); color: var(--on-solid); border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s; }
 .btn-batch-delete:hover { transform: translateY(-2px); box-shadow: var(--elevation-2); }
 .btn-batch-delete:disabled { opacity: 0.5; cursor: not-allowed; }
 

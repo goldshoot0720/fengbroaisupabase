@@ -328,7 +328,7 @@
           <div class="hero-scrim" aria-hidden="true"></div>
         </div>
         <div class="hero-copy">
-          <p class="hero-eyebrow"><span class="hero-mark">鋒</span> 鋒兄影院 · 主打</p>
+          <p class="hero-series"><span class="hero-mark">鋒</span> 鋒兄影院 · 主打</p>
           <h2 class="hero-title">{{ heroVideo.name || '未命名' }}</h2>
           <div class="hero-meta">
             <span v-if="heroVideo.category" class="hero-badge">{{ heroVideo.category }}</span>
@@ -2988,14 +2988,13 @@ onBeforeUnmount(() => {
   max-width: 640px;
 }
 
-.hero-eyebrow {
+.hero-series {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  letter-spacing: 0;
   color: var(--vp-text-2);
   margin: 0 0 var(--sp-3);
 }
@@ -3033,7 +3032,7 @@ onBeforeUnmount(() => {
 .hero-badge {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   padding: 3px 8px;
   border-radius: var(--radius-xs);
   background: rgba(255, 255, 255, 0.12);
@@ -3158,7 +3157,7 @@ onBeforeUnmount(() => {
   font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .btn-export:hover,
@@ -3197,7 +3196,7 @@ onBeforeUnmount(() => {
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .chip:hover {
@@ -3279,7 +3278,7 @@ onBeforeUnmount(() => {
   color: var(--vp-text-2);
   font-size: var(--text-xs);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .btn-batch-mode:hover,
@@ -3337,7 +3336,7 @@ onBeforeUnmount(() => {
   font-size: var(--text-xs);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .layout-switch-btn:hover {
@@ -3398,7 +3397,7 @@ onBeforeUnmount(() => {
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--vp-ok), var(--vp-blue));
-  transition: width var(--transition-normal);
+  transition: transform var(--transition-normal);
 }
 
 .cache-actions {
@@ -3416,7 +3415,7 @@ onBeforeUnmount(() => {
   color: var(--vp-text-2);
   font-size: var(--text-xs);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .btn-cache-all:hover:not(:disabled) {
@@ -3750,7 +3749,7 @@ onBeforeUnmount(() => {
   right: 6px;
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   padding: 2px 6px;
   border-radius: var(--radius-xs);
   background: rgba(0, 0, 0, 0.78);
@@ -3913,7 +3912,7 @@ onBeforeUnmount(() => {
   color: var(--vp-text-2);
   font-size: 0.8125rem;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .action-btn:hover:not(:disabled) {
@@ -3959,8 +3958,7 @@ onBeforeUnmount(() => {
 .inline-form-group label {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--vp-text-3);
 }
 
@@ -4088,7 +4086,7 @@ onBeforeUnmount(() => {
 .upload-progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--vp-blue), var(--vp-pink));
-  transition: width var(--transition-normal);
+  transition: transform var(--transition-normal);
 }
 
 .inline-video-preview,
@@ -4197,7 +4195,7 @@ onBeforeUnmount(() => {
   color: var(--vp-text);
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .watch-back-btn:hover {
@@ -4579,7 +4577,7 @@ onBeforeUnmount(() => {
   font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: color, background-color, border-color, box-shadow, opacity, transform var(--transition-fast);
 }
 
 .watch-action-btn:hover:not(:disabled) {
@@ -4810,8 +4808,7 @@ onBeforeUnmount(() => {
 .form-group label {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--vp-text-3);
 }
 

@@ -78,14 +78,13 @@ const pages = [
   }
 ]
 
-/** Product page ids accepted by `/?page=` (not child ids like `note:notes`). */
-export const isAppPageId = (pageId) => {
-  if (!pageId || typeof pageId !== 'string') return false
+/** A menu group opens its first page. Tool tabs share the tools page. */
+export const resolveAppPageId = (id) => {
   for (const page of pages) {
-    if (page.id === pageId) return true
-    if (page.children?.some((child) => child.page === pageId)) return true
+    if (page.id === id) return page.children?.[0]?.page || page.id
+    if (page.children?.some(child => child.page && child.page === id)) return id
   }
-  return false
+  return null
 }
 
 /** Resolve top-level or nested child page config by id / child.page */
@@ -148,7 +147,7 @@ export const useNavigation = () => {
   const pageTitleHint = computed(() => currentPageConfig.value.titleHint || '')
   const pageSubtitle = computed(() => currentPageConfig.value.subtitle || '在這裡整理你的工作資料。')
 
-  const setCurrentPage = (pageId) => {
+  const applyPage = (pageId) => {
     currentPage.value = pageId
 
     if (typeof window !== 'undefined') {
@@ -167,13 +166,20 @@ export const useNavigation = () => {
     }
   }
 
-  /** Restore the last visited page on the client (after hydration). */
+  const route = useRoute()
+  const router = useRouter()
+  const setCurrentPage = (id, { replace = false } = {}) => {
+    const page = resolveAppPageId(id)
+    if (!page) return
+    applyPage(page)
+    if (route.path === '/' && route.query.page === page) return
+    const location = { path: '/', query: { ...route.query, page }, hash: route.hash }
+    return replace ? router.replace(location) : router.push(location)
+  }
+
   const restoreLastPage = () => {
-    if (typeof window === 'undefined') return
-    const saved = localStorage.getItem(LAST_PAGE_KEY)
-    if (saved && isAppPageId(saved)) {
-      setCurrentPage(saved)
-    }
+    const saved = resolveAppPageId(localStorage.getItem(LAST_PAGE_KEY))
+    if (saved && saved !== 'home') return setCurrentPage(saved, { replace: true })
   }
 
   const toggleSidebar = () => {
@@ -184,12 +190,6 @@ export const useNavigation = () => {
     sidebarOpen.value = false
   }
 
-  const handleResize = () => {
-    if (typeof window !== 'undefined' && window.innerWidth > 768) {
-      sidebarOpen.value = false
-    }
-  }
-
   return {
     currentPage,
     sidebarOpen,
@@ -198,10 +198,10 @@ export const useNavigation = () => {
     pageTitle,
     pageTitleHint,
     pageSubtitle,
+    applyPage,
     setCurrentPage,
     restoreLastPage,
     toggleSidebar,
-    closeSidebar,
-    handleResize
+    closeSidebar
   }
 }

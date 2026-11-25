@@ -1,5 +1,41 @@
 <template>
   <div class="home-page">
+    <div class="home-identity">
+      <img src="/fengbro-home-person.webp" alt="鋒兄" width="48" height="64" />
+      <pre aria-hidden="true">{{ asciiArt }}</pre>
+    </div>
+
+    <div class="home-workspace">
+      <section class="expiry-panel" aria-labelledby="expiry-heading">
+        <div class="section-head">
+          <h2 id="expiry-heading">近期到期</h2>
+          <button type="button" class="text-action" @click="emit('navigate', 'dashboard')">查看總覽</button>
+        </div>
+        <div v-for="row in priorities" :key="row.page" class="expiry-row">
+          <div>
+            <h3>{{ row.title }} <small>{{ row.period }}</small></h3>
+            <p aria-live="polite" :class="{ 'needs-attention': row.hasItems }">{{ row.summary }}</p>
+          </div>
+          <button type="button" class="row-action" @click="emit('navigate', row.page)">
+            管理{{ row.title }}
+          </button>
+        </div>
+        <button
+          v-if="subscriptionReadState === 'unconfigured' || foodReadState === 'unconfigured'"
+          type="button" class="text-action source-link" @click="emit('navigate', 'settings')"
+        >設定資料來源</button>
+      </section>
+
+      <nav class="shortcut-panel" aria-labelledby="shortcut-heading">
+        <h2 id="shortcut-heading">常用入口</h2>
+        <div class="shortcuts">
+          <button v-for="item in shortcuts" :key="item.page" type="button" @click="emit('navigate', item.page)">
+            {{ item.label }}
+          </button>
+        </div>
+      </nav>
+    </div>
+
     <section
       v-if="sleepWarning"
       class="sleep-warning"
@@ -18,7 +54,7 @@
         <p>{{ tubeAlert.summary }}</p>
       </div>
       <div class="tube-home-alert__actions">
-        <button class="hero-btn hero-btn-primary" type="button" @click="openTubeTools">查看鋒兄tube</button>
+        <button class="hero-btn hero-btn-primary" type="button" @click="emit('navigate', 'tools:tube')">查看鋒兄tube</button>
         <button class="hero-btn hero-btn-secondary" type="button" @click="dismissTubeAlert">稍後提醒</button>
       </div>
     </section>
@@ -30,7 +66,7 @@
         <p>{{ tubeStaleAlert.summary }}</p>
       </div>
       <div class="tube-home-alert__actions">
-        <button class="hero-btn hero-btn-primary" type="button" @click="openTubeTools">查看鋒兄tube</button>
+        <button class="hero-btn hero-btn-primary" type="button" @click="emit('navigate', 'tools:tube')">查看鋒兄tube</button>
         <button class="hero-btn hero-btn-secondary" type="button" @click="dismissTubeStaleAlert">今天略過</button>
       </div>
     </section>
@@ -42,138 +78,15 @@
         <p>{{ financeAlert.summary }}</p>
       </div>
       <div class="tube-home-alert__actions">
-        <button class="hero-btn hero-btn-primary" type="button" @click="openFinanceTools">查看鋒兄金融</button>
+        <button class="hero-btn hero-btn-primary" type="button" @click="emit('navigate', 'tools:finance')">查看鋒兄金融</button>
         <button class="hero-btn hero-btn-secondary" type="button" @click="dismissFinanceAlert">今天略過</button>
       </div>
     </section>
 
-    <section class="hero-grid">
-      <article class="hero-panel hero-primary">
-        <div class="hero-ascii-shell" aria-label="feng bro ascii art">
-          <div class="hero-ascii-head">
-            <p>feng bro / home signal</p>
-          </div>
-          <pre class="hero-ascii-art">{{ asciiArt }}</pre>
-        </div>
-
-        <figure class="hero-person">
-          <img src="/fengbro-home-person.webp" alt="鋒兄人物圖" loading="eager" />
-          <figcaption>鋒兄人物圖</figcaption>
-        </figure>
-
-        <h1 class="hero-title">
-          先處理今天，
-          <span>再安心安排接下來的日常。</span>
-        </h1>
-        <p class="hero-copy">
-          從本月費用、即將到期與庫存警告開始；需要新增資料時，也能直接進入對應模組。
-        </p>
-
-        <div class="hero-actions">
-          <button class="hero-btn hero-btn-primary" type="button" @click="$emit('navigate', 'dashboard')">
-            打開總覽
-          </button>
-          <button class="hero-btn hero-btn-secondary" type="button" @click="$emit('navigate', 'subscription')">
-            前往訂閱管理
-          </button>
-        </div>
-
-        <div class="hero-metrics">
-          <div v-for="metric in metrics" :key="metric.label" class="metric-card">
-            <span class="metric-value">{{ metric.value }}</span>
-            <span class="metric-label">{{ metric.label }}</span>
-          </div>
-        </div>
-      </article>
-
-      <aside class="hero-panel hero-briefing">
-        <h2 class="briefing-title">今日優先</h2>
-        <div class="briefing-item">
-          <span class="briefing-mark">A1</span>
-          <div>
-            <p class="briefing-name">訂閱</p>
-            <p>先確認 3 天內到期、已過期，以及可能需要取消的項目。</p>
-          </div>
-        </div>
-        <div class="briefing-item">
-          <span class="briefing-mark">B2</span>
-          <div>
-            <p class="briefing-name">食品</p>
-            <p>先處理即將過期與數量不足的食品，再安排補貨。</p>
-          </div>
-        </div>
-        <div class="briefing-divider"></div>
-        <p class="briefing-note">
-          系統與儲存空間狀態留在儀表板；首頁只呈現今天真正需要採取的行動。
-        </p>
-      </aside>
-    </section>
-
-    <section class="editorial-strip">
-      <div class="strip-heading">
-        <h2>今天最重要的三件事</h2>
-      </div>
-      <div class="strip-grid">
-        <button v-for="item in primaryRoutes" :key="item.page" class="strip-card" type="button" @click="$emit('navigate', item.page)">
-          <span class="strip-index">{{ item.index }}</span>
-          <strong>{{ item.title }}</strong>
-          <p>{{ item.description }}</p>
-        </button>
-      </div>
-    </section>
-
-    <section class="feature-layout">
-      <div class="section-copy">
-        <h2>不是一般儀表板，而是可掃讀的工作版面</h2>
-        <p>
-          新版介面以科技編輯排版為核心，混合強對比字級、細線框架、模組化資訊塊與節奏化留白，讓管理行為更像閱讀一份精簡週報。
-        </p>
-      </div>
-
-      <div class="feature-list">
-        <article v-for="feature in features" :key="feature.title" class="feature-card">
-          <h3>{{ feature.title }}</h3>
-          <p>{{ feature.description }}</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="channel-layout">
-      <div class="channel-panel">
-        <h2>延伸模組仍保持在同一份編輯系統裡</h2>
-        <p>圖庫、影片、音樂、文件與例行流程會維持一致的色彩、字體與資訊密度，不再像不同年代拼接出來的頁面。</p>
-      </div>
-
-      <div class="channel-grid">
-        <button
-          v-for="channel in channels"
-          :key="channel.page"
-          class="channel-card"
-          type="button"
-          @click="$emit('navigate', channel.page)"
-        >
-          <span class="channel-no">{{ channel.index }}</span>
-          <div>
-            <strong>{{ channel.title }}</strong>
-            <p>{{ channel.description }}</p>
-          </div>
-        </button>
-      </div>
-    </section>
-
-    <footer class="home-footer" aria-label="頁尾資訊">
-      <div class="home-repo-meta">
-        <div class="home-repo-meta__item">
-          <span class="home-repo-meta__label">上次更新日期</span>
-          <strong class="home-repo-meta__value">{{ lastUpdateDateLabel }}</strong>
-        </div>
-        <div class="home-repo-meta__divider" aria-hidden="true"></div>
-        <div class="home-repo-meta__item">
-          <span class="home-repo-meta__label">產品程式碼行</span>
-          <strong class="home-repo-meta__value">{{ linesOfCodeLabel }}</strong>
-        </div>
-      </div>
-      <p class="home-footer__copyright">鋒兄 © 2026-2027 FengBroAI Supabase</p>
+    <footer class="home-footer">
+      <span>鋒兄 © 2026–2027 FengBroAI Supabase</span>
+      <span>上次更新 <strong>{{ lastUpdateDateLabel }}</strong></span>
+      <span>產品程式碼 <strong>{{ linesOfCodeLabel }}</strong> 行</span>
     </footer>
   </div>
 </template>
@@ -181,12 +94,52 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
-  FENG_TUBE_ACTIVE_TOOL_KEY,
+  FENG_TUBE_CHANNELS,
   FENG_TUBE_CHANNELS_STORAGE_KEY
 } from '../../utils/fengTubeChannels'
 
+import { useDashboard } from '../../composables/useDashboard'
+import { todayKey } from '../../utils/notificationHelpers'
+import { FINANCE_INSTRUMENTS_STORAGE_KEY } from '../../utils/fengbroFinanceCustom'
+
 const emit = defineEmits(['navigate'])
 const runtimeConfig = useRuntimeConfig()
+
+const { subscriptionAlerts, subscriptionReadState, foodAlerts, foodReadState, formatDaysRemaining } = useDashboard()
+
+const shortcuts = [
+  { page: 'trial-purchase', label: '試用／首購' },
+  { page: 'shopping', label: '購物清單' },
+  { page: 'note', label: '筆記' },
+  { page: 'common', label: '常用帳號' },
+  { page: 'reinstall', label: '重灌軟體' },
+  { page: 'gallery', label: '圖片庫' },
+  { page: 'video', label: '影片' },
+  { page: 'music', label: '音樂' },
+]
+
+function priorityRow(page, title, period, items, state) {
+  let summary
+  const readable = ['ready', 'cached', 'offline'].includes(state)
+  if (readable) {
+    const first = items[0]
+    summary = first
+      ? `${items.length} 項 · ${first.name || '未命名'}${formatDaysRemaining(first.daysRemaining)}到期`
+      : '這段期間沒有到期項目'
+    if (state === 'cached') summary += '（快取，更新中）'
+    if (state === 'offline') summary += '（上次資料，更新失敗）'
+  } else if (state === 'unconfigured') {
+    summary = '尚未連接資料來源'
+  } else {
+    summary = state === 'error' ? '讀取失敗，可進入管理頁重試' : '讀取中…'
+  }
+  return { page, title, period, summary, hasItems: readable && items.length > 0 }
+}
+
+const priorities = computed(() => [
+  priorityRow('subscription', '訂閱', '3 天內', subscriptionAlerts.value.critical, subscriptionReadState.value),
+  priorityRow('food', '食品', '7 天內', foodAlerts.value.critical, foodReadState.value),
+])
 
 const lastUpdateDateLabel = computed(() => {
   const raw = runtimeConfig.public?.lastUpdateDate
@@ -268,20 +221,18 @@ const tubeStaleAlert = computed(() => {
 
 const financeAlert = computed(() => {
   if (financeAlertDismissed.value || financeHighItems.value.length === 0) return null
-  const labels = financeHighItems.value.map(item => `${item.name} ${item.lastLabel}`).join('、')
+  const labels = financeHighItems.value.map(item => `${item.name} ${item.price}`).join('、')
   return {
     count: financeHighItems.value.length,
     summary: `${labels} 已達創新高，請到鋒兄金融確認來源與數值。`
   }
 })
 
-const todayKey = () => new Date().toISOString().slice(0, 10)
-
 /** 首頁提醒沿用工具頁存下的頻道清單（產品預設清單已清空）。 */
-const readSavedTubeChannels = () => {
+const readSavedList = (key) => {
   if (!import.meta.client) return []
   try {
-    const saved = JSON.parse(localStorage.getItem(FENG_TUBE_CHANNELS_STORAGE_KEY) || '[]')
+    const saved = JSON.parse(localStorage.getItem(key) || '[]')
     return Array.isArray(saved) ? saved : []
   } catch {
     return []
@@ -290,7 +241,8 @@ const readSavedTubeChannels = () => {
 
 const loadTubeAlert = async () => {
   try {
-    const savedChannels = readSavedTubeChannels()
+    const savedChannels = readSavedList(FENG_TUBE_CHANNELS_STORAGE_KEY)
+    if (!savedChannels.length && !FENG_TUBE_CHANNELS.length) return
     const response = await $fetch('/api/feng-tools/youtube', {
       query: savedChannels.length > 0 ? { channels: JSON.stringify(savedChannels) } : undefined
     })
@@ -303,9 +255,13 @@ const loadTubeAlert = async () => {
 
 const loadFinanceAlert = async () => {
   try {
-    const response = await $fetch('/api/feng-tools/finance')
-    financeHighItems.value = (Array.isArray(response?.items) ? response.items : [])
-      .filter(item => item.status === 'new-high')
+    const instruments = readSavedList(FINANCE_INSTRUMENTS_STORAGE_KEY)
+    if (!instruments.length) return
+    const response = await $fetch('/api/feng-tools/finance', {
+      method: 'POST',
+      body: { instruments, skipHistory: true }
+    })
+    financeHighItems.value = (response?.quotes || []).filter(item => item.recordTag === 'new-high')
   } catch (error) {
     console.warn('[HomePage] 鋒兄金融通知載入失敗', error)
   }
@@ -332,20 +288,6 @@ const dismissFinanceAlert = () => {
   }
 }
 
-const openTubeTools = () => {
-  if (import.meta.client) {
-    localStorage.setItem(FENG_TUBE_ACTIVE_TOOL_KEY, 'tube')
-  }
-  emit('navigate', 'tools')
-}
-
-const openFinanceTools = () => {
-  if (import.meta.client) {
-    localStorage.setItem(FENG_TUBE_ACTIVE_TOOL_KEY, 'finance')
-  }
-  emit('navigate', 'tools')
-}
-
 onMounted(() => {
   updateCurrentHour()
   sleepWarningTimer = window.setInterval(updateCurrentHour, 60 * 1000)
@@ -355,8 +297,8 @@ onMounted(() => {
     tubeStaleDismissed.value = localStorage.getItem(TUBE_STALE_ALERT_DISMISS_KEY) === todayKey()
     financeAlertDismissed.value = localStorage.getItem(FINANCE_ALERT_DISMISS_KEY) === todayKey()
   }
-  loadTubeAlert()
-  loadFinanceAlert()
+  if (!tubeAlertDismissed.value || !tubeStaleDismissed.value) loadTubeAlert()
+  if (!financeAlertDismissed.value) loadFinanceAlert()
 })
 
 onUnmounted(() => {
@@ -372,696 +314,119 @@ const asciiArt = String.raw`███████╗███████╗█�
 ██║     ███████╗██║ ╚████║╚██████╔╝    ██████╔╝██║  ██║╚██████╔╝
 ╚═╝     ╚══════╝╚═╝  ╚═══╝ ╚═════╝     ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ `
 
-const metrics = [
-  { value: '02', label: '核心任務模組' },
-  { value: '15+', label: '資料頁面入口' },
-  { value: '24/7', label: '隨時可檢視狀態' }
-]
-
-const primaryRoutes = [
-  { index: '01', title: '總覽', description: '快速掌握近期續訂、食品期限與整體管理壓力。', page: 'dashboard' },
-  { index: '02', title: '訂閱管理', description: '整理平台費用、付款時間與續訂節奏。', page: 'subscription' },
-  { index: '03', title: '試用／首購', description: '依服務展開帳號，追蹤試用、首購與扣款日。', page: 'trial-purchase' }
-]
-
-const features = [
-  {
-    title: '更強的文字階層',
-    description: '用編輯式字級與對比建立視覺節奏，讓你先看到重要資訊，再看細節。'
-  },
-  {
-    title: '導覽像目錄，不像表單',
-    description: '側欄改成具有章節感的目錄系統，每個入口都帶有簡短上下文。'
-  },
-  {
-    title: '冷靜、專業、帶未來感',
-    description: '避免廉價霓虹與過度玻璃化，用乾淨的留白、深色結構與精準高亮塑造質感。'
-  }
-]
-
-const channels = [
-  { index: '04', title: '重灌軟體', description: '整理 Win／Mac 安裝清單、隱藏序號與查看密碼。', page: 'reinstall' },
-  { index: '05', title: '筆記 / 常用帳號', description: '維持快速檢索與低干擾的資訊視圖。', page: 'note' },
-  { index: '06', title: '圖庫 / 影片 / 音樂', description: '多媒體資料也使用相同的編排與節奏。', page: 'gallery' }
-]
 </script>
 
 <style scoped>
 .home-page {
+  width: min(100%, 76rem);
+  margin-inline: auto;
   display: grid;
-  gap: clamp(1.4rem, 1rem + 1vw, 2.4rem);
-  padding-bottom: 0.4rem;
+  gap: var(--sp-4);
 }
 
-.sleep-warning {
+.home-identity {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.8rem;
-  min-height: 54px;
-  padding: 0.9rem 1.2rem;
-  border: 1px solid transparent;
-  border-radius: 24px;
-  box-shadow: var(--shadow-soft);
-  text-align: center;
+  gap: var(--sp-3);
+  color: var(--text-secondary);
 }
-
-.sleep-warning strong {
-  font-family: var(--font-display);
+.home-identity img { object-fit: cover; border-radius: var(--radius-sm); }
+.home-identity pre {
+  margin: 0;
+  font: 0.5rem/1 var(--font-mono);
+  white-space: pre;
 }
-
-.sleep-warning span {
-  font-weight: 700;
+.home-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--sp-4);
+  align-items: start;
 }
-
-.sleep-warning--yellow {
-  border-color: var(--warning);
-  background: var(--warning-light);
-  color: var(--warning-text);
+.expiry-panel, .shortcut-panel {
+  background: var(--bg-surface);
+  border: var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4) var(--sp-5);
 }
-
-.sleep-warning--red {
-  border-color: var(--danger);
-  background: var(--danger-light);
-  color: var(--danger-text);
-}
-
-.tube-home-alert {
+.section-head, .expiry-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.15rem;
-  border: 1px solid color-mix(in oklab, var(--warning) 44%, var(--border-color));
-  border-radius: 24px;
-  background: var(--warning-light);
-  box-shadow: var(--shadow-soft);
-  color: var(--warning-text);
+  gap: var(--sp-3);
 }
-
-.tube-home-alert__copy {
-  display: grid;
-  gap: 0.22rem;
+.home-page h2 { font-size: var(--text-xl); }
+.home-page h3 { font-size: var(--text-md); }
+.expiry-row {
+  padding-block: var(--sp-3);
+  border-top: var(--hairline);
 }
-
-.tube-home-alert__label {
-  font-family: var(--font-display);
-  font-size: 0.78rem;
-  letter-spacing: 0;
+.expiry-row:last-child { padding-bottom: 0; }
+.expiry-row small, .expiry-row p, .home-footer {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
-
-.tube-home-alert strong {
-  font-size: 1.15rem;
+.expiry-row small { margin-inline-start: var(--sp-1); font-weight: 400; }
+.expiry-row p { margin-top: var(--sp-1); overflow-wrap: anywhere; }
+.expiry-row .needs-attention { color: var(--warning-text); }
+.home-page button {
+  min-height: var(--control-h-lg);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
 }
-
-.tube-home-alert p {
-  margin: 0;
-  color: var(--warning-text);
-}
-
-.finance-home-alert {
-  border-color: color-mix(in oklab, var(--danger) 44%, var(--border-color));
-  background: var(--danger-light);
-  color: var(--danger-text);
-}
-
-.finance-home-alert p {
-  color: var(--danger-text);
-}
-
-.tube-home-alert__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  justify-content: flex-end;
-}
-
-.hero-grid,
-.feature-layout,
-.channel-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 0.9fr);
-  gap: 1.2rem;
-}
-
-.hero-panel,
-.editorial-strip,
-.feature-card,
-.channel-panel,
-.channel-card {
-  border: 1px solid var(--border-color);
-  background: color-mix(in oklab, var(--bg-secondary) 92%, transparent);
-  box-shadow: var(--shadow-soft);
-}
-
-.hero-panel,
-.editorial-strip,
-.channel-panel {
-  border-radius: 34px;
-}
-
-.hero-panel {
-  padding: clamp(1.3rem, 1rem + 1.2vw, 2.2rem);
-}
-
-.hero-primary {
-  position: relative;
-  overflow: hidden;
-  min-height: 520px;
+.row-action, .shortcuts button, .hero-btn {
   background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  padding: var(--sp-1) var(--sp-3);
 }
-
-.strip-index,
-.channel-no {
-  font-family: var(--font-display);
-  letter-spacing: 0;
-}
-
-.hero-title {
-  margin-top: 1rem;
-  max-width: 10ch;
-  font-size: clamp(2.8rem, 2rem + 2vw, 5.4rem);
-  line-height: 0.94;
-}
-
-.hero-title span {
-  display: block;
-  color: inherit;
-}
-
-.hero-copy {
-  margin-top: 1.2rem;
-  max-width: 58ch;
-  color: var(--text-secondary);
-  font-size: 1.05rem;
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.85rem;
-  margin-top: 1.15rem;
-}
-
-.hero-btn {
-  min-height: 48px;
-  border-radius: 999px;
-  padding: 0.9rem 1.3rem;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
-}
-
-.hero-btn:hover,
-.strip-card:hover,
-.channel-card:hover {
-  transform: translateY(-2px);
-}
-
-.hero-btn-primary {
-  background: var(--surface-strong);
-  color: var(--text-inverse);
-}
-
-.hero-btn-secondary {
+.row-action { flex-shrink: 0; font-size: var(--text-sm); }
+.home-page button:hover { background: var(--bg-muted); }
+.text-action {
+  border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--text-primary);
-  border-color: var(--border-strong);
+  color: var(--primary-text);
+  padding-inline: var(--sp-2);
 }
-
-.hero-metrics {
+.section-head { margin-bottom: var(--sp-2); }
+.source-link { text-decoration: underline; text-underline-offset: 0.2em; }
+.shortcuts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.8rem;
-  margin-top: 2rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
 }
-
-.hero-ascii-shell {
-  margin-top: 0.7rem;
-  border: 1px solid color-mix(in oklab, var(--border-color) 84%, transparent);
-  border-radius: 24px;
-  overflow: hidden;
-  background: var(--bg-inset);
-}
-
-.hero-ascii-head {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.7rem 0.9rem;
-  border-bottom: 1px solid color-mix(in oklab, var(--border-color) 82%, transparent);
-  background: color-mix(in oklab, var(--bg-secondary) 78%, transparent);
-}
-
-.hero-ascii-head p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  letter-spacing: 0;
-}
-
-.hero-ascii-art {
-  margin: 0;
-  padding: 1rem 1rem 1.1rem;
-  overflow-x: auto;
-  color: color-mix(in oklab, var(--text-primary) 82%, var(--primary));
-  font-family: var(--font-mono);
-  font-size: clamp(0.48rem, 0.36rem + 0.34vw, 0.78rem);
-  line-height: 1.18;
-  letter-spacing: 0.02em;
-}
-
-.metric-card {
-  padding: 0.95rem 1rem;
-  border-radius: 22px;
-  background: color-mix(in oklab, var(--bg-secondary) 70%, transparent);
-  border: 1px solid var(--border-color);
-}
-
-.metric-value {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 1.7rem;
-}
-
-.metric-label {
-  display: block;
-  margin-top: 0.25rem;
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-}
-
-.hero-briefing {
-  background: var(--surface-strong);
-  color: var(--text-inverse);
-}
-
-.hero-person {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  width: min(420px, 100%);
-  margin: 1rem 0 0;
-  padding: 0.65rem;
-  overflow: hidden;
-  border-radius: 24px;
-  border: 1px solid color-mix(in oklab, var(--primary) 18%, var(--border-color));
-  background: color-mix(in oklab, var(--bg-primary) 78%, transparent);
-}
-
-.hero-person img {
-  display: block;
-  width: 96px;
-  height: 116px;
-  flex: 0 0 auto;
-  border-radius: 18px;
-  object-fit: cover;
-  object-position: 50% 30%;
-}
-
-.hero-person figcaption {
-  margin: 0;
-  color: var(--text-secondary);
-  font-weight: 800;
-}
-
-.briefing-item {
-  display: grid;
-  grid-template-columns: 52px 1fr;
-  gap: 0.9rem;
-  margin-top: 1.1rem;
-}
-
-.briefing-mark {
-  width: 52px;
-  height: 52px;
-  border-radius: 18px;
-  display: grid;
-  place-items: center;
-  background: color-mix(in oklab, var(--bg-surface) 8%, transparent);
-  font-family: var(--font-display);
-}
-
-.hero-briefing h2,
-.hero-briefing .briefing-name {
-  margin: 0;
-  color: var(--text-inverse);
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.hero-briefing p {
-  color: color-mix(in oklab, var(--text-inverse) 75%, transparent);
-  margin-top: 0.35rem;
-}
-
-.briefing-divider {
-  height: 1px;
-  background: color-mix(in oklab, var(--bg-surface) 12%, transparent);
-  margin: 1.3rem 0 1rem;
-}
-
-.briefing-note {
-  font-size: 0.95rem;
-}
-
-.editorial-strip {
-  padding: 1.35rem;
-}
-
-.strip-heading h2,
-.section-copy h2,
-.channel-panel h2 {
-  margin-top: 0.4rem;
-  font-size: clamp(1.8rem, 1.5rem + 1vw, 3rem);
-  line-height: 1.05;
-}
-
-.strip-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.9rem;
-  margin-top: 1.25rem;
-}
-
-.strip-card,
-.channel-card {
-  text-align: left;
-  border: 1px solid var(--border-color);
-  border-radius: 24px;
-  padding: 1rem;
-  background: var(--bg-secondary);
-  cursor: pointer;
-  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.strip-card:hover,
-.channel-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow);
-}
-
-.strip-index,
-.channel-no,
-.feature-kicker {
-  font-size: 0.76rem;
-  color: var(--text-muted);
-}
-
-.strip-card strong,
-.channel-card strong {
-  display: block;
-  margin-top: 0.6rem;
-  font-size: 1.05rem;
-}
-
-.strip-card p,
-.feature-card p,
-.channel-card p,
-.section-copy p,
-.channel-panel p {
-  margin-top: 0.4rem;
-  color: var(--text-secondary);
-}
-
-.section-copy,
-.channel-panel {
-  padding: clamp(1.3rem, 1rem + 1vw, 2rem);
-  border: 1px solid var(--border-color);
-  border-radius: 30px;
-  background: color-mix(in oklab, var(--bg-secondary) 90%, transparent);
-}
-
-.feature-list,
-.channel-grid {
-  display: grid;
-  gap: 0.9rem;
-}
-
-.feature-card {
-  padding: 1.25rem;
-  border-radius: 24px;
-}
-
-.feature-card h3 {
-  margin-top: 0.55rem;
-  font-size: 1.25rem;
-}
-
-.channel-grid {
-  grid-template-columns: 1fr;
-}
-
-.home-footer {
-  display: grid;
-  gap: 0.75rem;
-  justify-items: center;
-  padding-bottom: 0.2rem;
-}
-
-.home-repo-meta {
+.shortcuts button { text-align: start; }
+.sleep-warning, .tube-home-alert {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 1rem 1.4rem;
-  width: 100%;
-  padding: 1rem 1.2rem;
-  border: 1px solid var(--border-color);
-  border-radius: 24px;
-  background: color-mix(in oklab, var(--bg-secondary) 90%, transparent);
-  box-shadow: var(--shadow-soft);
-  color: var(--text-secondary);
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--warning-light);
+  color: var(--warning-text);
 }
+.sleep-warning--red, .finance-home-alert { background: var(--danger-light); color: var(--danger-text); }
+.tube-home-alert { justify-content: space-between; }
+.tube-home-alert__copy { flex: 1 1 18rem; min-width: 0; overflow-wrap: anywhere; }
+.tube-home-alert__copy strong { display: block; font-size: var(--text-lg); }
+.tube-home-alert__label { font-size: var(--text-sm); }
+.tube-home-alert__actions, .home-footer { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.hero-btn-primary { background: var(--primary-solid); color: var(--on-primary); border-color: transparent; }
+.home-page .hero-btn-primary:hover { background: var(--primary-solid-hover); }
+.home-footer { border-top: var(--hairline); padding-block: var(--sp-3); gap: var(--sp-2) var(--sp-5); }
+.home-footer strong { font-weight: 500; font-variant-numeric: tabular-nums; }
 
-.home-repo-meta__item {
-  display: grid;
-  gap: 0.2rem;
-  text-align: center;
-  min-width: 8rem;
+@media (max-width: 1024px) {
+  .home-workspace { grid-template-columns: 1fr; }
 }
-
-.home-repo-meta__label {
-  font-family: var(--font-display);
-  font-size: 0.72rem;
-  letter-spacing: 0;
-  color: var(--text-muted);
-}
-
-.home-repo-meta__value {
-  font-size: 1.05rem;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.home-repo-meta__divider {
-  width: 1px;
-  height: 2rem;
-  background: var(--border-color);
-}
-
-.home-footer__copyright {
-  margin: 0;
-  padding: 0.55rem 1rem;
-  text-align: center;
-  font-family: var(--font-display);
-  font-size: 0.9rem;
-  letter-spacing: 0;
-  color: var(--text-secondary);
-}
-
-@media (min-width: 769px) and (max-width: 1180px) {
-  .hero-grid,
-  .feature-layout,
-  .channel-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .strip-grid,
-  .channel-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .hero-metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .hero-primary {
-    min-height: 440px;
-  }
-}
-
-@media (max-width: 768px) {
-  .home-page {
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
-  }
-
-  .hero-grid,
-  .feature-layout,
-  .channel-layout,
-  .strip-grid {
-    grid-template-columns: 1fr;
-    gap: 0.85rem;
-  }
-
-  .hero-panel,
-  .editorial-strip,
-  .section-copy,
-  .channel-panel {
-    border-radius: 22px;
-  }
-
-  .hero-primary {
-    min-height: auto;
-    padding: 1.1rem;
-  }
-
-  .hero-title {
-    margin-top: 0.75rem;
-    font-size: clamp(1.85rem, 1.35rem + 3.2vw, 2.6rem);
-    line-height: 1.18;
-    letter-spacing: -0.03em;
-    text-wrap: balance;
-  }
-
-  .hero-copy {
-    font-size: 0.95rem;
-    line-height: 1.65;
-  }
-
-  .hero-ascii-art {
-    font-size: clamp(0.42rem, 0.34rem + 0.5vw, 0.66rem);
-  }
-
-  .hero-metrics,
-  .channel-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .briefing-item {
-    grid-template-columns: 44px 1fr;
-    gap: 0.75rem;
-  }
-
-  .briefing-mark {
-    width: 44px;
-    height: 44px;
-    border-radius: 14px;
-  }
-
-  .feature-card,
-  .strip-card,
-  .channel-card {
-    border-radius: 20px;
-  }
-
-  .home-repo-meta {
-    border-radius: 18px;
-  }
-}
-
-@media (max-width: 640px) {
-  .home-repo-meta {
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.95rem;
-  }
-
-  .home-repo-meta__divider {
-    width: 40%;
-    height: 1px;
-  }
-
-  .home-footer__copyright {
-    font-size: 0.82rem;
-    letter-spacing: 0;
-  }
-
-  .sleep-warning {
-    flex-direction: column;
-    gap: 0.2rem;
-    border-radius: 18px;
-    padding: 0.85rem 0.95rem;
-  }
-
-  .tube-home-alert {
-    flex-direction: column;
-    align-items: stretch;
-    border-radius: 18px;
-    padding: 0.95rem;
-    gap: 0.85rem;
-  }
-
-  .tube-home-alert__actions {
-    justify-content: stretch;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.55rem;
-  }
-
-  .tube-home-alert__actions .hero-btn {
-    width: 100%;
-    min-height: 46px;
-    justify-content: center;
-  }
-
-  .hero-title {
-    max-width: none;
-  }
-
-  .hero-actions {
-    flex-direction: column;
-    gap: 0.55rem;
-  }
-
-  .hero-actions .hero-btn {
-    width: 100%;
-    min-height: 48px;
-    justify-content: center;
-    border-radius: var(--radius-xl);
-  }
-
-  .hero-metrics {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.55rem;
-  }
-
-  .metric-card {
-    border-radius: var(--radius-xl);
-    padding: 0.8rem;
-  }
-
-  .hero-ascii-art {
-    font-size: 0.39rem;
-    line-height: 1.12;
-  }
-
-  .hero-btn {
-    width: 100%;
-  }
-
-  .hero-metrics,
-  .channel-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-panel,
-  .editorial-strip,
-  .section-copy,
-  .channel-panel {
-    padding: 1.1rem;
-  }
-
-  .strip-heading h2,
-  .section-copy h2,
-  .channel-panel h2 {
-    font-size: clamp(1.45rem, 1.2rem + 2vw, 2rem);
-  }
-
-  .feature-card {
-    padding: 1rem;
-  }
+@media (max-width: 480px) {
+  .expiry-panel, .shortcut-panel { padding: var(--sp-3); }
+  .home-identity img { width: 36px; height: 48px; }
+  .home-identity pre { font-size: min(0.5rem, 1.6vw); }
 }
 </style>

@@ -3,7 +3,7 @@
     <!-- 第一行：品牌 + 右側工具列 -->
     <div class="header-top-row">
       <div class="header-left">
-        <button @click="$emit('toggleSidebar')" class="mobile-menu-btn" type="button" aria-label="開啟選單">
+        <button @click="$emit('toggleSidebar')" class="mobile-menu-btn" type="button" aria-label="開啟選單" aria-controls="module-navigation" :aria-expanded="sidebarOpen">
           <span class="menu-icon" aria-hidden="true">
             <i></i><i></i><i></i>
           </span>
@@ -20,52 +20,49 @@
       </div>
 
       <div class="header-right">
-        <div class="signal-card">
-          <span class="signal-label">Focus</span>
-          <strong>Subscription / Food Ops</strong>
-        </div>
-
-        <div class="account-switcher" ref="switcherRef">
+        <div class="account-switcher" ref="switcherRef" @keydown.esc.stop="closeDropdown" @focusout="onFocusOut">
           <button
             class="account-btn"
-            @click="toggleDropdown"
+            ref="switcherButton"
+            @click="showDropdown = !showDropdown"
+            :aria-expanded="showDropdown"
+            aria-controls="account-options"
+            :aria-label="`切換資料來源，目前為 ${displayName}`"
             :title="displayName"
             type="button"
           >
-            <span class="account-chip">Source</span>
+            <span class="account-chip">資料來源</span>
             <span class="account-name">{{ displayName }}</span>
             <span class="dropdown-arrow">{{ showDropdown ? '▲' : '▼' }}</span>
           </button>
 
-          <div v-if="showDropdown" class="account-dropdown">
+          <div v-show="showDropdown" class="account-dropdown" id="account-options">
             <div class="dropdown-header">資料來源切換</div>
 
-            <div
+            <button
               v-for="acc in accounts"
               :key="acc.id"
+              type="button"
               class="account-item"
               :class="{ active: acc.id === activeAccountId }"
+              :aria-current="acc.id === activeAccountId || undefined"
               @click="handleSwitch(acc.id)"
             >
-              <span class="account-item-icon">{{ acc.id === activeAccountId ? 'On' : 'DB' }}</span>
-              <span class="account-item-name">supabase-{{ acc.friendlyName || '.env' }}</span>
-            </div>
-
-            <div
-              class="account-item env-item"
-              :class="{ active: !activeAccountId && accounts.length === 0 }"
-              @click="handleUseEnv"
+              <span class="account-item-name">{{ acc.friendlyName || '未命名帳號' }}</span>
+              <span v-if="acc.id === activeAccountId" class="current-source">使用中</span>
+            </button>
+            <button
+              type="button"
+              class="account-item"
+              :class="{ active: !activeAccountId }"
+              :aria-current="!activeAccountId || undefined"
+              @click="handleSwitch(null)"
             >
-              <span class="account-item-icon">ENV</span>
-              <span class="account-item-name">使用 `.env` 設定</span>
-            </div>
-
+              <span class="account-item-name">環境設定（.env）</span>
+              <span v-if="!activeAccountId" class="current-source">使用中</span>
+            </button>
             <div class="dropdown-divider"></div>
-
-            <div class="account-item settings-item" @click="goToSettings">
-              <span class="account-item-icon">CFG</span>
-              <span class="account-item-name">前往設定</span>
-            </div>
+            <button type="button" class="account-item settings-item" @click="goToSettings">前往設定</button>
           </div>
         </div>
 
@@ -79,19 +76,20 @@
           type="button"
         >
           <span class="dark-mode-icon">{{ isDarkMode ? '☀' : '☾' }}</span>
-          <span class="dark-mode-label">{{ isDarkMode ? 'Light' : 'Dark' }}</span>
+          <span class="dark-mode-label">{{ isDarkMode ? '淺色' : '深色' }}</span>
         </button>
       </div>
     </div>
 
     <!-- 第二行：頂部導航列 -->
-    <nav class="top-nav" aria-label="Primary navigation" v-if="pages && pages.length">
+    <nav class="top-nav" aria-label="主要導覽" v-if="pages && pages.length">
       <div class="nav-scroll">
         <button
           v-for="page in pages"
           :key="page.id"
           @click="handleNavigate(page)"
           :class="{ active: isParentActive(page) }"
+          :aria-current="!page.children && isParentActive(page) ? 'page' : undefined"
           class="nav-tab"
           type="button"
         >
@@ -110,6 +108,7 @@
           :key="child.id"
           @click="$emit('navigate', child.id)"
           :class="{ active: isChildActive(activeParent, child) }"
+          :aria-current="isChildActive(activeParent, child) ? 'page' : undefined"
           class="nav-sub-tab"
           type="button"
         >
@@ -126,10 +125,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useSettings } from '../../composables/useSettings'
 import { isNavChildActive, isNavParentActive } from '../../composables/useNavigation'
-import { useRouter } from 'vue-router'
+import { useToast } from '../../composables/useToast'
 import NavIcon from '../ui/NavIcon.vue'
 
 const props = defineProps({
+  sidebarOpen: Boolean,
   title: { type: String, default: '控制首頁' },
   titleHint: { type: String, default: '' },
   subtitle: { type: String, default: '科技編輯式管理平台' },
@@ -141,11 +141,12 @@ const props = defineProps({
 
 const emit = defineEmits(['toggleSidebar', 'toggleDarkMode', 'navigate'])
 
-const router = useRouter()
-const { displayName, accounts, activeAccountId, switchAccount, clearSettings, loadSettings } = useSettings()
+const toast = useToast()
+const { displayName, accounts, activeAccountId, switchAccount, loadSettings } = useSettings()
 
 const showDropdown = ref(false)
 const switcherRef = ref(null)
+const switcherButton = ref(null)
 
 const isParentActive = (page) => isNavParentActive(page, props.currentPage, props.activeTool)
 const isChildActive = (page, child) => isNavChildActive(page, child, props.currentPage, props.activeTool)
@@ -162,25 +163,27 @@ const handleNavigate = (page) => {
   }
 }
 
-const toggleDropdown = () => {
-  showDropdown.value = !showDropdown.value
+const closeDropdown = () => {
+  if (!showDropdown.value) return
+  showDropdown.value = false
+  switcherButton.value?.focus()
+}
+
+const onFocusOut = (event) => {
+  if (!switcherRef.value?.contains(event.relatedTarget)) showDropdown.value = false
 }
 
 const handleSwitch = (id) => {
-  switchAccount(id)
-  showDropdown.value = false
-  window.location.reload()
-}
-
-const handleUseEnv = () => {
-  clearSettings()
-  showDropdown.value = false
-  window.location.reload()
+  closeDropdown()
+  if (id === activeAccountId.value) return
+  const result = switchAccount(id)
+  if (result.success) window.location.reload()
+  else toast.error(`切換資料來源失敗：${result.error}`)
 }
 
 const goToSettings = () => {
-  showDropdown.value = false
-  router.push('/?page=settings')
+  closeDropdown()
+  emit('navigate', 'settings')
 }
 
 const handleClickOutside = (event) => {
@@ -214,7 +217,7 @@ onUnmounted(() => {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
   box-shadow: none;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* ── 第一行 ── */
@@ -299,30 +302,6 @@ onUnmounted(() => {
 }
 
 /* ── 右側工具群 ── */
-.signal-card {
-  display: grid;
-  gap: 1px;
-  padding: 5px var(--sp-3);
-  border-radius: var(--control-radius);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-muted);
-  box-shadow: none;
-}
-
-.signal-label {
-  font-family: var(--font-body);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  letter-spacing: 0;
-  color: var(--text-muted);
-}
-
-.signal-card strong {
-  font-size: var(--text-xs);
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
 .account-switcher {
   position: relative;
 }
@@ -369,8 +348,7 @@ onUnmounted(() => {
 }
 
 .account-chip,
-.dropdown-arrow,
-.account-item-icon {
+.dropdown-arrow {
   font-family: var(--font-body);
   font-size: var(--text-2xs);
   letter-spacing: 0;
@@ -401,13 +379,15 @@ onUnmounted(() => {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  min-width: 250px;
+  width: min(17rem, 75vw);
+  max-height: 70vh;
+  overflow: auto;
   padding: 0.55rem;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-3);
-  z-index: 100;
+  z-index: var(--z-dropdown);
 }
 
 .dropdown-header {
@@ -417,6 +397,13 @@ onUnmounted(() => {
 }
 
 .account-item {
+  width: 100%;
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  text-align: start;
+  justify-content: space-between;
+  overflow-wrap: anywhere;
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -434,19 +421,10 @@ onUnmounted(() => {
   background: var(--primary-light);
 }
 
-.account-item.active .account-item-icon {
-  background: color-mix(in oklab, var(--primary) 18%, transparent);
+.current-source {
   color: var(--primary-text);
-}
-
-.account-item-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-sm);
-  display: grid;
-  place-items: center;
-  background: var(--bg-muted);
-  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
 }
 
 .account-item-name {
@@ -628,9 +606,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 1120px) {
-  .signal-card {
-    display: none;
-  }
   .header-top-row {
     padding: 0.85rem 1.1rem;
   }
@@ -740,7 +715,7 @@ onUnmounted(() => {
   }
 
   .account-dropdown {
-    min-width: min(88vw, 280px);
+    width: min(17rem, calc(100vw - 5rem));
     right: 0;
     border-radius: var(--radius-lg);
     padding: 0.45rem;

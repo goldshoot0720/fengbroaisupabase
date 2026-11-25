@@ -180,7 +180,10 @@ export default defineNuxtConfig({
 
   // Netlify 部署配置
   nitro: {
-    preset: 'netlify'
+    preset: 'netlify',
+    // The API and scheduled functions share helpers outside server/. Bundle them
+    // so Nitro can start independently of the generated entry's directory.
+    externals: { inline: [join(rootDir, 'utils')] }
   },
 
   // Project keeps components/ at repo root (not under app/).
@@ -188,7 +191,6 @@ export default defineNuxtConfig({
   components: [
     {
       path: join(rootDir, 'components'),
-      global: true,
       pathPrefix: false
     }
   ],

@@ -2,7 +2,7 @@
 
 ## Product shell
 
-The live app is the Nuxt 4 shell in `app/app.vue`: sidebar + header, `useNavigation.currentPage`, and `components/pages/*`. It is not a Vue Router multi-page app. `app.vue` has no `<NuxtPage />`. Root `pages/index.vue` only registers `/`. `/about` redirects to `/?page=about` (`routeRules`); `app.vue` also treats path `/about` as the product About page. `isAppPageId` + `app.vue` apply a valid `?page=` query (also used by the header account switcher).
+The live app is the Nuxt 4 shell in `app/app.vue`: sidebar + header, `useNavigation.currentPage`, and `components/pages/*`. It is not a Vue Router multi-page app. `app.vue` has no `<NuxtPage />`. Root `pages/index.vue` only registers `/`. `/about` redirects to `/?page=about` (`routeRules`); `app.vue` also treats path `/about` as the product About page. Menu navigation writes the page to `?page=`. The shell applies the query on reload and browser Back/Forward. On a direct visit to `/`, it restores the last page.
 
 Column source of truth for new tables is the `tables` array in `components/pages/SettingsPage.vue` (UUID `id` via `gen_random_uuid()`). Older setup scripts (`setup-all-tables.sql`, `*-setup.sql`) may still use `BIGSERIAL`. Composables treat `id` as opaque; both key types work. `app/types/database.types.ts` follows the Settings columns.
 

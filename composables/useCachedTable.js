@@ -40,6 +40,7 @@ export const loadCachedTable = async ({
   variant = '',
   listRef,
   loadingRef,
+  readState,
   errorRef,
   fetcher,
   force = false,
@@ -50,21 +51,25 @@ export const loadCachedTable = async ({
   const epochAtStart = tableMutationEpoch(key)
   let showedCache = false
   try {
+    if (readState && !listRef.value.length) readState.value = 'loading'
     if (errorRef) errorRef.value = errorValue
     if (loadingRef && listRef.value.length === 0) loadingRef.value = true
     const rows = await loadTableWithCache(key, fetcher, {
       force,
       onCached: (cached) => {
         showedCache = true
+        if (readState) readState.value = 'cached'
         if (!isTableMutating(key) && !sameRows(listRef.value, cached)) listRef.value = cached.slice()
         if (loadingRef) loadingRef.value = false
       }
     })
     // 資料沒變就不重新指定清單，切換選單回來不會整頁重畫。
     if (!isTableReadStale(key, epochAtStart) && !sameRows(listRef.value, rows)) listRef.value = rows.slice()
+    if (readState) readState.value = 'ready'
     return { success: true, rows: listRef.value, fromCache: showedCache }
   } catch (e) {
     console.error(`載入 ${table} 失敗:`, e)
+    if (readState) readState.value = showedCache ? 'offline' : 'error'
     if (errorRef) errorRef.value = e?.message || String(e)
     if (onError) onError(e, { showedCache })
     return { success: false, error: e?.message || String(e) }

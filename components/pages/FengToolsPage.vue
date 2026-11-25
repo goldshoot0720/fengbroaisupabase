@@ -1100,6 +1100,7 @@ import {
 } from '../../utils/fengTubeChannels'
 import { buildFengbroTubeCsv, parseFengbroTubeCsv } from '../../utils/fengTubeCsv'
 import {
+  FINANCE_INSTRUMENTS_STORAGE_KEY,
   FINANCE_CUSTOM_GROUPS,
   FINANCE_GROUP_LABELS,
   MAX_CUSTOM_IMAGE_URLS,
@@ -1210,7 +1211,6 @@ const tubeCsvBusy = ref(false)
 const financeLoading = ref(false)
 const financeError = ref('')
 const financeResult = ref(null)
-const FINANCE_CUSTOM_INSTRUMENTS_KEY = 'fengbro.tools.finance.customInstruments'
 // 全部標的（含原本寫死的 34 檔預設標的）都在 financeinstrument 表，這裡是畫面用的清單。
 const financeCustomInstruments = ref([])
 const financeCustomDraft = ref(createEmptyCustomFinanceDraft())
@@ -1251,8 +1251,8 @@ const { loadLandtopHistory, recordLandtopSnapshot } = useLandtopHistory()
 // 標的走獨立表 financeinstrument（每檔一列），首次載入時從 toollistsync 舊清單搬過去。
 const financeCustomSync = useFinanceInstrumentSync({
   target: financeCustomInstruments,
-  readLocal: () => safeJsonParse(localStorage.getItem(FINANCE_CUSTOM_INSTRUMENTS_KEY) || '[]', []),
-  writeLocal: (value) => localStorage.setItem(FINANCE_CUSTOM_INSTRUMENTS_KEY, JSON.stringify(value)),
+  readLocal: () => safeJsonParse(localStorage.getItem(FINANCE_INSTRUMENTS_STORAGE_KEY) || '[]', []),
+  writeLocal: (value) => localStorage.setItem(FINANCE_INSTRUMENTS_STORAGE_KEY, JSON.stringify(value)),
   normalize: (item) => normalizeCustomFinanceInstrument(item),
 })
 
@@ -1978,12 +1978,12 @@ const financeGroupedQuotes = computed(() => {
 
 const persistFinanceWatchlist = () => {
   if (!import.meta.client) return
-  localStorage.setItem(FINANCE_CUSTOM_INSTRUMENTS_KEY, JSON.stringify(financeCustomInstruments.value))
+  localStorage.setItem(FINANCE_INSTRUMENTS_STORAGE_KEY, JSON.stringify(financeCustomInstruments.value))
 }
 
 const readFinanceWatchlist = () => {
   if (!import.meta.client) return
-  const custom = safeJsonParse(localStorage.getItem(FINANCE_CUSTOM_INSTRUMENTS_KEY) || '[]', [])
+  const custom = safeJsonParse(localStorage.getItem(FINANCE_INSTRUMENTS_STORAGE_KEY) || '[]', [])
   if (Array.isArray(custom)) {
     financeCustomInstruments.value = custom
       .map((item) => normalizeCustomFinanceInstrument(item))

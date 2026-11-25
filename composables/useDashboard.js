@@ -6,8 +6,8 @@ import { useFoods } from './useFoods'
 import { daysUntil, getDayText } from '../utils/notificationHelpers'
 
 export const useDashboard = () => {
-  const { subscriptions } = useSubscriptions()
-  const { foods } = useFoods()
+  const { subscriptions, subscriptionReadState } = useSubscriptions()
+  const { foods, foodReadState } = useFoods()
 
   const calculateDaysRemaining = (targetDate) => daysUntil(targetDate)
 
@@ -124,7 +124,9 @@ export const useDashboard = () => {
 
   return {
     subscriptionAlerts,
+    subscriptionReadState,
     foodAlerts,
+    foodReadState,
     alertStats,
     formatDaysRemaining,
     getPriorityColor,

@@ -8,7 +8,7 @@
         :current-page="currentPage"
         :active-tool="activeTool"
         :pages="pages"
-        @toggle="toggleSidebar"
+        @close="closeSidebar"
         @navigate="handleSidebarNavigate"
       />
 
@@ -16,6 +16,7 @@
       <div class="main-content">
         <!-- 頂部導航標題 -->
         <AppHeader
+          :sidebar-open="sidebarOpen"
           :title="pageTitle"
           :title-hint="pageTitleHint"
           :subtitle="pageSubtitle"
@@ -172,7 +173,7 @@
           <!-- 鋒兄首頁 -->
           <HomePage
             v-if="currentPage === 'home'"
-            @navigate="navigateToPage"
+            @navigate="handleSidebarNavigate"
           />
 
           <PageContainer
@@ -190,19 +191,13 @@
       </div>
     </div>
 
-    <!-- 手機版遮罩層 -->
+    <!-- 語音操作 -->
     <VoiceInputPanel
       v-if="voicePanelReady"
       :current-page="currentPage"
       :pages="pages"
       @navigate="navigateToPage"
     />
-
-    <div 
-      v-if="sidebarOpen" 
-      class="mobile-overlay"
-      @click="closeSidebar"
-    ></div>
 
     <!-- 滾動按鈕：右下角上/下箭頭 -->
     <div v-show="showScrollButtons" class="scroll-buttons" aria-label="頁面捲動">
@@ -378,6 +373,7 @@
 import { ref, computed, defineAsyncComponent, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import AppSidebar from '../components/layout/AppSidebar.vue'
 import AppHeader from '../components/layout/AppHeader.vue'
+import HomePage from '../components/pages/HomePage.vue'
 import PageContainer from '../components/layout/PageContainer.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ToastContainer from '../components/ui/ToastContainer.vue'
@@ -393,6 +389,11 @@ const lazyPage = (loader) => defineAsyncComponent({
 })
 const DashboardPage = lazyPage(() => import('../components/pages/DashboardPage.vue'))
 const SubscriptionPage = lazyPage(() => import('../components/pages/SubscriptionPage.vue'))
+const TrialPurchasePage = lazyPage(() => import('../components/pages/TrialPurchasePage.vue'))
+const ReinstallPage = lazyPage(() => import('../components/pages/ReinstallPage.vue'))
+const QuotaPage = lazyPage(() => import('../components/pages/QuotaPage.vue'))
+const ShoppingPage = lazyPage(() => import('../components/pages/ShoppingPage.vue'))
+const UdemyPage = lazyPage(() => import('../components/pages/UdemyPage.vue'))
 const FoodPage = lazyPage(() => import('../components/pages/FoodPage.vue'))
 const GalleryPage = lazyPage(() => import('../components/pages/GalleryPage.vue'))
 const VideoDBPage = lazyPage(() => import('../components/pages/VideoDBPage.vue'))
@@ -406,16 +407,15 @@ const FengToolsPage = lazyPage(() => import('../components/pages/FengToolsPage.v
 const CommonPage = lazyPage(() => import('../components/pages/CommonPage.vue'))
 const BankPage = lazyPage(() => import('../components/pages/BankPage.vue'))
 const SettingsPage = lazyPage(() => import('../components/pages/SettingsPage.vue'))
-const HomePage = lazyPage(() => import('../components/pages/HomePage.vue'))
-const VoiceInputPanel = lazyPage(() => import('../components/ui/VoiceInputPanel.vue'))
+const VoiceInputPanel = defineAsyncComponent(() => import('../components/ui/VoiceInputPanel.vue'))
 
 // 使用 composables
 import { useSubscriptions } from '../composables/useSubscriptions'
 import { useFoods } from '../composables/useFoods'
-import { scheduleTablePrefetch } from '../composables/useTablePrefetch'
 import { hydrateTableCache } from '../utils/tableCache.js'
+import { FENG_TUBE_ACTIVE_TOOL_KEY } from '../utils/fengTubeChannels'
 import { useTheme } from '../composables/useTheme'
-import { useNavigation, isAppPageId } from '../composables/useNavigation'
+import { useNavigation, resolveAppPageId } from '../composables/useNavigation'
 import { useScroll } from '../composables/useScroll'
 import { useToast } from '../composables/useToast'
 import { getSupabaseCredentials } from '../composables/useSettings'
@@ -440,35 +440,20 @@ const {
   pageTitle,
   pageTitleHint,
   pageSubtitle,
+  applyPage,
   setCurrentPage,
   restoreLastPage,
   toggleSidebar, 
-  closeSidebar, 
-  handleResize 
+  closeSidebar
 } = useNavigation()
 const route = useRoute()
-// True when the URL explicitly named a target page (/?page= or /about);
-// then we must NOT override it with the remembered last page.
-const hasExplicitPage = ref(false)
-const applyRoutePage = () => {
-  if (route.path === '/about') {
-    hasExplicitPage.value = true
-    setCurrentPage('about')
-    return
-  }
+const pageFromRoute = computed(() => {
+  if (route.path === '/about') return 'about'
   const raw = route.query.page
-  const page = Array.isArray(raw) ? raw[0] : raw
-  if (typeof page === 'string' && isAppPageId(page)) {
-    hasExplicitPage.value = true
-    setCurrentPage(page)
-    return
-  }
-  if (import.meta.server) {
-    setCurrentPage('home')
-  }
-}
-applyRoutePage()
-watch(() => [route.path, route.query.page], applyRoutePage)
+  return resolveAppPageId(Array.isArray(raw) ? raw[0] : raw)
+})
+if (pageFromRoute.value) applyPage(pageFromRoute.value)
+watch(pageFromRoute, page => applyPage(page || 'home'))
 const { warning: toastWarning } = useToast()
 const { initNotificationPreference, bootstrapNotifications } = useNotifications()
 const { recordSiteVisit, recordMenuUsage } = useSiteStats()
@@ -515,23 +500,23 @@ const foodsCount = computed(() => foods.value.length)
 const isDevelopment = computed(() => false) // 設為 true 以啟用滾動調試
 const placeholderPages = {}
 const placeholderConfig = computed(() => placeholderPages[currentPage.value] || null)
-const TOOL_STORAGE_KEY = 'feng-tools-active-tool'
 const TOOL_KEYS = ['biggo', 'manual', 'phone', 'tube', 'finance', 'news', 'image-voice', 'image-convert', 'video-merge', 'yt-bili-dl']
 const readStoredTool = () => {
   if (typeof localStorage === 'undefined') return 'biggo'
-  const saved = localStorage.getItem(TOOL_STORAGE_KEY)
+  const saved = localStorage.getItem(FENG_TUBE_ACTIVE_TOOL_KEY)
   return TOOL_KEYS.includes(saved) ? saved : 'biggo'
 }
-const activeTool = ref(readStoredTool())
+const activeTool = ref('biggo')
 const voicePanelReady = ref(false)
 let voicePanelIdleHandle = null
 let voicePanelFallbackTimer = null
 // 使用者意圖的導覽（側欄、頁頭、頁內快速卡、語音）。切到目標頁並回報
 // 選單使用統計（fire-and-forget）；程式性的還原／路由解析不走這裡。
 const navigateToPage = (pageId) => {
-  if (typeof pageId !== 'string' || !pageId) return
-  setCurrentPage(pageId)
-  recordMenuUsage(pageId)
+  const target = resolveAppPageId(pageId)
+  if (!target) return
+  setCurrentPage(target)
+  recordMenuUsage(target)
 }
 const handleSidebarNavigate = (pageId) => {
   // 子選單先解析出真正的 product page id，再統一交給 navigateToPage。
@@ -540,6 +525,7 @@ const handleSidebarNavigate = (pageId) => {
       const tool = pageId.split(':')[1]
       if (TOOL_KEYS.includes(tool)) {
         activeTool.value = tool
+        localStorage.setItem(FENG_TUBE_ACTIVE_TOOL_KEY, tool)
       }
       navigateToPage('tools')
       return
@@ -642,9 +628,8 @@ onMounted(async () => {
   // Remember the last visited menu item and re-enter directly (unless the URL
   // explicitly pointed at a page). Runs client-side after hydration to avoid
   // SSR/client template mismatch.
-  if (!hasExplicitPage.value) {
-    restoreLastPage()
-  }
+  activeTool.value = readStoredTool()
+  if (!pageFromRoute.value) await restoreLastPage()
 
   // Voice is a secondary tool; defer its large panel until the first paint is idle.
   const mountVoicePanel = () => { voicePanelReady.value = true }
@@ -675,9 +660,6 @@ onMounted(async () => {
   initTheme()
 
   if (import.meta.client) {
-    // 監聽視窗大小變化
-    window.addEventListener('resize', handleResize)
-
     // 設置滾動監聽
     await nextTick()
     setupScrollListener()
@@ -695,7 +677,10 @@ onMounted(async () => {
   await foodsReady
 
   // 空閒時背景預抓其他選單的資料表。
-  scheduleTablePrefetch()
+  if (supabaseUrl && (creds?.key || config.public.supabaseAnonKey)) {
+    const { scheduleTablePrefetch } = await import('../composables/useTablePrefetch')
+    scheduleTablePrefetch()
+  }
 })
 
 onUnmounted(() => {
@@ -704,7 +689,6 @@ onUnmounted(() => {
   }
   if (voicePanelFallbackTimer !== null) window.clearTimeout(voicePanelFallbackTimer)
   if (import.meta.client) {
-    window.removeEventListener('resize', handleResize)
     removeScrollListener()
   }
 })
@@ -756,23 +740,6 @@ watch(currentPage, async () => {
   max-height: none;
 }
 
-/* 手機版遮罩層 */
-.mobile-overlay {
-  position: fixed;
-  inset: 0;
-  background: color-mix(in oklab, var(--overlay-scrim) 48%, transparent);
-  backdrop-filter: blur(10px) saturate(1.05);
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  z-index: 999;
-  display: none;
-  animation: overlayIn 180ms var(--ease-out-expo);
-}
-
-@keyframes overlayIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 /* 響應式設計 */
 @media (min-width: 1200px) {
   .page-content { padding: 0.65rem 0.45rem 1.75rem; }
@@ -783,7 +750,6 @@ watch(currentPage, async () => {
     padding: 0.75rem;
   }
   .page-content { padding: 0.4rem 0.2rem 8rem; }
-  .scroll-buttons { bottom: 9rem; }
   .persistent-audio-bar,
   .persistent-video-bar {
     width: calc(100% - 1.5rem);
@@ -816,7 +782,6 @@ watch(currentPage, async () => {
 }
 
 @media (max-width: 768px) {
-  .mobile-overlay { display: block; }
 
   #app {
     background: var(--bg-primary);
@@ -846,12 +811,6 @@ watch(currentPage, async () => {
     min-height: auto;
     max-height: none;
     overflow: visible;
-  }
-
-  .scroll-buttons {
-    right: max(0.75rem, env(safe-area-inset-right, 0px));
-    bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
-    gap: 0.55rem;
   }
 
   .scroll-btn {
@@ -958,25 +917,6 @@ watch(currentPage, async () => {
   .persistent-video-copy span {
     font-size: 0.82rem;
   }
-
-  .scroll-buttons {
-    bottom: calc(6.25rem + env(safe-area-inset-bottom, 0px));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mobile-overlay {
-    animation: none;
-  }
-
-  .page-content > * {
-    animation: none;
-  }
-}
-
-/* 頁面切換動畫 */
-.page-content > * {
-  animation: slideInUp 0.6s ease;
 }
 
 /* 滾動按鈕 */
@@ -989,6 +929,20 @@ watch(currentPage, async () => {
   flex-direction: column;
   gap: 0.65rem;
   pointer-events: none;
+}
+
+/* Keep both scroll controls beside the voice trigger on narrow screens. */
+@media (max-width: 720px) {
+  .scroll-buttons {
+    right: auto;
+    left: max(var(--sp-3), env(safe-area-inset-left, 0px));
+    bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+    flex-direction: row;
+    gap: var(--sp-2);
+  }
+  #app:has(.persistent-audio-bar, .persistent-video-bar) .scroll-buttons {
+    bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .scroll-buttons .scroll-btn {
@@ -1506,7 +1460,7 @@ watch(currentPage, async () => {
 /* 響應式調整 */
 @media (max-width: 768px) {
   .scroll-btn { width: 45px; height: 45px; font-size: 1.1rem; }
-  .mobile-overlay ~ .scroll-buttons { display: none; }
+
   .birthday-easter-egg {
     margin-top: 0.2rem;
   }

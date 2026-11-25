@@ -8,6 +8,7 @@ import { buildImportMessage, filterDuplicateImports } from '../utils/importDedup
 // 共享狀態（在模組層級定義，所有組件共用）
 const foods = ref([])
 const foodLoading = ref(false)
+const foodReadState = ref('loading')
 const editingFood = ref(null)
 const FOOD_IMPORT_KEY_FIELDS = ['name', 'amount', 'price', 'shop', 'todate', 'photo', 'photohash']
 const newFood = ref({
@@ -116,11 +117,15 @@ export const useFoods = () => {
   // 先秀快取（記憶體 / IndexedDB），再背景向 Supabase 更新；同表同時只打一次請求。
   const loadFoods = async (options = {}) => {
     const client = initSupabase()
-    if (!client) return
+    if (!client) {
+      foodReadState.value = 'unconfigured'
+      return
+    }
     const result = await loadCachedTable({
       table: 'food',
       listRef: foods,
       loadingRef: foodLoading,
+      readState: foodReadState,
       force: options?.force === true,
       fetcher: () => selectWholeTable(client, 'food')
     })
@@ -391,6 +396,7 @@ export const useFoods = () => {
   return {
     foods,
     foodLoading,
+    foodReadState,
     editingFood,
     newFood,
     expiringFoods,

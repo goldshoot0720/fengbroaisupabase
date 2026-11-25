@@ -1,29 +1,27 @@
 <template>
-  <aside class="sidebar" :class="{ 'sidebar-open': isOpen }">
+  <component
+    :is="isMobile ? 'dialog' : 'aside'"
+    id="module-navigation"
+    ref="panel"
+    class="sidebar"
+    aria-labelledby="module-navigation-title"
+    @cancel.prevent="$emit('close')"
+    @click="dismissBackdrop"
+  >
     <div class="sidebar-header">
-      <div class="brand-lockup">
-        <div class="brand-mark">
-          <span>FA</span>
-        </div>
-        <div class="brand-copy">
-          <h2 class="brand-title">鋒兄選單</h2>
-          <p class="brand-subtitle">子項目已全部展開，點選即可直接切換。</p>
-        </div>
-      </div>
-
-      <button @click="$emit('toggle')" class="sidebar-toggle" type="button" aria-label="關閉選單">
-        <span class="sidebar-toggle__icon" aria-hidden="true">×</span>
-        <span class="sidebar-toggle__label">關閉</span>
+      <h2 id="module-navigation-title" class="brand-title">全部模組</h2>
+      <button @click="$emit('close')" class="sidebar-toggle" type="button" aria-label="關閉選單">
+        <span aria-hidden="true">×</span>
       </button>
     </div>
 
     <nav class="sidebar-nav" aria-label="主要導覽">
-      <p class="section-label">全部模組</p>
       <ul>
         <li v-for="page in pages" :key="page.id">
           <button
             @click="handleParentNavigate(page)"
             :class="{ active: isParentActive(page) }"
+            :aria-current="!page.children && isParentActive(page) ? 'page' : undefined"
             class="nav-btn"
             type="button"
           >
@@ -42,6 +40,7 @@
               <button
                 @click="$emit('navigate', child.id)"
                 :class="{ active: isChildActive(page, child) }"
+                :aria-current="isChildActive(page, child) ? 'page' : undefined"
                 class="nav-child-btn"
                 type="button"
               >
@@ -54,16 +53,11 @@
         </li>
       </ul>
     </nav>
-
-    <div class="sidebar-footer">
-      <p class="footer-label">Quick Tip</p>
-      <p class="footer-title">拇指友善導覽</p>
-      <p class="footer-text">主要操作集中在上方選單與內容區；語音與播放器固定在底部方便單手操作。</p>
-    </div>
-  </aside>
+  </component>
 </template>
 
 <script setup>
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { isNavChildActive, isNavParentActive } from '../../composables/useNavigation'
 import NavIcon from '../ui/NavIcon.vue'
 
@@ -74,7 +68,34 @@ const props = defineProps({
   pages: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['toggle', 'navigate'])
+const emit = defineEmits(['close', 'navigate'])
+const panel = ref(null)
+const isMobile = ref(false)
+let mobileQuery
+
+const syncViewport = () => {
+  isMobile.value = mobileQuery.matches
+  if (!isMobile.value && props.isOpen) emit('close')
+}
+
+onMounted(() => {
+  mobileQuery = window.matchMedia('(max-width: 768px)')
+  syncViewport()
+  mobileQuery.addEventListener('change', syncViewport)
+})
+onUnmounted(() => mobileQuery?.removeEventListener('change', syncViewport))
+
+watch([panel, () => props.isOpen], ([element, open]) => {
+  if (element?.tagName !== 'DIALOG') return
+  if (open && !element.open) element.showModal()
+  if (!open && element.open) element.close()
+}, { flush: 'post' })
+
+const dismissBackdrop = (event) => {
+  if (!isMobile.value || event.target !== panel.value) return
+  const { left, right, top, bottom } = panel.value.getBoundingClientRect()
+  if (event.clientX < left || event.clientX >= right || event.clientY < top || event.clientY >= bottom) emit('close')
+}
 
 const isParentActive = (page) => isNavParentActive(page, props.currentPage, props.activeTool)
 const isChildActive = (page, child) => isNavChildActive(page, child, props.currentPage, props.activeTool)
@@ -91,111 +112,40 @@ const handleParentNavigate = (page) => {
 
 <style scoped>
 .sidebar {
-  width: 236px;
+  display: none;
+  color: var(--text-primary);
   background: var(--sidebar-bg);
-  color: var(--sidebar-text);
-  position: fixed;
-  top: 0;
-  left: 0;
-  transform: translateX(-100%);
-  height: 100vh;
-  padding: var(--sp-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  transition: transform var(--transition-slow), box-shadow var(--transition-normal);
-  z-index: 1000;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   overflow-y: auto;
-  border-right: 1px solid var(--sidebar-border);
   overscroll-behavior: contain;
 }
 
-.sidebar.sidebar-open {
-  transform: translateX(0);
-  box-shadow: var(--elevation-3);
-}
-
-/* 三個區塊是浮在米色底上的白紙卡 */
-.sidebar-header,
-.sidebar-nav,
-.sidebar-footer {
-  border: 1px solid var(--sidebar-border);
-  background: var(--sidebar-panel);
-  border-radius: var(--radius-lg);
-}
-
-.sidebar-header,
-.sidebar-nav,
-.sidebar-footer {
-  padding: var(--sp-4);
-}
-
-.brand-lockup {
+.sidebar-header {
   display: flex;
-  gap: var(--sp-3);
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--border-subtle);
+  z-index: 1;
 }
 
-.brand-mark {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  border-radius: var(--radius-md);
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  display: grid;
-  place-items: center;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 1rem;
-  letter-spacing: 0;
-}
-
-.section-label,
-.footer-label {
-  font-family: var(--font-body);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  letter-spacing: 0;
-  color: var(--text-muted);
-}
-
-.brand-title {
-  margin-top: 2px;
-  font-size: var(--text-lg);
-  line-height: 1.2;
-}
-
-.brand-subtitle,
-.footer-text {
-  margin-top: var(--sp-1);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: 1.5;
-}
-
+.brand-title { font-size: var(--text-lg); }
 .sidebar-toggle {
-  margin-top: var(--sp-4);
-  width: 100%;
-  min-height: var(--control-h-lg);
-  border: 1px solid var(--border-subtle);
+  display: none;
+  width: var(--control-h-lg);
+  height: var(--control-h-lg);
+  color: var(--text-primary);
   background: var(--bg-surface);
-  color: var(--text-secondary);
-  border-radius: var(--control-radius);
-  padding: 0 var(--sp-4);
-  font-size: var(--text-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xl);
   cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
-
-.sidebar-toggle:hover {
-  background: var(--bg-muted);
-  border-color: var(--border-strong);
-}
-
-.sidebar-nav {
-  flex: 1;
-}
+.sidebar-nav { padding: 0 var(--sp-3) var(--sp-4); }
 
 .sidebar-nav ul {
   list-style: none;
@@ -334,186 +284,41 @@ const handleParentNavigate = (page) => {
   line-height: 1.2;
 }
 
-.footer-title {
-  margin-top: var(--sp-1);
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
-@media (min-width: 1025px) {
-  .sidebar {
-    display: none !important;
-  }
-}
-
-/* 平板：側邊欄常駐顯示，不再是覆蓋層——導覽在畫面上一直看得到，
-   不用像手機一樣先開漢堡選單才找得到功能。 */
 @media (min-width: 769px) and (max-width: 1024px) {
-  .sidebar,
-  .sidebar.sidebar-open {
+  aside.sidebar {
+    display: block;
     position: sticky;
     top: var(--sp-3);
-    left: auto;
-    transform: none;
     width: 248px;
-    height: calc(100vh - (var(--sp-3) * 2));
+    height: calc(100vh - var(--sp-6));
     flex-shrink: 0;
-    transition: none;
-    box-shadow: none;
-  }
-
-  .sidebar-toggle {
-    display: none;
   }
 }
 
 @media (max-width: 768px) {
-  .sidebar {
-    width: min(86vw, 320px);
-    left: 0;
-    transform: translateX(-100%);
-    top: 0;
-    height: 100dvh;
+  dialog.sidebar[open] {
+    display: block;
+    position: fixed;
+    inset: 0 auto 0 0;
+    margin: 0;
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+    width: min(86vw, 20rem);
+    max-width: none;
     height: 100vh;
-    padding:
-      calc(0.7rem + env(safe-area-inset-top, 0px))
-      0.75rem
-      calc(0.85rem + env(safe-area-inset-bottom, 0px));
-    border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
-    box-shadow: none;
-    background: var(--sidebar-bg);
-    transition: transform var(--duration-slow) var(--ease-out-expo), box-shadow var(--duration-normal) var(--ease-out-expo);
-  }
-
-  .sidebar.sidebar-open {
-    transform: translateX(0);
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
     box-shadow: var(--elevation-3);
   }
-
-  .sidebar-header,
-  .sidebar-nav,
-  .sidebar-footer {
-    border-radius: var(--radius-lg);
-    padding: 0.85rem;
-  }
-
-  .sidebar-header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .brand-lockup {
-    gap: 0.75rem;
-  }
-
-  .brand-mark {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-md);
-    background: var(--primary-solid);
-  }
-
-  .brand-title {
-    font-size: 1.15rem;
-  }
-
-  .brand-subtitle {
-    font-size: 0.84rem;
-    line-height: 1.45;
-  }
-
-  .sidebar-toggle {
-    margin-top: 0;
-    min-height: 48px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    border-radius: var(--control-radius);
-    font-weight: 700;
-    background: var(--bg-surface);
-  }
-
-  .sidebar-toggle__icon {
-    font-size: 1.25rem;
-    line-height: 1;
-  }
-
-  .sidebar-toggle__label {
-    font-size: 0.92rem;
-  }
-
-  .section-label {
-    margin: 0;
-  }
-
-  .sidebar-nav ul {
-    margin-top: 0.55rem;
-    gap: 0.35rem;
-  }
-
-  .nav-btn {
-    min-height: 52px;
-    padding: 0.7rem 0.8rem;
-    border-radius: var(--control-radius);
-  }
-
-  .nav-btn:active {
-    transform: scale(0.985);
-    background: var(--surface-active);
-  }
-
-  .nav-name {
-    font-size: 0.98rem;
-  }
-
-  .nav-children {
-    margin: 0.15rem 0 0.45rem 1.15rem !important;
-  }
-
-  .nav-child-btn {
-    min-height: 44px;
-    border-radius: var(--radius-sm);
-    padding: 0.55rem 0.7rem;
-  }
-
-  .nav-child-btn:active {
-    transform: scale(0.985);
-  }
-
-  .sidebar-footer {
-    margin-top: auto;
-  }
-}
-
-@media (max-width: 480px) {
-  .sidebar {
-    width: min(90vw, 300px);
-    left: calc(-1 * min(90vw, 300px));
-  }
-
-  .brand-title {
-    font-size: 1.08rem;
-  }
+  dialog.sidebar::backdrop { background: color-mix(in srgb, var(--overlay-scrim) 48%, transparent); }
+  :global(html:has(dialog.sidebar[open])) { overflow: hidden; }
+  .sidebar-toggle { display: grid; place-items: center; }
+  .nav-child-btn { min-height: var(--control-h-lg); }
+  .nav-child-name { font-size: var(--text-sm); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sidebar {
-    transition: none;
-  }
-
-  .nav-btn,
-  .nav-child-btn {
-    transition: none;
-  }
-
-  .nav-btn:hover,
-  .nav-btn:active,
-  .nav-child-btn:hover,
-  .nav-child-btn:active {
-    transform: none;
-  }
+  .nav-btn, .nav-child-btn { transition: none; }
 }
 </style>

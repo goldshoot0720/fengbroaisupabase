@@ -5,10 +5,11 @@
       class="voice-toggle"
       :class="{ active: isListening }"
       @click="toggleExpanded"
-      aria-label="開啟語音輸入"
+      :aria-label="isExpanded ? '關閉語音輸入' : '開啟語音輸入'"
+      :aria-expanded="isExpanded"
     >
       <span class="voice-dot"></span>
-      <span>Voice</span>
+      <span>語音</span>
     </button>
 
     <div v-if="isExpanded" class="voice-card">
@@ -17,7 +18,7 @@
           <p class="voice-where">{{ currentPageName }}</p>
           <h2>鋒兄語音輸入</h2>
         </div>
-        <button type="button" class="voice-close" @click="closePanel" aria-label="關閉語音輸入">Close</button>
+        <button type="button" class="voice-close" @click="closePanel" aria-label="關閉語音輸入">關閉</button>
       </div>
 
       <div class="voice-controls">
@@ -1534,6 +1535,10 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+  }
+
+  #app:not(:has(.persistent-audio-bar, .persistent-video-bar)) .voice-panel {
+    bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
   }
 
   .voice-panel.expanded {

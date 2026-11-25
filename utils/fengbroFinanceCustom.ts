@@ -6,6 +6,8 @@
  * Groups are region-based: 韓國 / 日本 / 台灣 / 美國 / 其他.
  */
 
+export const FINANCE_INSTRUMENTS_STORAGE_KEY = 'fengbro.tools.finance.customInstruments';
+
 /** Providers a user can add from a URL / ticker. */
 export type FinanceCustomProvider = "cnbc" | "yahoo";
 /** Every quote provider the finance API understands (multpl / mis / taifex come from migrated rows). */

@@ -9,6 +9,7 @@ import { SUBSCRIPTION_NOTIFY_WINDOW_DAYS, isWithinNotifyWindow } from '../utils/
 // 共享狀態（在模組層級定義，所有組件共用）
 const subscriptions = ref([])
 const subscriptionLoading = ref(false)
+const subscriptionReadState = ref('loading')
 const subscriptionError = ref('')
 const editingSubscription = ref(null)
 const SUBSCRIPTION_IMPORT_KEY_FIELDS = ['name', 'site', 'account', 'price', 'nextdate', 'note', 'currency', 'iscontinue']
@@ -152,11 +153,15 @@ export const useSubscriptions = () => {
   // force 可傳 true 或 { force: true }。
   const loadSubscriptions = async (force = false) => {
     const client = initSupabase()
-    if (!client) return
+    if (!client) {
+      subscriptionReadState.value = 'unconfigured'
+      return
+    }
     const result = await loadCachedTable({
       table: 'subscription',
       listRef: subscriptions,
       loadingRef: subscriptionLoading,
+      readState: subscriptionReadState,
       errorRef: subscriptionError,
       errorValue: '',
       force: force === true || force?.force === true,
@@ -484,6 +489,7 @@ export const useSubscriptions = () => {
   return {
     subscriptions,
     subscriptionLoading,
+    subscriptionReadState,
     subscriptionError,
     editingSubscription,
     newSubscription,

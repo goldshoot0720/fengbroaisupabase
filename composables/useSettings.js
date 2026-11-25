@@ -34,14 +34,19 @@ const normalizeResendGroupCount = (value) => {
   return RESEND_GROUP_OPTIONS.includes(count) ? count : 21
 }
 
+// An explicit null selects the environment. Older profiles without activeId
+// used the first saved account by default.
+const restoreAccounts = (data) => {
+  accounts.value = Array.isArray(data.accounts) ? data.accounts : []
+  activeAccountId.value = data.activeId === null ? null : (data.activeId || accounts.value[0]?.id || null)
+}
+
 const loadAccountsFromStorage = () => {
   if (_isLoaded || typeof localStorage === 'undefined') return
   try {
     const accountsRaw = localStorage.getItem(ACCOUNTS_KEY)
     if (accountsRaw) {
-      const data = JSON.parse(accountsRaw)
-      accounts.value = data.accounts || []
-      activeAccountId.value = data.activeId || (accounts.value[0]?.id || null)
+      restoreAccounts(JSON.parse(accountsRaw))
     }
     _isLoaded = true
   } catch (e) {
@@ -275,9 +280,7 @@ export function useSettings() {
     try {
       const accountsRaw = localStorage.getItem(ACCOUNTS_KEY)
       if (accountsRaw) {
-        const data = JSON.parse(accountsRaw)
-        accounts.value = data.accounts || []
-        activeAccountId.value = data.activeId || (accounts.value[0]?.id || null)
+        restoreAccounts(JSON.parse(accountsRaw))
         _isLoaded = true
         return
       }
@@ -356,13 +359,14 @@ export function useSettings() {
   }
 
   const switchAccount = (id) => {
-    const account = accounts.value.find(acc => acc.id === id)
-    if (account) {
-      activeAccountId.value = id
-      saveAccounts()
-      return { success: true }
+    if (id !== null && !accounts.value.some(acc => acc.id === id)) {
+      return { success: false, error: '找不到帳號' }
     }
-    return { success: false, error: '找不到帳號' }
+    const previousId = activeAccountId.value
+    activeAccountId.value = id
+    const result = saveAccounts()
+    if (!result.success) activeAccountId.value = previousId
+    return result
   }
 
   const saveSettings = () => {
@@ -417,7 +421,7 @@ export function useSettings() {
 
   const displayName = computed(() => {
     const name = activeAccount.value?.friendlyName?.trim()
-    return name ? `supabase-${name}` : 'supabase-.env'
+    return activeAccount.value ? (name || '未命名帳號') : '環境設定（.env）'
   })
 
   const legacyResendExports = Object.fromEntries(resendPairs.flatMap(pair => [

@@ -23,7 +23,7 @@
           </div>
           <div class="company-row">
             <span class="company-label">目前版本</span>
-            <span class="company-value">{{ systemVersion }}</span>
+            <span class="company-value">{{ systemVersion }}<template v-if="runtimeConfig.public.lastUpdateDate">（更新於 <time :datetime="runtimeConfig.public.lastUpdateDate">{{ lastUpdateDateLabel }}</time>）</template></span>
           </div>
           <div class="company-row">
             <span class="company-label">技術核心</span>

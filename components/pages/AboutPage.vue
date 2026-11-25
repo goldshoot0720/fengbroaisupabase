@@ -57,9 +57,10 @@
           </div>
           <div class="stat-card">
             <span class="stat-value">{{ linesOfCodeLabel }}</span>
-            <span class="stat-label">產品程式碼行</span>
+            <span class="stat-label">專案程式碼行數</span>
           </div>
         </div>
+        <p class="section-lead">每次建置時統計原始碼與測試檔的非空白行，包含註解。</p>
         <div class="tech-stack">
           <span class="tech-badge">Nuxt 4</span>
           <span class="tech-badge">Vue 3</span>
@@ -472,7 +473,7 @@ const lastUpdateDateLabel = computed(() => {
 const linesOfCodeLabel = computed(() => {
   const n = Number(runtimeConfig.public?.linesOfCode)
   if (!Number.isFinite(n) || n <= 0) return '—'
-  return n.toLocaleString('zh-TW')
+  return `${n.toLocaleString('zh-TW')} 行`
 })
 
 useHead({

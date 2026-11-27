@@ -3,8 +3,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getRepoStats } from './utils/repoStats.js'
 
-const repoStats = getRepoStats()
 const rootDir = dirname(fileURLToPath(import.meta.url))
+const repoStats = getRepoStats(rootDir)
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -218,8 +218,7 @@ export default defineNuxtConfig({
       NETLIFY_SITE_ID: process.env.NETLIFY_SITE_ID,
       vapidPublicKey: process.env.NUXT_PUBLIC_VAPID_PUBLIC_KEY || '',
       // Build-time repo meta for 鋒兄首頁 / 鋒兄關於
-      lastUpdateDate: repoStats.lastUpdateDate,
-      linesOfCode: repoStats.linesOfCode
+      ...repoStats
     }
   }
 })

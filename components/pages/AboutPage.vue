@@ -52,11 +52,22 @@
             <span class="stat-value">{{ lastUpdateDateLabel }}</span>
             <span class="stat-label">本次更新</span>
           </div>
-          <div class="stat-card">
-            <span class="stat-value">{{ linesOfCodeLabel }}</span>
-            <span class="stat-label">專案程式碼行數</span>
-          </div>
         </div>
+        <h3 id="code-lines-heading">程式碼行數</h3>
+        <dl class="code-lines" aria-labelledby="code-lines-heading">
+          <div>
+            <dt>產品原始碼</dt>
+            <dd>{{ formatLineCount(runtimeConfig.public.productLinesOfCode) }}</dd>
+          </div>
+          <div>
+            <dt>測試</dt>
+            <dd>{{ formatLineCount(runtimeConfig.public.testLinesOfCode) }}</dd>
+          </div>
+          <div>
+            <dt>總行數</dt>
+            <dd>{{ formatLineCount(runtimeConfig.public.linesOfCode) }}</dd>
+          </div>
+        </dl>
         <p class="section-lead">每次建置時統計原始碼與測試檔的非空白行，包含註解。</p>
         <div class="tech-stack">
           <span class="tech-badge">Nuxt 4</span>
@@ -454,11 +465,10 @@ const lastUpdateDateLabel = computed(() => {
   return iso.replaceAll('-', '/')
 })
 
-const linesOfCodeLabel = computed(() => {
-  const n = Number(runtimeConfig.public?.linesOfCode)
-  if (!Number.isFinite(n) || n <= 0) return '—'
-  return `${n.toLocaleString('zh-TW')} 行`
-})
+function formatLineCount(value) {
+  const count = Number(value ?? NaN)
+  return Number.isSafeInteger(count) && count >= 0 ? `${count.toLocaleString('zh-TW')} 行` : '—'
+}
 
 useHead({
   title: '鋒兄關於 - 鋒兄 AI Supabase'
@@ -579,6 +589,16 @@ useHead({
   border-radius: 0; background: transparent; box-shadow: none;
 }
 .stat-value { font-size: var(--text-xl); font-weight: 600; font-variant-numeric: tabular-nums; }
+.code-lines {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-4);
+  margin: var(--sp-2) 0;
+}
+.code-lines > div { padding-block: var(--sp-2); border-top: var(--hairline); }
+.code-lines dt { color: var(--text-secondary); font-size: var(--text-sm); }
+.code-lines dd { margin: 0; font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
+.code-lines > :last-child dd { font-weight: 600; }
 .stat-label {
   font-size: 0.85rem;
   color: var(--text-secondary);
@@ -762,7 +782,7 @@ useHead({
 
 .panel-empty {
   margin: 0;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 0.9rem;
   line-height: 1.6;
 }
@@ -809,7 +829,7 @@ useHead({
 
 .panel-note {
   margin: 0.9rem 0 0;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 0.85rem;
   line-height: 1.6;
 }
@@ -848,6 +868,8 @@ useHead({
 }
 
 @media (max-width: 480px) {
+  .code-lines { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .code-lines > div { display: flex; align-items: baseline; justify-content: space-between; }
   .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .features-grid,
   .doc-grid {

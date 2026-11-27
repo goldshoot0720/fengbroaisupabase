@@ -88,7 +88,7 @@
     <footer class="home-footer">
       <span>鋒兄 © 2026 至 2027 FengBroAI Supabase</span>
       <span>上次更新 <strong>{{ lastUpdateDateLabel }}</strong></span>
-      <span>產品程式碼 <strong>{{ linesOfCodeLabel }}</strong> 行</span>
+      <span>程式碼總行數 <strong>{{ linesOfCodeLabel }}</strong> 行</span>
     </footer>
   </div>
 </template>

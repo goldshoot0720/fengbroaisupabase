@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { extname, join } from 'node:path'
+import { extname, join, sep } from 'node:path'
 
 // Build/docs/agent/static — not product app source.
 const SKIP_DIRS = new Set([
@@ -87,25 +87,33 @@ function walkCodeFiles(dir, files = []) {
  * Count non-empty product source lines under the repo root.
  * Excludes node_modules/dist/docs/public/scripts and blank lines.
  */
-export function countLinesOfCode(rootDir = process.cwd()) {
-  const files = walkCodeFiles(rootDir)
-  let lines = 0
-  for (const file of files) {
+function countSourceLines(rootDir) {
+  const testDirectory = join(rootDir, 'tests') + sep
+  let productLinesOfCode = 0
+  let testLinesOfCode = 0
+  for (const file of walkCodeFiles(rootDir)) {
     try {
       const text = readFileSync(file, 'utf8')
+      let lines = 0
       for (const line of text.split(/\r?\n/)) {
         if (line.trim()) lines += 1
       }
+      if (file.startsWith(testDirectory)) testLinesOfCode += lines
+      else productLinesOfCode += lines
     } catch {
       // Skip unreadable files.
     }
   }
-  return lines
+  return { productLinesOfCode, testLinesOfCode, linesOfCode: productLinesOfCode + testLinesOfCode }
+}
+
+export function countLinesOfCode(rootDir = process.cwd()) {
+  return countSourceLines(rootDir).linesOfCode
 }
 
 export function getRepoStats(rootDir = process.cwd()) {
   return {
     lastUpdateDate: getLastUpdateDate(),
-    linesOfCode: countLinesOfCode(rootDir)
+    ...countSourceLines(rootDir)
   }
 }

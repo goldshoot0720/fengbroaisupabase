@@ -1,7 +1,6 @@
-/* Hallmark · checked: 2026-11-24 · genre: modern-minimal (inferred)
- * shape: app screen · scope: app
- * floor: 667 FAIL remain (48, 30a, 63 and others, pre-existing) · fixed: 54, 10a, 2a, 2b · 67 cleared except 3 acronym lines
- * built: the project · redesign: polish · v2.0.0 */
+/* Hallmark · checked: 2026-11-27 · genre: modern-minimal
+ * shape: app screen · scope: home, navigation, About, and finance
+ * theme: locked DESIGN.md · built: the project · redesign: polish · v2.0.0 */
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
 
 /* ============================================================
@@ -453,7 +452,7 @@ time {
 }
 
 :focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--primary-text);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }

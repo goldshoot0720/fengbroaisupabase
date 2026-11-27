@@ -6,8 +6,8 @@ import { useFoods } from './useFoods'
 import { daysUntil, getDayText } from '../utils/notificationHelpers'
 
 export const useDashboard = () => {
-  const { subscriptions, subscriptionReadState } = useSubscriptions()
-  const { foods, foodReadState } = useFoods()
+  const { subscriptions, subscriptionReadState, loadSubscriptions } = useSubscriptions()
+  const { foods, foodReadState, loadFoods } = useFoods()
 
   const calculateDaysRemaining = (targetDate) => daysUntil(targetDate)
 
@@ -19,7 +19,7 @@ export const useDashboard = () => {
     }
 
     subscriptions.value.forEach(subscription => {
-      if (!subscription.nextdate) return
+      if (!subscription.nextdate || subscription.iscontinue === false) return
       
       const daysRemaining = calculateDaysRemaining(subscription.nextdate)
       
@@ -50,6 +50,7 @@ export const useDashboard = () => {
   // 食品到期提醒 - 7天和30天內
   const foodAlerts = computed(() => {
     const alerts = {
+      expired: [],
       critical: [], // 7天內
       warning: []   // 30天內
     }
@@ -69,7 +70,9 @@ export const useDashboard = () => {
           amount: food.amount
         }
 
-        if (daysRemaining <= 7 && daysRemaining >= 0) {
+        if (daysRemaining < 0) {
+          alerts.expired.push(alertItem)
+        } else if (daysRemaining <= 7) {
           alerts.critical.push(alertItem)
         } else if (daysRemaining <= 30 && daysRemaining >= 0) {
           alerts.warning.push(alertItem)
@@ -78,6 +81,7 @@ export const useDashboard = () => {
     })
 
     // 按剩餘天數排序
+    alerts.expired.sort((a, b) => a.daysRemaining - b.daysRemaining)
     alerts.critical.sort((a, b) => a.daysRemaining - b.daysRemaining)
     alerts.warning.sort((a, b) => a.daysRemaining - b.daysRemaining)
 
@@ -93,9 +97,10 @@ export const useDashboard = () => {
         total: subscriptionAlerts.value.critical.length + subscriptionAlerts.value.warning.length
       },
       foods: {
+        expired: foodAlerts.value.expired.length,
         critical: foodAlerts.value.critical.length,
         warning: foodAlerts.value.warning.length,
-        total: foodAlerts.value.critical.length + foodAlerts.value.warning.length
+        total: foodAlerts.value.expired.length + foodAlerts.value.critical.length + foodAlerts.value.warning.length
       }
     }
   })
@@ -123,6 +128,8 @@ export const useDashboard = () => {
   }
 
   return {
+    loadSubscriptions,
+    loadFoods,
     subscriptionAlerts,
     subscriptionReadState,
     foodAlerts,

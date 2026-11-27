@@ -2,12 +2,9 @@
   <PageContainer>
     <div class="about-page">
       <section class="hero-section">
-        <div class="hero-logo">FA</div>
-        <h1 class="app-title">鋒兄關於</h1>
-        <p class="version">系統版本 {{ systemVersion }}</p>
-        <p class="description">
-          鋒兄 AI Supabase 是一套以 Nuxt、Vue、Supabase 為核心的個人工作資料庫，整合筆記、音樂、影片、文件、帳號、訂閱與工具頁。
-        </p>
+        <h2 class="app-title">鋒兄 AI Supabase</h2>
+        <p class="description">鋒兄的個人工作資料庫，集中管理筆記、文件、影音、帳號與訂閱。</p>
+        <p class="version">{{ systemVersion }}<template v-if="runtimeConfig.public.lastUpdateDate">　更新於 <time :datetime="runtimeConfig.public.lastUpdateDate">{{ lastUpdateDateLabel }}</time></template></p>
       </section>
 
       <section class="section company-section">
@@ -75,7 +72,7 @@
         <h2 class="section-title">網站站況</h2>
         <p class="section-lead">
           營運天數以承繼起源日 2025-09-28 起算；進站人次與連續進站天數採台北時間日曆日。
-          選單點擊次數與銀行存款現況依實際使用自動更新，尚無資料時先顯示「—」。
+          選單點擊次數與銀行存款現況依實際使用自動更新，缺少資料的欄位會以破折號表示。
         </p>
 
         <div class="stats-grid">
@@ -142,42 +139,34 @@
         <h2 class="section-title">目前重點功能</h2>
         <div class="features-grid">
           <article class="feature-card">
-            <span class="feature-icon">📝</span>
             <h3>鋒兄筆記/文件</h3>
             <p>支援分類篩選、置頂、附件篩選與快速整理工作筆記。</p>
           </article>
           <article class="feature-card">
-            <span class="feature-icon">🎵</span>
             <h3>音樂資料</h3>
             <p>管理歌曲、歌詞、封面與播放內容，並維持播放器同步。</p>
           </article>
           <article class="feature-card">
-            <span class="feature-icon">🎬</span>
             <h3>影片資料</h3>
             <p>整理影片、封面與分段檔案，支援 multipart manifest 引用判斷。</p>
           </article>
           <article class="feature-card">
-            <span class="feature-icon">📄</span>
             <h3>文件中心</h3>
             <p>支援 ZIP 匯出/匯入、CSV 匯出/匯入、附件 CSV 表格預覽與進度顯示。</p>
           </article>
           <article class="feature-card">
-            <span class="feature-icon">🧾</span>
             <h3>試用／首購、額度與重灌</h3>
             <p>獨立 trialpurchase、quota、reinstall 資料表：依服務展開帳號，追蹤試用／首購、剩餘額度與到期，並整理 Win／Mac 軟體、隱藏序號與查看密碼。</p>
           </article>
           <article class="feature-card">
-            <span class="feature-icon">🧰</span>
             <h3>鋒兄工具</h3>
             <p>整合 BigGo、手動價錢、手機通路比價、YouTube、金融、新聞、圖片語音成片、PNG／JPEG 轉換，以及多段影片合併。</p>
           </article>
           <article class="feature-card">
-            <span class="feature-icon">⚡</span>
             <h3>秒開與 Optimistic UI</h3>
             <p>選單切換先顯示快取、一分鐘內回來不重打網路且資料沒變不重畫；新增、修改、刪除立刻反映在畫面，失敗自動還原並提示，批次操作並行送出。</p>
           </article>
           <article class="feature-card">
-            <span class="feature-icon">🗂️</span>
             <h3>系統設定</h3>
             <p>可檢查資料表、管理帳號、掃描 Storage 多餘檔案與查看版本資訊。</p>
           </article>
@@ -188,7 +177,6 @@
         <h2 class="section-title">資料與匯入設計</h2>
         <div class="doc-grid">
           <article class="doc-card">
-            <div class="doc-icon">🗃️</div>
             <h3>資料表結構</h3>
             <ul>
               <li>文章、筆記、音樂、影片、文件、Podcast 各自分表管理。</li>
@@ -197,7 +185,6 @@
             </ul>
           </article>
           <article class="doc-card">
-            <div class="doc-icon">📦</div>
             <h3>ZIP 匯出匯入</h3>
             <ul>
               <li>可匯出結構化 JSON / CSV 與附件檔案。</li>
@@ -206,7 +193,6 @@
             </ul>
           </article>
           <article class="doc-card">
-            <div class="doc-icon">☁️</div>
             <h3>Storage 管理</h3>
             <ul>
               <li>掃描 Supabase Storage 全部檔案。</li>
@@ -215,7 +201,6 @@
             </ul>
           </article>
           <article class="doc-card">
-            <div class="doc-icon">🔌</div>
             <h3>前端架構</h3>
             <ul>
               <li>使用 Nuxt 4 + Vue 3 Composition API。</li>
@@ -279,23 +264,22 @@
         <div v-if="activeAboutPanel === 'ceo'" class="profile-layout">
           <img src="/fengbro-home-person.webp" alt="人工智慧水電行執行長" class="profile-image">
           <div class="profile-copy">
-            <span class="profile-role">人工智慧水電行 · 執行長（CEO）</span>
-            <h3>策略願景、產業經驗與卓越領導</h3>
+            <h3>人工智慧水電行執行長（CEO）</h3>
             <p>結合傳統水電工程與人工智慧，推動服務自動化與產業創新；作為公司最大股東與執行長，引領企業持續轉型。</p>
-            <div class="shareholding"><strong>37% 以上</strong><span>持股比例 · 控股股東</span></div>
+            <div class="shareholding"><strong>37% 以上</strong><span>控股股東持股比例</span></div>
           </div>
         </div>
 
         <div v-else-if="activeAboutPanel === 'cats'" class="cat-list">
           <article v-for="cat in cats" :key="cat.name" class="cat-profile">
             <img :src="cat.image" :alt="cat.name" loading="lazy">
-            <div><h3>{{ cat.name }} · {{ cat.type }}</h3><p>{{ cat.description }}</p><span>{{ cat.tags.join(' · ') }}</span></div>
+            <div><h3>{{ cat.name }}（{{ cat.type }}）</h3><p>{{ cat.description }}</p><span>{{ cat.tags.join('、') }}</span></div>
           </article>
         </div>
 
         <div v-else-if="activeAboutPanel === 'plumber'" class="business-units">
-          <div class="business-intro"><h3>水電大亨 · 事業版圖</h3><p>從傳統水電工程起家，逐步發展為橫跨科技、金融、教育、醫療等領域的綜合事業群。</p></div>
-          <article v-for="unit in businessUnits" :key="unit.name"><span>{{ unit.icon }}</span><div><strong>{{ unit.name }}</strong><small>{{ unit.description }}</small></div></article>
+          <div class="business-intro"><h3>水電大亨事業版圖</h3><p>從傳統水電工程起家，逐步發展為橫跨科技、金融、教育、醫療等領域的綜合事業群。</p></div>
+          <article v-for="unit in businessUnits" :key="unit.name"><div><strong>{{ unit.name }}</strong><small>{{ unit.description }}</small></div></article>
         </div>
 
         <div v-else class="service-directory">
@@ -442,12 +426,12 @@ const cats = [
   { name: '喵白白', type: '白貓', image: '/fengbro-cat-baibai.webp', description: '溫柔優雅的白貓，喜歡睡覺、被摸摸與吃罐罐。', tags: ['溫柔', '優雅', '慵懶'] },
 ]
 const businessUnits = [
-  ['🔧', '水電工程行', '專業水電工程服務'], ['🧠', '水電人工智慧股份有限公司', 'AI 技術研發與應用'],
-  ['🌐', '水電資訊', '資訊系統整合服務'], ['💻', '水電科技', '科技創新與研發'], ['🏗️', '水電營造', '大型營造工程'],
-  ['🏢', '水電建設', '建設開發與管理'], ['🤖', '水電機器人', '智能機器人研發'], ['🏦', '水電銀行', '金融服務與投資'],
-  ['🍽️', '水電餐飲', '餐飲連鎖經營'], ['📚', '水電文化事業', '文化產業發展'], ['🏥', '水電醫院', '醫療健康服務'],
-  ['🎓', '水電大學', '高等教育機構'], ['🏛️', '水電基金會', '公益慈善基金會'],
-].map(([icon, name, description]) => ({ icon, name, description }))
+  ['水電工程行', '專業水電工程服務'], ['水電人工智慧股份有限公司', 'AI 技術研發與應用'],
+  ['水電資訊', '資訊系統整合服務'], ['水電科技', '科技創新與研發'], ['水電營造', '大型營造工程'],
+  ['水電建設', '建設開發與管理'], ['水電機器人', '智能機器人研發'], ['水電銀行', '金融服務與投資'],
+  ['水電餐飲', '餐飲連鎖經營'], ['水電文化事業', '文化產業發展'], ['水電醫院', '醫療健康服務'],
+  ['水電大學', '高等教育機構'], ['水電基金會', '公益慈善基金會'],
+].map(([name, description]) => ({ name, description }))
 const services = [
   ['Bilibili', '影音社群、創作者內容與每日經驗任務資訊。', 'https://www.bilibili.com', 'https://github.com/huang1988pioneer/CronBilibiliMission'],
   ['MindVideo', '每日 API 簽到、點數與連續簽到摘要。', 'https://www.mindvideo.ai', 'https://github.com/huang1988pioneer/AutoSignMindVideo'],
@@ -486,7 +470,6 @@ useHead({
   max-width: 1100px;
   margin: 0 auto;
   padding: 2rem;
-  animation: fadeIn 0.5s ease-in;
 }
 
 .about-tabs { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); margin-bottom: var(--spacing-lg); }
@@ -508,7 +491,6 @@ useHead({
 .business-intro { grid-column: 1 / -1; max-width: 70ch; }
 .business-units { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--spacing-sm); }
 .business-units article { display: flex; align-items: center; gap: var(--spacing-sm); padding: var(--spacing-md); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-surface); }
-.business-units article > span { font-size: var(--text-2xl); }
 .business-units article div { display: flex; flex-direction: column; }
 .business-units small { color: var(--text-muted); }
 .service-directory { display: flex; flex-direction: column; gap: var(--spacing-sm); }
@@ -519,54 +501,17 @@ useHead({
 .service-links a { min-height: 40px; display: inline-flex; align-items: center; padding: 0 var(--spacing-sm); border-radius: var(--radius-sm); color: var(--primary-text); background: var(--primary-muted); font-weight: 700; white-space: nowrap; }
 .service-caution { padding: var(--spacing-md); border-radius: var(--radius-sm); background: var(--warning-light); }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 .hero-section {
-  text-align: center;
-  padding: 3rem 2rem;
-  background: var(--primary-solid);
-  border-radius: var(--radius-xl);
-  color: var(--on-primary);
-  margin-bottom: 2.5rem;
-  box-shadow: var(--elevation-1);
+  border-block-end: 2px solid var(--text-primary);
+  padding-block: var(--sp-3) var(--sp-5);
+  margin-block-end: var(--sp-6);
 }
-
-.hero-logo {
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 0.8rem;
-  border-radius: 22px;
-  display: grid;
-  place-items: center;
-  background: color-mix(in oklab, var(--bg-surface) 14%, transparent);
-  border: 1px solid color-mix(in oklab, var(--bg-surface) 24%, transparent);
-  font-size: 1.7rem;
-  font-weight: 700;
-}
-
 .app-title {
-  font-size: 2.6rem;
-  font-weight: 700;
-  margin: 0 0 0.4rem;
+  font: 600 var(--text-2xl)/1.2 var(--font-display);
+  min-width: 0; overflow-wrap: break-word;
 }
-
-.version {
-  font-size: 1.1rem;
-  opacity: 0.9;
-  margin: 0 0 0.8rem;
-}
-
-.description {
-  font-size: 1.05rem;
-  opacity: 0.95;
-  max-width: 620px;
-  margin: 0 auto;
-  line-height: 1.7;
-}
-
+.description { margin-block: var(--sp-2); max-width: 56ch; color: var(--text-secondary); }
+.version { font-size: var(--text-sm); color: var(--primary-text); font-variant-numeric: tabular-nums; }
 .section {
   margin-bottom: 2.5rem;
 }
@@ -629,30 +574,11 @@ useHead({
 }
 
 .stat-card {
-  padding: 1.4rem;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.45rem;
-  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s ease;
+  display: flex; flex-direction: column-reverse; align-items: flex-start; gap: var(--sp-1);
+  padding: var(--sp-3) 0; border: 0; border-top: var(--hairline);
+  border-radius: 0; background: transparent; box-shadow: none;
 }
-
-.stat-card:hover,
-.feature-card:hover,
-.doc-card:hover,
-.manual-item:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--elevation-2);
-  border-color: var(--primary);
-}
-
-.stat-value {
-  font-size: 1.45rem;
-  font-weight: 700;
-  color: var(--primary-text);
-}
-
+.stat-value { font-size: var(--text-xl); font-weight: 600; font-variant-numeric: tabular-nums; }
 .stat-label {
   font-size: 0.85rem;
   color: var(--text-secondary);
@@ -666,10 +592,9 @@ useHead({
 }
 
 .tech-badge {
-  background: var(--primary-solid);
-  color: var(--on-primary);
-  padding: 0.5rem 1.1rem;
-  border-radius: 999px;
+  color: var(--text-secondary);
+  padding-inline-end: var(--sp-3);
+  border-inline-end: var(--hairline);
   font-weight: 600;
   font-size: 0.9rem;
 }
@@ -680,15 +605,9 @@ useHead({
 
 .feature-card {
   padding: 1.6rem;
-  text-align: center;
-  transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s ease;
+  text-align: start;
 }
 
-.feature-icon {
-  font-size: 2rem;
-  display: block;
-  margin-bottom: 0.8rem;
-}
 
 .feature-card h3,
 .doc-card h3,
@@ -717,10 +636,6 @@ useHead({
   transition: color, background-color, border-color, box-shadow, opacity, transform 0.3s ease;
 }
 
-.doc-icon {
-  font-size: 1.8rem;
-  margin-bottom: 0.7rem;
-}
 
 .doc-card ul {
   margin: 0;
@@ -900,7 +815,7 @@ useHead({
 }
 
 @media (max-width: 768px) {
-  .profile-layout, .cat-list { grid-template-columns: 1fr; }
+  .profile-layout, .cat-list { grid-template-columns: minmax(0, 1fr); }
   .service-directory article { align-items: flex-start; flex-direction: column; }
   .about-page {
     padding: 1rem;
@@ -911,7 +826,7 @@ useHead({
   }
 
   .hero-section {
-    padding: 2rem 1rem;
+    padding: var(--sp-2) 0 var(--sp-4);
   }
 
   .app-title {
@@ -933,9 +848,9 @@ useHead({
 }
 
 @media (max-width: 480px) {
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .features-grid,
-  .doc-grid,
-  .stats-grid {
+  .doc-grid {
     grid-template-columns: 1fr;
   }
 

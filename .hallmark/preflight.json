@@ -1,5 +1,5 @@
 {
-  "scanned": "2026-11-24",
+  "scanned": "2026-11-27",
   "findings": {
     "fonts": "IBM Plex Sans + Noto Sans TC, IBM Plex Mono (app/assets/css/variables.css L1, L161-163)",
     "palette": "Supabase green #3ECF8E on neutral paper, tokens in :root (app/assets/css/variables.css L15-108); locked in DESIGN.md",
@@ -7,7 +7,7 @@
     "spacing": "4px scale --sp-1 to --sp-16 (app/assets/css/variables.css L110-128)",
     "framework": "Nuxt 4.2 (package.json, nuxt.config.ts), Vue SFCs, app shell in app/app.vue",
     "system": "DESIGN.md is a locked system and overrides a theme deal",
-    "scope": "app screens: personal ops console (home, bank, food, subscriptions, media, tools)"
+    "scope": "App navigation, home and expiry dashboard, About and finance watchlist"
   },
   "preserve": [
     "font stack",
@@ -17,8 +17,8 @@
     "wiring, routes, and module copy"
   ],
   "introduce": [
-    "Floor fixes for generated tells (eyebrows, tracked capitals, transition: all, gradients used as fills)",
-    "gates and stamp",
-    "depth still open: polish unless the user asks for a full redesign"
+    "Search the existing module directory by keyboard or touch",
+    "Separate expired food from upcoming deadlines and allow retry per source",
+    "Show quote direction and market session, and put the version date beside the product name"
   ]
 }

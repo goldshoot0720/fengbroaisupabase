@@ -2,21 +2,23 @@
   <div class="home-page">
     <div class="home-identity">
       <img src="/fengbro-home-person.webp" alt="鋒兄" width="48" height="64" />
-      <pre aria-hidden="true">{{ asciiArt }}</pre>
+      <div><h2>鋒兄手帳</h2><time v-if="workDate" :datetime="workDate">{{ workDateLabel }}</time></div>
     </div>
 
     <div class="home-workspace">
       <section class="expiry-panel" aria-labelledby="expiry-heading">
         <div class="section-head">
-          <h2 id="expiry-heading">近期到期</h2>
+          <h2 id="expiry-heading">到期提醒</h2>
           <button type="button" class="text-action" @click="emit('navigate', 'dashboard')">查看總覽</button>
         </div>
         <div v-for="row in priorities" :key="row.page" class="expiry-row">
           <div>
             <h3>{{ row.title }} <small>{{ row.period }}</small></h3>
+            <p v-if="row.page === 'food' && expiredSummary" class="expired-summary">{{ expiredSummary }}</p>
             <p aria-live="polite" :class="{ 'needs-attention': row.hasItems }">{{ row.summary }}</p>
           </div>
-          <button type="button" class="row-action" @click="emit('navigate', row.page)">
+          <button v-if="row.retry" type="button" class="row-action" :aria-label="`重新讀取${row.title}`" @click="row.retry({ force: true })">重試</button>
+          <button v-else type="button" class="row-action" @click="emit('navigate', row.page)">
             管理{{ row.title }}
           </button>
         </div>
@@ -30,7 +32,7 @@
         <h2 id="shortcut-heading">常用入口</h2>
         <div class="shortcuts">
           <button v-for="item in shortcuts" :key="item.page" type="button" @click="emit('navigate', item.page)">
-            {{ item.label }}
+            {{ item.label }}<NavIcon name="chevron-right" aria-hidden="true" />
           </button>
         </div>
       </nav>
@@ -84,7 +86,7 @@
     </section>
 
     <footer class="home-footer">
-      <span>鋒兄 © 2026–2027 FengBroAI Supabase</span>
+      <span>鋒兄 © 2026 至 2027 FengBroAI Supabase</span>
       <span>上次更新 <strong>{{ lastUpdateDateLabel }}</strong></span>
       <span>產品程式碼 <strong>{{ linesOfCodeLabel }}</strong> 行</span>
     </footer>
@@ -98,6 +100,7 @@ import {
   FENG_TUBE_CHANNELS_STORAGE_KEY
 } from '../../utils/fengTubeChannels'
 
+import NavIcon from '../ui/NavIcon.vue'
 import { useDashboard } from '../../composables/useDashboard'
 import { todayKey } from '../../utils/notificationHelpers'
 import { FINANCE_INSTRUMENTS_STORAGE_KEY } from '../../utils/fengbroFinanceCustom'
@@ -105,7 +108,7 @@ import { FINANCE_INSTRUMENTS_STORAGE_KEY } from '../../utils/fengbroFinanceCusto
 const emit = defineEmits(['navigate'])
 const runtimeConfig = useRuntimeConfig()
 
-const { subscriptionAlerts, subscriptionReadState, foodAlerts, foodReadState, formatDaysRemaining } = useDashboard()
+const { loadFoods, loadSubscriptions, subscriptionAlerts, subscriptionReadState, foodAlerts, foodReadState, formatDaysRemaining } = useDashboard()
 
 const shortcuts = [
   { page: 'trial-purchase', label: '試用／首購' },
@@ -118,28 +121,38 @@ const shortcuts = [
   { page: 'music', label: '音樂' },
 ]
 
-function priorityRow(page, title, period, items, state) {
+function priorityRow(page, title, period, items, state, reload) {
   let summary
   const readable = ['ready', 'cached', 'offline'].includes(state)
   if (readable) {
     const first = items[0]
     summary = first
-      ? `${items.length} 項 · ${first.name || '未命名'}${formatDaysRemaining(first.daysRemaining)}到期`
+      ? `${items.length} 項，${first.name || '未命名'}${formatDaysRemaining(first.daysRemaining)}到期`
       : '這段期間沒有到期項目'
     if (state === 'cached') summary += '（快取，更新中）'
     if (state === 'offline') summary += '（上次資料，更新失敗）'
   } else if (state === 'unconfigured') {
     summary = '尚未連接資料來源'
   } else {
-    summary = state === 'error' ? '讀取失敗，可進入管理頁重試' : '讀取中…'
+    summary = state === 'error' ? '讀取失敗' : '讀取中…'
   }
-  return { page, title, period, summary, hasItems: readable && items.length > 0 }
+  return { page, title, period, summary, retry: ['offline', 'error'].includes(state) ? reload : null, hasItems: readable && items.length > 0 }
 }
 
 const priorities = computed(() => [
-  priorityRow('subscription', '訂閱', '3 天內', subscriptionAlerts.value.critical, subscriptionReadState.value),
-  priorityRow('food', '食品', '7 天內', foodAlerts.value.critical, foodReadState.value),
+  priorityRow('subscription', '訂閱', '3 天內', subscriptionAlerts.value.critical, subscriptionReadState.value, loadSubscriptions),
+  priorityRow('food', '食品', '7 天內', foodAlerts.value.critical, foodReadState.value, loadFoods),
 ])
+
+const expiredSummary = computed(() => {
+  const items = foodAlerts.value.expired
+  if (!['ready', 'cached', 'offline'].includes(foodReadState.value) || !items.length) return ''
+  return `${items.length} 項已過期，${items[0].name || '未命名食品'}過期 ${Math.abs(items[0].daysRemaining)} 天`
+})
+const workDate = ref('')
+const workDateLabel = computed(() => workDate.value && new Intl.DateTimeFormat('zh-TW', {
+  year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+}).format(new Date(workDate.value + 'T12:00:00')))
 
 const lastUpdateDateLabel = computed(() => {
   const raw = runtimeConfig.public?.lastUpdateDate
@@ -168,7 +181,9 @@ const TUBE_STALE_ALERT_DISMISS_KEY = 'feng-tube-stale-alert-dismissed-date'
 const FINANCE_ALERT_DISMISS_KEY = 'feng-finance-alert-dismissed-date'
 
 const updateCurrentHour = () => {
-  currentHour.value = new Date().getHours()
+  const now = new Date()
+  currentHour.value = now.getHours()
+  workDate.value = todayKey(now)
 }
 
 const sleepWarning = computed(() => {
@@ -307,13 +322,6 @@ onUnmounted(() => {
   }
 })
 
-const asciiArt = String.raw`███████╗███████╗███╗   ██╗ ██████╗     ██████╗ ██████╗  ██████╗
-██╔════╝██╔════╝████╗  ██║██╔════╝     ██╔══██╗██╔══██╗██╔═══██╗
-█████╗  █████╗  ██╔██╗ ██║██║  ███╗    ██████╔╝██████╔╝██║   ██║
-██╔══╝  ██╔══╝  ██║╚██╗██║██║   ██║    ██╔══██╗██╔══██╗██║   ██║
-██║     ███████╗██║ ╚████║╚██████╔╝    ██████╔╝██║  ██║╚██████╔╝
-╚═╝     ╚══════╝╚═╝  ╚═══╝ ╚═════╝     ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ `
-
 </script>
 
 <style scoped>
@@ -325,29 +333,21 @@ const asciiArt = String.raw`███████╗███████╗█�
 }
 
 .home-identity {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  color: var(--text-secondary);
+  display: flex; align-items: center; gap: var(--sp-4);
+  padding-block: var(--sp-3) var(--sp-4); border-bottom: 2px solid var(--text-primary);
 }
 .home-identity img { object-fit: cover; border-radius: var(--radius-sm); }
-.home-identity pre {
-  margin: 0;
-  font: 0.5rem/1 var(--font-mono);
-  white-space: pre;
-}
+.home-identity h2 { font-size: var(--text-2xl); line-height: 1.25; }
+.home-identity time { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .home-workspace {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: var(--sp-4);
   align-items: start;
 }
-.expiry-panel, .shortcut-panel {
-  background: var(--bg-surface);
-  border: var(--hairline);
-  border-radius: var(--radius-lg);
-  padding: var(--sp-4) var(--sp-5);
-}
+.expiry-panel, .shortcut-panel { min-width: 0; padding-block: var(--sp-4); }
+.expiry-panel { padding-inline-end: var(--sp-5); }
+.shortcut-panel { border-inline-start: var(--hairline); padding-inline-start: var(--sp-5); }
 .section-head, .expiry-row {
   display: flex;
   align-items: center;
@@ -398,7 +398,14 @@ const asciiArt = String.raw`███████╗███████╗█�
   gap: var(--sp-2);
   margin-top: var(--sp-3);
 }
-.shortcuts button { text-align: start; }
+.shortcuts button {
+  border: 0; border-radius: 0; border-bottom: var(--hairline); background: transparent;
+  display: flex; align-items: center; justify-content: space-between; text-align: start;
+  padding-inline: var(--sp-1); gap: var(--sp-2);
+}
+.shortcuts button svg { color: var(--text-secondary); width: 1rem; }
+.expiry-row .expired-summary { color: var(--danger-text); font-weight: 600; }
+.home-page button:active { background: var(--bg-inset); }
 .sleep-warning, .tube-home-alert {
   display: flex;
   flex-wrap: wrap;
@@ -422,11 +429,11 @@ const asciiArt = String.raw`███████╗███████╗█�
 .home-footer strong { font-weight: 500; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 1024px) {
-  .home-workspace { grid-template-columns: 1fr; }
+  .home-workspace { grid-template-columns: minmax(0, 1fr); }
+  .expiry-panel, .shortcut-panel { padding-inline: 0; }
+  .shortcut-panel { border-inline-start: 0; border-top: var(--hairline); }
 }
 @media (max-width: 480px) {
-  .expiry-panel, .shortcut-panel { padding: var(--sp-3); }
   .home-identity img { width: 36px; height: 48px; }
-  .home-identity pre { font-size: min(0.5rem, 1.6vw); }
 }
 </style>

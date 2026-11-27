@@ -1,64 +1,78 @@
 <template>
-  <component
-    :is="isMobile ? 'dialog' : 'aside'"
-    id="module-navigation"
-    ref="panel"
-    class="sidebar"
-    aria-labelledby="module-navigation-title"
-    @cancel.prevent="$emit('close')"
-    @click="dismissBackdrop"
-  >
-    <div class="sidebar-header">
-      <h2 id="module-navigation-title" class="brand-title">全部模組</h2>
-      <button @click="$emit('close')" class="sidebar-toggle" type="button" aria-label="關閉選單">
-        <span aria-hidden="true">×</span>
-      </button>
-    </div>
+  <div class="navigation-slot">
+    <component
+      :is="isMobile || isOpen ? 'dialog' : 'aside'"
+      id="module-navigation"
+      ref="panel"
+      class="sidebar"
+      aria-labelledby="module-navigation-title"
+      @keydown.esc="onEscape"
+      @cancel.prevent="$emit('close')"
+      @click="dismissBackdrop"
+    >
+      <div class="sidebar-header">
+        <h2 id="module-navigation-title" class="brand-title">全部模組</h2>
+        <button ref="closeButton" @click="$emit('close')" class="sidebar-toggle" type="button" aria-label="關閉選單">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
 
-    <nav class="sidebar-nav" aria-label="主要導覽">
-      <ul>
-        <li v-for="page in pages" :key="page.id">
-          <button
-            @click="handleParentNavigate(page)"
-            :class="{ active: isParentActive(page) }"
-            :aria-current="!page.children && isParentActive(page) ? 'page' : undefined"
-            class="nav-btn"
-            type="button"
-          >
-            <span class="nav-index"><NavIcon :name="page.iconName" /></span>
-            <span class="nav-copy">
-              <span class="nav-name">{{ page.name }}</span>
-              <span v-if="page.menuHint" class="nav-hint">{{ page.menuHint }}</span>
-            </span>
-          </button>
-          <!-- 子項目固定展開，手機上一目了然，不需要先點母選單 -->
-          <ul
-            v-if="page.children?.length"
-            class="nav-children"
-          >
-            <li v-for="child in page.children" :key="child.id">
-              <button
-                @click="$emit('navigate', child.id)"
-                :class="{ active: isChildActive(page, child) }"
-                :aria-current="isChildActive(page, child) ? 'page' : undefined"
-                class="nav-child-btn"
-                type="button"
-              >
-                <NavIcon :name="child.iconName || page.iconName" class="nav-child-glyph" />
-                <span class="nav-child-name">{{ child.name }}</span>
-                <span v-if="child.menuHint" class="nav-child-hint">{{ child.menuHint }}</span>
-              </button>
-            </li>
-          </ul>
-        </li>
-      </ul>
-    </nav>
-  </component>
+      <div v-if="isOpen" class="module-search">
+        <label for="module-query">搜尋模組</label>
+        <div class="query-field">
+          <input id="module-query" ref="searchInput" v-model="query" type="search" placeholder="輸入名稱或關鍵字"
+            autocomplete="off" @keydown.enter="selectFirst" />
+          <button v-if="query" type="button" @click="clearSearch">清除</button>
+        </div>
+        <p v-if="query.trim()" role="status">{{ matchCount ? `找到 ${matchCount} 個模組` : '找不到符合的模組，請試試其他關鍵字。' }}</p>
+      </div>
+      <nav class="sidebar-nav" aria-label="主要導覽">
+        <ul>
+          <li v-for="page in visiblePages" :key="page.id">
+            <p v-if="isOpen && page.children?.length" class="nav-group-name">{{ page.name }}</p>
+            <button
+              v-else
+              @click="handleParentNavigate(page)"
+              :class="{ active: isParentActive(page) }"
+              :aria-current="!page.children && isParentActive(page) ? 'page' : undefined"
+              class="nav-btn"
+              type="button"
+            >
+              <span class="nav-index"><NavIcon :name="page.iconName" /></span>
+              <span class="nav-copy">
+                <span class="nav-name">{{ page.name }}</span>
+                <span v-if="page.menuHint" class="nav-hint">{{ page.menuHint }}</span>
+              </span>
+            </button>
+            <!-- 子項目固定展開，手機上一目了然，不需要先點母選單 -->
+            <ul
+              v-if="page.children?.length"
+              class="nav-children"
+            >
+              <li v-for="child in page.children" :key="child.id">
+                <button
+                  @click="selectPage(child.id)"
+                  :class="{ active: isChildActive(page, child) }"
+                  :aria-current="isChildActive(page, child) ? 'page' : undefined"
+                  class="nav-child-btn"
+                  type="button"
+                >
+                  <NavIcon :name="child.iconName || page.iconName" class="nav-child-glyph" />
+                  <span class="nav-child-name">{{ child.name }}</span>
+                  <span v-if="child.menuHint" class="nav-child-hint">{{ child.menuHint }}</span>
+                </button>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+    </component>
+  </div>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { isNavChildActive, isNavParentActive } from '../../composables/useNavigation'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { findNavigationPages, isNavChildActive, isNavParentActive } from '../../composables/useNavigation'
 import NavIcon from '../ui/NavIcon.vue'
 
 const props = defineProps({
@@ -75,7 +89,6 @@ let mobileQuery
 
 const syncViewport = () => {
   isMobile.value = mobileQuery.matches
-  if (!isMobile.value && props.isOpen) emit('close')
 }
 
 onMounted(() => {
@@ -85,14 +98,51 @@ onMounted(() => {
 })
 onUnmounted(() => mobileQuery?.removeEventListener('change', syncViewport))
 
+const query = ref('')
+const searchInput = ref(null)
+const closeButton = ref(null)
+const visiblePages = computed(() => props.isOpen ? findNavigationPages(query.value, props.pages) : props.pages)
+const matchCount = computed(() => visiblePages.value.reduce((sum, page) => sum + (page.children?.length || 1), 0))
+
+let opener
+watch(() => props.isOpen, open => {
+  if (open) opener = document.activeElement
+  else if (panel.value?.open) panel.value.close()
+}, { flush: 'sync' })
 watch([panel, () => props.isOpen], ([element, open]) => {
-  if (element?.tagName !== 'DIALOG') return
-  if (open && !element.open) element.showModal()
-  if (!open && element.open) element.close()
+  if (open && element?.tagName === 'DIALOG' && !element.open) {
+    element.showModal()
+    const target = window.matchMedia('(pointer: fine)').matches ? searchInput : closeButton
+    target.value?.focus()
+  } else if (!open) {
+    query.value = ''
+    if (opener?.isConnected && opener !== document.body && opener.getClientRects().length) opener.focus()
+    else if (opener) document.querySelector(isMobile.value ? '.mobile-menu-btn' : '.module-search-btn')?.focus()
+    opener = null
+  }
 }, { flush: 'post' })
 
+function onEscape(event) {
+  if (!props.isOpen || event.isComposing || event.keyCode === 229) return
+  event.preventDefault()
+  emit('close')
+}
+function selectPage(id) {
+  if (props.isOpen) emit('close')
+  emit('navigate', id)
+}
+function selectFirst(event) {
+  if (event.isComposing || event.keyCode === 229) return
+  const first = visiblePages.value[0]
+  if (first) handleParentNavigate(first)
+}
+function clearSearch() {
+  query.value = ''
+  searchInput.value?.focus()
+}
+
 const dismissBackdrop = (event) => {
-  if (!isMobile.value || event.target !== panel.value) return
+  if (!props.isOpen || event.target !== panel.value) return
   const { left, right, top, bottom } = panel.value.getBoundingClientRect()
   if (event.clientX < left || event.clientX >= right || event.clientY < top || event.clientY >= bottom) emit('close')
 }
@@ -100,14 +150,7 @@ const dismissBackdrop = (event) => {
 const isParentActive = (page) => isNavParentActive(page, props.currentPage, props.activeTool)
 const isChildActive = (page, child) => isNavChildActive(page, child, props.currentPage, props.activeTool)
 
-/** Children are always visible now, so tapping the group header itself jumps to its first child. */
-const handleParentNavigate = (page) => {
-  if (page.children?.length) {
-    emit('navigate', page.children[0].id)
-  } else {
-    emit('navigate', page.id)
-  }
-}
+const handleParentNavigate = (page) => selectPage(page.children?.[0]?.id || page.id)
 </script>
 
 <style scoped>
@@ -125,8 +168,6 @@ const handleParentNavigate = (page) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky;
-  top: 0;
   padding: var(--sp-2) var(--sp-4);
   background: var(--sidebar-bg);
   border-bottom: 1px solid var(--border-subtle);
@@ -285,6 +326,12 @@ const handleParentNavigate = (page) => {
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
+  .navigation-slot {
+    width: 248px;
+    flex-shrink: 0;
+    position: sticky;
+    top: var(--sp-3);
+  }
   aside.sidebar {
     display: block;
     position: sticky;
@@ -295,9 +342,43 @@ const handleParentNavigate = (page) => {
   }
 }
 
+dialog.sidebar[open] {
+  display: flex;
+  flex-direction: column;
+  width: min(32rem, 90%);
+  max-height: 78dvh;
+  margin: min(8dvh, 4rem) auto auto;
+  overflow: hidden;
+  padding: 0;
+  box-shadow: var(--elevation-3);
+}
+dialog.sidebar::backdrop { background: color-mix(in srgb, var(--overlay-scrim) 48%, transparent); }
+:global(html:has(dialog.sidebar[open])) { overflow-y: hidden; }
+dialog .sidebar-nav { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+dialog .sidebar-header, dialog .module-search { flex-shrink: 0; }
+.nav-group-name { color: var(--text-secondary); font-size: var(--text-sm); font-weight: 600; padding: var(--sp-2); }
+dialog .nav-children { border: 0; margin-inline-start: 0 !important; }
+dialog .nav-child-btn { min-height: var(--control-h-lg); }
+dialog .nav-child-name { font-size: var(--text-sm); }
+dialog .sidebar-toggle { display: grid; place-items: center; }
+.module-search { padding: var(--sp-3) var(--sp-4) 0; }
+.module-search label { display: block; font-weight: 600; margin-bottom: var(--sp-1); }
+.module-search p { color: var(--text-secondary); font-size: var(--text-sm); margin: var(--sp-2) 0; }
+.query-field { display: flex; align-items: center; gap: var(--sp-2); }
+.query-field input {
+  flex: 1; min-width: 0; min-height: var(--control-h-lg); padding-inline: var(--sp-3);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--bg-surface); color: var(--text-primary); font: inherit;
+}
+.query-field input::-webkit-search-cancel-button { display: none; }
+.query-field button {
+  min-height: var(--control-h-lg); background: transparent; color: var(--primary-text);
+  border: 0; cursor: pointer;
+}
+
 @media (max-width: 768px) {
   dialog.sidebar[open] {
-    display: block;
+    display: flex;
     position: fixed;
     inset: 0 auto 0 0;
     margin: 0;
@@ -311,9 +392,6 @@ const handleParentNavigate = (page) => {
     border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
     box-shadow: var(--elevation-3);
   }
-  dialog.sidebar::backdrop { background: color-mix(in srgb, var(--overlay-scrim) 48%, transparent); }
-  :global(html:has(dialog.sidebar[open])) { overflow: hidden; }
-  .sidebar-toggle { display: grid; place-items: center; }
   .nav-child-btn { min-height: var(--control-h-lg); }
   .nav-child-name { font-size: var(--text-sm); }
 }

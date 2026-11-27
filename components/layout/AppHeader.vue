@@ -3,7 +3,7 @@
     <!-- 第一行：品牌 + 右側工具列 -->
     <div class="header-top-row">
       <div class="header-left">
-        <button @click="$emit('toggleSidebar')" class="mobile-menu-btn" type="button" aria-label="開啟選單" aria-controls="module-navigation" :aria-expanded="sidebarOpen">
+        <button @click="$emit('toggleSidebar')" class="mobile-menu-btn" type="button" aria-label="開啟選單" aria-haspopup="dialog" aria-controls="module-navigation" :aria-expanded="sidebarOpen">
           <span class="menu-icon" aria-hidden="true">
             <i></i><i></i><i></i>
           </span>
@@ -20,6 +20,10 @@
       </div>
 
       <div class="header-right">
+        <button type="button" class="module-search-btn" aria-haspopup="dialog" aria-controls="module-navigation"
+          aria-keyshortcuts="Control+k Meta+k" :aria-expanded="sidebarOpen" @click="$emit('toggleSidebar')">
+          搜尋模組 <kbd>{{ shortcutLabel }}</kbd>
+        </button>
         <div class="account-switcher" ref="switcherRef" @keydown.esc.stop="closeDropdown" @focusout="onFocusOut">
           <button
             class="account-btn"
@@ -75,7 +79,7 @@
           :aria-label="isDarkMode ? '切換為淺色模式' : '切換為深色模式'"
           type="button"
         >
-          <span class="dark-mode-icon">{{ isDarkMode ? '☀' : '☾' }}</span>
+          <NavIcon :name="isDarkMode ? 'sun' : 'moon'" />
           <span class="dark-mode-label">{{ isDarkMode ? '淺色' : '深色' }}</span>
         </button>
       </div>
@@ -192,12 +196,24 @@ const handleClickOutside = (event) => {
   }
 }
 
+const shortcutLabel = ref('Ctrl K')
+
+function onSearchShortcut(event) {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'k' || event.isComposing) return
+  if (document.querySelector('dialog[open]') && !props.sidebarOpen) return
+  event.preventDefault()
+  if (!props.sidebarOpen) emit('toggleSidebar')
+}
+
 onMounted(() => {
+  shortcutLabel.value = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K'
+  window.addEventListener('keydown', onSearchShortcut)
   loadSettings()
   document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', onSearchShortcut)
   document.removeEventListener('click', handleClickOutside)
 })
 </script>
@@ -244,6 +260,21 @@ onUnmounted(() => {
   gap: var(--sp-3);
 }
 
+.module-search-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--control-h);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--control-radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.module-search-btn:hover { background: var(--bg-muted); }
+.module-search-btn kbd { color: var(--text-secondary); font-family: var(--font-mono); }
+@media (max-width: 768px) { .module-search-btn { display: none; } }
 .mobile-menu-btn {
   display: none;
 }
@@ -269,14 +300,6 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-.brand-kicker {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  letter-spacing: 0;
-  color: var(--text-muted);
-  margin-bottom: 1px;
-}
 
 .header-title-row {
   display: flex;
@@ -355,7 +378,7 @@ onUnmounted(() => {
 }
 
 .account-chip {
-  padding: 2px 6px;
+  padding: 0 var(--sp-2);
   border-radius: var(--radius-full);
   background: var(--primary-light);
   color: var(--primary-text);
@@ -438,11 +461,6 @@ onUnmounted(() => {
   margin: 0.4rem 0;
 }
 
-.dark-mode-icon {
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  letter-spacing: 0;
-}
 
 /* ── 導航列 ── */
 .top-nav {
@@ -453,7 +471,7 @@ onUnmounted(() => {
 .nav-scroll {
   /* Desktop: max 10 items per row; extra items wrap to the next row */
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--sp-1) var(--sp-2);
   padding: var(--sp-1) var(--sp-3);
 }
@@ -590,7 +608,7 @@ onUnmounted(() => {
 /* Desktop only: fewer columns when width is tight, still max 10 */
 @media (max-width: 1280px) and (min-width: 769px) {
   .nav-scroll {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 }
 
@@ -677,10 +695,6 @@ onUnmounted(() => {
     min-width: 0;
   }
 
-  .brand-kicker {
-    font-size: 0.62rem;
-    letter-spacing: 0;
-  }
 
   .top-header h1 {
     font-size: 1.05rem;
@@ -715,7 +729,7 @@ onUnmounted(() => {
   }
 
   .account-dropdown {
-    width: min(17rem, calc(100vw - 5rem));
+    width: min(17rem, 78vi);
     right: 0;
     border-radius: var(--radius-lg);
     padding: 0.45rem;
@@ -737,10 +751,6 @@ onUnmounted(() => {
     border-radius: var(--control-radius);
   }
 
-  .dark-mode-icon {
-    font-size: 1.05rem;
-    letter-spacing: 0;
-  }
 
   .dark-mode-label {
     display: none;
@@ -781,7 +791,7 @@ onUnmounted(() => {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 5px;
+    gap: var(--sp-1);
     width: 18px;
   }
 
@@ -812,9 +822,6 @@ onUnmounted(() => {
     display: none;
   }
 
-  .brand-kicker {
-    display: none;
-  }
 
   .brand-mark {
     width: 36px;

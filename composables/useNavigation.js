@@ -78,6 +78,20 @@ const pages = [
   }
 ]
 
+const normalize = (value) => String(value ?? '').normalize('NFKC').trim().toLowerCase()
+export function findNavigationPages(query, entries = pages) {
+  const term = normalize(query)
+  if (!term) return entries
+  const matches = (...fields) => fields.some(value => normalize(value).includes(term))
+  const matchesEntry = entry => matches(entry.name, entry.id, entry.title, entry.subtitle, entry.menuHint)
+  const destinations = entries.flatMap(page => {
+    if (!page.children?.length) return matchesEntry(page) ? [page] : []
+    const children = page.children.filter(matchesEntry)
+    return children.length ? [{ ...page, children }] : []
+  })
+  return destinations.length ? destinations : entries.filter(page => page.children?.length && matchesEntry(page))
+}
+
 /** A menu group opens its first page. Tool tabs share the tools page. */
 export const resolveAppPageId = (id) => {
   for (const page of pages) {

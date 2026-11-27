@@ -8,6 +8,9 @@
 import { computed } from 'vue'
 const props = defineProps({ name: { type: String, default: 'grid' } })
 const icons = {
+  'chevron-right': ['m9 5 7 7-7 7'],
+  moon: ['M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z'],
+  sun: ['M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8', 'M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5'],
   home: ['M3 11.5 12 4l9 7.5', 'M5 10.5V20h14v-9.5', 'M9 20v-6h6v6'],
   dashboard: ['M4 13h6V4H4z', 'M14 20h6V11h-6z', 'M14 7h6V4h-6z', 'M4 20h6v-3H4z'],
   daily: ['M7 3v3M17 3v3', 'M4 8h16v12H4z', 'm8 12 2 2 4-4'],

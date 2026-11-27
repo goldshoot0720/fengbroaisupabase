@@ -33,6 +33,9 @@
           variant="success"
         >
           <template #alert v-if="alertStats.foods.total > 0">
+            <AlertBadge v-if="alertStats.foods.expired" variant="critical" size="sm">
+              {{ alertStats.foods.expired }} 項已過期
+            </AlertBadge>
             <AlertBadge v-if="alertStats.foods.critical > 0" variant="critical" size="sm">
               {{ alertStats.foods.critical }} 項 7天內到期
             </AlertBadge>
@@ -200,6 +203,14 @@
       <div v-if="alertStats.foods.total > 0" class="alert-category">
         <h3>🛒 食品到期</h3>
         
+        <div v-if="foodAlerts.expired.length" class="alert-group critical">
+          <h4>已過期食品</h4>
+          <ul>
+            <li v-for="item in foodAlerts.expired" :key="item.id" class="alert-item critical">
+              {{ item.name }}（{{ formatDaysRemaining(item.daysRemaining) }}）
+            </li>
+          </ul>
+        </div>
         <div v-if="foodAlerts.critical.length > 0" class="alert-group critical">
           <h4>🚨 緊急 (7天內)</h4>
           <div class="alert-items">

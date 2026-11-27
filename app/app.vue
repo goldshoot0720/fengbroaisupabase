@@ -1332,7 +1332,6 @@ watch(currentPage, async () => {
   align-items: center;
   justify-content: space-between;
   gap: 1.25rem;
-  animation: birthdayCardEntrance 0.55s ease;
 }
 
 .birthday-easter-egg__copy {
@@ -1366,23 +1365,27 @@ watch(currentPage, async () => {
   margin: 0;
   color: var(--text-primary);
   font-family: var(--font-display);
-  font-size: clamp(1.55rem, 3vw, 2.4rem);
+  font-size: var(--text-xl);
   line-height: 1.08;
 }
 
 .birthday-easter-egg__lead,
 .birthday-easter-egg__note {
-  margin: 0.55rem 0 0;
-  color: var(--text-muted);
+  margin: var(--sp-1) 0 0;
+  color: var(--text-secondary);
   font-size: 0.96rem;
 }
 
 .birthday-easter-egg__headline {
-  margin: 0.85rem 0 0;
+  margin: var(--sp-2) 0 0;
   color: var(--primary-text);
   font-family: var(--font-display);
-  font-size: clamp(1.05rem, 2vw, 1.45rem);
+  font-size: var(--text-lg);
   font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .birthday-easter-egg__piece { animation: none; }
 }
 
 @keyframes birthdayConfettiFall {
@@ -1391,17 +1394,6 @@ watch(currentPage, async () => {
   }
   100% {
     transform: translate3d(3vw, 110vh, 0) rotate(480deg);
-  }
-}
-
-@keyframes birthdayCardEntrance {
-  0% {
-    opacity: 0;
-    transform: translateY(24px) scale(0.96);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 

@@ -635,12 +635,8 @@
       <section v-else-if="activeTool === 'finance'" class="tool-panel">
         <div class="tool-panel__header">
           <div>
-            <p class="panel-name">鋒兄金融</p>
             <h3>金融市場觀察</h3>
-            <p class="tool-notice tool-notice--inline">
-              地區：韓國／日本／台灣／美國／其他 · KOSPI 交易中每分鐘更新
-              <span v-if="kospiLiveOpen" class="finance-live-pill">即時</span>
-            </p>
+
           </div>
           <div class="finance-header-actions">
             <input
@@ -662,45 +658,40 @@
               type="button"
               class="tool-secondary-btn"
               title="從 CSV 匯入自訂指數／股票（同代號會覆蓋；imageUrls 支援 Supabase Storage）"
+              :disabled="!financeReady"
               @click="triggerFinanceCustomCsvImport"
             >
               匯入 CSV
             </button>
-            <button type="button" class="tool-primary-btn tool-primary-btn--compact" :disabled="financeLoading" @click="runFinanceLookup">
+            <button type="button" class="tool-primary-btn tool-primary-btn--compact" :disabled="!financeReady || financeLoading || !financeCustomInstruments.length" @click="runFinanceLookup">
               {{ financeLoading ? '更新中...' : '重新整理' }}
             </button>
           </div>
         </div>
 
         <p v-if="financeError" class="tool-error">{{ financeError }}</p>
-        <p v-else-if="financeLoading && !financeResult" class="tool-notice">正在整理指數、商品、利率、加密貨幣與台韓股。</p>
+        <p v-else-if="!financeReady || (financeLoading && !financeResult)" class="tool-notice" role="status">正在讀取{{ financeReady ? '報價' : '追蹤清單' }}…</p>
+        <p v-else-if="!financeCustomInstruments.length" class="tool-notice">尚未追蹤標的。可在下方新增代號，或匯入 CSV。</p>
         <p v-else-if="financeResult" class="tool-notice">
           資料來源：{{ financeResult.source }}，更新時間 {{ formatTubeDate(financeResult.fetchedAt) }}。
         </p>
 
         <div v-if="financeFeaturedQuotes.length" id="fengbro-finance-featured" class="finance-featured">
-          <p class="panel-name">精選焦點 · 同時並排</p>
+          <h4 class="finance-group__title">精選焦點</h4>
           <div class="finance-featured__grid">
             <article
-              v-for="(item, idx) in financeFeaturedQuotes"
+              v-for="item in financeFeaturedQuotes"
               :key="`featured-${item.id}`"
               class="finance-card finance-card--featured"
-              :class="[
-                FINANCE_FEATURED_CARD_CLASSES[idx % FINANCE_FEATURED_CARD_CLASSES.length],
-                {
-                  'finance-card--high': item.recordTag === 'new-high' || item.isThresholdAlert,
-                  'finance-card--low': item.recordTag === 'new-low'
-                }
-              ]"
+              :class="{
+                'finance-card--high': item.recordTag === 'new-high' || item.isThresholdAlert,
+                'finance-card--low': item.recordTag === 'new-low'
+              }"
             >
-              <p class="finance-featured__index">BLOCK {{ idx + 1 }}</p>
               <p class="store-card__name">{{ item.subtitle || item.symbol }}</p>
               <h4>{{ getFinanceQuoteTitle(item) }}</h4>
               <div class="finance-badge-row">
                 <span v-if="item.localLabel" class="finance-badge">{{ item.localLabel }}</span>
-                <span v-if="isKospiQuote(item)" class="finance-badge" :class="kospiLiveOpen ? 'finance-badge--live' : ''">
-                  {{ kospiLiveOpen ? (kospiLiveRefreshing ? '即時更新中…' : '即時 · 每分鐘') : '休市' }}
-                </span>
                 <span
                   v-for="level in (item.referenceLevels || [])"
                   :key="`${item.id}-ref-${level.value}`"
@@ -730,9 +721,13 @@
                   />
                 </div>
               </div>
-              <strong class="finance-price">{{ formatFinanceNumber(item.price) }}</strong>
+              <div class="finance-price-line">
+                <strong class="finance-price">{{ formatFinanceNumber(item.price) }}</strong>
+                <span v-if="sessionLabels[item.marketSession]" class="market-session">{{ sessionLabels[item.marketSession] }}</span>
+                <span v-if="isKospiQuote(item) && item.marketSession === 'regular' && kospiLiveRefreshing" class="market-session">更新中…</span>
+              </div>
               <div class="finance-meta-row">
-                <span>漲跌 <strong :class="financeChangeClass(item.change)">{{ formatFinanceChange(item.change, item.changePercent) }}</strong></span>
+                <span>漲跌 <strong :class="financeChangeClass(item, item.change ?? item.changePercent)">{{ formatQuoteChange(item.change, item.changePercent) }}</strong></span>
                 <span>52週高 <strong>{{ formatFinanceNumber(item.high52) }}</strong></span>
                 <span>52週低 <strong>{{ formatFinanceNumber(item.low52) }}</strong></span>
               </div>
@@ -746,12 +741,14 @@
                   <summary class="finance-history__header">
                     <span>{{ range.label }}</span>
                     <span class="finance-history__stats">
-                      <strong v-if="range.summary?.label" :class="financeChangeClass(range.summary.change)">{{ range.summary.label }}</strong>
+                      <strong v-if="range.summary?.label" :class="financeChangeClass(item, range.summary.change)">{{ range.summary.label }}</strong>
                     </span>
                   </summary>
                   <svg
                     v-if="range.chart?.points"
                     class="finance-history-chart"
+                    :aria-label="`${item.name} ${range.label}走勢`"
+                    role="img"
                     viewBox="0 0 100 100"
                     preserveAspectRatio="none"
                   >
@@ -827,13 +824,17 @@
                 />
               </div>
 
-              <strong class="finance-price">{{ formatFinanceNumber(item.price) }}</strong>
+              <div class="finance-price-line">
+                <strong class="finance-price">{{ formatFinanceNumber(item.price) }}</strong>
+                <span v-if="sessionLabels[item.marketSession]" class="market-session">{{ sessionLabels[item.marketSession] }}</span>
+                <span v-if="isKospiQuote(item) && item.marketSession === 'regular' && kospiLiveRefreshing" class="market-session">更新中…</span>
+              </div>
               <p v-if="item.error" class="tool-error">{{ item.error }}</p>
               <div v-else class="finance-meta-row">
                 <span>
                   漲跌
-                  <strong :class="financeChangeClass(item.change)">
-                    {{ formatFinanceChange(item.change, item.changePercent) }}
+                  <strong :class="financeChangeClass(item, item.change ?? item.changePercent)">
+                    {{ formatQuoteChange(item.change, item.changePercent) }}
                   </strong>
                 </span>
                 <span>
@@ -870,7 +871,7 @@
                       <strong v-if="range.points?.length">{{ range.points.length }} 筆</strong>
                       <strong
                         v-if="range.summary?.label"
-                        :class="financeChangeClass(range.summary.change)"
+                        :class="financeChangeClass(item, range.summary.change)"
                       >
                         {{ range.summary.label }}
                       </strong>
@@ -879,9 +880,9 @@
                   <svg
                     v-if="range.chart?.points"
                     class="finance-history-chart"
+                    role="img" aria-label="歷史走勢"
                     viewBox="0 0 100 100"
                     preserveAspectRatio="none"
-                    :aria-label="`${item.name} ${range.label}`"
                   >
                     <polyline class="finance-history-area" :points="range.chart.areaPoints" />
                     <polyline class="finance-history-line" :points="range.chart.points" />
@@ -944,7 +945,7 @@
         </div>
 
         <div class="finance-controls">
-          <div class="finance-custom-form" :class="{ 'finance-custom-form--editing': financeEditingCustomKey }">
+          <fieldset :disabled="!financeReady" class="finance-custom-form" :class="{ 'finance-custom-form--editing': financeEditingCustomKey }">
             <p class="store-card__name">{{ financeEditingCustomKey ? '編輯指數或股票' : '新增指數或股票' }}</p>
             <p class="tool-notice tool-notice--inline">可貼 Yahoo 奇摩／CNBC 網址或代號（如 2330.TW、.SOX）；台股會自動辨識。圖片可從 Supabase 圖片庫選取或貼上公開網址。</p>
             <div class="finance-custom-form__grid">
@@ -1066,7 +1067,7 @@
                 <button type="button" class="finance-chip__btn" @click="deleteCustomFinanceInstrument(item)">×</button>
               </span>
             </div>
-          </div>
+          </fieldset>
         </div>
       </section>
 
@@ -1121,6 +1122,7 @@ import {
   mergeFinanceCustomInstruments,
   parseFinanceCustomCsv
 } from '../../utils/fengbroFinanceCsv'
+import { financeChangeClass, formatFinanceChange } from '../../utils/financeQuoteChange'
 import { isKospiMarketOpen, KOSPI_LIVE_POLL_MS } from '../../utils/kospiMarketHours'
 import { useGallery } from '../../composables/useGallery'
 import { useCloudListSync } from '../../composables/useCloudListSync'
@@ -1230,7 +1232,10 @@ const financeGalleryPickableImages = computed(() =>
 const financeDraftImagePreviewUrls = computed(() =>
   normalizeFinanceImageUrls(financeCustomDraft.value?.imageUrlsText || '')
 )
-const kospiLiveOpen = ref(false)
+const financeReady = ref(false)
+let financeRequest = null
+let liveRequest = null
+let disposed = false
 const kospiLiveRefreshing = ref(false)
 let kospiLiveTimer = null
 let financeImageTimer = null
@@ -1283,7 +1288,7 @@ const FINANCE_HISTORY_RANGE_LABELS = {
   '3y': '最近三年走勢'
 }
 // 精選焦點卡片的配色依序輪替（原本 KOSPI／日經／費半三張卡的顏色）。
-const FINANCE_FEATURED_CARD_CLASSES = ['finance-card--kospi', 'finance-card--nikkei', 'finance-card--sox']
+const sessionLabels = { upcoming: '待開盤', pre: '盤前', regular: '交易中', break: '盤中休息', ended: '已收盤', holiday: '休市', post: '盤後' }
 const KOSPI_SYMBOL = '.KS11'
 const isKospiQuote = (quote) =>
   quote?.id === 'kospi' || quote?.slug === 'kospi' || String(quote?.symbol || '').toUpperCase() === KOSPI_SYMBOL
@@ -1575,28 +1580,13 @@ const formatFinanceNumber = (value) => {
   }).format(amount)
 }
 
-const formatFinanceChange = (change, percent) => {
-  const changeLabel = change === null || change === undefined ? '--' : formatFinanceNumber(change)
-  const percentLabel = percent === null || percent === undefined ? '' : ` (${formatFinanceNumber(percent)}%)`
-  return `${changeLabel}${percentLabel}`
-}
-
-const formatFinanceRangeChange = (change, percent) => {
-  if (change === null || change === undefined) return ''
-  const amount = Number(change)
-  if (!Number.isFinite(amount)) return ''
-  const sign = amount > 0 ? '+' : ''
-  const percentAmount = Number(percent)
-  const percentLabel = Number.isFinite(percentAmount)
-    ? ` (${percentAmount > 0 ? '+' : ''}${formatFinanceNumber(percentAmount)}%)`
-    : ''
-  return `${sign}${formatFinanceNumber(amount)}${percentLabel}`
-}
-
-const financeChangeClass = (change) => {
-  if (Number(change) > 0) return 'finance-change--up'
-  if (Number(change) < 0) return 'finance-change--down'
-  return ''
+const formatQuoteChange = (change, percent) => {
+  const points = formatFinanceChange(change)
+  const direction = change ?? percent
+  const arrow = direction > 0 ? '↑ ' : direction < 0 ? '↓ ' : ''
+  const percentage = percent == null ? '' : formatFinanceChange(percent, true)
+  if (change == null) return percentage ? arrow + percentage : points
+  return arrow + points + (percentage ? ` (${percentage})` : '')
 }
 
 const buildFinanceRangeSummary = (points) => {
@@ -1620,7 +1610,7 @@ const buildFinanceRangeSummary = (points) => {
   return {
     change,
     percent,
-    label: formatFinanceRangeChange(change, percent)
+    label: formatQuoteChange(change, percent)
   }
 }
 
@@ -2276,27 +2266,26 @@ const stopKospiLivePoll = () => {
     window.clearInterval(kospiLiveTimer)
     kospiLiveTimer = null
   }
-  kospiLiveOpen.value = false
+  liveRequest?.abort()
+  liveRequest = null
   kospiLiveRefreshing.value = false
 }
 
 const pollKospiLive = async () => {
-  if (!isKospiMarketOpen()) {
-    kospiLiveOpen.value = false
-    return
-  }
-  kospiLiveOpen.value = true
-  if (!financeResult.value || financeLoading.value) return
+  if (!isKospiMarketOpen() || !financeResult.value || financeLoading.value || liveRequest) return
   const kospi = financeCustomInstruments.value.find(isKospiQuote)
   if (!kospi) return
+  const request = new AbortController()
+  liveRequest = request
   kospiLiveRefreshing.value = true
   try {
     const data = await $fetch('/api/feng-tools/finance', {
       method: 'POST',
+      signal: request.signal,
       body: { instruments: [kospi], skipHistory: true }
     })
     const live = (data?.quotes || []).find(isKospiQuote)
-    if (!live || !financeResult.value?.quotes) return
+    if (request.signal.aborted || !live || live.error || !financeResult.value?.quotes) return
     financeResult.value = {
       ...financeResult.value,
       fetchedAt: data.fetchedAt || financeResult.value.fetchedAt,
@@ -2308,6 +2297,9 @@ const pollKospiLive = async () => {
               change: live.change,
               changePercent: live.changePercent,
               lastUpdated: live.lastUpdated,
+              marketSession: live.marketSession,
+              exchangeTimezone: live.exchangeTimezone ?? quote.exchangeTimezone,
+              exchangeCountry: live.exchangeCountry ?? quote.exchangeCountry,
               high52: live.high52 ?? quote.high52,
               low52: live.low52 ?? quote.low52,
               recordTag: live.recordTag ?? quote.recordTag,
@@ -2319,15 +2311,17 @@ const pollKospiLive = async () => {
   } catch {
     // keep last full load
   } finally {
-    kospiLiveRefreshing.value = false
+    if (liveRequest === request) {
+      liveRequest = null
+      kospiLiveRefreshing.value = false
+    }
   }
 }
 
 const startKospiLivePoll = () => {
   stopKospiLivePoll()
   if (!import.meta.client) return
-  kospiLiveOpen.value = isKospiMarketOpen()
-  if (!kospiLiveOpen.value) return
+  if (!financeCustomInstruments.value.some(isKospiQuote)) return
   kospiLiveTimer = window.setInterval(pollKospiLive, KOSPI_LIVE_POLL_MS)
 }
 
@@ -2751,20 +2745,38 @@ const runTubeLookup = async () => {
 }
 
 const runFinanceLookup = async () => {
-  financeLoading.value = true
+  if (disposed || !financeReady.value || activeTool.value !== 'finance') return
+  financeRequest?.abort()
+  stopKospiLivePoll()
+  stopFinanceImageCarousel()
   financeError.value = ''
-
+  if (!financeCustomInstruments.value.length) {
+    financeRequest = null
+    financeResult.value = null
+    financeLoading.value = false
+    return
+  }
+  const request = new AbortController()
+  financeRequest = request
+  financeLoading.value = true
   try {
-    financeResult.value = await $fetch('/api/feng-tools/finance', {
+    const result = await $fetch('/api/feng-tools/finance', {
       method: 'POST',
+      signal: request.signal,
       body: { instruments: financeCustomInstruments.value }
     })
+    if (request.signal.aborted) return
+    financeResult.value = result
     startFinanceImageCarousel()
     startKospiLivePoll()
   } catch (error) {
+    if (request.signal.aborted) return
     financeError.value = error?.data?.statusMessage || error?.message || '鋒兄金融更新失敗'
   } finally {
-    financeLoading.value = false
+    if (financeRequest === request) {
+      financeRequest = null
+      financeLoading.value = false
+    }
   }
 }
 
@@ -2774,19 +2786,25 @@ onMounted(async () => {
   readFinanceWatchlist()
   // 個人清單雲端同步：本機快取先顯示，再以雲端覆蓋或把本機遷移上雲。
   await Promise.all([
-    financeCustomSync.hydrateFromCloud(),
+    financeCustomSync.hydrateFromCloud().then(() => {
+      if (disposed) return
+      financeReady.value = true
+      if (activeTool.value === 'finance') runFinanceLookup()
+    }),
     tubeChannelsSync.hydrateFromCloud(),
     manualProductsSync.hydrateFromCloud(),
   ])
+  if (disposed) return
   // 手動價錢雲端覆蓋後，重新對齊「選中的商品」與表單預設日期。
   if (manualProductsSync.cloudReady.value) {
     readManualProducts()
   }
   if (activeTool.value === 'tube') runTubeLookup()
-  if (activeTool.value === 'finance') runFinanceLookup()
 })
 
 onUnmounted(() => {
+  disposed = true
+  financeRequest?.abort()
   stopKospiLivePoll()
   stopFinanceImageCarousel()
   if (financeNameResolveTimer) window.clearTimeout(financeNameResolveTimer)
@@ -2823,6 +2841,12 @@ watch(activeTool, (value) => {
       startKospiLivePoll()
     }
   } else {
+    if (financeRequest) {
+      financeRequest.abort()
+      financeRequest = null
+      financeLoading.value = false
+      financeResult.value = null
+    }
     stopKospiLivePoll()
     stopFinanceImageCarousel()
   }
@@ -3000,8 +3024,9 @@ watch(
 }
 
 .tool-primary-btn:disabled {
-  opacity: 0.6;
-  cursor: progress;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  cursor: not-allowed;
 }
 
 .tool-primary-btn--compact {
@@ -3077,19 +3102,17 @@ watch(
   display: grid;
   gap: 0.85rem;
   border: 1px solid var(--border-color);
-  border-radius: 22px;
-  background: var(--bg-primary);
-  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  padding: var(--sp-4);
 }
 
 .finance-card--high {
   border-color: color-mix(in oklab, var(--danger) 48%, var(--border-color));
-  background: linear-gradient(180deg, color-mix(in oklab, var(--danger-light) 48%, var(--bg-primary)), var(--bg-primary));
 }
 
 .finance-card--low {
   border-color: color-mix(in oklab, var(--primary) 48%, var(--border-color));
-  background: linear-gradient(180deg, color-mix(in oklab, var(--primary-light) 48%, var(--bg-primary)), var(--bg-primary));
 }
 
 .finance-card__header {
@@ -3170,11 +3193,11 @@ watch(
   font-size: 0.92rem;
 }
 
-.finance-change--up {
+.finance-change--green {
   color: var(--success-text) !important;
 }
 
-.finance-change--down {
+.finance-change--red {
   color: var(--danger-text) !important;
 }
 
@@ -3283,17 +3306,6 @@ watch(
   margin: 0.35rem 0 0;
 }
 
-.finance-live-pill {
-  display: inline-flex;
-  margin-left: 0.4rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  background: var(--primary-light);
-  color: var(--primary-text);
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
 .finance-controls {
   display: grid;
   gap: 0.9rem;
@@ -3301,6 +3313,7 @@ watch(
 }
 
 .finance-custom-form {
+  min-width: 0;
   border: 1px solid var(--border-color);
   border-radius: 18px;
   background: color-mix(in oklab, var(--bg-primary) 88%, var(--bg-secondary));
@@ -3499,35 +3512,10 @@ watch(
   gap: 0.9rem;
 }
 
-.finance-card--featured {
-  position: relative;
-}
-
-.finance-card--kospi {
-  border-color: var(--primary);
-  background: linear-gradient(135deg, color-mix(in oklab, var(--primary) 90%, transparent), color-mix(in oklab, var(--bg-primary) 92%, transparent));
-}
-
-.finance-card--nikkei {
-  border-color: var(--danger);
-  background: linear-gradient(135deg, color-mix(in oklab, var(--danger) 90%, transparent), color-mix(in oklab, var(--bg-primary) 92%, transparent));
-}
-
-.finance-card--sox {
-  border-color: var(--primary);
-  background: linear-gradient(135deg, color-mix(in oklab, var(--primary) 90%, transparent), color-mix(in oklab, var(--bg-primary) 92%, transparent));
-}
-
-.finance-featured__index {
-  position: absolute;
-  top: 0.85rem;
-  right: 0.95rem;
-  margin: 0;
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  opacity: 0.45;
-}
+.finance-price-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-3); }
+.market-session, .finance-meta-row .finance-change--flat { color: var(--text-secondary); }
+.market-session { font-size: var(--text-sm); }
+.finance-price, .finance-meta-row strong { font-variant-numeric: tabular-nums; }
 
 .finance-badge-row {
   display: flex;
@@ -3642,7 +3630,7 @@ watch(
 
 @media (max-width: 900px) {
   .finance-custom-form__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -4308,7 +4296,7 @@ watch(
   }
 
   .tube-channel-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .tool-panel__header,

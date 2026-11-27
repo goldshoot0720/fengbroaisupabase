@@ -1,3 +1,5 @@
+import { cnbcIndexSession, createMarketSessionLookup, yahooQuoteSession, type MarketSessionLookup } from "./financeMarketSession";
+import { asNumber, pickNumber, getYahooSessionChange } from "../../utils/financeQuoteChange";
 // 鋒兄金融報價：finance.get.ts / finance.post.ts 共用。
 // 標的清單全部來自呼叫端（public.financeinstrument 的資料列），這裡不再寫死預設標的。
 import {
@@ -146,25 +148,8 @@ export function toFinanceInstruments(list: unknown): FinanceInstrument[] {
   return instruments;
 }
 
-function asNumber(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return null;
-  const cleaned = value.replace(/[$,%\s,]/g, "");
-  if (!cleaned || cleaned === "--" || cleaned.toUpperCase() === "N/A") return null;
-  const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function asText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function pickNumber(record: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = asNumber(record[key]);
-    if (value != null) return value;
-  }
-  return null;
 }
 
 function pickText(record: Record<string, unknown>, keys: string[]) {
@@ -180,36 +165,18 @@ function nearlyEqual(left: number, right: number) {
   return Math.abs(left - right) <= tolerance;
 }
 
-/** Asia/Taipei calendar parts for market session / ROC date windows. */
+/** Asia/Taipei calendar month for ROC date windows. */
 function getTaipeiNowParts() {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Taipei",
     year: "numeric",
     month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    weekday: "short",
-    hourCycle: "h23",
   }).formatToParts(new Date());
   const get = (type: string) => parts.find((part) => part.type === type)?.value || "";
   return {
     year: Number(get("year")),
     month: Number(get("month")),
-    day: Number(get("day")),
-    hour: Number(get("hour")),
-    minute: Number(get("minute")),
-    weekday: get("weekday"),
   };
-}
-
-function getTwMarketSessionFromTaipei(): "pre" | "regular" | "closed" {
-  const { hour, minute, weekday } = getTaipeiNowParts();
-  if (weekday === "Sat" || weekday === "Sun") return "closed";
-  const mins = hour * 60 + minute;
-  if (mins < 9 * 60) return "pre";
-  if (mins < 13 * 60 + 30) return "regular";
-  return "closed";
 }
 
 /** Gregorian YYYY-MM-DD → ROC yyy/MM/dd (民國年). */
@@ -467,7 +434,7 @@ async function fetchYahooHistoryRanges(instrument: FinanceInstrument) {
   return { historyRanges, historyErrors };
 }
 
-async function fetchInstrument(instrument: FinanceInstrument) {
+async function fetchInstrument(instrument: FinanceInstrument, lookupSession: MarketSessionLookup) {
   const params = new URLSearchParams({
     symbols: instrument.symbol,
     requestMethod: "quick",
@@ -515,6 +482,8 @@ async function fetchInstrument(instrument: FinanceInstrument) {
     price,
     change: pickNumber(quote, ["change", "net_change"]),
     changePercent: pickNumber(quote, ["change_pct", "change_percent", "pctchange"]),
+    exchangeCountry: pickText(quote, ["countryCode"]).toUpperCase(),
+    marketSession: await cnbcIndexSession(quote, lookupSession),
     currency: pickText(quote, ["currencyCode", "currency"]) || "",
     high52,
     low52,
@@ -529,7 +498,7 @@ async function fetchInstrument(instrument: FinanceInstrument) {
  * Live quote for Taiwan OTC / 櫃買指數 via TWSE MIS.
  * Yahoo ^TWOII is stuck around 2024 levels and must not be used.
  */
-async function fetchMisInstrument(instrument: FinanceInstrument) {
+async function fetchMisInstrument(instrument: FinanceInstrument, lookupSession: MarketSessionLookup) {
   const exCh = instrument.symbol.includes("_") ? instrument.symbol : `otc_${instrument.symbol}`;
   const params = new URLSearchParams({
     ex_ch: exCh,
@@ -557,9 +526,8 @@ async function fetchMisInstrument(instrument: FinanceInstrument) {
   const changePercent =
     change != null && previousClose ? (change / previousClose) * 100 : null;
 
-  const marketSession = getTwMarketSessionFromTaipei();
-  const marketState =
-    marketSession === "regular" ? "REGULAR" : marketSession === "pre" ? "PRE" : "CLOSED";
+  const marketSession = await lookupSession("TW");
+  const marketState = marketSession === "regular" ? "REGULAR" : marketSession ? "CLOSED" : "";
 
   const tradeDate = asText(record.d); // YYYYMMDD
   const tradeTime = asText(record.t); // HH:mm:ss
@@ -719,7 +687,7 @@ function isTickerLikeName(name: string, symbol: string) {
   return !n || n === s;
 }
 
-async function fetchYahooInstrument(instrument: FinanceInstrument) {
+async function fetchYahooInstrument(instrument: FinanceInstrument, lookupSession: MarketSessionLookup) {
   const isUsListed =
     !/\.(TW|KS|T|HK|L|TO|AX)$/i.test(instrument.symbol) &&
     !instrument.symbol.startsWith("^") &&
@@ -750,16 +718,10 @@ async function fetchYahooInstrument(instrument: FinanceInstrument) {
 
   // Latest regular-session price from quote meta only (not 1y history series).
   const regularPrice = pickNumber(meta, ["regularMarketPrice"]);
-  // Session previous close only — never chartPreviousClose from multi-month ranges.
-  const previousClose = pickNumber(meta, ["regularMarketPreviousClose", "previousClose"]);
+  const { previousClose, change: regularChange, changePercent: regularChangePercent } =
+    getYahooSessionChange(regularPrice, meta);
   const high52 = pickNumber(meta, ["fiftyTwoWeekHigh"]);
   const low52 = pickNumber(meta, ["fiftyTwoWeekLow"]);
-  const regularChange =
-    pickNumber(meta, ["regularMarketChange"]) ??
-    (regularPrice != null && previousClose != null ? regularPrice - previousClose : null);
-  const regularChangePercent =
-    pickNumber(meta, ["regularMarketChangePercent"]) ??
-    (regularChange != null && previousClose ? (regularChange / previousClose) * 100 : null);
   const marketState = pickText(meta, ["marketState"]).toUpperCase();
 
   let preMarketPrice = pickNumber(meta, ["preMarketPrice"]);
@@ -804,17 +766,7 @@ async function fetchYahooInstrument(instrument: FinanceInstrument) {
   const change = regularChange;
   const changePercent = regularChangePercent;
   const marketTime = pickNumber(meta, ["regularMarketTime"]);
-  let marketSession: "pre" | "regular" | "post" | "closed" | "" = "";
-
-  if (marketState === "PRE") {
-    marketSession = "pre";
-  } else if (marketState === "POST" || marketState === "POSTPOST") {
-    marketSession = "post";
-  } else if (marketState === "REGULAR") {
-    marketSession = "regular";
-  } else if (marketState === "CLOSED") {
-    marketSession = "closed";
-  }
+  const marketSession = await yahooQuoteSession({ ...meta, marketState }, lookupSession);
 
   const dayHigh = pickNumber(meta, ["regularMarketDayHigh"]);
   const dayLow = pickNumber(meta, ["regularMarketDayLow"]);
@@ -852,6 +804,7 @@ async function fetchYahooInstrument(instrument: FinanceInstrument) {
     low52,
     dayHigh,
     dayLow,
+    exchangeTimezone: pickText(meta, ["exchangeTimezoneName"]),
     marketState: marketState || "",
     marketSession,
     preMarketPrice,
@@ -913,17 +866,17 @@ async function fetchMultplInstrument(instrument: FinanceInstrument) {
   };
 }
 
-async function fetchFinanceInstrument(instrument: FinanceInstrument, options?: { skipHistory?: boolean }) {
+async function fetchFinanceInstrument(instrument: FinanceInstrument, lookupSession: MarketSessionLookup, options?: { skipHistory?: boolean }) {
   const quote =
     instrument.provider === "taifex"
       ? await fetchTaifexFuturesInstrument(instrument)
       : instrument.provider === "mis"
-        ? await fetchMisInstrument(instrument)
+        ? await fetchMisInstrument(instrument, lookupSession)
         : instrument.provider === "yahoo"
-          ? await fetchYahooInstrument(instrument)
+          ? await fetchYahooInstrument(instrument, lookupSession)
           : instrument.provider === "multpl"
             ? await fetchMultplInstrument(instrument)
-            : await fetchInstrument(instrument);
+            : await fetchInstrument(instrument, lookupSession);
 
   // taifex provider has no history source; skip immediately.
   if (options?.skipHistory || instrument.provider === "multpl" || instrument.provider === "taifex") {
@@ -976,7 +929,8 @@ export function shouldSkipFinanceHistory(raw: unknown) {
 export async function buildFinanceResponse(list: unknown, options: { skipHistory?: boolean } = {}) {
   const skipHistory = options.skipHistory === true
   const instruments = toFinanceInstruments(list)
-  const settled = await Promise.allSettled(instruments.map((instrument) => fetchFinanceInstrument(instrument, { skipHistory })));
+  const lookupSession = createMarketSessionLookup();
+  const settled = await Promise.allSettled(instruments.map((instrument) => fetchFinanceInstrument(instrument, lookupSession, { skipHistory })));
   const quotes = settled.map((item, index) => {
     if (item.status === "fulfilled") return item.value;
     const instrument = instruments[index];

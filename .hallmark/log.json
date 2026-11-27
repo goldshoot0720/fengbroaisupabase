@@ -11,5 +11,13 @@
   "signature": "home workbench without tracked labels",
   "waived": [],
   "date": "2026-11-24"
+ },
+ {
+  "mode": "redesign",
+  "depth": "polish",
+  "scope": "app",
+  "theme": "locked DESIGN.md",
+  "entry": "Home expiry list, keyboard and touch module picker, About version details and finance watchlist",
+  "date": "2026-11-27"
  }
 ]

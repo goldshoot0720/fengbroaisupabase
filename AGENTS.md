@@ -2,6 +2,10 @@
 
 Project-specific guidance for coding agents working in this repo.
 
+## Git 提交
+
+使用者說「自動提交」或「提交」時，提交目前工作區的變更到目前分支。同一句寫了 `https://github.com/goldshoot0720/fengbroaisupabase`，或說「提交至」這個網址時，提交後推上 `origin`（`main`）。稍後說「推上」或「推上去」時，把已提交的變更推上同一個遠端。
+
 ## Agent skills
 
 Installed under `.agents/skills/`:

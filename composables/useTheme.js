@@ -29,11 +29,9 @@ export const useTheme = () => {
   const applyTheme = () => {
     if (typeof document === 'undefined') return
 
-    if (isDarkMode.value) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
+    const root = document.documentElement
+    root.dataset.theme = isDarkMode.value ? 'dark' : 'light'
+    root.classList.toggle('dark', isDarkMode.value)
   }
 
   return {

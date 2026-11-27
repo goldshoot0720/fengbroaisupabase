@@ -248,7 +248,7 @@
   }
 }
 
-.dark {
+:root[data-theme="dark"] {
   color-scheme: dark;
   --bg-canvas: #1C1C1C;
   --bg-surface: #222222;

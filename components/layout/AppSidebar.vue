@@ -133,6 +133,7 @@ function selectPage(id) {
 }
 function selectFirst(event) {
   if (event.isComposing || event.keyCode === 229) return
+  event.preventDefault()
   const first = visiblePages.value[0]
   if (first) handleParentNavigate(first)
 }

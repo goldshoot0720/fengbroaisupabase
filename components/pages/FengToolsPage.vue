@@ -1062,7 +1062,7 @@
                 <span>{{ item.provider.toUpperCase() }}: {{ item.symbol }}</span>
                 <span>{{ FINANCE_GROUP_LABELS[item.group] || item.group }}</span>
                 <span v-if="item.featured" class="finance-chip__media" title="精選焦點">★</span>
-                <span v-if="(item.imageUrls || []).length || item.imageUrl" class="finance-chip__media" title="已設定圖片">🖼</span>
+                <span v-if="(item.imageUrls || []).length || item.imageUrl" class="finance-chip__media">含圖片</span>
                 <button type="button" class="finance-chip__btn" @click="editCustomFinanceInstrument(item)">編輯</button>
                 <button type="button" class="finance-chip__btn" @click="deleteCustomFinanceInstrument(item)">×</button>
               </span>

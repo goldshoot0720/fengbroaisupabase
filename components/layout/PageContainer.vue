@@ -28,7 +28,6 @@ defineProps({
 
 <style scoped>
 .page-container {
-  animation: fadeIn 0.3s ease-in;
   min-height: 100%;
 }
 
@@ -69,17 +68,6 @@ defineProps({
 
 .page-body {
   width: 100%;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* 暗黑模式由 token 自動翻轉 */
@@ -150,9 +138,4 @@ defineProps({
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .page-container {
-    animation: none;
-  }
-}
 </style>
